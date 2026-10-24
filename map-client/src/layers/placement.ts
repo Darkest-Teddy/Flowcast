@@ -12,7 +12,10 @@ interface Box {
 }
 
 export interface PlaceOptions<T> {
-  position: (d: T) => [number, number];
+  /** Ground anchor, projected with the placer's projector... */
+  position?: (d: T) => [number, number];
+  /** ...or an anchor already in screen px (building tags anchor at the roof, not the ground). */
+  point?: (d: T) => [number, number];
   /** Rough label width in px. */
   width: (d: T) => number;
   height: number;
@@ -32,10 +35,10 @@ export function createPlacer(project: Projector) {
      * already placed; if it still overlaps, it's left out. Returns item -> lift (in labels).
      * Items should already be sorted most-important first.
      */
-    place<T>(items: T[], { position, width, height, direction, gap = 0, maxLift = 2 }: PlaceOptions<T>): Map<T, number> {
+    place<T>(items: T[], { position, point, width, height, direction, gap = 0, maxLift = 2 }: PlaceOptions<T>): Map<T, number> {
       const lifts = new Map<T, number>();
       for (const item of items) {
-        const [x, y] = project(position(item));
+        const [x, y] = point ? point(item) : project(position!(item));
         const half = width(item) / 2;
         for (let lift = 0; lift <= maxLift; lift++) {
           const near = y + direction * (gap + lift * height);

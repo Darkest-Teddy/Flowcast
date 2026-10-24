@@ -3,7 +3,8 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, crowdLevel } from './layers/crowd';
+import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './layers/crowd';
+import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadMonuments, monumentLayers } from './layers/monuments';
@@ -92,6 +93,7 @@ export default function App() {
   const playingRef = useRef(true);
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
+  const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitRef = useRef<Transit | null>(null);
   const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
@@ -156,7 +158,6 @@ export default function App() {
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
-      const plainFootprints = day.buildings.filter((f) => !modelled.has(f.id));
       if (detailedBuildings) {
         // Our detailed models replace Mapbox's own copies of those buildings.
         basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])));
@@ -232,6 +233,8 @@ export default function App() {
       if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, transitRef, bikesRef } });
       setStatus('');
 
+      // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
+      const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
@@ -258,8 +261,19 @@ export default function App() {
           for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
           setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus });
         }
-        // One placer per frame, shared by every label layer: building labels first, then stations.
+        // One placer per frame, shared by every label layer: building tags first, then stations.
         const placer = createPlacer(basemap.project);
+        const buildings = playback.byBuilding(occupancy);
+        tagsRef.current?.update({
+          buildings,
+          footprints: day.buildings,
+          locations: day.locations,
+          selectedId: selectedRef.current,
+          placer,
+          project: basemap.project,
+          camera: basemap.getCamera(),
+          roofHeights,
+        });
         const transit = transitRef.current;
         const showBikesNow = bikes && showBikesRef.current;
         const frameLayers = [
@@ -267,15 +281,16 @@ export default function App() {
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
             : []),
           ...crowdLayers({
-            // Buildings with detailed models skip the old extruded crowd box: it cut through
-            // their real shape (CDS's offset blocks) and flickered on zoom. Their tags remain.
-            footprints: plainFootprints,
-            buildings: playback.byBuilding(occupancy),
+            // Every tracked building, modelled or not: the glow is light around and on top of
+            // the model (at its real height), never a box over it.
+            footprints: day.buildings,
+            buildings,
             trips: playback.data.trips,
             time: t,
             speed: speedRef.current,
             selectedId: selectedRef.current,
-            placer,
+            zoom: basemap.getZoom(),
+            roofHeights,
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
@@ -365,6 +380,10 @@ export default function App() {
     leaveLive();
     timeRef.current = t;
   };
+  const selectBuilding = (id: string | null) => {
+    selectedRef.current = id;
+    setSelected(id);
+  };
   const select = (o: Occupancy) => {
     selectedRef.current = o.location.building;
     setSelected(o.location.building);
@@ -406,6 +425,7 @@ export default function App() {
   return (
     <div className="app">
       <div ref={containerRef} />
+      <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
 
       <header className="panel title">
         <h1>Flowcast</h1>
@@ -463,13 +483,14 @@ export default function App() {
                         className={o.location.building === selected ? 'row selected' : 'row'}
                         onClick={() => select(o)}
                         aria-pressed={o.location.building === selected}
+                        style={crowdLevelStyle(o.share)}
                       >
                         <span className="name">{o.location.name}</span>
                         <span className="bar" aria-hidden="true">
-                          <span style={{ width: `${Math.min(100, o.share * 100)}%`, background: `rgb(${level.glow.slice(0, 3).join(',')})` }} />
+                          <span style={{ width: `${Math.min(100, o.share * 100)}%` }} />
                         </span>
                         <span className="value">
-                          {o.count} {o.count === 1 ? 'student' : 'students'}
+                          <b>{Math.round(o.share * 100)}%</b> · {level.label}
                         </span>
                       </button>
                     </li>
