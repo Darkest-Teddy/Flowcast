@@ -1,0 +1,229 @@
+.message {
+  font-size: var(--text-md);
+}
+
+.clockRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-hairline-soft);
+}
+
+.clock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.clockLabel {
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.clockTime {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-hairline-soft);
+}
+
+.groupLabel {
+  padding: 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-hairline);
+}
+
+.event {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-hairline-soft);
+}
+
+.eventText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.eventTitle {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display);
+}
+
+.vote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-hairline);
+}
+
+.pick {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.pick legend {
+  margin-bottom: var(--space-2);
+}
+
+.pickGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 30ch), 1fr));
+  gap: var(--space-2);
+}
+
+.pickOption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-height-xl);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-lg);
+  cursor: pointer;
+}
+
+.pickOption:has(input:disabled) {
+  cursor: not-allowed;
+  color: var(--color-ink-tertiary);
+}
+
+.pickOption input {
+  width: var(--space-5);
+  height: var(--space-5);
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--color-accent);
+}
+
+.pickOn {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.voteHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.total {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.mockNote {
+  font-size: var(--text-sm);
+  color: var(--color-ink-tertiary);
+}
+
+.tally {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.tallyRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tallyText {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.tallyLabel {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-display);
+}
+
+.leading .tallyLabel {
+  font-weight: var(--weight-semibold);
+}
+
+.leadTag {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-text);
+}
+
+.tallyCount {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.track {
+  display: block;
+  height: var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.track b {
+  display: block;
+  height: 100%;
+  background: var(--color-ink-tertiary);
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.leading .track b {
+  background: var(--color-accent);
+}
