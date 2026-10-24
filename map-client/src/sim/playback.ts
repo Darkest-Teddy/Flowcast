@@ -3,7 +3,7 @@
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
 import { createOccupancyIndex, type OccupancyIndex } from './occupancyIndex';
 
-export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'off-campus';
+export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'outdoor' | 'off-campus';
 
 export interface EstimatedHousingProfile {
   locationId: string;
@@ -103,7 +103,15 @@ export interface Trip {
   timestamps: number[]; // seconds since midnight, one per path point
 }
 
-export interface Stay { agent: string; location: string; start: number; end: number }
+/** Why an agent occupies a stay. `fixed` stays (published classes) must never be relocated. */
+export type StayPurpose =
+  | { kind: 'class'; fixed: true; meetingId: string; courseCode: string }
+  | { kind: 'dining' | 'library' | 'gym'; fixed: false }
+  | { kind: 'estimated'; fixed: false; purpose: EstimatedActivityProfile['purpose'] }
+  | { kind: 'off-campus-meal' | 'off-campus-outing' | 'unmapped-academic'; fixed: false }
+  | { kind: 'wait'; fixed: false; before: 'class' | 'activity' }
+  | { kind: 'home'; fixed: false };
+export interface Stay { agent: string; location: string; start: number; end: number; purpose?: StayPurpose }
 
 export interface DayData {
   stays?: Stay[];
@@ -173,6 +181,7 @@ export class Playback {
   private readonly staysByAgent = new Map<string, Stay[]>();
   private readonly stayOccupancy: OccupancyIndex | null;
   private readonly walkingBuckets = new Map<number, Trip[]>();
+  private readonly outdoorStays: { stay: Stay; location: CampusLocation }[] = [];
   private trailWindow: { first: number; last: number; trips: Trip[] } | null = null;
 
   readonly data: DayData;
@@ -207,6 +216,11 @@ export class Playback {
     for (const stay of data.stays ?? []) {
       const list = this.staysByAgent.get(stay.agent) ?? [];
       list.push(stay); this.staysByAgent.set(stay.agent, list);
+    }
+    const outdoorLocations = new Map(data.locations.filter(location => location.kind === 'outdoor').map(location => [location.id, location]));
+    for (const stay of data.stays ?? []) {
+      const location = outdoorLocations.get(stay.location);
+      if (location) this.outdoorStays.push({ stay, location });
     }
     for (const list of this.staysByAgent.values()) list.sort((a, b) => a.start - b.start);
     for (const list of this.tripsByAgent.values()) list.sort((a, b) => a.timestamps[0] - b.timestamps[0]);
@@ -271,10 +285,23 @@ export class Playback {
     return out;
   }
 
+  /** Stationary outdoor people are distinct from walkers and off-map students. */
+  outdoorAt(t: number): WalkingAgent[] {
+    return this.outdoorStays.filter(({ stay }) => stay.start <= t && t < stay.end).map(({ stay, location }) => ({
+      id: stay.agent,
+      model: this.agents.get(stay.agent)!.model,
+      position: [location.position[0], location.position[1], 0],
+      bearing: 0,
+      to: location.id,
+    }));
+  }
+
   populationAt(t: number) {
-    const indoors = this.occupancyAt(t).reduce((sum, entry) => sum + entry.count, 0);
+    const occupancy = this.occupancyAt(t);
+    const indoors = occupancy.reduce((sum, entry) => sum + (entry.location.kind === 'outdoor' ? 0 : entry.count), 0);
+    const outdoors = occupancy.reduce((sum, entry) => sum + (entry.location.kind === 'outdoor' ? entry.count : 0), 0);
     const walking = this.walkingAt(t).length;
-    return { total: this.data.agents.length, indoors, walking, offCampus: this.data.agents.length - indoors - walking };
+    return { total: this.data.agents.length, indoors, outdoors, walking, offCampus: this.data.agents.length - indoors - outdoors - walking };
   }
 
   /**
@@ -284,7 +311,7 @@ export class Playback {
   byBuilding(occupancy: Occupancy[]): BuildingOccupancy[] {
     const out = new Map<string, BuildingOccupancy>();
     for (const { location, count, modeled = location.activityModeled !== false } of occupancy) {
-      if (location.kind === 'off-campus') continue;
+      if (location.kind === 'off-campus' || location.kind === 'outdoor') continue;
       const share = occupancyShare(count, location.capacity);
       const current = out.get(location.building);
       if (current && (Number(current.modeled !== false) > Number(modeled)

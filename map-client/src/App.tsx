@@ -50,6 +50,9 @@ import { ActivityChart } from './ActivityChart';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
+import { IncidentPanel, type IncidentRun } from './IncidentPanel';
+import { applyIncident, type IncidentKind } from './sim/incidents';
+import { incidentLayers } from './layers/incidents';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -139,7 +142,10 @@ export default function App() {
   const lightModeRef = useRef<LightPreset | 'auto'>('auto');
   const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes' | 'traffic'>('crowds');
+  const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes' | 'traffic' | 'incidents'>('crowds');
+  const [incidentRun, setIncidentRun] = useState<IncidentRun | null>(null);
+  const incidentRunRef = useRef<IncidentRun | null>(null);
+  const baselinePlaybackRef = useRef<Playback | null>(null);
   const [weekday, setWeekday] = useState(START_WEEKDAY);
   const weekdayRef = useRef(START_WEEKDAY); // 0 = Monday (the day picker's index), read by the frame loop
   const [sourceData, setSourceData] = useState<CampusData | null>(null);
@@ -313,7 +319,7 @@ export default function App() {
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
           // Riders walking to a stop are headed for a transit stop, not a building.
-          return `Student ${agent.id} → ${playback.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
+          return `Student ${agent.id} → ${playbackRef.current?.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
         },
       });
       basemap.addControl(overlay);
@@ -349,6 +355,9 @@ export default function App() {
           weekdayRef.current = nextDay;
           setWeekday(nextDay);
           playbackRef.current = new Playback(buildSourceDay(populationBase, snapshot, nextDay));
+          baselinePlaybackRef.current = null;
+          incidentRunRef.current = null;
+          setIncidentRun(null);
           lastOccupancy = 0;
         }
         const playback = playbackRef.current!;
@@ -385,8 +394,9 @@ export default function App() {
           for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
           setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus });
         }
-        // One placer per frame, shared by every label layer: building tags first, then stations.
+        // Reserve the active assembly label before placing building and transit tags.
         const placer = createPlacer(basemap.project);
+        const incidentFrameLayers = incidentLayers(incidentRunRef.current, t, occupancy, day.buildings, placer);
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
         if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
           buildingOccupancy = playback.byBuilding(occupancy);
@@ -451,6 +461,7 @@ export default function App() {
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
           ...agentLayers(nearView(walking, basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
+          ...incidentFrameLayers,
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
@@ -521,6 +532,7 @@ export default function App() {
     setLive(false);
   };
   const goLive = () => {
+    resetIncident();
     liveRef.current = true;
     setLive(true);
     speedRef.current = 1;
@@ -541,6 +553,7 @@ export default function App() {
   const scrub = (t: number) => {
     leaveLive();
     timeRef.current = t;
+    refreshIncidentHud();
   };
   const selectBuilding = (id: string | null) => {
     selectedRef.current = id;
@@ -556,6 +569,9 @@ export default function App() {
     if (!baseDayRef.current || !sourceData) return;
     leaveLive();
     playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value));
+    baselinePlaybackRef.current = null;
+    incidentRunRef.current = null;
+    setIncidentRun(null);
     setWeekday(value);
     weekdayRef.current = value;
     setHud((prev) => ({
@@ -567,9 +583,42 @@ export default function App() {
   };
   const selectSource = (location: CampusLocation) => {
     setCampus(location.campus ?? 'charles-river');
-    selectedRef.current = location.building;
-    setSelected(location.building);
+    selectedRef.current = location.kind === 'outdoor' ? null : location.building;
+    setSelected(selectedRef.current);
     basemapRef.current?.flyTo(location.position);
+  };
+  const refreshIncidentHud = () => {
+    const playback = playbackRef.current;
+    if (!playback) return;
+    setHud((previous) => ({
+      time: timeRef.current,
+      walking: playback.walkingAt(timeRef.current).length,
+      occupancy: playback.occupancyAt(timeRef.current),
+      riding: previous?.riding ?? new Map(),
+    }));
+  };
+  const startIncident = (kind: IncidentKind, locationId: string, duration: number) => {
+    const baseline = playbackRef.current;
+    if (!baseline || baselinePlaybackRef.current) throw new Error('Reset the current scenario before starting another incident.');
+    if (timeRef.current + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
+    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration };
+    const result = applyIncident(baseline.data, incident, sourceData ? { sourceData, weekday: weekdayRef.current } : undefined);
+    const playback = new Playback(result.day);
+    baselinePlaybackRef.current = baseline;
+    playbackRef.current = playback;
+    leaveLive();
+    const run = { incident, location: baseline.locations.find((location) => location.id === locationId)!,
+      assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants };
+    incidentRunRef.current = run;
+    setIncidentRun(run);
+    refreshIncidentHud();
+  };
+  const resetIncident = () => {
+    if (baselinePlaybackRef.current) playbackRef.current = baselinePlaybackRef.current;
+    baselinePlaybackRef.current = null;
+    incidentRunRef.current = null;
+    setIncidentRun(null);
+    refreshIncidentHud();
   };
   const changeMobilityMode = (mode: MobilityMode) => {
     mobilityModeRef.current = mode;
@@ -587,7 +636,7 @@ export default function App() {
   };
   const currentCampus = campuses.find((c) => c.id === campus);
   const ranked = hud
-    ? hud.occupancy.filter((o) => (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
+    ? hud.occupancy.filter((o) => o.location.kind !== 'outdoor' && (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
     : [];
   // The camera tour only cares which places are in the campus (it re-picks when that set changes),
   // so it gets a new list only then, not on every HUD refresh.
@@ -651,6 +700,7 @@ export default function App() {
               Crowds
             </button>
             <button role="tab" id="tab-data" aria-selected={tab === 'data'} aria-controls="panel-data" onClick={() => setTab('data')}>Data</button>
+            <button role="tab" id="tab-incidents" aria-selected={tab === 'incidents'} aria-controls="panel-incidents" onClick={() => setTab('incidents')}>Incidents</button>
             <button role="tab" id="tab-transit" aria-selected={tab === 'transit'} aria-controls="panel-transit" onClick={() => setTab('transit')}>
               Transit
             </button>
@@ -661,7 +711,10 @@ export default function App() {
               </button>
             )}
           </div>
-          {tab === 'crowds' ? (
+          {tab === 'incidents' ? (
+            <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
+              onStart={startIncident} onReset={resetIncident} onLocate={selectSource} />
+          ) : tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
 
               <h2>Campus activity</h2>
@@ -921,7 +974,7 @@ export default function App() {
             max={range[1]}
             step={60}
             value={hud.time}
-            onChange={(e) => scrub(Number(e.target.value))}
+            onInput={(e) => scrub(Number(e.currentTarget.value))}
             aria-label="Time of day"
             aria-valuetext={formatClock(hud.time)}
           />
@@ -1057,7 +1110,7 @@ function splitSharedTags(
 ): BuildingOccupancy[] {
   const byBuilding = new Map<string, Occupancy[]>();
   for (const o of occupancy) {
-    if (o.location.kind === 'off-campus') continue;
+    if (o.location.kind === 'off-campus' || o.location.kind === 'outdoor') continue;
     byBuilding.set(o.location.building, [...(byBuilding.get(o.location.building) ?? []), { ...o, share: occupancyShare(o.count, o.location.capacity) }]);
   }
   const out: BuildingOccupancy[] = [];

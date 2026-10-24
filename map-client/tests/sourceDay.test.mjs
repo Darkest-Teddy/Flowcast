@@ -669,3 +669,131 @@ test('FitRec observations drive gym arrival timing while published closure still
   closed.locations.fitrec.hours=[{date:'2026-10-19',windows:[],text:'Closed',sourceUrl:'source',qualifier:null}];
   assert.equal(buildSourceDay(base,closed,0).sourceActivities.filter(row=>row.locationId==='fitrec').length,0);
 });
+
+const { carriedForwardHours } = await import('../src/data/campusData.ts');
+
+function assertStayPurposes(day) {
+  const classes = new Map(day.sourceAssignments.map(a => [`${a.agentId}|${a.locationId}|${a.startSec}|${a.endSec}`, a]));
+  const activities = new Map(day.sourceActivities.map(a => [`${a.agentId}|${a.locationId}|${a.startSec}|${a.endSec}`, a]));
+  const homes = new Map(day.agents.map(a => [a.id, a.home === 'off-campus' || a.residency === 'commuter' ? 'off-campus' : a.home]));
+  const byAgent = new Map();
+  for (const stay of day.stays) { const list = byAgent.get(stay.agent) ?? []; list.push(stay); byAgent.set(stay.agent, list); }
+  const seen = { class: 0, activity: 0, wait: 0, home: 0 };
+  for (const stay of day.stays) {
+    const purpose = stay.purpose, key = `${stay.agent}|${stay.location}|${stay.start}|${stay.end}`;
+    assert.ok(purpose, `stay ${key} has a purpose`);
+    assert.equal(purpose.fixed, purpose.kind === 'class', `${key}: only classes are fixed`);
+    if (purpose.kind === 'class') {
+      const assignment = classes.get(key);
+      assert.ok(assignment, `${key}: class stay matches a source assignment`);
+      assert.equal(purpose.meetingId, assignment.meetingId); assert.equal(purpose.courseCode, assignment.courseCode);
+      seen.class++;
+    } else if (purpose.kind === 'home') {
+      assert.equal(stay.location, homes.get(stay.agent), `${key}: home stays are at home`); seen.home++;
+    } else if (purpose.kind === 'wait') {
+      const next = byAgent.get(stay.agent).filter(s => s.start >= stay.end && s.purpose.kind !== 'wait').sort((a, b) => a.start - b.start)[0];
+      // A wait followed by home is off-map gateway transfer time before heading home.
+      if (next && next.purpose.kind !== 'home') assert.equal(next.purpose.kind === 'class', purpose.before === 'class', `${key}: wait precedes a ${purpose.before}`);
+      else assert.ok(stay.location === 'off-campus' && purpose.before === 'activity', `${key}: homeward wait is off-map transfer`);
+      seen.wait++;
+    } else {
+      const activity = activities.get(key);
+      assert.ok(activity, `${key}: ${purpose.kind} stay is exactly a source activity interval`);
+      assert.equal(activity.kind, purpose.kind);
+      if (purpose.kind === 'estimated') assert.equal(purpose.purpose, activity.purpose);
+      seen.activity++;
+    }
+  }
+  for (const assignment of day.sourceAssignments) {
+    assert.ok(day.stays.some(s => s.agent === assignment.agentId && s.purpose.kind === 'class' && s.start === assignment.startSec && s.purpose.meetingId === assignment.meetingId), 'every assignment has a class stay');
+  }
+  return seen;
+}
+
+test('every emitted stay carries purpose metadata consistent with assignments, activities, waits and homes',()=>{
+  const {base,data}=fixture();
+  base.agents=[...Array.from({length:60},(_,i)=>({id:`purpose-res-${i}`,home:'home',residency:'resident',campus:'main',model:0})),
+    ...Array.from({length:40},(_,i)=>({id:`purpose-com-${i}`,home:'off-campus',residency:'commuter',campus:'main',model:0}))];
+  base.locations.find(l=>l.id==='class').estimatedProfile=undefined;
+  const totals={class:0,activity:0,wait:0,home:0};
+  for(const weekday of [0,2,5]){
+    const day=buildSourceDay(base,data,weekday);validate(day);
+    const seen=assertStayPurposes(day);for(const k in seen)totals[k]+=seen[k];
+  }
+  assert.ok(Object.values(totals).every(n=>n>0),JSON.stringify(totals));
+  const est=fixture();est.data.locations.class.meetings=[];est.data.locations.class.hours=[];
+  est.base.locations.find(l=>l.id==='class').estimatedProfile=profile('research');
+  est.base.agents=Array.from({length:50},(_,i)=>({id:`purpose-est-${i}`,home:'home',residency:'resident',campus:'main',studentLevel:'graduate',model:0}));
+  const day=buildSourceDay(est.base,est.data,0);assertStayPurposes(day);
+  assert.ok(day.stays.some(s=>s.purpose.kind==='estimated'&&s.purpose.purpose==='research'&&s.location==='class'));
+});
+
+test('class arrival waits are labelled as waits before class, not as class time',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:30},(_,i)=>({id:`lead-${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  const day=buildSourceDay(base,data,0);
+  const classes=day.stays.filter(s=>s.purpose.kind==='class');
+  const leads=classes.map(c=>day.stays.find(s=>s.agent===c.agent&&s.location===c.location&&Math.abs(s.end-c.start)<1e-7)).filter(Boolean);
+  assert.ok(leads.length>0,'some students arrive before class starts');
+  for(const lead of leads) assert.deepEqual(lead.purpose,{kind:'wait',fixed:false,before:'class'});
+  for(const c of classes){
+    const meeting=day.sourceAssignments.find(a=>a.agentId===c.agent&&a.meetingId===c.purpose.meetingId);
+    assert.ok(meeting&&meeting.startSec===c.start&&meeting.endSec===c.end,'fixed class time is exactly the published meeting');
+  }
+});
+
+test('bundled weekly stays all carry purpose metadata',async()=>{
+  const {buildPopulation}=await import('../src/sim/population.ts');
+  const read=name=>JSON.parse(readFileSync(new URL(`../public/data/${name}.json`,import.meta.url)));
+  const source=read('campus-data'),base=buildPopulation(read('demo-day'),source,read('population'));
+  for(const weekday of [2,5]) assertStayPurposes(buildSourceDay(base,source,weekday));
+});
+
+test('carried-forward hours apply only past the published dated horizon and never override closures',()=>{
+  const row=(date,windows)=>({date,windows,text:date,sourceUrl:'source',qualifier:null});
+  const hours=[row('2026-10-17',[[9*3600,17*3600]]),row('2026-10-19',[[7*3600,22*3600]]),row('2026-10-24',[[10*3600,20*3600]])];
+  const carried=carriedForwardHours(hours,'2026-10-31',5);
+  assert.deepEqual(carried.map(h=>h.windows),[[[10*3600,20*3600]]]);
+  assert.match(carried[0].qualifier,/Carried forward from published hours for 2026-10-24/);
+  assert.deepEqual(carriedForwardHours(hours,'2026-10-10',5).map(h=>h.windows),[[[9*3600,17*3600]]],'before the horizon uses the next week');
+  assert.deepEqual(carriedForwardHours(hours,'2026-10-18',6),[],'an omitted day inside the published range stays closed');
+  assert.deepEqual(carriedForwardHours(hours,'2026-10-24',5),[],'exact dates are not carried');
+  assert.deepEqual(carriedForwardHours([...hours,row('2026-10-31',[])],'2026-10-31',5),[],'an exact-date closure wins');
+  const weekly={date:null,weekday:5,windows:[[8*3600,9*3600]],text:'weekly',sourceUrl:'source',qualifier:null};
+  assert.deepEqual(carriedForwardHours([...hours,weekly],'2026-10-31',5),[],'a valid weekly schedule wins');
+  assert.deepEqual(carriedForwardHours([row('2026-10-23',[[1,2]])],'2026-11-07',5),[],'only exactly one week away is carried');
+  assert.deepEqual(carriedForwardHours([],'2026-10-31',5),[]);
+});
+
+test('venueWindows carryForward is opt-in and respects restricted venues',()=>{
+  const {data}=fixture();data.referenceWeekStart='2026-10-26';
+  data.locations.meal.hours=[{date:'2026-10-24',windows:[[10*3600,20*3600]],text:'Sat',sourceUrl:'source',qualifier:null}];
+  assert.deepEqual(venueWindows(data,'meal','dining',5),[]);
+  assert.deepEqual(venueWindows(data,'meal','dining',5,{carryForward:true}),[[10*3600,20*3600]]);
+  data.locations.meal.hours.push({date:'2026-10-31',windows:[],text:'Closed',sourceUrl:'source',qualifier:null});
+  assert.deepEqual(venueWindows(data,'meal','dining',5,{carryForward:true}),[]);
+  data.locations.meal.hours.pop();data.locations.meal.hoursStatus='restricted';
+  assert.deepEqual(venueWindows(data,'meal','dining',5,{carryForward:true}),[]);
+});
+
+test('a same-room gap between back-to-back classes is a non-fixed wait, never class time',()=>{
+  const {base,data}=fixture();
+  for(const id of ['meal','study','gym'])data.locations[id].hours=[];
+  data.locations.class.meetings=[meeting('first',0,9*3600,10*3600,{roomCapacity:100}),meeting('second',0,10*3600+10*60,11*3600+10*60,{roomCapacity:100})];
+  data.courseComponentRules={};
+  base.agents=[...Array.from({length:10},(_,i)=>({id:`gap-res-${i}`,home:'home',residency:'resident',campus:'main',model:0,attendance:'part-time'})),
+    ...Array.from({length:10},(_,i)=>({id:`gap-com-${i}`,home:'off-campus',residency:'commuter',campus:'main',model:0,attendance:'part-time'}))];
+  const day=buildSourceDay(base,data,0);validate(day);assertStayPurposes(day);
+  let gaps=0;
+  for(const agent of base.agents){
+    const mine=day.stays.filter(s=>s.agent===agent.id);
+    const first=mine.find(s=>s.purpose.kind==='class'&&s.purpose.courseCode==='first');
+    const second=mine.find(s=>s.purpose.kind==='class'&&s.purpose.courseCode==='second');
+    if(!first||!second)continue;
+    assert.equal(first.end-first.start,3600);assert.equal(second.end-second.start,3600);
+    const gap=mine.filter(s=>s.start>=first.end&&s.end<=second.start);
+    assert.ok(gap.length>0);
+    for(const stay of gap){assert.equal(stay.purpose.fixed,false);assert.deepEqual(stay.purpose,{kind:'wait',fixed:false,before:'class'});}
+    gaps++;
+  }
+  assert.ok(gaps>0,'some students take both classes');
+});
