@@ -48,6 +48,16 @@ function viewFromUrl() {
 
 export const INITIAL_VIEW = viewFromUrl();
 
+// Keep the camera (and so tile loading) to Boston: every campus with room to spare, from
+// Brighton/Allston to the Seaport and Cambridge to Roxbury. No need to render the world.
+const BOSTON_LIMITS = {
+  maxBounds: [
+    [-71.19, 42.3],
+    [-71.0, 42.4],
+  ] as [[number, number], [number, number]],
+  minZoom: 12,
+};
+
 // Mapbox's live traffic tiles (refreshed every few minutes). Congestion is shown by width as
 // well as colour, so it doesn't rely on colour alone (plan Section 10.3).
 const TRAFFIC_LAYER = 'flowcast-traffic';
@@ -100,6 +110,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       // the 3D characters silently don't draw. One campus is flat anyway.
       projection: 'mercator',
       ...INITIAL_VIEW,
+      ...BOSTON_LIMITS,
       antialias: true,
       config: {
         basemap: { lightPreset, showPointOfInterestLabels: false, showTransitLabels: false },
@@ -132,6 +143,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     container,
     style: 'https://tiles.openfreemap.org/styles/liberty',
     ...INITIAL_VIEW,
+    ...BOSTON_LIMITS,
     canvasContextAttributes: { antialias: true },
   });
   map.setPadding(VIEW_PADDING);
