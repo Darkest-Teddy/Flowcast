@@ -310,7 +310,7 @@ export default function App() {
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), placer, models: transit.models, time: liveRef.current ? wallClockSeconds() : t, weekday: liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7 }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
-          ...(boats ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
+          ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus, placer })
             : []),
@@ -847,4 +847,12 @@ function dockStatusAt({ data, feed }: Bikes, target: number): Map<string, DockEs
 function boatWind(): number | undefined {
   const from = activeWindFromDegrees();
   return from === null ? undefined : Math.round(from / 15) * 15;
+}
+
+// Nobody's out sailing in the rain, snow, fog or a storm, or after dark (the Night lighting preset).
+// Sailing hours (9:00-19:30) are handled by the boat sim itself.
+const NO_SAILING = new Set(['drizzle', 'rain', 'heavy-rain', 'snow', 'fog', 'thunderstorm']);
+function sailingWeather(weather: ActiveWeather | null, light: LightPreset): boolean {
+  if (light === 'night') return false;
+  return !weather || !NO_SAILING.has(weather.condition);
 }
