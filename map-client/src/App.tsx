@@ -25,6 +25,8 @@ import { buildPopulation, loadPopulation, type PopulationBase } from './sim/popu
 import { advanceTime } from './sim/clock';
 import { dateForWeekday, loadCampusData, WEEKDAYS, type CampusData } from './data/campusData';
 import { buildSourceDay } from './sim/sourceDay';
+import { createTransitService, type TransitService } from './sim/transitService';
+import { waitingCharacters, waitingRiderLayers } from './layers/waitingRiders';
 import { SourceDataPanel } from './SourceDataPanel';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
@@ -91,6 +93,8 @@ interface Hud {
   occupancy: Occupancy[];
   /** Bluebikes riders on the map, by the campus of the BU dock they left or are heading to. */
   riding: Map<string, number>;
+  /** Students standing at stops for a published departure. */
+  waiting: number;
 }
 
 interface Transit {
@@ -145,6 +149,8 @@ export default function App() {
   const [sourceData, setSourceData] = useState<CampusData | null>(null);
   const [scheduleError, setScheduleError] = useState('');
   const baseDayRef = useRef<PopulationBase | null>(null);
+  // Published MBTA service the students ride (null: timetable unavailable, gateways are walk-only).
+  const transitServiceRef = useRef<TransitService | undefined>(undefined);
   const playbackRef = useRef<Playback | null>(null);
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [campus, setCampus] = useState('charles-river');
@@ -243,7 +249,8 @@ export default function App() {
       baseDayRef.current = populationBase;
       setSourceData(snapshot);
       setMobilityData(mobilitySnapshot);
-      const playback = new Playback(buildSourceDay(populationBase, snapshot, weekdayRef.current));
+      transitServiceRef.current = timetable ? createTransitService(timetable) : undefined;
+      const playback = new Playback(buildSourceDay(populationBase, snapshot, weekdayRef.current, transitServiceRef.current));
       playbackRef.current = playback;
       setRange([0, 86400]);
       setCampuses(day.campuses ?? []);
@@ -348,7 +355,7 @@ export default function App() {
         if (nextDay !== weekdayRef.current) {
           weekdayRef.current = nextDay;
           setWeekday(nextDay);
-          playbackRef.current = new Playback(buildSourceDay(populationBase, snapshot, nextDay));
+          playbackRef.current = new Playback(buildSourceDay(populationBase, snapshot, nextDay, transitServiceRef.current));
           lastOccupancy = 0;
         }
         const playback = playbackRef.current!;
@@ -375,6 +382,7 @@ export default function App() {
         const q = quality.settings;
         setParticleScale(q.particles);
         const walking = playback.walkingAt(t);
+        const waitingRiders = playback.waitingAt(t);
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
@@ -383,7 +391,7 @@ export default function App() {
           if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
           const ridingByCampus = new Map<string, number>();
           for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
-          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus });
+          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length });
         }
         // One placer per frame, shared by every label layer: building tags first, then stations.
         const placer = createPlacer(basemap.project);
@@ -416,7 +424,10 @@ export default function App() {
           placer,
           project: basemap.project,
           zoom: basemap.getZoom(),
-          transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay } : null,
+          transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay,
+            // Modeled BU students on a published trip; live vehicles have no matching trip id.
+            aboard: (vehicleId: string) => aboardPublished(vehicleId, t, playback),
+            waiting: waitingByStop(waitingRiders) } : null,
           bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
         });
         // Then monuments, artworks, open spaces and fields.
@@ -451,6 +462,7 @@ export default function App() {
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
           ...agentLayers(nearView(walking, basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
+          ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
@@ -555,7 +567,7 @@ export default function App() {
   const changeDay = (value: number) => {
     if (!baseDayRef.current || !sourceData) return;
     leaveLive();
-    playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value));
+    playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value, transitServiceRef.current));
     setWeekday(value);
     weekdayRef.current = value;
     setHud((prev) => ({
@@ -563,6 +575,7 @@ export default function App() {
       walking: playbackRef.current!.walkingAt(timeRef.current).length,
       occupancy: playbackRef.current!.occupancyAt(timeRef.current),
       riding: prev?.riding ?? new Map(),
+      waiting: playbackRef.current!.waitingAt(timeRef.current).length,
     }));
   };
   const selectSource = (location: CampusLocation) => {
@@ -620,7 +633,7 @@ export default function App() {
       <header className="panel title">
         <h1>Flowcast</h1>
         <p>
-          {currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]} {hud ? `· ${hud.walking} walking` : ''}
+          {currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]} {hud ? `· ${hud.walking} walking` : ''}{hud?.waiting ? ` · ${hud.waiting} at stops` : ''}
           {bikes && showBikes && hud ? ` · ${ridingHere} on Bluebikes` : ''}
         </p>
         <p className="model-note">{sourceData ? 'Campus simulation · Fall 2026' : 'Campus simulation · Demo'}</p>
@@ -997,6 +1010,18 @@ function readableOn(hex: string): string {
     return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.18 ? '#111' : '#fff';
+}
+
+/** Students aboard a published vehicle (`published:<weekday>:<offset>:<trip>:<run>`); null for live or overnight runs. */
+function aboardPublished(vehicleId: string, t: number, playback: Playback): number | null {
+  const match = /^published:\d+:0:(.+):\d+$/.exec(vehicleId);
+  return match ? playback.studentsAboard(match[1], t) : null;
+}
+
+function waitingByStop(waiting: { stop: string }[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const rider of waiting) counts.set(rider.stop, (counts.get(rider.stop) ?? 0) + 1);
+  return counts;
 }
 
 /** Walkers within `radius` metres of the view centre (all of them when radius is null). */

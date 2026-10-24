@@ -105,8 +105,28 @@ export interface Trip {
 
 export interface Stay { agent: string; location: string; start: number; end: number }
 
+/**
+ * A student stepping off (`alight`) or onto (`board`) one published MBTA trip at a campus stop.
+ * `time` is the published arrival (alight) or departure (board); boarders wait from `waitStart`.
+ */
+export interface TransitRide {
+  agent: string;
+  kind: 'alight' | 'board';
+  trip: string; // GTFS trip id
+  route: string;
+  direction: 0 | 1;
+  stop: string; // map stop id
+  time: number;
+  waitStart?: number;
+  position: [number, number];
+}
+
+/** A student standing at a stop for their published departure. */
+export interface WaitingRider { id: string; model: number; stop: string; route: string; direction: 0 | 1; position: [number, number]; boardsAt: number }
+
 export interface DayData {
   stays?: Stay[];
+  transitRides?: TransitRide[];
   day: string;
   campuses?: Campus[];
   buildings: BuildingFootprint[];
@@ -174,6 +194,8 @@ export class Playback {
   private readonly stayOccupancy: OccupancyIndex | null;
   private readonly walkingBuckets = new Map<number, Trip[]>();
   private trailWindow: { first: number; last: number; trips: Trip[] } | null = null;
+  private readonly ridesByTrip = new Map<string, TransitRide[]>();
+  private readonly waitingBuckets = new Map<number, TransitRide[]>();
 
   readonly data: DayData;
 
@@ -202,6 +224,15 @@ export class Playback {
         const active = this.walkingBuckets.get(bucket) ?? [];
         active.push(trip);
         this.walkingBuckets.set(bucket, active);
+      }
+    }
+    for (const ride of data.transitRides ?? []) {
+      const list = this.ridesByTrip.get(ride.trip) ?? [];
+      list.push(ride); this.ridesByTrip.set(ride.trip, list);
+      if (ride.kind !== 'board' || ride.waitStart === undefined) continue;
+      for (let bucket = Math.floor(ride.waitStart / 300); bucket <= Math.floor(ride.time / 300); bucket++) {
+        const waiting = this.waitingBuckets.get(bucket) ?? [];
+        waiting.push(ride); this.waitingBuckets.set(bucket, waiting);
       }
     }
     for (const stay of data.stays ?? []) {
@@ -246,6 +277,24 @@ export class Playback {
     }
     this.trailWindow = { first, last, trips: [...trips] };
     return this.trailWindow.trips;
+  }
+
+  /** Modeled students aboard a published trip at time t: those yet to step off plus those who got on. */
+  studentsAboard(trip: string, t: number): number {
+    let count = 0;
+    for (const ride of this.ridesByTrip.get(trip) ?? []) if (ride.kind === 'alight' ? t < ride.time : t >= ride.time) count++;
+    return count;
+  }
+
+  /** Students waiting at stops for their published departure at time t. */
+  waitingAt(t: number): WaitingRider[] {
+    const out: WaitingRider[] = [];
+    for (const ride of this.waitingBuckets.get(Math.floor(t / 300)) ?? []) {
+      if (ride.waitStart! > t || t >= ride.time) continue;
+      out.push({ id: ride.agent, model: this.agents.get(ride.agent)?.model ?? 0, stop: ride.stop, route: ride.route,
+        direction: ride.direction, position: ride.position, boardsAt: ride.time });
+    }
+    return out;
   }
 
   /** Only trips active in this five-minute bucket need position interpolation. */
