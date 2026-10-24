@@ -2,7 +2,7 @@
 
 Revision: 24 October 2026. This document integrates the supplied plan amendments and accompanying recommendations into the master plan. It specifies intended work; it does not certify that the application implements these contracts or meets the acceptance targets.
 
-Event details carried forward from the original plan: DS+X at Boston University, run by BU Spark! and the Faculty of Computing & Data Sciences; Hack College track; five-person team. Planned working window: Saturday, 24 October 2026, 8:00 AM through Sunday, 25 October 2026, 11:00 AM, America/New_York, totaling 27 hours. Confirm the actual submission and judging deadlines with the organizers. Revision work does not restart this clock.
+Event details carried forward from the original plan: DS+X at Boston University, run by BU Spark! and the Faculty of Computing & Data Sciences; Hack College track. Now entered in Hackachusetts (Civic Action track) as a four-person team. Planned working window: Saturday, 24 October 2026, 8:00 AM through Sunday, 25 October 2026, 11:00 AM, America/New_York, totaling 27 hours. Confirm the actual submission and judging deadlines with the organizers. Revision work does not restart this clock.
 
 Numerical behavior settings are implementation defaults and assumptions. Performance figures are targets to measure on the presentation setup. Neither is evidence of validated BU foot traffic.
 
@@ -34,12 +34,11 @@ Assign real names at adoption. Prefer simple geometry and shared contracts given
 | Role | Owns | Main tools |
 | --- | --- | --- |
 | Data & Schedules lead | Location registry, pedestrian graph, schedule/source mapping, route preparation, provenance, fixture expansion | Python, OSMnx, NetworkX, pandas, source-specific extraction tools |
-| Simulation/DS lead | Shared TypeScript planner, aggregation, event semantics, deterministic choices, paired analysis; optional Python experiments | TypeScript, `@flowcast/sim-core`, Python |
-| Backend lead | Authority, command queue, ownership, persistence, REST/socket contracts, deployment, recovery | Node.js, Express, Socket.IO, PostgreSQL, `pg`, Zod |
+| Simulation & Backend lead | Shared TypeScript planner, aggregation, event semantics, deterministic choices, paired analysis; authority, command queue, persistence, REST/socket contracts, deployment, recovery | TypeScript, `@flowcast/sim-core`, Node.js, Express, Socket.IO, PostgreSQL, `pg`, Zod, Python |
 | Map/Frontend lead | Campus composition, multipart avatars, movement, selection, five interiors | React, TypeScript, Mapbox GL JS, deck.gl |
 | Mobile/Product & Pitch lead | Fast join, schedule editing/import, own-agent view, voting/removal, charts, accessibility, pitch | React, TypeScript, Tailwind CSS |
 
-Backend and Simulation jointly settle contracts; Simulation owns behavior. The backend calls the shared core rather than maintaining a second planner. Map and Mobile share one web application. Once the bundle is stable, Data assists with scenario evidence, fixture checks, and interior layout data. Name a scope decision owner, pitch speaker, and demo operator.
+The team has four people, one per role. The Simulation & Backend lead owns both behavior and the server contracts, so the backend calls the shared core rather than maintaining a second planner. Map and Mobile share one web application. Once the bundle is stable, Data assists with scenario evidence, fixture checks, and interior layout data. Name a scope decision owner, pitch speaker, and demo operator.
 
 ### 2.1 Concrete stack
 
@@ -109,9 +108,9 @@ This is the target repository layout. The current `map-client` and `mobile` code
 
 | Location | Responsibility | Owner |
 | --- | --- | --- |
-| packages/contracts (`@flowcast/contracts`) | Runtime validation, shared IDs, command/update schemas | Backend + Simulation |
-| packages/sim-core (`@flowcast/sim-core`) | Planner, routes, events, position evaluation, aggregation, comparisons | Simulation/DS |
-| server | HTTP/socket handlers, authority, command queue, persistence, deployment | Backend |
+| packages/contracts (`@flowcast/contracts`) | Runtime validation, shared IDs, command/update schemas | Simulation & Backend |
+| packages/sim-core (`@flowcast/sim-core`) | Planner, routes, events, position evaluation, aggregation, comparisons | Simulation & Backend |
+| server | HTTP/socket handlers, authority, command queue, persistence, deployment | Simulation & Backend |
 | web | Display, presenter, and phone routes with separate rendering bundles | Map + Mobile/Product |
 | data-pipeline | Python extraction, normalization, route preparation, provenance | Data |
 | data/campus-v1 | Versioned public and private input artifacts | Data + Simulation |
@@ -287,7 +286,7 @@ An old band is marked updating or hidden after a mutation. Keep its origin time 
 
 ### 5.10 Data-science evidence panel
 
-The Simulation/DS lead supplies a compact evidence panel with:
+The Simulation & Backend lead supplies a compact evidence panel with:
 
 - Baseline and changed occupancy curves.
 - Peak occupancy/peak-time change.
@@ -564,23 +563,22 @@ T is when the team adopts this revision. These are coordination targets, not gua
 
 | Target | Deliverable | Primary owners |
 | --- | --- | --- |
-| T + 30 minutes | Shared schemas, IDs, 12-building/50-agent fixture, package skeleton, public origin | Backend + Simulation + Data |
-| T + 90 minutes | Actual BU map, one moving/selectable multipart avatar, one connected phone; verify local PostgreSQL starts and the basic bundled-geometry view loads | Map + Backend + Mobile |
-| T + 2 hours | Two phones create personas, vote, reroute students, and update the matching occupancy curve | All five |
-| Next two hours | Full baseline week, route-cache misses, joins/edits/deletion, seek and reconnect behavior | Simulation + Backend + Data |
+| T + 30 minutes | Shared schemas, IDs, 12-building/50-agent fixture, package skeleton, public origin | Simulation & Backend + Data |
+| T + 90 minutes | Actual BU map, one moving/selectable multipart avatar, one connected phone; verify local PostgreSQL starts and the basic bundled-geometry view loads | Map + Simulation & Backend + Mobile |
+| T + 2 hours | Two phones create personas, vote, reroute students, and update the matching occupancy curve | All four |
+| Next two hours | Full baseline week, route-cache misses, joins/edits/deletion, seek and reconnect behavior | Simulation & Backend + Data |
 | Following integration block | 500-agent composition, all four event families, five interiors, supported avatar controls, imported schedules | Map + Mobile + Simulation |
-| Remaining feature window | Paired analysis, evidence panel, expanded data coverage, local recovery; optional animation/LLM/shader only after required gates | All five |
-| Final four hours | Freeze dependencies/features, verify target workload and recovery, rehearse the live audience interaction | All five |
+| Remaining feature window | Paired analysis, evidence panel, expanded data coverage, local recovery; optional animation/LLM/shader only after required gates | All four |
+| Final four hours | Freeze dependencies/features, verify target workload and recovery, rehearse the live audience interaction | All four |
 
 ### Updated role boundaries
 
 - Data lead: registry, graph, route preparation, schedule/source mapping, provenance, fixture expansion.
-- Simulation/DS lead: TypeScript planner and aggregation; Python analysis and optional ML evaluation.
-- Backend lead: authority, persistence, REST/socket contracts, cloud/local deployment, recovery.
+- Simulation & Backend lead: TypeScript planner and aggregation; Python analysis and optional ML evaluation; authority, persistence, REST/socket contracts, cloud/local deployment, recovery.
 - Map lead: campus composition, multipart avatars, motion, selection, five interiors.
 - Mobile/Product lead: fast join, schedule editing/import, own-agent view, voting/removal, chart panels, accessibility, pitch/rehearsal.
 
-Once the bundle is stable, the Data lead assists with fixture checks, scenario evidence, and template/layout data. Backend and Simulation jointly own the contract boundary; they do not independently write behavior rules.
+Once the bundle is stable, the Data lead assists with fixture checks, scenario evidence, and template/layout data. The Simulation & Backend lead owns the contract boundary, so server code never writes its own behavior rules.
 
 ### Submission, freeze, and rehearsal
 
