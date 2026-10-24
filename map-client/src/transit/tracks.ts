@@ -9,6 +9,7 @@ export interface Track {
   points: [number, number][]; // lng/lat, in travel order
   cumulative: number[]; // metres from the start, one per point
   length: number;
+  underground: [number, number][]; // [from, to] metres along the track that run in a tunnel
 }
 
 export interface TrackPosition {
@@ -42,11 +43,39 @@ export function offsetPath(points: [number, number][], metres: number): [number,
   });
 }
 
-export function makeTrack(route: string, direction: 0 | 1, points: [number, number][], offsetMetres: number): Track {
+export function makeTrack(
+  route: string,
+  direction: 0 | 1,
+  points: [number, number][],
+  offsetMetres: number,
+  undergroundSpans: [number, number][] = [],
+): Track {
   const shifted = offsetPath(points, offsetMetres);
   const cumulative = [0];
   for (let i = 1; i < shifted.length; i++) cumulative.push(cumulative[i - 1] + distanceMetres(shifted[i - 1], shifted[i]));
-  return { route, direction, points: shifted, cumulative, length: cumulative[cumulative.length - 1] };
+  // Offsetting keeps point indices, so index spans map straight onto distances along the track.
+  const underground = undergroundSpans.map(([a, b]) => [cumulative[a], cumulative[b]] as [number, number]);
+  return { route, direction, points: shifted, cumulative, length: cumulative[cumulative.length - 1], underground };
+}
+
+export function isUnderground(track: Track, s: number): boolean {
+  return track.underground.some(([a, b]) => s >= a && s <= b);
+}
+
+/** The track's points split into its above-ground stretches. */
+function surfaceRuns(track: Track): [number, number][][] {
+  const runs: [number, number][][] = [];
+  let run: [number, number][] = [];
+  track.points.forEach((p, i) => {
+    if (isUnderground(track, track.cumulative[i])) {
+      if (run.length > 1) runs.push(run);
+      run = [];
+    } else {
+      run.push(p);
+    }
+  });
+  if (run.length > 1) runs.push(run);
+  return runs;
 }
 
 export function distanceMetres(a: [number, number], b: [number, number]): number {
@@ -117,9 +146,13 @@ export function trackGeometry(tracks: Track[]): TrackGeometry {
   const rails: TrackGeometry['rails'] = [];
   const ties: TrackGeometry['ties'] = [];
   for (const track of tracks) {
-    beds.push({ track, path: track.points });
-    rails.push(offsetPath(track.points, -RAIL_HALF_GAUGE), offsetPath(track.points, RAIL_HALF_GAUGE));
+    // Nothing is drawn over the tunnels: the track starts and ends at the portals.
+    for (const run of surfaceRuns(track)) {
+      beds.push({ track, path: run });
+      rails.push(offsetPath(run, -RAIL_HALF_GAUGE), offsetPath(run, RAIL_HALF_GAUGE));
+    }
     for (let s = TIE_SPACING / 2; s < track.length; s += TIE_SPACING) {
+      if (isUnderground(track, s)) continue;
       const { position, bearing } = pointAlong(track, s);
       // Perpendicular to travel: the right-hand normal of the heading, in metres -> degrees.
       const rad = (bearing * Math.PI) / 180;

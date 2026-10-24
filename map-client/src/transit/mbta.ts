@@ -6,7 +6,7 @@
 // Optional: a free key from https://api-v3.mbta.com in VITE_MBTA_API_KEY (map-client/.env.local).
 
 import { pollShuttleArrivals, pollShuttleVehicles, type ShuttleData } from './buShuttle';
-import { makeTrack, pointAlong, snapToTracks, type Track } from './tracks';
+import { isUnderground, makeTrack, pointAlong, snapToTracks, type Track } from './tracks';
 
 const API = 'https://api-v3.mbta.com';
 const API_KEY = import.meta.env.VITE_MBTA_API_KEY as string | undefined;
@@ -32,7 +32,8 @@ export interface TransitRoute {
   color: string; // "#00843D"
   textColor: string;
   directions: [string, string]; // by direction_id
-  paths: { direction: 0 | 1; path: [number, number][] }[]; // points in travel order
+  // Points in travel order; `underground` lists [first, last] point-index spans in a tunnel.
+  paths: { direction: 0 | 1; path: [number, number][]; underground?: [number, number][] }[];
 }
 
 export interface TransitArea {
@@ -149,7 +150,9 @@ export class MbtaFeed {
     this.stopIds = data.stops.filter((s) => s.kind !== 'shuttle').map((s) => s.id).join(',');
     for (const stop of data.stops) for (const platform of stop.platforms) this.stopForPlatform.set(platform, stop.id);
     this.tracks = data.routes.flatMap((route) =>
-      route.paths.map(({ direction, path }) => makeTrack(route.id, direction, path, TRACK_OFFSET[route.kind])),
+      route.paths.map(({ direction, path, underground }) =>
+        makeTrack(route.id, direction, path, TRACK_OFFSET[route.kind], underground),
+      ),
     );
   }
 
@@ -183,7 +186,8 @@ export class MbtaFeed {
         v.position = [v.from[0] + (v.to[0] - v.from[0]) * f, v.from[1] + (v.to[1] - v.from[1]) * f];
       }
     }
-    return this.state.vehicles.filter((v) => v.track);
+    // Trains in a tunnel (Kenmore, Hynes, the D past Fenway) are underground: don't draw them.
+    return this.state.vehicles.filter((v) => v.track && !isUnderground(v.track, this.alongTrack(v, now)));
   }
 
   private alongTrack(v: Vehicle, now: number): number {
