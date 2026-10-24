@@ -18,18 +18,20 @@ rhett-bench.glb
     seen from the front. Origin = centre of the bench on the paving; the bench faces +Z.
     (Photo: The Daily Free Press, Aug 2019.)
 citgo-sign.glb
-    The 60 ft (18.29 m) square, double-sided Citgo sign on its steel rooftop frame and catwalk.
-    White face with a thin dark outline and rounded corners, the three-facet red "trimark" and
-    the blue CITGO wordmark, both laid out from the official logo's geometry (Wikimedia Commons
-    File:Citgo_logo.svg). The trimark, letters and their neon lines are emissive, so the sign
-    glows at night. Origin = the roof under the centre of the frame (the map lifts it to the
-    roof). Faces +Z and -Z.
+    The 60 ft (18.29 m) square, double-sided Citgo sign on its ~31 ft steel truss and catwalk.
+    White enamel face with a thin dark outline and rounded corners, the trimark as a shallow
+    three-facet pyramid and the blue CITGO wordmark, laid out from the official logo's geometry
+    (Wikimedia Commons File:Citgo_logo.svg), and its unlit LED strips. Unlit by design: the map
+    draws the LEDs from public/data/citgo-lights.json (also written by this script: border,
+    39 white rows, 18 concentric trimark triangles, letter centre lines, after the Boston
+    Landmarks Commission's 2018 study report) so it can switch and animate them. Origin = the
+    roof under the centre of the frame (the map lifts it to the roof). Faces +Z and -Z.
 agganis-statue.glb
     Armand LaMontagne's bronze "Golden Greek" (2004): Harry Agganis in his Terrier football
     uniform, left arm drawn back to throw, on a granite pedestal outside Agganis Arena. Origin =
     centre of the pedestal; the figure faces +Z.
 
-    python3 map-client/scripts/make_monument_models.py           # write all four models
+    python3 map-client/scripts/make_monument_models.py           # write all four models + citgo-lights.json
     python3 map-client/scripts/make_monument_models.py --check   # also print bounds/tri counts
 """
 
@@ -81,11 +83,14 @@ MATERIALS = {
     "sign_outline": mat("#2A2C2E", 0.2, 0.5),
     "sign_side": mat("#2E3236", 0.4, 0.55),        # the sign box's sides (steel cladding)
     # The trimark's three facets (left, right, bottom) as they read on the Kenmore sign.
-    "trimark_left": mat("#F04E2A", 0.0, 0.4, emissive="#E8401E"),
-    "trimark_right": mat("#D11F27", 0.0, 0.4, emissive="#C0141C"),
-    "trimark_bottom": mat("#EC3B42", 0.0, 0.4, emissive="#E02A32"),
-    "citgo_blue": mat("#1A6EC0", 0.0, 0.4, emissive="#0F58C8"),
-    "citgo_neon": mat("#CFE6FF", 0.0, 0.3, emissive="#9CCBFF"),  # tube lines inside the letters
+    # The painted (enamel) graphic, as it reads by day. The night lighting is not in the model:
+    # the map draws the LED tubes (public/data/citgo-lights.json) so it can switch and animate them.
+    "trimark_left": mat("#F04E2A", 0.0, 0.4),
+    "trimark_right": mat("#D11F27", 0.0, 0.4),
+    "trimark_bottom": mat("#EC3B42", 0.0, 0.4),
+    "citgo_blue": mat("#1A6EC0", 0.0, 0.4),
+    "citgo_neon": mat("#CFE6FF", 0.0, 0.3),        # LED strips down the letters
+    "led_strip": mat("#D9DCDF", 0.2, 0.35),        # white LED strips across the face (unlit)
     "steel": mat("#4A4F55", 0.6, 0.5),             # rooftop frame, catwalks
 }
 
@@ -337,16 +342,25 @@ def build_rhett_bench():
 
 SIGN = 18.29            # 60 ft square
 SIGN_DEPTH = 2.0        # box between the two faces (its steel skeleton is inside)
-FRAME_H = 5.0           # steel frame from the roof to the underside of the sign (photos, 2017)
+# Boston Landmarks Commission study report (2018): "The steel framework is approximately 90 feet
+# tall, holding the 60 foot square sign 40 feet above the rooftop" (the two figures disagree a
+# little: 90 - 60 = 30 ft). Photos agree with ~30 ft to the underside of the sign.
+FRAME_H = 9.5
+PYRAMID = 0.9           # "a large equilateral triangle projects a few feet from the white surface
+                        #  to form a shallow pyramid in three shades of red" (same report)
+LIGHT_ROWS = 39         # "39 white horizontal lights" across the face (same report)
+LIGHT_TRIANGLES = 18    # "18 equally spaced, concentric equilateral triangles"
+TUBE_OFFSET = 0.08      # the lights sit this far in front of the face (behind their covers)
 
 # The logo, in the units of Wikimedia Commons File:Citgo_logo.svg (y down). The trimark is an
 # upward triangle split at an inner point into three facets; CITGO sits under it, as wide.
 SVG_APEX, SVG_LEFT, SVG_RIGHT, SVG_INNER = (485.16, 644.99), (421.78, 746.46), (547.98, 746.46), (485.16, 712.12)
 SVG_CX, SVG_CY = 484.88, 713.1                     # centre of the logo's bounding box
 LOGO_SCALE = 0.77 * SIGN / (SVG_RIGHT[0] - SVG_LEFT[0])   # the triangle's base spans ~77% of the face
+FACE_CENTRE = FRAME_H + SIGN / 2 + 0.1             # height of the logo's centre on the face
 
 
-def svg_to_face(x, y, y_centre):
+def svg_to_face(x, y, y_centre=FACE_CENTRE):
     return ((x - SVG_CX) * LOGO_SCALE, y_centre - (y - SVG_CY) * LOGO_SCALE)
 
 
@@ -372,7 +386,7 @@ def citgo_letters():
     shapes.append(("citgo_blue", rect(499.4, 511.3, 764.0, 769.8)))
     for q in ring(527.6, 767.3, 13.9, 13.9, 6.6, 0, 360, 18):
         shapes.append(("citgo_blue", q))
-    # Neon tube lines down the middle of each stroke (they light up at night).
+    # LED strips down the middle of each stroke.
     t = 1.0
     for q in ring(439.2, 767.05, 11.3 - 2.6, 13.45 - 2.6, t, 42, 318, 14):
         shapes.append(("citgo_neon", q))
@@ -387,8 +401,104 @@ def citgo_letters():
     return shapes
 
 
+def face_pt(x, y):
+    return svg_to_face(x, y)
+
+
+def citgo_light_geometry():
+    """The sign's lights on the front face, in model metres: (u, v) = (x, y); `dz` is height in
+    front of the face plane (the trimark tubes ride on its pyramid). The back face is the same
+    turned 180 degrees about Y. Layout follows the Landmarks Commission's description."""
+    half = SIGN / 2
+    y0, y1 = FRAME_H, FRAME_H + SIGN
+    apex, left, right, inner = (face_pt(*p) for p in (SVG_APEX, SVG_LEFT, SVG_RIGHT, SVG_INNER))
+    r = lambda v: round(v, 3)  # noqa: E731
+
+    # White border tube following the rounded perimeter.
+    border = [[r(u), r(v)] for u, v in rounded_rect(0.0, y0 + half, half - 0.38, 0.75, 4)]
+    border.append(border[0])
+
+    # 18 concentric triangles on the pyramid: scaled about its peak, so each ring stays on the
+    # three facets (left orange, bottom medium red, right dark red).
+    triangles = []
+    for k in range(LIGHT_TRIANGLES, 0, -1):  # outermost first
+        s = (k - 0.35) / LIGHT_TRIANGLES
+        dz = PYRAMID * (1 - s)
+
+        def at(p):
+            return [r(inner[0] + s * (p[0] - inner[0])), r(inner[1] + s * (p[1] - inner[1])), r(dz)]
+
+        triangles.append({"left": [at(left), at(apex)], "bottom": [at(left), at(right)], "right": [at(apex), at(right)]})
+
+    # Letter centre lines.
+    def arc(cx, cy, rx, ry, a0, a1, seg):
+        cu, cv = face_pt(cx, cy)
+        out = []
+        for i in range(seg + 1):
+            a = math.radians(a0 + (a1 - a0) * i / seg)
+            out.append([r(cu + rx * LOGO_SCALE * math.cos(a)), r(cv + ry * LOGO_SCALE * math.sin(a))])
+        return out
+
+    def line(*pts):
+        return [[r(c) for c in face_pt(x, y)] for x, y in pts]
+
+    g = arc(498.9, 767.0, 12.4 - 3.3, 13.5 - 3.3, 38, 360, 22)
+    letters = [
+        arc(439.2, 767.05, 11.3 - 3.1, 13.45 - 3.1, 38, 322, 20),
+        line((457.84, 755.6), (457.84, 778.3)),
+        line((464.6, 757.06), (484.2, 757.06)),
+        line((474.51, 757.1), (474.51, 778.4)),
+        g + [[r(c) for c in face_pt(501.0, 767.0)]],
+        arc(527.6, 767.3, 13.9 - 3.3, 13.9 - 3.3, 0, 360, 24),
+    ]
+
+    # 39 white rows across the face, broken around the trimark and the letters.
+    letter_boxes = []
+    for poly in letters:
+        us = [p[0] for p in poly]
+        vs = [p[1] for p in poly]
+        letter_boxes.append((min(us) - 0.75, max(us) + 0.75, min(vs) - 0.75, max(vs) + 0.75))
+    rows = []
+    inset = 0.75
+    for i in range(LIGHT_ROWS):  # bottom to top
+        v = y0 + inset + i * (SIGN - 2 * inset) / (LIGHT_ROWS - 1)
+        # Width of the rounded field at this height.
+        dv = max(0.0, abs(v - (y0 + half)) - (half - 1.6))
+        w = half - 0.75 - (1.6 - math.sqrt(max(0.0, 1.6 ** 2 - dv ** 2)))
+        blocks = []
+        if left[1] - 0.45 <= v <= apex[1] + 0.45:
+            t = min(1.0, max(0.0, (v - left[1]) / (apex[1] - left[1])))
+            blocks.append((left[0] + (apex[0] - left[0]) * t - 0.7, right[0] + (apex[0] - right[0]) * t + 0.7))
+        for u0, u1, v0, v1 in letter_boxes:
+            if v0 <= v <= v1:
+                blocks.append((u0, u1))
+        segments, cur = [], -w
+        for b0, b1 in sorted(blocks):
+            if b0 > cur + 0.3:
+                segments.append([r(cur), r(min(b0, w))])
+            cur = max(cur, b1)
+        if cur < w - 0.3:
+            segments.append([r(cur), r(w)])
+        rows.append({"v": r(v), "segments": segments})
+
+    return {
+        "about": "Citgo sign lights in model metres (see make_monument_models.py). Front face plane z = face; "
+                 "points are [u, v] or [u, v, dz] with u = x, v = y; the back face is the front turned 180 degrees about Y.",
+        "source": "Boston Landmarks Commission, Citgo Sign study report (2018), sections 2.2 and 9.5",
+        "face": r(SIGN_DEPTH / 2 + TUBE_OFFSET),
+        "centre": [0.0, r(y0 + half)],
+        "trimarkCentre": [r((left[0] + right[0] + apex[0]) / 3), r((left[1] + right[1] + apex[1]) / 3)],
+        "lettersCentre": [0.0, r(sum(p[1] for p in letters[1]) / 2)],
+        "border": border,
+        "rows": rows,
+        "triangles": triangles,
+        "letters": letters,
+    }
+
+
 def citgo_face(m, z, facing, y_centre):
-    """Everything printed on one face, as decals stepping out toward `facing`."""
+    """Everything painted on one face, as decals stepping out toward `facing`, plus the trimark's
+    shallow pyramid and the (unlit) LED strips."""
     step = 0.012
 
     def put(uv, material, layer):
@@ -399,10 +509,17 @@ def citgo_face(m, z, facing, y_centre):
     half = SIGN / 2
     put(rounded_rect(0.0, y_centre, half - 0.30, 1.0, 5), "sign_outline", 1)  # thin dark keyline
     put(rounded_rect(0.0, y_centre, half - 0.45, 0.85, 5), "sign_white", 2)
-    for pts, material in (((SVG_LEFT, SVG_APEX, SVG_INNER), "trimark_left"),
-                          ((SVG_APEX, SVG_RIGHT, SVG_INNER), "trimark_right"),
-                          ((SVG_LEFT, SVG_INNER, SVG_RIGHT), "trimark_bottom")):
-        put([svg_to_face(x, y, y_centre) for x, y in pts], material, 3)
+    lights = citgo_light_geometry()
+    sx = 1 if facing > 0 else -1
+    for row in lights["rows"]:
+        for u0, u1 in row["segments"]:
+            put([(u0, row["v"] - 0.03), (u1, row["v"] - 0.03), (u1, row["v"] + 0.03), (u0, row["v"] + 0.03)], "led_strip", 3)
+    # The trimark: three facets rising to a peak PYRAMID metres proud of the face.
+    apex, left, right, inner = (svg_to_face(*p, y_centre) for p in (SVG_APEX, SVG_LEFT, SVG_RIGHT, SVG_INNER))
+    zb = z + facing * step * 3
+    peak = (sx * inner[0], inner[1], zb + facing * PYRAMID)
+    for (a, b), material in (((left, apex), "trimark_left"), ((apex, right), "trimark_right"), ((left, right), "trimark_bottom")):
+        m.poly([(sx * a[0], a[1], zb), (sx * b[0], b[1], zb), peak], material, outward=(0.0, 0.0, facing))
     for material, poly in citgo_letters():
         put([svg_to_face(x, y, y_centre) for x, y in poly], material, 3 if material == "citgo_blue" else 4)
 
@@ -412,21 +529,26 @@ def build_citgo_sign():
     half, d = SIGN / 2, SIGN_DEPTH / 2
     y0 = FRAME_H
     yc = y0 + half
-    # Rooftop frame: a lattice of columns, girders and X-braces, and a catwalk with a rail.
+    # Rooftop truss: columns, girders in three tiers, X-braces in every bay, and a catwalk.
     xs = (-half + 1.2, -half / 3, half / 3, half - 1.2)
     zs = (-1.6, 1.6)
+    tiers = (0.6, y0 / 2, y0 - 0.3)
     for x in xs:
         for z in zs:
-            m.box(x - 0.15, x + 0.15, 0.0, y0, z - 0.15, z + 0.15, "steel")
+            m.box(x - 0.17, x + 0.17, 0.0, y0, z - 0.17, z + 0.17, "steel")
     for z in zs:
-        for yb in (0.6, y0 - 0.3):
+        for yb in tiers:
             m.box(xs[0], xs[-1], yb - 0.15, yb + 0.15, z - 0.12, z + 0.12, "steel")
-        for xa, xb in zip(xs, xs[1:]):
-            m.beam((xa, 0.6, z), (xb, y0 - 0.3, z), 0.1, 0.1, "steel")
-            m.beam((xb, 0.6, z), (xa, y0 - 0.3, z), 0.1, 0.1, "steel")
+        for ya, yb in zip(tiers, tiers[1:]):
+            for xa, xb in zip(xs, xs[1:]):
+                m.beam((xa, ya, z), (xb, yb, z), 0.1, 0.1, "steel")
+                m.beam((xb, ya, z), (xa, yb, z), 0.1, 0.1, "steel")
     for x in xs:
-        m.box(x - 0.12, x + 0.12, y0 - 0.45, y0 - 0.15, zs[0], zs[1], "steel")
-    walk_y = y0 - 1.6  # catwalk round the frame (on the +Z side, as in the 2017 photo)
+        for yb in tiers:
+            m.box(x - 0.12, x + 0.12, yb - 0.15, yb + 0.15, zs[0], zs[1], "steel")
+        for ya, yb in zip(tiers, tiers[1:]):
+            m.beam((x, ya, zs[0]), (x, yb, zs[1]), 0.08, 0.08, "steel")
+    walk_y = y0 - 2.4  # catwalk along the +Z side (2017 photo)
     m.box(-half - 0.4, half + 0.4, walk_y - 0.08, walk_y, d - 0.2, d + 1.0, "steel")
     m.box(-half - 0.4, half + 0.4, walk_y + 1.0, walk_y + 1.06, d + 0.95, d + 1.0, "steel")
     for k in range(13):
@@ -436,7 +558,7 @@ def build_citgo_sign():
     prism_z(m, rounded_rect(0.0, yc, half, 1.1, 5), -d, d, "sign_side", cap_mat="sign_white")
     m.box(-half + 0.5, half - 0.5, y0 + SIGN, y0 + SIGN + 0.08, -0.5, 0.5, "steel")  # top catwalk
     for facing in (1, -1):
-        citgo_face(m, facing * d, facing, yc + 0.1)
+        citgo_face(m, facing * d, facing, FACE_CENTRE)
     return m
 
 
@@ -557,6 +679,9 @@ def main():
         "citgo-sign": build_citgo_sign(),
         "agganis-statue": build_agganis_statue(),
     }
+    lights = OUT.parent / "data" / "citgo-lights.json"
+    lights.write_text(json.dumps(citgo_light_geometry(), separators=(",", ":")) + "\n")
+    print(f"wrote {lights}")
     for name, mesh in models.items():
         path = OUT / f"{name}.glb"
         write_glb(mesh, name, path)
