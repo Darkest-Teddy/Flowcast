@@ -1,0 +1,807 @@
+{
+  "schemaVersion": 1,
+  "dataset": "events",
+  "generatedAt": "2026-10-24T15:13:54.213647+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "events": [
+    {
+      "id": "terriercentral:375707",
+      "eventId": "375707",
+      "name": "BU Film Society Weekly Meeting",
+      "organizer": "Film Society - 1153",
+      "start": "2026-09-09T19:00:00-04:00",
+      "end": "2026-12-02T21:00:00-05:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": 3,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=375707",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=375707",
+        "retrievedAt": "2026-10-24T15:04:26.060710+00:00",
+        "sha256": "73c59ba5ef5b9aefb47b3d569d3a6004a36fce649a072bad3a4b31b08b8801d1",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/df41ba650726f21b089a8e50193692e1df53fba38f13cee60ae68d5befe11f51.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:376472",
+      "eventId": "376472",
+      "name": "Tufts University APDA Tournament",
+      "organizer": "Debate Society - 1124",
+      "start": "2026-10-23T16:00:00-04:00",
+      "end": "2026-10-24T20:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=376472",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=376472",
+        "retrievedAt": "2026-10-24T15:04:26.930281+00:00",
+        "sha256": "4425d67ef162c5522ba976e90a0fa5426f838204fd268672896024a68424f86f",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/b61f6221dfaf62b017ff1a577b1ae9c14a6f334401d7f354570db27ad3a40e8c.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:376984",
+      "eventId": "376984",
+      "name": "Bunkasai",
+      "organizer": "Japanese Student Association - 1227",
+      "start": "2026-10-24T13:00:00-04:00",
+      "end": "2026-10-24T16:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": "GSU Backcourt",
+      "locationAddress": "775 Commonwealth Ave, Boston, MA 02215, United States",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "unresolved",
+      "registrationCount": 1,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=376984",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=376984",
+        "retrievedAt": "2026-10-24T15:04:27.638273+00:00",
+        "sha256": "d0bb4cf3f4c1f812bf2b799e42ed7421f2e479b0608c736a269dbf2dc12be617",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/297bb241775454e6a6183c10676405a7955ee282e7636cb3a6236f1d9f41fff1.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377637",
+      "eventId": "377637",
+      "name": "Dodgeball Tourament",
+      "organizer": "Alpha Chi Sigma - 1015",
+      "start": "2026-10-24T17:30:00-04:00",
+      "end": "2026-10-24T19:30:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": 0,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377637",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377637",
+        "retrievedAt": "2026-10-24T15:06:26.561913+00:00",
+        "sha256": "1b6f259d1987d4b55dbbaa243b49e1dc654c146fca0c10fc909c9bfb2f98722c",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/8249223882584e231b405c0131dc7b9d38c138aa30ac8a9079b0a7a46f711194.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:376197",
+      "eventId": "376197",
+      "name": "YSD",
+      "organizer": "Wandering Minds - 1442",
+      "start": "2026-10-24T19:00:00-04:00",
+      "end": "2026-10-24T21:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": 0,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=376197",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=376197",
+        "retrievedAt": "2026-10-24T15:06:27.413700+00:00",
+        "sha256": "f9561241fff83675d2793c88caa472948ee482a05a935896734d1cce6d82710e",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/db2c01b4f2a40c2cdae8e37142d9951e62c94acf287e158f2db5a31a8b65d52f.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377084",
+      "eventId": "377084",
+      "name": "What's The Word?",
+      "organizer": "Brothers United  - 1681",
+      "start": "2026-10-25T14:00:00-04:00",
+      "end": "2026-10-25T16:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": "Howard Thurman Center for Common Ground (HTC), Room 207",
+      "locationAddress": "808 Commonwealth Avenue, Boston, MA 02215, United States",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "unresolved",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377084",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377084",
+        "retrievedAt": "2026-10-24T15:12:17.768333+00:00",
+        "sha256": "feae9bee9229c7da0879e9d50d4d41db2b6326c99034a045eb10a4292bd201fc",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/9dc59553f5a22b905448f742c221b906604111f837114a36e972272793865b4d.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377507",
+      "eventId": "377507",
+      "name": "ISGC Fall Movie Night",
+      "organizer": "Inner Strength Gospel Choir - 1210",
+      "start": "2026-10-25T16:00:00-04:00",
+      "end": "2026-10-25T18:30:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": "CAS B36",
+      "locationAddress": "775 Commonwealth Ave, Boston, MA 02215, United States",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "unresolved",
+      "registrationCount": 1,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377507",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377507",
+        "retrievedAt": "2026-10-24T15:12:18.439785+00:00",
+        "sha256": "762884b620853d2d017519fb4313b9c13a21e353c88d4311bcd1bdb0a4d91515",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/61397dc884ff5cf2ed9009b178bce91ba837313a03a5a8d34176e1cf6c082ed6.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:376612",
+      "eventId": "376612",
+      "name": "BU Debate Society Big/Little",
+      "organizer": "Debate Society - 1124",
+      "start": "2026-10-25T18:00:00-04:00",
+      "end": "2026-10-25T22:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=376612",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=376612",
+        "retrievedAt": "2026-10-24T15:12:19.219052+00:00",
+        "sha256": "506b0a99f01b9a8a96162ea86d101be5cda001fb9561723c4feaba92879b0389",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/aad6fb688585da54ae389ced7d81cefca7b30f1a4457b43727f6c837901ecbe0.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377590",
+      "eventId": "377590",
+      "name": "Light Festival",
+      "organizer": "Burmese Student Association  - 1629",
+      "start": "2026-10-25T18:00:00-04:00",
+      "end": "2026-10-25T20:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": "GSU Backcourts",
+      "locationAddress": "775 Commonwealth Ave, Boston, MA 02215, United States",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "unresolved",
+      "registrationCount": 0,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377590",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377590",
+        "retrievedAt": "2026-10-24T15:12:19.903830+00:00",
+        "sha256": "44cc5f764a51acb98341e8e9370d36a1f9b33b2e2ae6038f4a549c09f4655ea1",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/f2fea70bbc4de470d30ef3432506bbfc404298ea9254a985c995905d506bb9db.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377868",
+      "eventId": "377868",
+      "name": "Qawali Night",
+      "organizer": "Organization of Pakistani Students - 1303",
+      "start": "2026-10-25T18:00:00-04:00",
+      "end": "2026-10-25T22:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377868",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377868",
+        "retrievedAt": "2026-10-24T15:12:20.427909+00:00",
+        "sha256": "ae2daa0ad89bd5b849e7dd13c12d8677ef76b2a44bb5ccfa7e576fd0817914e5",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/8973f50fa96579ddffbcf70958fadbb1cf478d4ad466e2dc7311db0f77edbd45.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377641",
+      "eventId": "377641",
+      "name": "Halloween Costume Tabling",
+      "organizer": "Student Government - 1384",
+      "start": "2026-10-26T11:00:00-04:00",
+      "end": "2026-10-26T14:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377641",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377641",
+        "retrievedAt": "2026-10-24T15:12:20.950302+00:00",
+        "sha256": "27e424c7bddd197ae311a57e9401c9e6eceb2dd71d409fc4faded5d6f6ee9ed1",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/1f3122574acb7b5b6d04cb9048bf63dba951abf6e7eed666d0777eb6d0147f5a.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377447",
+      "eventId": "377447",
+      "name": "Suno Chipotle Fundraiser",
+      "organizer": "Suno - 1394",
+      "start": "2026-10-26T16:00:00-04:00",
+      "end": "2026-10-26T20:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377447",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377447",
+        "retrievedAt": "2026-10-24T15:12:21.512791+00:00",
+        "sha256": "c03a9c89db63710ac7e5d94021228e9adfa0219bba798850aa7b46e9977bfe5d",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/b2c90a9bd504cbbb031e96a456c7cc1a109d53dfe34eb947a691dd5f6740761e.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377580",
+      "eventId": "377580",
+      "name": "Fireside Chat w/ Sublime Systems CEO Rob Davies",
+      "organizer": "Sustainable Business Club - 1685",
+      "start": "2026-10-26T17:00:00-04:00",
+      "end": "2026-10-26T18:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": 0,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377580",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377580",
+        "retrievedAt": "2026-10-24T15:12:22.384853+00:00",
+        "sha256": "f663b42a3f36ad79a93a9836a8536f8a570cb9ccd1ab9b5f7bd27a3bfc6f3f9c",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/2d494f2a70f1d73c49ec1880db435da4375674ddcf72ed7f3459f663473536a7.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:375517",
+      "eventId": "375517",
+      "name": "BU Debate Society General Meeting",
+      "organizer": "Debate Society - 1124",
+      "start": "2026-10-26T19:00:00-04:00",
+      "end": "2026-10-26T20:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": "Sargent 101",
+      "locationAddress": "635 Commonwealth Avenue\r\nRoom 101, Boston, MA 02215, United States",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "unresolved",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=375517",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=375517",
+        "retrievedAt": "2026-10-24T15:12:23.109451+00:00",
+        "sha256": "28f7b739d44be799c72f35522a66d74c1c966e2c4330aede872d53a31ef2faf5",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/4d0849592f726f7c31d91cc9c547aca78267edcb14d82fe26137d78fa151a222.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:375962",
+      "eventId": "375962",
+      "name": "First-Gen Support Group",
+      "organizer": "Newbury Center",
+      "start": "2026-10-27T17:00:00-04:00",
+      "end": "2026-10-27T18:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=375962",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=375962",
+        "retrievedAt": "2026-10-24T15:12:23.875329+00:00",
+        "sha256": "3ecf3ff27153a1b2d3bfddb1a8a4b9cefa2513d6124f1e4c46f3b6024aa83820",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/e1676711769e090eb6e88534a817c55601758aa98ec5c6e8dc5e9cb6998f83dc.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377345",
+      "eventId": "377345",
+      "name": "Lets Talk Dining",
+      "organizer": "Student Government - 1384",
+      "start": "2026-10-28T15:30:00-04:00",
+      "end": "2026-10-28T19:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": null,
+      "locationAddress": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "hidden",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377345",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377345",
+        "retrievedAt": "2026-10-24T15:12:24.554595+00:00",
+        "sha256": "7747dabd71d0f05bea1a82620c07b75752ea019bb369dd5b76b00055d3763a47",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/0714f500b4a563f564b23003b0a8184e2b67cb64596059afae2f53df8d19fc0b.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:377535",
+      "eventId": "377535",
+      "name": "October Town Hall",
+      "organizer": "Student Government - 1384",
+      "start": "2026-10-28T17:00:00-04:00",
+      "end": "2026-10-28T18:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": "PHO 906",
+      "locationAddress": "775 Commonwealth Ave B43, Boston, MA 02215, United States",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "unresolved",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377535",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377535",
+        "retrievedAt": "2026-10-24T15:12:25.215831+00:00",
+        "sha256": "581b2e67a70c2cd7e88ce5696f469a3815d63e5ffb3a4ace39d0777db66b49a4",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/958f7895b1d32e2fb43288df1f54f65d06fc73e831744a01078e236328a6e4ea.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    },
+    {
+      "id": "terriercentral:375518",
+      "eventId": "375518",
+      "name": "BU Debate Society General Meeting",
+      "organizer": "Debate Society - 1124",
+      "start": "2026-10-28T19:00:00-04:00",
+      "end": "2026-10-28T20:00:00-04:00",
+      "timezone": "America/New_York",
+      "locationName": "Sargent 101",
+      "locationAddress": "635 Commonwealth Avenue\r\nRoom 101, Boston, MA 02215, United States",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "locationStatus": "unresolved",
+      "registrationCount": null,
+      "remainingRegistrationSpots": null,
+      "registrationOptional": null,
+      "observedAttendance": null,
+      "roomCapacity": null,
+      "measure": "registrations",
+      "provenance": {
+        "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=375518",
+        "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=375518",
+        "retrievedAt": "2026-10-24T15:12:25.979692+00:00",
+        "sha256": "b2c8455b6f01a7e73b5af8056803b5b9791386dc98ab92b6b20c2f8719d1033d",
+        "contentType": "text/html; charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/125f2e17402829b437c76104293e69b58355028ad2cd080b953c63d89838c5a1.body",
+        "cacheUsed": true
+      },
+      "limitations": [
+        "Registration is neither attendance nor room capacity.",
+        "Multi-day/recurring event spans are not expanded into assumed occurrences."
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://terriercentral.bu.edu/events",
+      "requestedUrl": "https://terriercentral.bu.edu/events",
+      "retrievedAt": "2026-10-24T15:04:24.462231+00:00",
+      "sha256": "bb6ba785f741b74bbd3908701384a5041b37f83bcda6ae50e7924a10057fce8f",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/9b4ce8b88d0c7d720e436190b9bfea6b71077e3df712a05d96bfe76fbbb7b2b7.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/mobile_ws/v17/mobile_events_list?range=0&limit=40&filter4_contains=any&filter4_notcontains=any&order=&search_word=",
+      "requestedUrl": "https://terriercentral.bu.edu/mobile_ws/v17/mobile_events_list?range=0&limit=40&filter4_contains=any&filter4_notcontains=any&order=&search_word=",
+      "retrievedAt": "2026-10-24T15:04:25.277050+00:00",
+      "sha256": "066ccecb5ca297dcc53c0457b2459906db7701c10a7bbd3d07856ced86bf61ef",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/5d92977bdff3b887820830b01d56e29abbfebb4c464ec5ea42aa33df513f6b01.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/mobile_ws/v17/mobile_events_list?range=40&limit=40&filter4_contains=any&filter4_notcontains=any&order=&search_word=",
+      "requestedUrl": "https://terriercentral.bu.edu/mobile_ws/v17/mobile_events_list?range=40&limit=40&filter4_contains=any&filter4_notcontains=any&order=&search_word=",
+      "retrievedAt": "2026-10-24T15:12:16.521639+00:00",
+      "sha256": "3f32c4a10f8fa3d87eab0b07b59307bfff50f84f606a59581b815ebef983c6ec",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/95b8c5536babca8a411e7ee81df10b15bf6deba952a4656884ddce684bb37603.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/mobile_ws/v17/mobile_events_list?range=80&limit=40&filter4_contains=any&filter4_notcontains=any&order=&search_word=",
+      "requestedUrl": "https://terriercentral.bu.edu/mobile_ws/v17/mobile_events_list?range=80&limit=40&filter4_contains=any&filter4_notcontains=any&order=&search_word=",
+      "retrievedAt": "2026-10-24T15:12:17.021956+00:00",
+      "sha256": "0446c0f45aa9228c723ca60a95d79aaba76381b975a32f2a41d24699df9d9f8f",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/77acf0c18029cb441fe016d0c008705cd3d2edf69ca8cddcf5c67701ae36d469.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=375707",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=375707",
+      "retrievedAt": "2026-10-24T15:04:26.060710+00:00",
+      "sha256": "73c59ba5ef5b9aefb47b3d569d3a6004a36fce649a072bad3a4b31b08b8801d1",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/df41ba650726f21b089a8e50193692e1df53fba38f13cee60ae68d5befe11f51.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=376472",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=376472",
+      "retrievedAt": "2026-10-24T15:04:26.930281+00:00",
+      "sha256": "4425d67ef162c5522ba976e90a0fa5426f838204fd268672896024a68424f86f",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/b61f6221dfaf62b017ff1a577b1ae9c14a6f334401d7f354570db27ad3a40e8c.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=376984",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=376984",
+      "retrievedAt": "2026-10-24T15:04:27.638273+00:00",
+      "sha256": "d0bb4cf3f4c1f812bf2b799e42ed7421f2e479b0608c736a269dbf2dc12be617",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/297bb241775454e6a6183c10676405a7955ee282e7636cb3a6236f1d9f41fff1.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377637",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377637",
+      "retrievedAt": "2026-10-24T15:06:26.561913+00:00",
+      "sha256": "1b6f259d1987d4b55dbbaa243b49e1dc654c146fca0c10fc909c9bfb2f98722c",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/8249223882584e231b405c0131dc7b9d38c138aa30ac8a9079b0a7a46f711194.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=376197",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=376197",
+      "retrievedAt": "2026-10-24T15:06:27.413700+00:00",
+      "sha256": "f9561241fff83675d2793c88caa472948ee482a05a935896734d1cce6d82710e",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/db2c01b4f2a40c2cdae8e37142d9951e62c94acf287e158f2db5a31a8b65d52f.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377084",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377084",
+      "retrievedAt": "2026-10-24T15:12:17.768333+00:00",
+      "sha256": "feae9bee9229c7da0879e9d50d4d41db2b6326c99034a045eb10a4292bd201fc",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/9dc59553f5a22b905448f742c221b906604111f837114a36e972272793865b4d.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377507",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377507",
+      "retrievedAt": "2026-10-24T15:12:18.439785+00:00",
+      "sha256": "762884b620853d2d017519fb4313b9c13a21e353c88d4311bcd1bdb0a4d91515",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/61397dc884ff5cf2ed9009b178bce91ba837313a03a5a8d34176e1cf6c082ed6.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=376612",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=376612",
+      "retrievedAt": "2026-10-24T15:12:19.219052+00:00",
+      "sha256": "506b0a99f01b9a8a96162ea86d101be5cda001fb9561723c4feaba92879b0389",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/aad6fb688585da54ae389ced7d81cefca7b30f1a4457b43727f6c837901ecbe0.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377590",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377590",
+      "retrievedAt": "2026-10-24T15:12:19.903830+00:00",
+      "sha256": "44cc5f764a51acb98341e8e9370d36a1f9b33b2e2ae6038f4a549c09f4655ea1",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/f2fea70bbc4de470d30ef3432506bbfc404298ea9254a985c995905d506bb9db.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377868",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377868",
+      "retrievedAt": "2026-10-24T15:12:20.427909+00:00",
+      "sha256": "ae2daa0ad89bd5b849e7dd13c12d8677ef76b2a44bb5ccfa7e576fd0817914e5",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/8973f50fa96579ddffbcf70958fadbb1cf478d4ad466e2dc7311db0f77edbd45.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377641",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377641",
+      "retrievedAt": "2026-10-24T15:12:20.950302+00:00",
+      "sha256": "27e424c7bddd197ae311a57e9401c9e6eceb2dd71d409fc4faded5d6f6ee9ed1",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/1f3122574acb7b5b6d04cb9048bf63dba951abf6e7eed666d0777eb6d0147f5a.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377447",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377447",
+      "retrievedAt": "2026-10-24T15:12:21.512791+00:00",
+      "sha256": "c03a9c89db63710ac7e5d94021228e9adfa0219bba798850aa7b46e9977bfe5d",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/b2c90a9bd504cbbb031e96a456c7cc1a109d53dfe34eb947a691dd5f6740761e.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377580",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377580",
+      "retrievedAt": "2026-10-24T15:12:22.384853+00:00",
+      "sha256": "f663b42a3f36ad79a93a9836a8536f8a570cb9ccd1ab9b5f7bd27a3bfc6f3f9c",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/2d494f2a70f1d73c49ec1880db435da4375674ddcf72ed7f3459f663473536a7.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=375517",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=375517",
+      "retrievedAt": "2026-10-24T15:12:23.109451+00:00",
+      "sha256": "28f7b739d44be799c72f35522a66d74c1c966e2c4330aede872d53a31ef2faf5",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/4d0849592f726f7c31d91cc9c547aca78267edcb14d82fe26137d78fa151a222.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=375962",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=375962",
+      "retrievedAt": "2026-10-24T15:12:23.875329+00:00",
+      "sha256": "3ecf3ff27153a1b2d3bfddb1a8a4b9cefa2513d6124f1e4c46f3b6024aa83820",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/e1676711769e090eb6e88534a817c55601758aa98ec5c6e8dc5e9cb6998f83dc.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377345",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377345",
+      "retrievedAt": "2026-10-24T15:12:24.554595+00:00",
+      "sha256": "7747dabd71d0f05bea1a82620c07b75752ea019bb369dd5b76b00055d3763a47",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/0714f500b4a563f564b23003b0a8184e2b67cb64596059afae2f53df8d19fc0b.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=377535",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=377535",
+      "retrievedAt": "2026-10-24T15:12:25.215831+00:00",
+      "sha256": "581b2e67a70c2cd7e88ce5696f469a3815d63e5ffb3a4ace39d0777db66b49a4",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/958f7895b1d32e2fb43288df1f54f65d06fc73e831744a01078e236328a6e4ea.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://terriercentral.bu.edu/web/rsvp_boot?id=375518",
+      "requestedUrl": "https://terriercentral.bu.edu/web/rsvp_boot?id=375518",
+      "retrievedAt": "2026-10-24T15:12:25.979692+00:00",
+      "sha256": "b2c8455b6f01a7e73b5af8056803b5b9791386dc98ab92b6b20c2f8719d1033d",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/125f2e17402829b437c76104293e69b58355028ad2cd080b953c63d89838c5a1.body",
+      "cacheUsed": true
+    }
+  ],
+  "warnings": [
+    "Public listing discovery is bounded; output is not a complete campus event inventory."
+  ],
+  "errors": []
+}

@@ -4,9 +4,20 @@ Python acquires and normalizes public evidence for the revised [Flowcast plan](.
 
 The sources come from the supplied *BU population data sources* guide dated 24 October 2026. Source URLs are defined alongside their parsers. No login, university account, private roster, or participant schedule is used.
 
-## Setup and run
+## Use the saved datasets
 
-Run from the repository root with Python 3.10 or newer:
+The normalized public datasets in [`output/`](output/) are committed. Use them directly; application setup and data analysis do not require another scrape or the scraper dependencies.
+
+- [`output/catalog.json`](output/catalog.json): the campus-wide Fall 2026 snapshot, with 8,900 course pages, 8,454 unique course codes, 6,944 physical meeting records, and 437 verified classroom capacities.
+- [`output/manifest.json`](output/manifest.json): checksums and collection status for all six categories.
+- [`output/campus-wide/coverage.json`](output/campus-wide/coverage.json): per-school coverage and explicit schedule/capacity gaps.
+- The other category JSON files contain the saved events, dining, library, housing, and supplemental-signal records.
+
+The campus-wide folder also retains discovered URLs and parsed JSONL records for resuming an intentional update. Root and campus-wide catalogs are identical snapshots. Raw HTTP response bodies and run logs remain local; published provenance uses repository-relative cache paths, and the cache is not required to consume these JSON datasets.
+
+## Refresh the data only when needed
+
+The commands below perform acquisition and can overwrite the saved outputs. Run them only when intentionally updating the snapshot, from the repository root with Python 3.10 or newer:
 
 ```sh
 python3 -m venv data-pipeline/.venv
@@ -116,7 +127,7 @@ HTTP requests use a research User-Agent, a default minimum 0.5-second interval p
 data-pipeline/.venv/bin/python data-pipeline/scrape_population_data.py --offline
 ```
 
-Offline replay requires the same requested URLs and discovery limits to have been acquired already. The cache and generated output are ignored by Git. Keep the cache with an acquisition when preserving reproducibility; absolute `rawPath` values refer to the collecting machine.
+Offline replay requires the same requested URLs and discovery limits to have been acquired already. The raw HTTP cache and run logs are ignored by Git. Normalized datasets and manifests are versioned. Keep the cache with an acquisition when preserving reproducibility; committed `rawPath` values are relative to the repository root. Fresh local acquisitions may initially record absolute paths.
 
 Each dataset has a schema version, generation time, status, source list, warnings, and errors. The runner's manifest records checksums, source counts, record counts, per-category failures, and institutional sources still unavailable. Writes are atomic. A category failure does not prevent the other categories from being saved. Any acquisition/parser failure makes the runner exit nonzero with a `partial` manifest; inspect the error details instead of treating the run as complete.
 
