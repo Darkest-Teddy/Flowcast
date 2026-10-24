@@ -27,6 +27,7 @@ import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
+import { precipitationLayers } from './weather/precipitation';
 import {
   BikeReplay,
   BluebikesFeed,
@@ -314,6 +315,7 @@ export default function App() {
             : []),
           ...agentLayers(withRiders(walking, riders, showTransitRef.current), models, t, { zoom: basemap.getZoom() }),
           ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
+          ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
         perfRef.current = {
@@ -468,7 +470,7 @@ export default function App() {
 
       <PerfMonitor counts={getPerfCounts} />
       {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
-      {mapKind && <WeatherControls basemap={basemapRef.current} light={light} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
+      {mapKind && <WeatherControls basemap={basemapRef.current} light={light} simTime={hud?.time} live={live} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
 
       {hud && (
         <aside className="panel side">
@@ -774,7 +776,7 @@ function WeatherImpact({ weather }: { weather: ActiveWeather }) {
     <p className="weather-impact">
       <strong>Weather impact:</strong> {note}.
       <span className="muted">
-        {weather.live ? 'Live weather' : 'Simulated weather'}
+        {weather.sourceLabel}
         {boost > 0 && ` · dining and library activity +${Math.round(boost * 100)}%`}
       </span>
     </p>
