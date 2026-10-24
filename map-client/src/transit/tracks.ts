@@ -54,8 +54,12 @@ export function distanceMetres(a: [number, number], b: [number, number]): number
   return Math.hypot((b[0] - a[0]) * kx, (b[1] - a[1]) * METRES_PER_DEG_LAT);
 }
 
-/** Nearest point on any of these tracks to a reported position. */
-export function snapToTracks(tracks: Track[], at: [number, number]): TrackPosition | null {
+// When a source reports a trustworthy heading, segments pointing the other way count as this
+// much further away, so a looping shuttle route doesn't snap onto the opposite side of the street.
+const WRONG_WAY_PENALTY_METRES = 60;
+
+/** Nearest point on any of these tracks to a reported position (optionally heading-aware). */
+export function snapToTracks(tracks: Track[], at: [number, number], heading?: number): TrackPosition | null {
   let best: TrackPosition | null = null;
   const kx = metresPerDegLng(at[1]);
   for (const track of tracks) {
@@ -69,7 +73,12 @@ export function snapToTracks(tracks: Track[], at: [number, number]): TrackPositi
       const segY = by - ay;
       const segLen2 = segX * segX + segY * segY || 1;
       const f = Math.max(0, Math.min(1, -(ax * segX + ay * segY) / segLen2));
-      const distance = Math.hypot(ax + segX * f, ay + segY * f);
+      let distance = Math.hypot(ax + segX * f, ay + segY * f);
+      if (heading !== undefined) {
+        const segBearing = (Math.atan2(segX, segY) * 180) / Math.PI;
+        const diff = Math.abs(((segBearing - heading + 540) % 360) - 180);
+        if (diff > 100) distance += WRONG_WAY_PENALTY_METRES;
+      }
       if (!best || distance < best.distance) {
         best = { track, s: track.cumulative[i - 1] + f * (track.cumulative[i] - track.cumulative[i - 1]), distance };
       }

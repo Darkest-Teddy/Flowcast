@@ -347,6 +347,7 @@ FONT = {
     "4": ["...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#."],
     "5": ["#####", "#....", "####.", "....#", "....#", "#...#", ".###."],
     "7": ["#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..."],
+    "U": ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
     " ": [".....", ".....", ".....", ".....", ".....", ".....", "....."],
 }
 
@@ -654,7 +655,8 @@ def bus_material(kind, band, side, z):
     return BUS_BANDS[band]
 
 
-def build_bus():
+def build_bus(sign_text=BUS_SIGN_TEXT, mbta_roundel=True, side_text=None):
+    """An MBTA bus by default; the BU shuttle passes its own sign/side text and drops the T."""
     m = Mesh()
     loft = Loft(BUS_LEVELS, bus_stations())
     front_cap = {0: "trim", 1: "body", 2: "body", 3: "glass", 4: "glass", 5: "glass", 6: "sign_black", 7: "roof"}
@@ -671,7 +673,7 @@ def build_bus():
     loft.cap_decal(m, front, -0.025, 0.025, 1.14, 2.50, "trim")
     loft.cap_decal(m, front, -1.0, 1.0, 1.12, 1.17, "trim")
     # Destination sign.
-    for r in text_rects(BUS_SIGN_TEXT, 0.0, 2.66, 0.032):
+    for r in text_rects(sign_text, 0.0, 2.66, 0.032):
         loft.cap_decal(m, front, *r, "sign_amber", offset=0.018)
     loft.cap_decal(m, rear, -0.9, 0.9, 0.36, 0.50, "under")  # rear bumper strip
     # Door glazing (kerb side, -X): two leaves per door.
@@ -679,8 +681,15 @@ def build_bus():
         mid = (a + b) / 2
         for za, zb in ((a + 0.07, mid - 0.03), (mid + 0.03, b - 0.07)):
             loft.side_decal(m, -1, za, zb, 0.72, 2.44, "glass")
-    for s in (1, -1):
-        loft.side_roundel(m, s, 1.6, 0.79, 0.22)
+    if mbta_roundel:
+        for s in (1, -1):
+            loft.side_roundel(m, s, 1.6, 0.79, 0.22)
+    if side_text:
+        # Big white lettering below the windows. Each side is read from outside, so +X reads
+        # toward -Z and -X toward +Z.
+        for s in (1, -1):
+            for x0, x1, y0, y1 in text_rects(side_text, 0.6, 1.0, 0.075, facing=-s):
+                loft.side_decal(m, s, x0, x1, y0, y1, "logo_white", 0.02)
     # Wheels: tyre, hub, and dark inner faces.
     for zc in BUS_AXLES:
         for s in (1, -1):
@@ -708,7 +717,16 @@ def pad4(data, fill):
     return data + fill * (-len(data) % 4)
 
 
-def write_glb(mesh, name, path):
+# BU Shuttle ("the BUS") livery: red bodywork with a white band instead of MBTA yellow.
+BU_LIVERY = {
+    "body": mat("#CC0000", 0.15, 0.45),
+    "roof": mat("#E8E8E8", 0.2, 0.55),
+    "mbta_yellow": mat("#FFFFFF", 0.05, 0.5),
+}
+
+
+def write_glb(mesh, name, path, overrides=None):
+    materials = {**MATERIALS, **(overrides or {})}
     gltf = {
         "asset": {"version": "2.0", "generator": "flowcast make_vehicle_models.py"},
         "scene": 0,
@@ -733,7 +751,7 @@ def write_glb(mesh, name, path):
         pos, nrm, idx = mesh.prims[material]
         if not idx:
             continue
-        gltf["materials"].append({"name": material, **MATERIALS[material]})
+        gltf["materials"].append({"name": material, **materials[material]})
         flat_p = [c for p in pos for c in p]
         flat_n = [c for n in nrm for c in n]
         pv = view(struct.pack(f"<{len(flat_p)}f", *flat_p), 34962)
@@ -810,12 +828,13 @@ def check_glb(path):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     models = {
-        "mbta-green-line-train": build_train(),
-        "mbta-bus": build_bus(),
+        "mbta-green-line-train": (build_train(), None),
+        "mbta-bus": (build_bus(), None),
+        "bu-shuttle": (build_bus(sign_text="BU", mbta_roundel=False, side_text="BU"), BU_LIVERY),
     }
-    for name, mesh in models.items():
+    for name, (mesh, overrides) in models.items():
         path = OUT / f"{name}.glb"
-        write_glb(mesh, name, path)
+        write_glb(mesh, name, path, overrides)
         print(f"wrote {path} ({mesh.triangle_count()} triangles)")
         if "--check" in sys.argv:
             check_glb(path)
