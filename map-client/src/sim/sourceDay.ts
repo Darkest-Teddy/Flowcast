@@ -29,7 +29,7 @@ const COMPONENT_BUNDLE_SEARCH_LIMIT = 48;
 const COMPONENT_OPTIONS_PER_COMPONENT = 12;
 const UNMAPPED_ACADEMIC_MINUTES = 120;
 /** Share of uncovered-course academic blocks spent off the map (online, other campuses, home). Uncalibrated. */
-export const OFF_MAP_ACADEMIC_SHARE = 0.25;
+export const OFF_MAP_ACADEMIC_SHARE = 0.1;
 const CAMPUS_STUDY_HOURS: [number, number] = [8 * 3600, 22 * 3600];
 export const MODELED_ACTIVITY_SHOULDER_SHARE = 0.25;
 const ARRIVAL_LEAD = { minimum: 2 * 60, spread: 10 * 60 };
@@ -288,7 +288,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     assumptions: [
       'Enrollment is synthetic and fixed for the whole reference week; published classes supply places, times, and seat upper bounds, not actual enrollment.',
       'Default course eligibility follows BU’s published numeric guide: 100–399 undergraduate, 400–599 undergraduate/graduate, 600–999 graduate; MED MD and graduate-school prefixes use graduate defaults. This is not a prerequisite or individual-permission checker.',
-      'Each uncovered course slot may reserve one stable 120-minute weekday academic/study block, subject to route and schedule feasibility. 75% of blocks are placed on campus when feasible (an open library within its capacity, or an academic building where the student has mapped classes, on a day it has classes, 08–22; commuters only on their own class days); the rest, and any that do not fit, are spent off the map. These are explicit uncalibrated estimates, not published courses or observed location histories.',
+      'Each uncovered course slot may reserve one stable 120-minute weekday academic/study block, subject to route and schedule feasibility. 90% of blocks are placed on campus when feasible (an open library within its capacity, or an academic building where the student has mapped classes, on a day it has classes, 08–22; commuters only on their own class days); the rest, and any that do not fit, are spent off the map. These are explicit uncalibrated estimates, not published courses or observed location histories.',
       'Class arrivals use stable 2–12-minute leads when gaps permit. Home breaks require home dwell at least 15 minutes and at least their extra walking detour. Optional added walking cannot exceed the activity duration.',
       'Gateway changes reserve a straight-line distance/speed lower bound in off-map time in addition to meals/breaks; no route or transport mode outside the saved network is asserted.',
       'Only the eligible mapped/full canonical course-offering coverage fraction of each synthetic degree load is targeted on the map, sampled stably per student. This is an offering-coverage proxy, not measured enrollment; uncovered study remains unknown rather than redistributed to mapped classrooms.',
