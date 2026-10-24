@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { quality, type QualityMode } from './perf/quality';
 import { mapGpuInfo, type GpuInfo } from './gpu';
 
+// What each Auto level has turned off (perf/quality.ts).
+const AUTO_LEVELS = ['all on', 'no shadows', 'no shadows or footpaths', 'lean map'];
+
 export interface PerfCounts {
   walkers: number;
   vehicles: number;
@@ -141,8 +144,8 @@ export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
       <p className="perf-hint">
         {ratio(quality.pixelRatio)}x pixels
         {mode !== 'auto' && perfSettings.pixelRatio !== quality.pixelRatio && ` (${ratio(perfSettings.pixelRatio)}x after reload)`}
-        {mode === 'auto' && ` · level ${perfSettings.level}`}
-        {mode === 'speed' && ' · no MSAA after reload'} · P to hide
+        {quality.msaa ? ' · MSAA' : ''}
+        {mode === 'auto' && ` · ${AUTO_LEVELS[perfSettings.level] ?? ''}`} · P to hide
       </p>
     </div>
   );

@@ -221,6 +221,20 @@ export class Playback {
     return this.data.trips.length ? [start, end] : [0, 86400];
   }
 
+  /** Trips under way at any moment in [from, to] (seconds), each once, in a stable order. */
+  tripsBetween(from: number, to: number): Trip[] {
+    const out: Trip[] = [];
+    const seen = new Set<Trip>();
+    for (let bucket = Math.floor(from / 300); bucket <= Math.floor(to / 300); bucket++) {
+      for (const trip of this.walkingBuckets.get(bucket) ?? []) {
+        if (seen.has(trip)) continue;
+        seen.add(trip);
+        if (trip.timestamps[0] <= to && trip.timestamps[trip.timestamps.length - 1] >= from) out.push(trip);
+      }
+    }
+    return out;
+  }
+
   /** Only trips active in this five-minute bucket need position interpolation. */
   walkingAt(t: number): WalkingAgent[] {
     const out: WalkingAgent[] = [];

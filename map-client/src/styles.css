@@ -1,5 +1,7 @@
 :root {
-  --panel: rgba(17, 20, 28, 0.86);
+  /* Near-opaque instead of a frosted blur: backdrop-filter re-blurs the animated map under every
+     panel every frame, on the same Chrome GPU thread as WebGL (it cost a third of the frame rate). */
+  --panel: rgba(17, 20, 28, 0.92);
   --text: #f4f5f7;
   --muted: #b7bcc8;
   --accent: #ffd60a;
@@ -17,7 +19,6 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   background: var(--panel);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  backdrop-filter: blur(8px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 

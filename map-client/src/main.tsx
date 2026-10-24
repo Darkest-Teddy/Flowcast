@@ -4,10 +4,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { cacheUniformBlockBindings, preferHighPerformanceGpu } from './gpu';
+import { installMapboxVaoCache } from './map/vaoCache';
 import './styles.css';
 
 preferHighPerformanceGpu();
 cacheUniformBlockBindings();
+installMapboxVaoCache();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

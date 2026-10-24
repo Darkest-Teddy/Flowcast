@@ -323,7 +323,7 @@ export default function App() {
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, transitRef, bikesRef, populationBase, quality } });
+      if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, transitRef, bikesRef, populationBase, quality } });
       setStatus('');
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
@@ -442,7 +442,8 @@ export default function App() {
           ...crowdLayers({
             footprints: day.buildings,
             buildings: buildingOccupancy.filter((building) => building.modeled !== false),
-            trips: playback.data.trips,
+            tripsBetween: (from, to) => playback.tripsBetween(from, to),
+            tripsSource: playback,
             time: t,
             speed: speedRef.current,
             selectedId: selectedRef.current,

@@ -5,6 +5,7 @@ import { LineLayer, PathLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { ScenegraphLayer, SimpleMeshLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
+import { mergeFlatMaterials } from './gltf-palette';
 import { CubeGeometry } from '@luma.gl/engine';
 import type { Color } from '@deck.gl/core';
 import { minutesUntil, type TransitSource, type TransitData, type TransitRoute, type TransitStop, type Vehicle } from '../transit/mbta';
@@ -44,7 +45,7 @@ export async function loadVehicleModels(): Promise<VehicleModels> {
       const head = await fetch(url, { method: 'HEAD' }).catch(() => null);
       // Vite's dev server answers unknown paths with index.html, so check the type too.
       if (!head?.ok || head.headers.get('content-type')?.includes('text/html')) return [kind, undefined];
-      return [kind, await load(url, GLTFLoader).catch(() => undefined)];
+      return [kind, await load(url, GLTFLoader).then(mergeFlatMaterials).catch(() => undefined)];
     }),
   );
   return Object.fromEntries(entries);

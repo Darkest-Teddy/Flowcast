@@ -266,7 +266,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       ...INITIAL_VIEW,
       ...BOSTON_LIMITS,
       // 4x MSAA. Speed mode starts without it (it can only be chosen when the map is created).
-      antialias: quality.mode !== 'speed',
+      antialias: quality.msaa,
       // Render settings that cost nothing visible: one world (the camera is held to Boston, so
       // copies never show) and no Mapbox performance telemetry uploads.
       renderWorldCopies: false,
@@ -421,7 +421,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     ...INITIAL_VIEW,
     ...BOSTON_LIMITS,
     maxPitch: 85, // the default 60 is too flat for the street-level view
-    canvasContextAttributes: { antialias: quality.mode !== 'speed' },
+    canvasContextAttributes: { antialias: quality.msaa },
     renderWorldCopies: false,
   });
   map.setPadding(VIEW_PADDING);
@@ -449,16 +449,29 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
 }
 
 /**
- * The Performance setting (perf/quality.ts) on Mapbox: in Speed mode Standard's 3D objects (trees
- * and the like) and footpaths off. (The pixel-ratio cap is applied once, before the map exists.)
+ * The Performance setting (perf/quality.ts) on Mapbox: shadows, Standard's 3D objects (trees and
+ * the like) and footpaths. Each is left as the style has it until a level first turns it off.
+ * (The pixel-ratio cap and MSAA are applied once, before the map exists.)
  */
 function applyMapboxQuality(map: import('mapbox-gl').Map): () => void {
   const detail: Partial<Record<'show3dObjects' | 'showPedestrianRoads', boolean>> = {};
+  let shadows: boolean | null = null;
   return quality.onChange((q: QualitySettings) => {
     const want = { show3dObjects: q.map3dObjects, showPedestrianRoads: q.mapPedestrianRoads };
     for (const [key, value] of Object.entries(want) as [keyof typeof want, boolean][]) {
       if (detail[key] === undefined && value) continue; // untouched until first turned off
       if (detail[key] !== value) map.setConfigProperty('basemap', key, (detail[key] = value));
     }
+    // Shadows draw every building and tree a second time (into the shadow map) and made Mapbox
+    // rebuild ~130 vertex arrays a frame. Standard has no switch for them, so the style's own
+    // lights are re-set with the directional light's cast-shadows flag changed; its colours and
+    // intensities are expressions on the light preset, so they keep following Dawn/Day/Dusk/Night.
+    if ((shadows === null && q.mapShadows) || shadows === q.mapShadows) return;
+    const lights = map.getLights();
+    const sun = lights?.find((l) => l.type === 'directional');
+    if (!lights || !sun) return;
+    sun.properties = { ...sun.properties, 'cast-shadows': q.mapShadows };
+    map.setLights(lights);
+    shadows = q.mapShadows;
   });
 }

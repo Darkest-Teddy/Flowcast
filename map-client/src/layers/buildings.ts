@@ -15,6 +15,7 @@
 import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
+import { mergeFlatMaterials } from './gltf-palette';
 import { daylightAt } from '../map/daylight';
 import { gltfExtent, setCullBox, type CullBox } from './culling';
 
@@ -59,7 +60,11 @@ export async function loadBuildingModels(manifest: BuildingModelManifest): Promi
     jobs.push([c.id, c.model]);
     for (const [when, url] of Object.entries(c.lights ?? {})) if (url) jobs.push([`${c.id}:${when}`, url]);
   }
-  const entries = await Promise.all(jobs.map(async ([key, url]) => [key, await load(url, GLTFLoader)] as const));
+  // The lit-window meshes keep their primitives: their TEXCOORD_0 carries window schedules, not UVs.
+  const entries = await Promise.all(jobs.map(async ([key, url]) => {
+    const model = await load(url, GLTFLoader);
+    return [key, key.includes(':') ? model : mergeFlatMaterials(model)] as const;
+  }));
   return Object.fromEntries(entries);
 }
 

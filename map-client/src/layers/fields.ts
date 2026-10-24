@@ -12,6 +12,7 @@ import { PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer, _MultiIconLa
 import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
+import { mergeFlatMaterials } from './gltf-palette';
 import type { Color, Layer } from '@deck.gl/core';
 import { lowPitchDepthBias } from './buildings';
 
@@ -102,7 +103,7 @@ export async function loadFields(url = '/data/fields.json', buildingsUrl = '/dat
     }
   }
   const urls = [...new Set(fields.flatMap((f) => [f.props, ...f.towers.flatMap((t) => [t.model, t.litModel])]))];
-  const loaded = await Promise.all(urls.map(async (u) => [u, await load(u, GLTFLoader).catch(() => null)] as const));
+  const loaded = await Promise.all(urls.map(async (u) => [u, await load(u, GLTFLoader).then(mergeFlatMaterials).catch(() => null)] as const));
   return { fields, models: Object.fromEntries(loaded.filter(([, m]) => m)) };
 }
 
