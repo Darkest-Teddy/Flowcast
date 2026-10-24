@@ -3,7 +3,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './layers/crowd';
+import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights, type RoofHeights } from './layers/crowd';
 import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
@@ -15,7 +15,7 @@ import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
-import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
+import { Playback, formatClock, loadDay, type BuildingFootprint, type BuildingOccupancy, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
@@ -374,7 +374,7 @@ export default function App() {
         }
         // One placer per frame, shared by every label layer: building tags first, then stations.
         const placer = createPlacer(basemap.project);
-        const buildings = playback.byBuilding(occupancy);
+        const buildings = splitSharedTags(playback.byBuilding(occupancy), occupancy, day.buildings, roofHeights);
         tagsRef.current?.update({
           buildings,
           footprints: day.buildings,
@@ -1015,4 +1015,59 @@ function WeatherImpact({ weather }: { weather: ActiveWeather }) {
       </span>
     </p>
   );
+}
+
+// Podium roof for dining halls inside a taller building (Warren Towers' dining is on the 4-storey podium).
+const PODIUM_ROOF_M = 16;
+
+/**
+ * Building tags, with dining halls that share a building with a dorm given their own tag: Warren
+ * Towers shows one "Warren Towers" tag over the middle of all three towers, plus "Warren Dining" on
+ * the podium. The dorm tag keeps the dorm's own load; the glow still uses the busier of the two.
+ */
+function splitSharedTags(
+  buildings: BuildingOccupancy[],
+  occupancy: Occupancy[],
+  footprints: BuildingFootprint[],
+  roofHeights: RoofHeights | undefined,
+): BuildingOccupancy[] {
+  const byBuilding = new Map<string, Occupancy[]>();
+  for (const o of occupancy) {
+    if (o.location.kind === 'off-campus') continue;
+    byBuilding.set(o.location.building, [...(byBuilding.get(o.location.building) ?? []), o]);
+  }
+  const out: BuildingOccupancy[] = [];
+  for (const b of buildings) {
+    const places = byBuilding.get(b.id) ?? [];
+    const dining = places.filter((o) => o.location.kind === 'dining');
+    const rest = places.filter((o) => o.location.kind !== 'dining');
+    if (!dining.length || !rest.length) {
+      out.push(b);
+      continue;
+    }
+    // The whole building's tag: its centre (over all its parts), named without a part suffix.
+    const rings = footprints.filter((f) => f.id === b.id);
+    const pts = rings.flatMap((f) => f.polygon);
+    const centre: [number, number] = pts.length
+      ? [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length]
+      : b.position;
+    const main = rest.reduce((a, o) => (o.share > a.share ? o : a));
+    const count = rest.reduce((a, o) => a + o.count, 0);
+    const capacity = rest.reduce((a, o) => a + o.location.capacity, 0);
+    const plainName = (name: string) => name.replace(/\s*\([^)]*\)\s*$/, '');
+    out.push({ ...b, position: centre, name: plainName(main.location.name), short: plainName(main.location.short), count, capacity, share: main.share });
+    for (const d of dining) {
+      out.push({
+        id: `${b.id}#${d.location.id}`,
+        name: d.location.name,
+        short: d.location.short,
+        position: d.location.position,
+        count: d.count,
+        capacity: d.location.capacity,
+        share: d.share,
+        roof: Math.min(PODIUM_ROOF_M, roofHeights?.get(b.id) ?? PODIUM_ROOF_M),
+      });
+    }
+  }
+  return out;
 }
