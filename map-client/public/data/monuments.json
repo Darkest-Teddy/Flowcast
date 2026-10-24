@@ -6,15 +6,33 @@
   "subtitle": "MLK Jr. memorial · Sergio Castillo, 1975",
   "model": "/models/free-at-last.glb",
   "position": [
-   -71.1064981,
-   42.3503752
+   -71.1065638,
+   42.350349
   ],
   "bearing": 189,
   "height": 6.1,
   "source": {
-   "position": "https://www.openstreetmap.org/node/9488437322",
+   "position": "https://www.openstreetmap.org/node/9488437322 (moved ~5 m west: the OSM node sits on the BU seal; Esri World Imagery and a 2022 Commons photo, File:Marsh Chapel and Buildings.jpg, show the sculpture about 5 m west and 1 m south of the seal)",
    "details": "BU public art list (bu.edu/cfa/featured-work/bu-public-art): 'about 20 ft tall; 50 interconnected birds' on Marsh Plaza; BU Today 2013 'Icons Among Us': Corten-steel doves on a granite base; shape from Peter H. Dreyer's 1975 photos (City of Boston Archives, Wikimedia Commons).",
    "unverified": "Which way the inscribed face points; modelled facing Commonwealth Ave (south), as in the 1975 photos."
+  }
+ },
+ {
+  "id": "bu-seal",
+  "kind": "monument",
+  "name": "BU Seal",
+  "subtitle": "Marsh Plaza · step on it and you won't graduate",
+  "model": "/models/bu-seal.glb",
+  "position": [
+   -71.106503,
+   42.350358
+  ],
+  "bearing": 189,
+  "height": 0.05,
+  "source": {
+   "position": "Esri World Imagery (dark 3.2 m disc at the centre of the plaza's paving pattern, ~15 m in front of the chapel porch and ~2.5 m west of its axis), registered to the OSM outlines of Marsh Chapel (way/1007090937) and Marsh Plaza (way/328056586); not mapped in OSM.",
+   "details": "BU Today, 'The Myths and Legends behind the BU Seal' (2019): BU's coat of arms in Marsh Plaza, 'black stone with bronze letters', likely installed when the chapel was finished (c. 1950), buffed before Commencement; legend says step on it before Commencement and you won't graduate (also BU Admissions, 'Terrier traditions: keep off the bronze'). Restored in the 1999 plaza rebuilding (BU Bridge, 27 Aug 1999). Design from BU Today's photos: verdigris bronze rings, scrolls lettered BOSTON UNIVERSITY and LEARNING · VIRTUE · PIETY, the shield with the floriated cross and three crowns in polished bronze.",
+   "unverified": "Exact diameter (3.1-3.2 m measured from imagery) and the orientation (modelled reading upright from Commonwealth Ave, its top toward the chapel, as in the photos)."
   }
  },
  {
