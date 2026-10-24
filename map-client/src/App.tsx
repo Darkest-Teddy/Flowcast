@@ -8,6 +8,7 @@ import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
+import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
@@ -92,7 +93,7 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, boats] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
@@ -102,6 +103,7 @@ export default function App() {
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
         loadBuildings().catch(() => null),
         loadStreet().catch(() => null),
+        loadBoats().catch(() => null), // sailboats on the Charles (river polygon + models)
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -151,6 +153,8 @@ export default function App() {
           const transit = transitRef.current;
           const streetText = streetTooltip(object, transit);
           if (streetText) return streetText;
+          const boatText = boatTooltip(object);
+          if (boatText) return boatText;
           const text = transit ? transitTooltip(object, transit.data, liveRef.current ? transit.feed : transit.schedule) : null;
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
@@ -201,6 +205,7 @@ export default function App() {
             }),
             ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
             ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+            ...(boats ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current }) : []),
             ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
           ],
         });
