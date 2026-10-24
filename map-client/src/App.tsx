@@ -10,24 +10,23 @@ import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
-import { calibrateCapacities } from './sim/calibrate';
 import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
-import { riderLayers, withRiders } from './layers/riders';
-import { RiderSim } from './sim/riders';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
-import { ScheduledTransit } from './transit/scheduled';
+import { PublishedTransit, loadPublishedSchedule } from './transit/publishedSchedule';
+import { buildPopulation, loadPopulation, type PopulationBase } from './sim/population';
+import { advanceTime } from './sim/clock';
 import { dateForWeekday, loadCampusData, WEEKDAYS, type CampusData } from './data/campusData';
 import { buildSourceDay } from './sim/sourceDay';
 import { SourceDataPanel } from './SourceDataPanel';
-import type { DayData, CampusLocation } from './sim/playback';
+import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
-import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
+import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers } from './weather/precipitation';
 import {
   BikeReplay,
@@ -42,6 +41,9 @@ import {
 } from './bikes/bluebikes';
 import { bikeLayers, bikeTooltip } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
+import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
+import { mobilityLayers, mobilityTooltip } from './layers/mobility';
+import { MobilityPanel } from './MobilityPanel';
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
@@ -65,6 +67,9 @@ function startTimeFromUrl(): number {
   return match ? Number(match[1]) * 3600 + Number(match[2]) * 60 : 8 * 3600 + 50 * 60;
 }
 
+const BOSTON_WEEKDAY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+function wallClockWeekday(): number { return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(BOSTON_WEEKDAY.format(new Date())); }
+const START_WEEKDAY = START_LIVE ? wallClockWeekday() : 2;
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
 const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
@@ -80,7 +85,7 @@ interface Hud {
 interface Transit {
   data: TransitData;
   feed: MbtaFeed; // live MBTA + BU feeds (Live mode)
-  schedule: ScheduledTransit; // scheduled service on the sim clock (playback / fast-forward)
+  schedule: PublishedTransit | null; // scheduled service on the sim clock (playback / fast-forward)
   models: VehicleModels;
 }
 
@@ -116,15 +121,23 @@ export default function App() {
   const [light, setLight] = useState<LightPreset>('dusk');
   const lightRef = useRef<LightPreset>('dusk'); // read by the frame loop (building model tint)
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes'>('crowds');
-  const [weekday, setWeekday] = useState(2);
-  const weekdayRef = useRef(2); // 0 = Monday (the day picker's index), read by the frame loop
+  const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes' | 'traffic'>('crowds');
+  const [weekday, setWeekday] = useState(START_WEEKDAY);
+  const weekdayRef = useRef(START_WEEKDAY); // 0 = Monday (the day picker's index), read by the frame loop
   const [sourceData, setSourceData] = useState<CampusData | null>(null);
-  const [sourceError, setSourceError] = useState('');
-  const baseDayRef = useRef<DayData | null>(null);
+  const [scheduleError, setScheduleError] = useState('');
+  const baseDayRef = useRef<PopulationBase | null>(null);
   const playbackRef = useRef<Playback | null>(null);
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [campus, setCampus] = useState('charles-river');
+  const campusRef = useRef('charles-river');
+  const [mobilityData, setMobilityData] = useState<MobilityData | null>(null);
+  const [mobilityView, setMobilityView] = useState<MobilityView | null>(null);
+  const [mobilityMode, setMobilityMode] = useState<MobilityMode>('roads');
+  const mobilityModeRef = useRef<MobilityMode>('roads');
+  const [mobilityError, setMobilityError] = useState<string | null>(null);
+  const [selectedMobility, setSelectedMobility] = useState<string | null>(null);
+  const selectedMobilityRef = useRef<string | null>(null);
   const [showTransit, setShowTransit] = useState(true);
   const [showTraffic, setShowTraffic] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
@@ -147,7 +160,7 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, timetable, mobilitySnapshot] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
@@ -157,10 +170,13 @@ export default function App() {
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
         loadBuildings().catch(() => null),
         loadStreet().catch(() => null),
-        loadCampusData().catch(() => { setSourceError("Could not load campus data. Showing the demo."); return null; }),
+        loadCampusData(),
         loadMonuments().catch(() => null),
         loadBikes('/data/bikes.json').catch(() => null),
         loadBoats().catch(() => null), // sailboats on the Charles (river polygon + models)
+        loadPopulation(),
+        loadPublishedSchedule().catch((error: Error) => { setScheduleError(error.message); return null; }),
+        loadMobility().catch((error: Error) => { setMobilityError(error.message); return null; }),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -186,7 +202,7 @@ export default function App() {
           shuttle,
         );
         feed.start();
-        transitRef.current = { data: transitData, feed, schedule: new ScheduledTransit(transitData, feed.tracks), models: vehicleModels };
+        transitRef.current = { data: transitData, feed, schedule: timetable ? new PublishedTransit(transitData, feed.tracks, timetable) : null, models: vehicleModels };
         // Keep the base map's trees off the Green Line trackbed.
         basemap.clipModels(trackCorridors(feed.tracks.filter((t) => t.route.startsWith('Green-')), 3.2));
       }
@@ -203,13 +219,13 @@ export default function App() {
         bikesRef.current = { data: bikeData, replay: new BikeReplay(bikeData), feed, campusOf };
       }
 
-      baseDayRef.current = day;
+      const populationBase = buildPopulation(day, snapshot, population);
+      baseDayRef.current = populationBase;
       setSourceData(snapshot);
-      const playback = new Playback(calibrateCapacities(snapshot ? buildSourceDay(day, snapshot, 2) : day));
+      setMobilityData(mobilitySnapshot);
+      const playback = new Playback(buildSourceDay(populationBase, snapshot, weekdayRef.current));
       playbackRef.current = playback;
       setRange([0, 86400]);
-      // People getting on and off trains, buses and shuttles at stops near campus.
-      const riders = transitRef.current ? new RiderSim(day, transitRef.current.data, transitRef.current.feed.tracks) : null;
       setCampuses(day.campuses ?? []);
 
       overlay = new MapboxOverlay({
@@ -217,6 +233,12 @@ export default function App() {
         _animate: true, // keeps the walk cycles ticking between data updates
         // Building footprints and labels both carry the building id; anything else clears.
         onClick: ({ object }: PickingInfo) => {
+          if (object && 'mobilityKind' in object) {
+            selectedMobilityRef.current = object.id;
+            setSelectedMobility(object.id);
+            setTab('traffic');
+            return;
+          }
           const isBuilding = object && ('polygon' in object || 'share' in object);
           const id = isBuilding ? (object as { id: string }).id : null;
           selectedRef.current = id;
@@ -224,6 +246,8 @@ export default function App() {
           if (id) setTab("data");
         },
         getTooltip: ({ object }: PickingInfo) => {
+          const countTooltip = mobilityTooltip(object);
+          if (countTooltip) return countTooltip;
           const bikes = bikesRef.current;
           const bikeText = bikes ? bikeTooltip(object, bikes.data, bikes.feed, timeRef.current) : null;
           if (bikeText) return bikeText;
@@ -232,7 +256,8 @@ export default function App() {
           if (streetText) return streetText;
           const boatText = boatTooltip(object);
           if (boatText) return boatText;
-          const text = transit ? transitTooltip(object, transit.data, liveRef.current ? transit.feed : transit.schedule) : null;
+          const source = transit && (liveRef.current ? transit.feed : transit.schedule);
+          const text = transit && source ? transitTooltip(object, transit.data, source) : null;
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
@@ -242,7 +267,7 @@ export default function App() {
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, transitRef, bikesRef, riders } });
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, transitRef, bikesRef, populationBase } });
       setStatus('');
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
@@ -250,23 +275,40 @@ export default function App() {
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
+      let mobilityKey = '';
+      let currentMobility: MobilityView | null = null;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       const tick = (now: number) => {
-        const playback = playbackRef.current!;
-        const dt = Math.min(now - last, 100) / 1000;
+        const elapsed = now - last;
         last = now;
+        let nextDay = weekdayRef.current;
         if (liveRef.current) {
+          nextDay = wallClockWeekday();
           timeRef.current = wallClockSeconds();
         } else if (playingRef.current) {
-          timeRef.current += dt * speedRef.current;
-          if (timeRef.current > 86400) timeRef.current = 0;
+          const passedDays = Math.floor((timeRef.current + Math.max(0, elapsed) * speedRef.current / 1000) / 86400);
+          nextDay = (nextDay + passedDays) % 7;
+          timeRef.current = advanceTime(timeRef.current, elapsed, speedRef.current);
         }
+        if (nextDay !== weekdayRef.current) {
+          weekdayRef.current = nextDay;
+          setWeekday(nextDay);
+          playbackRef.current = new Playback(buildSourceDay(populationBase, snapshot, nextDay));
+          lastOccupancy = 0;
+        }
+        const playback = playbackRef.current!;
         const t = timeRef.current;
+        const nextMobilityKey = `${mobilityModeRef.current}:${campusRef.current}:${weekdayRef.current}:${Math.floor(t / 3600)}`;
+        if (mobilitySnapshot && nextMobilityKey !== mobilityKey) {
+          currentMobility = mobilityAt(mobilitySnapshot, mobilityModeRef.current, campusRef.current, weekdayRef.current, t);
+          mobilityKey = nextMobilityKey;
+          setMobilityView(currentMobility);
+        }
         const walking = playback.walkingAt(t);
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
-          occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
+          occupancy = playback.occupancyAt(t);
           lastOccupancy = now;
           if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
           const ridingByCampus = new Map<string, number>();
@@ -279,7 +321,7 @@ export default function App() {
         tagsRef.current?.update({
           buildings,
           footprints: day.buildings,
-          locations: day.locations,
+          locations: populationBase.locations,
           selectedId: selectedRef.current,
           placer,
           project: basemap.project,
@@ -287,9 +329,8 @@ export default function App() {
           roofHeights,
         });
         const transit = transitRef.current;
-        // One transit source per frame, shared by the transit layers and the rider sim.
-        const source = transit ? transitSourceAt(transit, t, liveRef.current) : null;
-        if (riders && source) riders.step(t, now, source);
+        // Live feeds and published playback share the rendering interface.
+        const source = transit ? transitSourceAt(transit, t, liveRef.current, weekdayRef.current) : null;
         const showBikesNow = bikes && showBikesRef.current;
         const frameLayers = [
           ...(detailedBuildings
@@ -314,8 +355,8 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus, placer })
             : []),
-          ...agentLayers(withRiders(walking, riders, showTransitRef.current), models, t, { zoom: basemap.getZoom() }),
-          ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
+          ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+          ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
@@ -352,6 +393,8 @@ export default function App() {
   useEffect(() => {
     basemapRef.current?.setTrafficVisible(showTraffic);
   }, [showTraffic, mapKind]);
+
+  useEffect(() => { campusRef.current = campus; }, [campus]);
 
   const goToCampus = (c: Campus) => {
     setCampus(c.id);
@@ -410,7 +453,8 @@ export default function App() {
 
   const changeDay = (value: number) => {
     if (!baseDayRef.current || !sourceData) return;
-    playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(baseDayRef.current, sourceData, value)));
+    leaveLive();
+    playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value));
     setWeekday(value);
     weekdayRef.current = value;
     setHud((prev) => ({
@@ -425,6 +469,20 @@ export default function App() {
     selectedRef.current = location.building;
     setSelected(location.building);
     basemapRef.current?.flyTo(location.position);
+  };
+  const changeMobilityMode = (mode: MobilityMode) => {
+    mobilityModeRef.current = mode;
+    setMobilityMode(mode);
+    selectedMobilityRef.current = null;
+    setSelectedMobility(null);
+  };
+  const selectMobility = (item: MobilityPoint | MobilityArc) => {
+    selectedMobilityRef.current = item.id;
+    setSelectedMobility(item.id);
+    const position: [number, number] = item.mobilityKind === 'flow'
+      ? [(item.from[0] + item.to[0]) / 2, (item.from[1] + item.to[1]) / 2]
+      : item.position;
+    basemapRef.current?.flyTo(position, 16);
   };
   const currentCampus = campuses.find((c) => c.id === campus);
   const ranked = hud
@@ -454,7 +512,7 @@ export default function App() {
         </p>
         <p className="model-note">{sourceData ? 'Campus simulation · Fall 2026' : 'Campus simulation · Demo'}</p>
         {sourceData && <p className="model-note">{dateForWeekday(sourceData, weekday)} · Boston time</p>}
-        {sourceError && <p role="alert">{sourceError}</p>}
+        {!live && scheduleError && <p role="alert">Transit playback unavailable: {scheduleError}</p>}
         {sourceData && <label className="day-picker">Simulation day <select aria-label="Simulation day" value={weekday} onChange={(event) => changeDay(Number(event.target.value))}>{WEEKDAYS.map((name, index) => <option key={name} value={index}>{name}</option>)}</select></label>}
         {campuses.length > 1 && (
           <div className="campuses" role="group" aria-label="Campus">
@@ -475,14 +533,15 @@ export default function App() {
 
       {hud && (
         <aside className="panel side">
-          <div className="tabs" role="tablist" aria-label="Side panel">
+          <div className="tabs mobility-tabs" role="tablist" aria-label="Side panel">
             <button role="tab" id="tab-crowds" aria-selected={tab === 'crowds'} aria-controls="panel-crowds" onClick={() => setTab('crowds')}>
               Crowds
             </button>
             <button role="tab" id="tab-data" aria-selected={tab === 'data'} aria-controls="panel-data" onClick={() => setTab('data')}>Data</button>
             <button role="tab" id="tab-transit" aria-selected={tab === 'transit'} aria-controls="panel-transit" onClick={() => setTab('transit')}>
-              Transit &amp; traffic
+              Transit
             </button>
+            <button role="tab" id="tab-traffic" aria-selected={tab === 'traffic'} aria-controls="panel-traffic" onClick={() => setTab('traffic')}>Traffic</button>
             {bikes && (
               <button role="tab" id="tab-bikes" aria-selected={tab === 'bikes'} aria-controls="panel-bikes" onClick={() => setTab('bikes')}>
                 Bikes
@@ -491,7 +550,7 @@ export default function App() {
           </div>
           {tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
-              {weather && <WeatherImpact weather={weather} />}
+
               <h2>Campus activity</h2>
               <ol>
                 {ranked.slice(0, 8).map((o) => {
@@ -599,8 +658,13 @@ export default function App() {
                 street routes are inferred.
               </p>
             </section>
+          ) : tab === 'traffic' ? (
+            <section id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic">
+              <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday} selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
+            </section>
           ) : tab === 'data' ? (
             <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
+              {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
               {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
             </section>
           ) : (
@@ -615,7 +679,7 @@ export default function App() {
                   </button>
                 )}
               </div>
-              {transit && showTransit && (
+              {transit && source && showTransit && (
                 <>
                   <h2>
                     {live ? 'Live MBTA' : 'Scheduled service'}{' '}
@@ -770,20 +834,6 @@ export default function App() {
   );
 }
 
-/** One line on how the weather changes campus routines (plan Section 5.6), and what the map adjusts for it. */
-function WeatherImpact({ weather }: { weather: ActiveWeather }) {
-  const { note, boost } = weatherImpact(weather.condition);
-  return (
-    <p className="weather-impact">
-      <strong>Weather impact:</strong> {note}.
-      <span className="muted">
-        {weather.sourceLabel}
-        {boost > 0 && ` · dining and library activity +${Math.round(boost * 100)}%`}
-      </span>
-    </p>
-  );
-}
-
 /** Soonest bus (or BU shuttle) per route and direction at any of a campus's stops. */
 function nextBuses(data: TransitData, feed: TransitSource, area: string, kind: 'bus' | 'shuttle' = 'bus') {
   const routes = new Map(data.routes.map((r) => [r.id, r]));
@@ -830,9 +880,9 @@ function readableOn(hex: string): string {
  * Live mode draws the real MBTA and BU feeds. When the day is played back or fast-forwarded,
  * live vehicles can't keep up, so scheduled service on the simulation clock takes over.
  */
-function transitSourceAt(transit: Transit, t: number, live: boolean): TransitSource {
+function transitSourceAt(transit: Transit, t: number, live: boolean, weekday: number): TransitSource | null {
   if (live) return transit.feed;
-  transit.schedule.setTime(t);
+  transit.schedule?.setTime(t, weekday);
   return transit.schedule;
 }
 
