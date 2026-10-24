@@ -1,22 +1,22 @@
 // MBTA on the map: route lines in the official colours, stops, live trains and buses as 3D
 // blocks at true scale (exaggerated so they read from campus height), and next-arrival labels
 // under each Green Line station.
-import { PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
+import { LineLayer, PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import { ScenegraphLayer, SimpleMeshLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import { CubeGeometry } from '@luma.gl/engine';
 import type { Color } from '@deck.gl/core';
 import { minutesUntil, type MbtaFeed, type TransitData, type TransitRoute, type TransitStop, type Vehicle } from '../transit/mbta';
+import { trackGeometry, type Track, type TrackGeometry } from '../transit/tracks';
 import { labelWidth, type LabelPlacer } from './placement';
 
 const CUBE = new CubeGeometry(); // spans -1..1 on each axis; getScale gives half-dimensions in metres
 // True scale vanishes from campus height (a train is under a pixel wide at zoom 15.5), so
 // vehicles grow as the camera pulls back: real size at street level, up to ~5x on the overview.
-const BUS_EXTRA = 1.5;
+// Buses are a quarter of a train's length, so they start growing a little earlier.
 function vehicleScale(zoom: number, kind: 'subway' | 'bus') {
-  const base = Math.min(5, Math.max(1, 2 ** (17.8 - zoom)));
-  return kind === 'bus' ? base * BUS_EXTRA : base;
+  return kind === 'bus' ? Math.min(7, Math.max(1, 2 ** (18.4 - zoom))) : Math.min(5, Math.max(1, 2 ** (17.8 - zoom)));
 }
 // Half-dimensions in metres: a two-car Green Line train (~45 m) and a 40-ft bus.
 const HALF_SIZE = { subway: [1.35, 22.5, 1.8], bus: [1.3, 6.1, 1.6] } as const;
@@ -61,13 +61,24 @@ interface RoutePath {
   path: [number, number][];
 }
 
+// Track geometry only depends on the static route shapes, so build it once per feed.
+const geometryCache = new WeakMap<Track[], TrackGeometry>();
+function subwayTracks(feed: MbtaFeed, routes: Map<string, TransitRoute>): TrackGeometry {
+  let geometry = geometryCache.get(feed.tracks);
+  if (!geometry) {
+    geometry = trackGeometry(feed.tracks.filter((t) => routes.get(t.route)?.kind === 'subway'));
+    geometryCache.set(feed.tracks, geometry);
+  }
+  return geometry;
+}
+
 export function transitLayers({ data, feed, now, zoom, placer, models }: TransitLayerInput) {
   const routes = new Map(data.routes.map((r) => [r.id, r]));
   const kindOf = (routeId: string) => routes.get(routeId)?.kind ?? 'bus';
-  // Buses first so the Green Line draws over them where they share Comm Ave.
-  const paths: RoutePath[] = [...data.routes]
-    .sort((a, b) => Number(a.kind === 'subway') - Number(b.kind === 'subway'))
-    .flatMap((route) => route.paths.map((path) => ({ route, path })));
+  const busPaths: RoutePath[] = data.routes
+    .filter((r) => r.kind === 'bus')
+    .flatMap((route) => route.paths.map(({ path }) => ({ route, path })));
+  const tracks = subwayTracks(feed, routes);
   const vehicles = feed.positionsAt(now);
   const trains = vehicles.filter((v) => kindOf(v.route) === 'subway');
   const buses = vehicles.filter((v) => kindOf(v.route) === 'bus');
@@ -131,15 +142,53 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
 
   return [
     new PathLayer<RoutePath>({
-      id: 'transit-routes',
-      data: paths,
+      id: 'transit-bus-routes',
+      data: busPaths,
       getPath: (d) => d.path,
-      getColor: (d) => hexToColor(d.route.color, d.route.kind === 'subway' ? 235 : 200),
-      getWidth: (d) => (d.route.kind === 'subway' ? 7 : 3.5),
+      getColor: (d) => hexToColor(d.route.color, 200),
+      getWidth: 3.5,
       widthUnits: 'pixels',
       capRounded: true,
       jointRounded: true,
       pickable: true,
+      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+      slot: 'middle',
+    }),
+    // Green Line track: ballast bed, crossties, two steel rails per direction. Real widths in
+    // metres, with pixel minimums so the line still reads on the campus overview.
+    new PathLayer<{ track: Track; path: [number, number][] }>({
+      id: 'transit-track-bed',
+      data: tracks.beds,
+      getPath: (d) => d.path,
+      getColor: [86, 82, 76, 255],
+      getWidth: 3.4,
+      widthUnits: 'meters',
+      widthMinPixels: 4,
+      jointRounded: true,
+      pickable: true,
+      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+      slot: 'middle',
+    }),
+    new LineLayer<{ from: [number, number]; to: [number, number] }>({
+      id: 'transit-track-ties',
+      data: tracks.ties,
+      getSourcePosition: (d) => d.from,
+      getTargetPosition: (d) => d.to,
+      getColor: [128, 108, 88, 255],
+      getWidth: 0.26,
+      widthUnits: 'meters',
+      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+      slot: 'middle',
+    }),
+    new PathLayer<[number, number][]>({
+      id: 'transit-track-rails',
+      data: tracks.rails,
+      getPath: (d) => d,
+      getColor: [196, 200, 206, 255],
+      getWidth: 0.12,
+      widthUnits: 'meters',
+      widthMinPixels: 1,
+      jointRounded: true,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
@@ -209,9 +258,14 @@ export function transitTooltip(object: unknown, data: TransitData, feed: MbtaFee
     });
     return [s.name, ...(lines.length ? lines : ['No predictions right now'])].join('\n');
   }
+  if ('path' in object && 'track' in object) {
+    const t = (object as { track: Track }).track;
+    const r = routes.get(t.route);
+    return `Green Line ${r?.name} branch · ${r?.directions[t.direction]} track`;
+  }
   if ('path' in object && 'route' in object) {
     const r = (object as RoutePath).route;
-    return r.kind === 'subway' ? 'Green Line B branch' : `Bus ${r.name}: ${r.longName}`;
+    return `Bus ${r.name}: ${r.longName}`;
   }
   return null;
 }

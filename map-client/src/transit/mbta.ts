@@ -5,11 +5,20 @@
 // IP — and a hackathon venue shares one IP — so polling is modest and backs off on 429.
 // Optional: a free key from https://api-v3.mbta.com in VITE_MBTA_API_KEY (map-client/.env.local).
 
+import { makeTrack, pointAlong, snapToTracks, type Track } from './tracks';
+
 const API = 'https://api-v3.mbta.com';
 const API_KEY = import.meta.env.VITE_MBTA_API_KEY as string | undefined;
 const VEHICLE_POLL_MS = 12_000;
 const PREDICTION_POLL_MS = 30_000;
 const MAX_BACKOFF_MS = 120_000;
+// Each direction runs on its own track this far right of the shape's centreline (metres):
+// the B branch's two tracks are ~4 m apart; buses keep to their side of the street.
+const TRACK_OFFSET = { subway: 2.0, bus: 2.5 };
+// Reports further than this from the route (a train in the yard, a bus deadheading) aren't snapped.
+const SNAP_MAX_METRES = 40;
+// A vehicle that "moves" further than this between reports has jumped; don't glide it there.
+const MAX_GLIDE_METRES = 600;
 
 export interface TransitRoute {
   id: string;
@@ -19,7 +28,7 @@ export interface TransitRoute {
   color: string; // "#00843D"
   textColor: string;
   directions: [string, string]; // by direction_id
-  paths: [number, number][][];
+  paths: { direction: 0 | 1; path: [number, number][] }[]; // points in travel order
 }
 
 export interface TransitArea {
@@ -58,6 +67,10 @@ export interface Vehicle {
   from: [number, number];
   to: [number, number];
   receivedAt: number; // performance.now() of the latest report
+  /** Set when the report snapped onto the vehicle's track: it then moves along the track. */
+  track?: Track;
+  sFrom: number;
+  sTo: number;
 }
 
 export interface Arrival {
@@ -102,6 +115,7 @@ export class MbtaFeed {
   private readonly routeIds: string;
   private readonly stopIds: string;
   private readonly stopForPlatform = new Map<string, string>();
+  readonly tracks: Track[];
   private readonly timers: number[] = [];
   private stopped = false;
 
@@ -112,6 +126,9 @@ export class MbtaFeed {
     this.routeIds = data.routes.map((r) => r.id).join(',');
     this.stopIds = data.stops.map((s) => s.id).join(',');
     for (const stop of data.stops) for (const platform of stop.platforms) this.stopForPlatform.set(platform, stop.id);
+    this.tracks = data.routes.flatMap((route) =>
+      route.paths.map(({ direction, path }) => makeTrack(route.id, direction, path, TRACK_OFFSET[route.kind])),
+    );
   }
 
   start() {
@@ -128,9 +145,20 @@ export class MbtaFeed {
   positionsAt(now: number): Vehicle[] {
     for (const v of this.state.vehicles) {
       const f = Math.min(1, (now - v.receivedAt) / VEHICLE_POLL_MS);
-      v.position = [v.from[0] + (v.to[0] - v.from[0]) * f, v.from[1] + (v.to[1] - v.from[1]) * f];
+      if (v.track) {
+        const at = pointAlong(v.track, v.sFrom + (v.sTo - v.sFrom) * f);
+        v.position = at.position;
+        v.bearing = at.bearing;
+      } else {
+        v.position = [v.from[0] + (v.to[0] - v.from[0]) * f, v.from[1] + (v.to[1] - v.from[1]) * f];
+      }
     }
     return this.state.vehicles;
+  }
+
+  private alongTrack(v: Vehicle, now: number): number {
+    const f = Math.min(1, (now - v.receivedAt) / VEHICLE_POLL_MS);
+    return v.sFrom + (v.sTo - v.sFrom) * f;
   }
 
   /** Soonest upcoming arrival per route and direction at a stop. */
@@ -188,9 +216,10 @@ export class MbtaFeed {
         const to: [number, number] = [a.longitude, a.latitude];
         if (!nearCampus(to)) return null;
         const prev = previous.get(r.id);
-        return {
+        const route = r.relationships.route.data!.id;
+        const vehicle: Vehicle = {
           id: r.id,
-          route: r.relationships.route.data!.id,
+          route,
           direction: a.direction_id,
           label: a.label,
           status: a.current_status,
@@ -199,7 +228,28 @@ export class MbtaFeed {
           to,
           position: prev ? [...prev.position] : to,
           receivedAt: now,
+          sFrom: 0,
+          sTo: 0,
         };
+        // Prefer the track for the vehicle's own direction; fall back to the route's other track.
+        const ownTracks = this.tracks.filter((t) => t.route === route && t.direction === a.direction_id);
+        const snapped =
+          snapToTracks(ownTracks, to) ?? snapToTracks(this.tracks.filter((t) => t.route === route), to);
+        if (snapped && snapped.distance <= SNAP_MAX_METRES) {
+          vehicle.track = snapped.track;
+          vehicle.sTo = snapped.s;
+          vehicle.sFrom = snapped.s;
+          if (prev?.track === snapped.track) {
+            const current = this.alongTrack(prev, now);
+            // GPS jitter can put a report slightly behind; vehicles don't reverse, so hold still.
+            vehicle.sTo = snapped.s < current && current - snapped.s < 30 ? current : snapped.s;
+            if (Math.abs(vehicle.sTo - current) <= MAX_GLIDE_METRES) vehicle.sFrom = current;
+          }
+          const at = pointAlong(snapped.track, vehicle.sFrom);
+          vehicle.position = at.position;
+          vehicle.bearing = at.bearing;
+        }
+        return vehicle;
       })
       .filter((v): v is Vehicle => v !== null);
     this.state.updatedAt = Date.now();
