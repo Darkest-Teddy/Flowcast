@@ -7,6 +7,8 @@ import { crowdLayers, crowdLevel } from './layers/crowd';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
+import { riderLayers, withRiders } from './layers/riders';
+import { RiderSim } from './sim/riders';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
@@ -127,6 +129,8 @@ export default function App() {
       }
 
       const playback = new Playback(day);
+      // People getting on and off trains, buses and shuttles at stops near campus.
+      const riders = transitRef.current ? new RiderSim(day, transitRef.current.data, transitRef.current.feed.tracks) : null;
       setRange([playback.startTime, playback.endTime]);
       setCampuses(day.campuses ?? []);
 
@@ -146,12 +150,13 @@ export default function App() {
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
-          return `Student ${agent.id} → ${playback.locations.find((l) => l.id === agent.to)?.name}`;
+          // Riders walking to a stop are headed for a transit stop, not a building.
+          return `Student ${agent.id} → ${playback.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
         },
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, playback, transitRef } });
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, playback, transitRef, riders } });
       setStatus('');
 
       let last = performance.now();
@@ -176,6 +181,8 @@ export default function App() {
         // One placer per frame, shared by every label layer: building labels first, then stations.
         const placer = createPlacer(basemap.project);
         const transit = transitRef.current;
+        const source = transit ? transitSourceAt(transit, t, liveRef.current) : null;
+        if (riders && source) riders.step(t, now, source);
         overlay!.setProps({
           layers: [
             ...(detailedBuildings
@@ -190,8 +197,9 @@ export default function App() {
               selectedId: selectedRef.current,
               placer,
             }),
-            ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
-            ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+            ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+            ...agentLayers(withRiders(walking, riders, showTransitRef.current), models, t, { zoom: basemap.getZoom() }),
+            ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
           ],
         });
         frame = requestAnimationFrame(tick);

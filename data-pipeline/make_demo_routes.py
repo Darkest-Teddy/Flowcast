@@ -9,6 +9,11 @@ Campuses and their locations live in data-pipeline/campuses/*.json. Every file i
 loaded; files that share a campus id merge (locations append, bboxes union). Campuses are routed
 separately: each agent lives and studies on one campus and never walks between campuses.
 
+It also routes riders off the T and buses: for every Green Line station, MBTA bus stop and BU
+Shuttle stop near a campus, the walk from the stop to that campus's nearest locations
+("stopRoutes"). The map's rider simulation (map-client/src/sim/riders.ts) walks people from a
+stopped train or bus to real buildings along these.
+
 Standard library only, so it runs before anyone has set up a Python environment:
     python3 data-pipeline/make_demo_routes.py
 """
@@ -47,6 +52,16 @@ MAX_PEAK = 1.05  # no single building peaks above this
 METRES_PER_LEVEL = 3.6
 DEFAULT_LEVELS = 4
 SNAP_WARN_METRES = 150  # a location this far from its campus walk network probably has a bad bbox
+
+# Rider routes from transit stops (see stop_routes()).
+TRANSIT_JSON = HERE.parent / "map-client" / "public" / "data" / "transit.json"
+TRANSLOC_ROUTES = "https://bu.transloc.com/Services/JSONPRelay.svc/GetRoutesForMapWithScheduleWithEncodedLine"
+TRANSLOC_CACHE = HERE / ".cache" / "transloc-routes.json"
+STOP_ROUTES_PER_STOP = 8  # walk routes from each stop to this many of its campus's nearest locations
+STOP_CAMPUS_MARGIN = 0.0015  # degrees (~150 m): a stop just outside a campus bbox still serves it
+STOP_SNAP_MAX_METRES = 90  # a stop further than this from the campus walk network is skipped
+STOP_ROUTE_MAX_METRES = 1200  # nobody gets off the T to walk further than this to a BU building
+UNDERGROUND_STOPS = {"place-kencl"}  # Kenmore's platforms are underground; nobody waits on the street
 
 MWF_SLOTS = [8 * 60, 9 * 60 + 5, 10 * 60 + 10, 11 * 60 + 15, 12 * 60 + 20, 13 * 60 + 25, 14 * 60 + 30, 15 * 60 + 35]
 
@@ -454,6 +469,90 @@ def simulate_campus(rng, campus, agent_count, first_index):
     return agents, trips, locations, used_routes
 
 
+def transloc_stops():
+    """BU Shuttle stops from TransLoc, as {id, name, position}, for every route BU shows on its map.
+
+    The map fetches these at runtime (src/transit/buShuttle.ts) and keeps only the routes running
+    at that moment; here we keep all of them (day, Night, ...) so a stop has routes whenever it's
+    served. Ids match the map's ("BU-stop-<AddressID>"). Cached so the pipeline runs offline."""
+    try:
+        req = urllib.request.Request(TRANSLOC_ROUTES, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            routes = json.load(resp)
+        TRANSLOC_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        TRANSLOC_CACHE.write_text(json.dumps(routes))
+    except (urllib.error.URLError, OSError, ValueError) as err:
+        if not TRANSLOC_CACHE.exists():
+            warn(f"BU Shuttle stops unavailable ({err}); no shuttle stop routes")
+            return []
+        warn(f"BU Shuttle feed unavailable ({err}); using the cached copy")
+        routes = json.loads(TRANSLOC_CACHE.read_text())
+    stops = {}
+    for route in routes:
+        if not route.get("IsVisibleOnMap"):
+            continue
+        for st in route.get("Stops") or []:
+            stop_id = f"BU-stop-{st['AddressID']}"
+            stops.setdefault(stop_id, {"id": stop_id, "name": st["Description"].strip(), "position": [st["Longitude"], st["Latitude"]]})
+    return list(stops.values())
+
+
+def transit_stops():
+    """Every stop a rider can get off at: Green Line stations and bus stops from transit.json
+    (written by fetch_transit.py), plus BU Shuttle stops."""
+    stops = []
+    if TRANSIT_JSON.exists():
+        for st in json.loads(TRANSIT_JSON.read_text())["stops"]:
+            if st["id"] not in UNDERGROUND_STOPS:
+                stops.append({"id": st["id"], "name": st["name"], "position": st["position"]})
+    else:
+        warn(f"{TRANSIT_JSON} missing (run fetch_transit.py); no MBTA stop routes")
+    return stops + transloc_stops()
+
+
+def stop_routes(campus, stops):
+    """Candidate walks from each transit stop near this campus to its locations, as
+    {stop_id: [(metres, "stopId>locationId", route)]}, nearest first, route in the same compact
+    form as walkRoutes. Each path starts at the stop itself, then joins the walk network at its
+    nearest node."""
+    s, w, n, e = campus["bbox"]
+    m = STOP_CAMPUS_MARGIN
+    near = [st for st in stops if s - m <= st["position"][1] <= n + m and w - m <= st["position"][0] <= e + m]
+    if not near:
+        return {}
+    coords, graph = fetch_walk_network(campus["bbox"])  # cached on disk by the campus run
+    component = largest_component(graph)
+
+    def nearest_node(lat, lon):
+        return min(component, key=lambda nid: haversine(lat, lon, *coords[nid]))
+
+    loc_nodes = {loc["id"]: nearest_node(loc["lat"], loc["lon"]) for loc in campus["locations"]}
+
+    routes = {}
+    for stop in near:
+        lon, lat = stop["position"]
+        start = nearest_node(lat, lon)
+        gap = haversine(lat, lon, *coords[start])
+        if gap > STOP_SNAP_MAX_METRES:
+            warn(f"stop {stop['id']} ({stop['name']}) is {gap:.0f} m from the {campus['id']} walk network; skipped")
+            continue
+        dist, prev = dijkstra(graph, start)
+        reachable = sorted((dist[node], loc_id) for loc_id, node in loc_nodes.items() if node in dist)
+        for _, loc_id in reachable[:STOP_ROUTES_PER_STOP]:
+            node, nodes = loc_nodes[loc_id], [loc_nodes[loc_id]]
+            while node != start:
+                node = prev[node]
+                nodes.append(node)
+            nodes.reverse()
+            path = [[round(lon, 6), round(lat, 6)]] + [[round(coords[nid][1], 6), round(coords[nid][0], 6)] for nid in nodes]
+            cumulative = [0.0, gap]
+            for a, b in zip(nodes, nodes[1:]):
+                cumulative.append(cumulative[-1] + haversine(*coords[a], *coords[b]))
+            route = {"path": path, "cumulative": [round(c, 1) for c in cumulative]}
+            routes.setdefault(stop["id"], []).append((cumulative[-1], f"{stop['id']}>{loc_id}", route))
+    return routes
+
+
 def main():
     rng = random.Random(SEED)
     campuses = load_campuses()
@@ -482,6 +581,21 @@ def main():
         center = [round(sum(l["lon"] for l in locs) / len(locs), 6), round(sum(l["lat"] for l in locs) / len(locs), 6)]
         campus_out.append({"id": c["id"], "name": c["name"], "bbox": c["bbox"], "center": center})
 
+    # After the day is planned and uses no randomness, so walkers and trips are unchanged.
+    print("Routing riders from transit stops...", file=sys.stderr)
+    stops = transit_stops()
+    candidates = {}
+    for c in campuses:
+        for stop_id, found in stop_routes(c, stops).items():
+            candidates.setdefault(stop_id, []).extend(found)
+    # A stop between two campuses (Fenway station) keeps whichever campus's buildings are nearest.
+    rider_routes = {}
+    for found in candidates.values():
+        found.sort(key=lambda f: f[0])
+        for metres, key, route in found[:STOP_ROUTES_PER_STOP]:
+            if metres <= STOP_ROUTE_MAX_METRES:
+                rider_routes[key] = route
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "day": "Wednesday",
@@ -493,6 +607,8 @@ def main():
         # where, when they leave and how fast they walk. Timestamps = depart + metres / speed.
         "walkRoutes": walk_routes,
         "trips": [{k: t[k] for k in ("agent", "from", "to", "depart", "speed")} for t in trips],
+        # Walks from transit stops to nearby locations ("stopId>locationId"), same form as walkRoutes.
+        "stopRoutes": dict(sorted(rider_routes.items())),
     }
     OUT.write_text(json.dumps(payload, separators=(",", ":")))
 
@@ -506,6 +622,8 @@ def main():
         n_trips = sum(agent_campus[t["agent"]] == cid for t in trips)
         print(f"{cid:<16}{len(c['locations']):>10}{resolved:>12}{n_agents:>8}{n_trips:>8}", file=sys.stderr)
     print(f"Wrote {len(agents)} agents, {len(trips)} trips, {len(campuses)} campuses -> {OUT}", file=sys.stderr)
+    stops_routed = len({key.split(">")[0] for key in rider_routes})
+    print(f"  {len(rider_routes)} stop routes from {stops_routed} transit stops; {OUT.stat().st_size / 1e6:.2f} MB", file=sys.stderr)
     if unresolved:
         print(f"  {len(unresolved)} footprint(s) unresolved: {', '.join(unresolved)}", file=sys.stderr)
 
