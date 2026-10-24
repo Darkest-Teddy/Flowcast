@@ -159,15 +159,26 @@ test('weekend resident trips are deterministic, probability-bounded and respect 
   assert.equal(buildSourceDay(base,data,5),day);
 });
 
-test('unknown and merely undated venue hours never permit optional gym, study or dining visits',()=>{
+test('merely undated venue hours never permit optional visits',()=>{
   const {base,data}=fixture();data.locations.class.meetings=[];
-  base.agents=Array.from({length:100},(_,i)=>({id:`unknown${i}`,home:'home',residency:'resident',campus:'main',model:0}));
-  data.locations.meal.hours=[{date:null,windows:[[0,86400]],text:'Undated',sourceUrl:'source',qualifier:null}];
-  data.locations.study.hours=[];data.locations.gym.hours=[];
+  base.agents=Array.from({length:100},(_,i)=>({id:`undated${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  const undated=[{date:null,windows:[[0,86400]],text:'Undated',sourceUrl:'source',qualifier:null}];
+  data.locations.meal.hours=undated;data.locations.study.hours=undated;data.locations.gym.hours=undated;
   const day=buildSourceDay(base,data,5);validate(day);
   assert.ok(!day.stays.some(s=>['meal','study','gym'].includes(s.location)));
   assert.ok(day.sourceStats.modeledOffCampusMeals>0);
-  assert.ok(day.trips.every(t=>t.from==='off-campus'||t.to==='off-campus'));
+});
+
+test('venues with no published hours fall back to typical hours for their kind',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  base.agents=Array.from({length:100},(_,i)=>({id:`unknown${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  data.locations.meal.hours=[];data.locations.study.hours=[];data.locations.gym.hours=[];
+  const day=buildSourceDay(base,data,5);validate(day);
+  // Saturday (5): dining 10:00-20:00, libraries 10:00-22:00, gyms 8:00-22:00.
+  const within={meal:[10,20],study:[10,22],gym:[8,22]};
+  const visits=day.stays.filter(s=>s.location in within);
+  assert.ok(visits.length>0);
+  for(const s of visits){const [a,b]=within[s.location];assert.ok(s.start>=a*3600&&s.end<=b*3600);}
 });
 
 test('exact-date closures override valid weekly openings and expired weekly schedules stay unavailable',()=>{
