@@ -94,7 +94,8 @@ export async function loadFields(url = '/data/fields.json', buildingsUrl = '/dat
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null);
     const heights = new Map<string, number>(
-      (manifest?.campuses ?? []).flatMap((c: { buildings: { osm: string; height: number }[] }) => c.buildings.map((b) => [b.osm, b.height])),
+      // The deck the field sits on (Langsam Garage: 3.5 m), not the parapet top (`height`).
+      (manifest?.campuses ?? []).flatMap((c: { buildings: { osm: string; height: number; deck?: number }[] }) => c.buildings.map((b) => [b.osm, b.deck ?? b.height])),
     );
     for (const f of fields) {
       const top = f.followBuilding && heights.get(f.followBuilding.osm);
