@@ -2585,9 +2585,20 @@ def landmark_warren(mesh, b, ctx, rng, vols):
     Shields) in tan masonry with narrow window columns between projecting piers and a single
     vertical window strip on each end face, on a 4-storey tan podium (ribbon windows on the dining
     floor) with a long curved blue-grey awning over the Comm Ave shops; small rooftop boxes."""
-    towers, podium = [], []
-    for v in vols:
-        (towers if abs(signed_area(v.rings[0])) < 750 else podium).append(v)
+    # OSM maps Warren as 7 pieces west to east: podium, TOWER, podium, TOWER, podium, TOWER, podium.
+    # Pick the towers by that order, not by size: the east-end podium piece (566 m2) is smaller
+    # than the towers (~700 m2), and a size test turned it into a fourth tower jammed against
+    # the third (the "one tower clipping into another" bug).
+    def cx(v):
+        ring = v.rings[0]
+        return sum(p[0] for p in ring) / len(ring)
+
+    ordered = sorted(vols, key=cx)
+    if len(ordered) == 7:
+        towers = [ordered[i] for i in (1, 3, 5)]
+    else:  # unexpected OSM change: fall back to the three pieces closest to 700 m2
+        towers = sorted(ordered, key=lambda v: abs(abs(signed_area(v.rings[0])) - 700))[:3]
+    podium = [v for v in ordered if v not in towers]
     top = 0
     pod_h = 15.5
     for v in podium:
