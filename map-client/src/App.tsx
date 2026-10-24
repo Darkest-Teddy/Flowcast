@@ -497,7 +497,7 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(nearView(walking, basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
+          ...agentLayers(thinForZoom(nearView(walking, basemap.getCamera().center, q.walkerRadius), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
           ...incidentFrameLayers,
           ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
@@ -1114,6 +1114,30 @@ function nearView(walkers: WalkingAgent[], center: [number, number], radius: num
     const dy = (w.position[1] - center[1]) * 110_540;
     return dx * dx + dy * dy <= r2;
   });
+}
+
+// Level of detail for walkers: from far out the figures are drawn several times life size, so the
+// whole crowd reads as clutter and costs GPU skinning for people a few pixels apart. A stable share
+// of students (the same ones every frame, picked by id) is drawn when zoomed out, and everyone from
+// street level in. Only the drawing thins; every count in the panels stays the full simulation.
+const DRAW_ALL_FROM_ZOOM = 16.5;
+const FARTHEST_ZOOM = 14;
+const FARTHEST_SHARE = 0.35;
+const walkerShare = new Map<string, number>();
+function shareOf(id: string): number {
+  let v = walkerShare.get(id);
+  if (v === undefined) {
+    let h = 2166136261;
+    for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+    walkerShare.set(id, (v = (h >>> 0) / 4294967296));
+  }
+  return v;
+}
+function thinForZoom(walkers: WalkingAgent[], zoom: number): WalkingAgent[] {
+  if (zoom >= DRAW_ALL_FROM_ZOOM) return walkers;
+  const f = Math.min(1, Math.max(0, (zoom - FARTHEST_ZOOM) / (DRAW_ALL_FROM_ZOOM - FARTHEST_ZOOM)));
+  const keep = FARTHEST_SHARE + (1 - FARTHEST_SHARE) * f;
+  return walkers.filter((w) => shareOf(w.id) < keep);
 }
 
 /**
