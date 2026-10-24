@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { Playback } from '../src/sim/playback.ts';
+import { registerHooks } from 'node:module';
+registerHooks({ resolve(specifier, context, nextResolve) {
+  try { return nextResolve(specifier, context); }
+  catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
+} });
+const { Playback, occupancyShare } = await import('../src/sim/playback.ts');
 import { advanceTime } from '../src/sim/clock.ts';
 
 test('clock preserves elapsed time across slow frames and midnight', () => {
@@ -19,10 +24,44 @@ test('walking buckets retain long trips, exclude endpoints, and support scrubbin
   assert.equal(playback.walkingAt(450)[0].position[0], -71.005);
 });
 
+test('trail windows retain fading and long walks, cache candidates, and follow scrubbing and speed', () => {
+  const trip = (start, end) => ({agent:'a', from:'home', to:'class', path:[[-71,42],[-71.01,42]], timestamps:[start,end]});
+  const trips = [trip(10,50), trip(280,299), trip(100,1000), trip(600,650), trip(2000,2100)];
+  const playback = new Playback({day:'Monday', buildings:[], locations:[], agents:[{id:'a',home:'off-campus',model:0}], trips});
+  const window = playback.trailsAt(310,20);
+  assert.ok(window.includes(trips[1]), 'a finished walk still has a fading trail');
+  assert.ok(window.includes(trips[2]), 'long walks span buckets');
+  assert.equal(playback.trailsAt(315,20), window);
+  assert.equal(new Set(window).size, window.length);
+  assert.ok(!window.includes(trips[4]), 'distant future trips stay off the GPU');
+  for (const [time, length] of [[700,20],[700,600],[300,20],[299,20],[2100,600],[50,20],[0,600]]) {
+    const candidates = playback.trailsAt(time,length);
+    for (const trip of trips) {
+      if (trip.timestamps[0] <= time && trip.timestamps.at(-1) > time-length) {
+        assert.ok(candidates.includes(trip), `missing visible trail at ${time} with length ${length}`);
+      }
+    }
+    assert.equal(new Set(candidates).size,candidates.length);
+  }
+  assert.deepEqual(playback.trailsAt(5000,20), []);
+});
+
 test('off-map stays are excluded from building occupancy without losing population', () => {
   const location = {id:'home',name:'Home',short:'Home',kind:'dorm',position:[-71,42],capacity:1,building:'h'};
   const playback = new Playback({ day:'Monday',buildings:[],locations:[location],agents:[{id:'a',home:'home',model:0},{id:'b',home:'off-campus',model:0}],trips:[],stays:[{agent:'a',location:'home',start:0,end:86400},{agent:'b',location:'off-campus',start:0,end:86400}] });
   assert.deepEqual(playback.populationAt(36000), {total:2,indoors:1,walking:0,offCampus:1});
+});
+
+test('overlapping stays retain first-match occupancy semantics', () => {
+  const location = id => ({id,name:id,short:id,kind:'dorm',position:[-71,42],capacity:10,building:id});
+  const playback = new Playback({day:'Monday',buildings:[],locations:[location('a'),location('b')],
+    agents:[{id:'student',home:'a',model:0}],trips:[],stays:[
+      {agent:'student',location:'a',start:0,end:20},
+      {agent:'student',location:'b',start:10,end:30},
+    ]});
+  for (const [time, expected] of [[15,[1,0]],[20,[0,1]],[30,[0,0]],[0,[1,0]]]) {
+    assert.deepEqual(playback.occupancyAt(time).map(o => o.count), expected);
+  }
 });
 
 test('shared footprint label and percentage refer to the same busiest modeled space', () => {
@@ -35,4 +74,21 @@ test('shared footprint label and percentage refer to the same busiest modeled sp
   assert.deepEqual(result.map(r=>[r.name,r.count,r.capacity,r.share,r.modeled]),[['Gym',15,20,.75,true]]);
   const unknown=p.occupancyAt(0).find(o=>o.location.id==='dorm');
   assert.equal(unknown.modeled,false);
+});
+
+test('playback rejects changed capacity references and duplicate students', () => {
+  const day = {day:'Monday', buildings:[], trips:[], agents:[{id:'a',home:'off-campus',model:0}],
+    locations:[{id:'hall',name:'Hall',short:'Hall',kind:'classroom',position:[-71,42],capacity:100,referenceCapacity:100,building:'hall'}]};
+  assert.doesNotThrow(() => new Playback(day));
+  assert.throws(() => new Playback({...day, locations:[{...day.locations[0],capacity:200}]}), /Capacity differs/);
+  assert.throws(() => new Playback({...day,agents:[...day.agents,...day.agents]}), /Duplicate student/);
+});
+
+test('display ratios cannot be inflated independently of counts or hide an over-capacity result', () => {
+  const location={id:'library',name:'Library',short:'Library',kind:'library',position:[-71,42],capacity:100,building:'library'};
+  const p=new Playback({day:'Monday',buildings:[],locations:[location],agents:[],trips:[]});
+  assert.equal(p.byBuilding([{location,count:40,share:.9}])[0].share,.4);
+  assert.equal(occupancyShare(120,100),1.2);
+  assert.equal(occupancyShare(12,0),0);
+  for (const count of [-1, NaN, 1.5]) assert.throws(() => occupancyShare(count,100), /Invalid occupancy/);
 });

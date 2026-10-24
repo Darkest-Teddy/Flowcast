@@ -1,0 +1,17 @@
+{
+  "basis": "Model before degree-aware eligibility, campus weights, and school affinity; after physical-room capacity fixes",
+  "population": 36977,
+  "weeklyUniqueEnrollments": 124604,
+  "ugEnrollments": 76942,
+  "ugIn600Plus": 19217,
+  "ugInProfessionalPrefixes": 8252,
+  "gradEnrollments": 47662,
+  "gradIn100to399NonProfessional": 26194,
+  "reservedProgramEnrollments": 4158,
+  "studentsWith3PlusCourses": 27225,
+  "studentsWith3PlusSchools": 19782,
+  "meanSchoolsFor3Plus": 3.0321028466483013,
+  "activeSections": 3181,
+  "fullyFilledSections": 2836,
+  "meanSeatFraction": 0.9603730433774996
+}

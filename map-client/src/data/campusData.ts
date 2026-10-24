@@ -1,3 +1,6 @@
+import type { FitrecUsage } from './fitrecUsage';
+import type { AcademicCalendar } from './academicCalendar';
+
 export interface Evidence {
   id: string;
   label: string;
@@ -10,15 +13,19 @@ export interface Evidence {
 }
 
 export interface SourceMeeting {
+  buildingCode?: string;
   id: string;
   courseCode: string;
   title: string;
   section: string;
+  sourceSectionKey?: string;
   roomCode: string;
   intervals: { weekday: number; startSec: number; endSec: number }[];
   roomCapacity: number | null;
   notes: string | null;
   calendarRestricted: boolean;
+  validFrom?: string;
+  validTo?: string;
   sharedKey: string | null;
   sourceUrl: string;
 }
@@ -64,7 +71,31 @@ export interface SourceEvent {
   sourceUrl: string;
 }
 
+export interface CourseComponentRule {
+  status: 'resolved' | 'unresolved';
+  components: { id: string; sections: string[] }[];
+  dependencies: { section: string; requires: { component: string; sections: string[] }[] }[];
+  sourceUrls: string[];
+  notes: string[];
+  mappedCoverage: Record<string, string[]>;
+  mappedCourse: boolean;
+  hasCompleteMappedOption: boolean;
+  reason: string | null;
+  classificationBasis?: string;
+}
 export interface CampusData {
+  academicCalendar?: AcademicCalendar;
+  fitrecUsage?: FitrecUsage;
+  catalogCourseCodes?: string[];
+  catalogCourseCoverage?: {
+    courseCodes: string[];
+    courseGroups: string[][];
+    basis: string;
+    excludedCalendarRestrictedRows: number;
+    excludedUnscheduledOrNonphysicalRows: number;
+    sourceUrls: string[];
+  };
+  courseComponentRules?: Record<string, CourseComponentRule>;
   schemaVersion: 1;
   term: string;
   collectedAt: string;
@@ -111,4 +142,9 @@ export function dateForWeekday(data: CampusData, weekday: number): string {
   const date = new Date(`${data.referenceWeekStart}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + weekday);
   return date.toISOString().slice(0, 10);
+}
+
+export function meetingActiveOnDate(meeting: SourceMeeting, date: string): boolean {
+  return !meeting.calendarRestricted && (!meeting.validFrom || date >= meeting.validFrom)
+    && (!meeting.validTo || date <= meeting.validTo);
 }

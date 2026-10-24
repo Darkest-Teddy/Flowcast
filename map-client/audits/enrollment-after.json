@@ -1,0 +1,16 @@
+{
+  "population": 36977,
+  "weeklyUniqueEnrollments": 127291,
+  "ugEnrollments": 78280,
+  "ugIn600Plus": 0,
+  "ugInProfessionalPrefixes": 0,
+  "gradEnrollments": 49011,
+  "gradIn100to399NonProfessional": 0,
+  "reservedProgramEnrollments": 4625,
+  "studentsWith3PlusCourses": 27765,
+  "studentsWith3PlusSchools": 707,
+  "meanSchoolsFor3Plus": 1.8072393300918423,
+  "activeSections": 3273,
+  "fullyFilledSections": 2714,
+  "meanSeatFraction": 0.9285782038167827
+}

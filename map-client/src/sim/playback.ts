@@ -1,6 +1,7 @@
 // Turns a day of precomputed trips into "where is everyone at time t".
 // The server will eventually own this (plan Section 8.1); until then the client
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
+import { createOccupancyIndex, type OccupancyIndex } from './occupancyIndex';
 
 export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'off-campus';
 
@@ -35,6 +36,8 @@ export interface EstimatedActivityProfile {
   participantRange?: [number, number];
 }
 export interface CampusLocation {
+  /** Capacity selected from the saved source/model basis, before playback. */
+  referenceCapacity?: number;
   estimatedProfile?: EstimatedActivityProfile;
   estimatedHousingProfile?: EstimatedHousingProfile;
   activityModeled?: boolean;
@@ -49,7 +52,7 @@ export interface CampusLocation {
   campus?: string; // Campus.id
 }
 
-/** One BU campus. Agents live and walk within a single campus; campuses are kilometres apart. */
+/** One BU campus. Cross-campus travel requires a connected pedestrian route. */
 export interface Campus {
   id: string; // "charles-river", "medical", "fenway"
   name: string;
@@ -81,6 +84,7 @@ export interface BuildingOccupancy {
 }
 
 export interface Agent {
+  academicCampus?: string;
   residency?: 'resident' | 'commuter';
   studentLevel?: 'undergraduate' | 'graduate';
   attendance?: 'full-time' | 'part-time';
@@ -167,14 +171,24 @@ export class Playback {
   private readonly agents = new Map<string, Agent>();
   private readonly tripsByAgent = new Map<string, Trip[]>();
   private readonly staysByAgent = new Map<string, Stay[]>();
+  private readonly stayOccupancy: OccupancyIndex | null;
   private readonly walkingBuckets = new Map<number, Trip[]>();
+  private trailWindow: { first: number; last: number; trips: Trip[] } | null = null;
 
   readonly data: DayData;
 
   constructor(data: DayData) {
+    for (const location of data.locations) {
+      if (!Number.isFinite(location.capacity) || location.capacity < 0
+        || location.referenceCapacity !== undefined && location.capacity !== location.referenceCapacity) {
+        throw new Error(`Capacity differs from its source/model basis: ${location.id}`);
+      }
+    }
     this.data = data;
+    this.stayOccupancy = data.stays ? createOccupancyIndex(data.stays) : null;
     this.locations = data.locations;
     for (const agent of data.agents) {
+      if (this.agents.has(agent.id)) throw new Error(`Duplicate student: ${agent.id}`);
       this.agents.set(agent.id, agent);
       this.tripsByAgent.set(agent.id, []);
     }
@@ -221,18 +235,17 @@ export class Playback {
     return this.data.trips.length ? [start, end] : [0, 86400];
   }
 
-  /** Trips under way at any moment in [from, to] (seconds), each once, in a stable order. */
-  tripsBetween(from: number, to: number): Trip[] {
-    const out: Trip[] = [];
-    const seen = new Set<Trip>();
-    for (let bucket = Math.floor(from / 300); bucket <= Math.floor(to / 300); bucket++) {
-      for (const trip of this.walkingBuckets.get(bucket) ?? []) {
-        if (seen.has(trip)) continue;
-        seen.add(trip);
-        if (trip.timestamps[0] <= to && trip.timestamps[trip.timestamps.length - 1] >= from) out.push(trip);
-      }
+  /** Stable GPU candidates; timestamps clip the exact visible trail inside this window. */
+  trailsAt(t: number, trailLength: number): Trip[] {
+    const first = Math.floor((t - trailLength) / 300);
+    const last = Math.floor(t / 300);
+    if (this.trailWindow?.first === first && this.trailWindow.last === last) return this.trailWindow.trips;
+    const trips = new Set<Trip>();
+    for (let bucket = first; bucket <= last; bucket++) {
+      for (const trip of this.walkingBuckets.get(bucket) ?? []) trips.add(trip);
     }
-    return out;
+    this.trailWindow = { first, last, trips: [...trips] };
+    return this.trailWindow.trips;
   }
 
   /** Only trips active in this five-minute bucket need position interpolation. */
@@ -270,8 +283,9 @@ export class Playback {
    */
   byBuilding(occupancy: Occupancy[]): BuildingOccupancy[] {
     const out = new Map<string, BuildingOccupancy>();
-    for (const { location, count, share, modeled = location.activityModeled !== false } of occupancy) {
+    for (const { location, count, modeled = location.activityModeled !== false } of occupancy) {
       if (location.kind === 'off-campus') continue;
+      const share = occupancyShare(count, location.capacity);
       const current = out.get(location.building);
       if (current && (Number(current.modeled !== false) > Number(modeled)
         || (current.modeled !== false) === modeled && (current.share > share || current.share === share && current.count >= count))) continue;
@@ -292,11 +306,13 @@ export class Playback {
 
   /** Head count per location at time t: each agent is at its last destination, or home before its first trip. */
   occupancyAt(t: number): Occupancy[] {
-    const counts = new Map<string, number>();
+    const counts = this.stayOccupancy?.countsAt(t) ?? new Map<string, number>();
     if (this.data.stays) {
-      for (const stays of this.staysByAgent.values()) {
-        const stay = stays.find((entry) => entry.start <= t && t < entry.end);
-        if (stay && stay.location !== 'off-campus') counts.set(stay.location, (counts.get(stay.location) ?? 0) + 1);
+      if (!this.stayOccupancy) {
+        for (const stays of this.staysByAgent.values()) {
+          const stay = stays.find((entry) => entry.start <= t && t < entry.end);
+          if (stay && stay.location !== 'off-campus') counts.set(stay.location, (counts.get(stay.location) ?? 0) + 1);
+        }
       }
       return this.locations.filter((location) => location.kind !== 'off-campus').map((location) => {
         const count = counts.get(location.id) ?? 0;
@@ -316,6 +332,11 @@ export class Playback {
       return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false };
     });
   }
+}
+
+export function occupancyShare(count: number, capacity: number): number {
+  if (!Number.isInteger(count) || count < 0 || !Number.isFinite(capacity) || capacity < 0) throw new Error('Invalid occupancy');
+  return capacity > 0 ? count / capacity : 0;
 }
 
 export function formatClock(seconds: number): string {

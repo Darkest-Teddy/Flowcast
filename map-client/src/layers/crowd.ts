@@ -134,28 +134,10 @@ function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupanc
   return cached;
 }
 
-// The trails layer draws only the trips under way near the shown time. Handing it the whole day
-// (36,000 trips, two million path segments) made the GPU walk every one of them every frame to
-// draw the ~150 that are on screen. The subset is picked per time window, so between windows the
-// array is the same and deck.gl uploads nothing.
-let trailWindow: { source: unknown; start: number; size: number; trail: number; trips: Trip[] } | null = null;
-
-function trailTrips(tripsBetween: (from: number, to: number) => Trip[], source: unknown, time: number, speed: number, trail: number): Trip[] {
-  // About two real seconds of playback per window (a minute of sim time at 1x).
-  const size = Math.min(1800, Math.max(60, Math.abs(speed) * 2));
-  const start = Math.floor(time / size) * size;
-  const w = trailWindow;
-  if (w && w.source === source && w.start === start && w.size === size && w.trail >= trail) return w.trips;
-  trailWindow = { source, start, size, trail, trips: tripsBetween(start - trail, start + size) };
-  return trailWindow.trips;
-}
-
 export interface CrowdLayerInput {
   footprints: BuildingFootprint[];
   buildings: BuildingOccupancy[];
-  /** Trips under way between two times (Playback.tripsBetween); `tripsSource` identifies the day. */
-  tripsBetween: (from: number, to: number) => Trip[];
-  tripsSource: unknown;
+  trips: Trip[];
   time: number;
   speed: number;
   selectedId: string | null;
@@ -173,7 +155,7 @@ const lineFade = new GlowFadeExtension({ mode: 'line', power: 1.6 });
 // edge just outside its walls is never swallowed by the model it outlines.
 const GLOW_PARAMETERS = { depthWriteEnabled: false, depthBias: -1, depthBiasSlopeScale: -1600 } as const;
 
-export function crowdLayers({ footprints, buildings, tripsBetween, tripsSource, time, speed, selectedId, zoom, roofHeights }: CrowdLayerInput) {
+export function crowdLayers({ footprints, buildings, trips, time, speed, selectedId, zoom, roofHeights }: CrowdLayerInput) {
   const { glows, flatRoofs, packed, edges, key } = buildGlows(footprints, buildings, selectedId, roofHeights);
   // 1 from street level to zoom 17.5, rising to 1.9 at the zoom 15.5 overview.
   const far = Math.min(Math.max((17.5 - zoom) / 2, 0), 1);
@@ -183,9 +165,6 @@ export function crowdLayers({ footprints, buildings, tripsBetween, tripsSource, 
   const now = performance.now();
   const breath = reducedMotion ? 0.6 : 0.5 + 0.5 * Math.sin((now / BREATH_MS) * 2 * Math.PI);
   const ping = (now % PING_MS) / PING_MS;
-  // A short, faint wake behind each walker (about 3 real seconds at any playback speed):
-  // enough to hint at flow without streaking along the streets.
-  const trailLength = Math.min(600, Math.max(20, speed * 3));
   const rimColor = (g: Glow, a: number) => (g.selected ? withAlpha(SELECTED, 255) : withAlpha(g.level.glow, a));
 
   return [
@@ -311,12 +290,14 @@ export function crowdLayers({ footprints, buildings, tripsBetween, tripsSource, 
     }),
     new TripsLayer<Trip>({
       id: 'flow-trails',
-      data: trailTrips(tripsBetween, tripsSource, time, speed, trailLength),
+      data: trips,
       getPath: (d) => d.path,
       getTimestamps: (d) => d.timestamps,
       getColor: [255, 214, 10],
       currentTime: time,
-      trailLength,
+      // A short, faint wake behind each walker (about 3 real seconds at any playback speed):
+      // enough to hint at flow without streaking along the streets.
+      trailLength: Math.min(600, Math.max(20, speed * 3)),
       fadeTrail: true,
       widthMinPixels: 2,
       capRounded: true,

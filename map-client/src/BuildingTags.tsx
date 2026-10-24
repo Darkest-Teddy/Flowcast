@@ -9,11 +9,12 @@
 // so nothing here re-renders per frame. Placement goes through the shared label placer first
 // (building tags, then station labels), exactly as the old TextLayer did.
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
-import { WebMercatorViewport } from '@deck.gl/core';
+import { TagProjection } from './tags/projection';
 import type { CameraState } from './map/basemap';
 import type { LabelPlacer, Projector } from './layers/placement';
 import { crowdLevel, crowdLevelStyle, ringTop, type RoofHeights } from './layers/crowd';
 import type { BuildingFootprint, BuildingOccupancy, CampusLocation, LocationKind } from './sim/playback';
+import { occupancyShare } from './sim/playback';
 
 const svg = (paths: string) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
@@ -143,6 +144,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
     roofsFrom: undefined as RoofHeights | undefined,
     kindsFrom: null as CampusLocation[] | null,
     kinds: new Map<string, LocationKind>(),
+    projection: new TagProjection<BuildingOccupancy>(MARGIN),
   }).current;
 
   useEffect(() => {
@@ -192,24 +194,8 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         // Roof anchors. The map's own projection puts the ground point on screen (with the view
         // padding); an unpadded viewport of the same camera gives the roof's offset above it
         // (padding only shifts the whole picture).
-        const viewport = new WebMercatorViewport({
-          width,
-          height,
-          longitude: camera.center[0],
-          latitude: camera.center[1],
-          zoom: camera.zoom,
-          pitch: camera.pitch,
-          bearing: camera.bearing,
-        });
-        const anchors = new Map<BuildingOccupancy, [number, number]>();
-        for (const b of buildings) {
-          const [gx, gy] = project(b.position);
-          const [ax, ay] = viewport.project([b.position[0], b.position[1], 0]);
-          const [rx, ry] = viewport.project([b.position[0], b.position[1], b.roof ?? s.heights.get(b.id) ?? 0]);
-          const x = gx + rx - ax;
-          const y = gy + ry - ay;
-          if (x > -MARGIN && x < width + MARGIN && y > -MARGIN && y < height + MARGIN) anchors.set(b, [x, y]);
-        }
+        const anchors = s.projection.get(buildings, camera, width, height, project,
+          b => [b.position[0], b.position[1], b.roof ?? s.heights.get(b.id) ?? 0], s.heights);
 
         // Selected first, then busiest: if tags must be dropped, the quiet ones go (the side panel
         // still lists every building).
@@ -300,7 +286,8 @@ interface ActivityDisplayInput {
 }
 
 /** Labels refer to the modeled space and its denominator, not every use of its building. */
-export function activityDisplay({ count, capacity, share, modeled, capacityBasis, kind }: ActivityDisplayInput) {
+export function activityDisplay({ count, capacity, modeled, capacityBasis, kind }: ActivityDisplayInput) {
+  const share = occupancyShare(count, capacity);
   const hasPercentage = modeled !== false && capacity > 0 && Number.isFinite(share)
     && capacityBasis !== 'residential_beds_plus_classroom_seats'
     && capacityBasis !== 'estimated_student_capacity';

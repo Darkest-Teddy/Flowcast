@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "dataset": "academic_calendar",
+  "generatedAt": "2026-10-24T19:49:01.983375+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "calendar": {
+    "sourceUrl": "https://www.bu.edu/reg/calendars/semester/",
+    "scopeSourceUrl": "https://www.bu.edu/reg/calendars/",
+    "applicableCoursePrefixes": [
+      "CAS",
+      "CFA",
+      "CGS",
+      "COM",
+      "ENG",
+      "GRS",
+      "CDS",
+      "KHC",
+      "QST",
+      "GSM",
+      "SAR",
+      "SHA",
+      "SED",
+      "WED",
+      "MET",
+      "HUB",
+      "PDP",
+      "STH"
+    ],
+    "excludedCoursePrefixes": [
+      "LAW",
+      "MED",
+      "GMS",
+      "SDM",
+      "SPH",
+      "SSW"
+    ],
+    "terms": [
+      {
+        "term": "FALL 2026",
+        "suspendedDates": [
+          "2026-09-07",
+          "2026-10-12",
+          "2026-11-25",
+          "2026-11-26",
+          "2026-11-27",
+          "2026-11-28",
+          "2026-11-29"
+        ],
+        "substitutions": [
+          {
+            "date": "2026-10-13",
+            "scheduleWeekday": 0
+          }
+        ],
+        "sourceUrl": "https://www.bu.edu/reg/calendars/semester/",
+        "events": [
+          {
+            "kind": "classesStart",
+            "label": "Classes Begin",
+            "start": "2026-09-02",
+            "end": "2026-09-02"
+          },
+          {
+            "kind": "suspended",
+            "label": "Holiday, Classes Suspended",
+            "start": "2026-09-07",
+            "end": "2026-09-07"
+          },
+          {
+            "kind": "suspended",
+            "label": "Indigenous People’s Day Holiday, Classes Suspended",
+            "start": "2026-10-12",
+            "end": "2026-10-12"
+          },
+          {
+            "kind": "substitute",
+            "label": "Substitute Monday Schedule of Classes",
+            "start": "2026-10-13",
+            "end": "2026-10-13"
+          },
+          {
+            "kind": "suspended",
+            "label": "Thanksgiving Recess",
+            "start": "2026-11-25",
+            "end": "2026-11-29"
+          },
+          {
+            "kind": "classesEnd",
+            "label": "Last Day of Classes",
+            "start": "2026-12-10",
+            "end": "2026-12-10"
+          },
+          {
+            "kind": "study",
+            "label": "Study Period",
+            "start": "2026-12-11",
+            "end": "2026-12-13"
+          },
+          {
+            "kind": "exams",
+            "label": "Final Exams Begin",
+            "start": "2026-12-14",
+            "end": "2026-12-14"
+          },
+          {
+            "kind": "exams",
+            "label": "Final Exams End",
+            "start": "2026-12-18",
+            "end": "2026-12-18"
+          }
+        ],
+        "classesStart": "2026-09-02",
+        "classesEnd": "2026-12-10"
+      },
+      {
+        "term": "SPRING 2027",
+        "suspendedDates": [
+          "2027-02-15",
+          "2027-03-06",
+          "2027-03-07",
+          "2027-03-08",
+          "2027-03-09",
+          "2027-03-10",
+          "2027-03-11",
+          "2027-03-12",
+          "2027-03-13",
+          "2027-03-14",
+          "2027-04-19"
+        ],
+        "substitutions": [
+          {
+            "date": "2027-02-16",
+            "scheduleWeekday": 0
+          },
+          {
+            "date": "2027-04-21",
+            "scheduleWeekday": 0
+          }
+        ],
+        "sourceUrl": "https://www.bu.edu/reg/calendars/semester/",
+        "events": [
+          {
+            "kind": "classesStart",
+            "label": "Classes Begin",
+            "start": "2027-01-19",
+            "end": "2027-01-19"
+          },
+          {
+            "kind": "suspended",
+            "label": "Holiday; Classes Suspended",
+            "start": "2027-02-15",
+            "end": "2027-02-15"
+          },
+          {
+            "kind": "substitute",
+            "label": "Substitute Monday Schedule of Classes",
+            "start": "2027-02-16",
+            "end": "2027-02-16"
+          },
+          {
+            "kind": "suspended",
+            "label": "Spring Recess, Classes Suspended",
+            "start": "2027-03-06",
+            "end": "2027-03-14"
+          },
+          {
+            "kind": "suspended",
+            "label": "Holiday; Classes Suspended",
+            "start": "2027-04-19",
+            "end": "2027-04-19"
+          },
+          {
+            "kind": "substitute",
+            "label": "Substitute Monday Schedule of Classes",
+            "start": "2027-04-21",
+            "end": "2027-04-21"
+          },
+          {
+            "kind": "classesEnd",
+            "label": "Last Day of Classes",
+            "start": "2027-04-29",
+            "end": "2027-04-29"
+          },
+          {
+            "kind": "study",
+            "label": "Study Period",
+            "start": "2027-04-30",
+            "end": "2027-05-02"
+          },
+          {
+            "kind": "exams",
+            "label": "Final Exams Begin",
+            "start": "2027-05-03",
+            "end": "2027-05-03"
+          },
+          {
+            "kind": "exams",
+            "label": "Final Exams End",
+            "start": "2027-05-07",
+            "end": "2027-05-07"
+          }
+        ],
+        "classesStart": "2027-01-19",
+        "classesEnd": "2027-04-29"
+      }
+    ],
+    "limitations": "General Registrar calendar only. Dental Medicine, Law, Medicine (including GMS), Public Health, Social Work, and unknown course prefixes retain their source schedules until school-specific calendars are imported. Exam dates do not create exam meetings."
+  },
+  "sources": [
+    {
+      "url": "https://www.bu.edu/reg/calendars/semester/",
+      "requestedUrl": "https://www.bu.edu/reg/calendars/semester/",
+      "retrievedAt": "2026-10-24T19:49:01.595621+00:00",
+      "sha256": "85228049a6b88ad74132321affa08c383d6c4ea7d6c28c6b9c43a33ae257d876",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/ace1c6299a8ba6bef053b206d8e15e4b07b16d82ce1f7a5a8522c71c5154c2c0.body",
+      "cacheUsed": false
+    },
+    {
+      "url": "https://www.bu.edu/reg/calendars/",
+      "requestedUrl": "https://www.bu.edu/reg/calendars/",
+      "retrievedAt": "2026-10-24T19:49:01.908331+00:00",
+      "sha256": "ea5c0868a87b2ec8dc7ce5a2a90a52bcd72a1c32bf8199c85e5a2cef9457fe17",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/e32d30e955133a2bb7102858d9f2330a2225a6ed3ba82f6599dcf4e0989bb79b.body",
+      "cacheUsed": false
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}

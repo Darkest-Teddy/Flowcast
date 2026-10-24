@@ -1,0 +1,3049 @@
+{
+  "schemaVersion": 1,
+  "dataset": "course_component_rules",
+  "generatedAt": "2026-10-24T19:23:24.283634+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "term": "FALL 2026",
+  "courseComponentRules": {
+    "CAS AA 207": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-aa-207/"
+      ],
+      "notes": [
+        "Mts w/CAS SO207 ; Students registering for CAS AA207 A1 lecture must also register for CAS AA207 A(2-4) discussion."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS AN 102": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-an-102/"
+      ],
+      "notes": [
+        "Students registering for AN 102 A1 must also register for a Lab section (A2-B2)."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS AR 307": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ar-307/"
+      ],
+      "notes": [
+        "Students registering for CAS AR307 must register for two sections: the Lec setion & a Lab section. Prerequisite: AR190 or consent of insturctor. Email marston@bu.edu or mhsousa@bu.edu to register."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS AS 101": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-as-101/"
+      ],
+      "notes": [
+        "Students registering for AS 101 C1 must register for the C1 lecture section and a lab section from: D1, D2, D3, or D4.",
+        "*UPDATED Jun2026* -- Students registering for AS 101 A1 must register for the A1 lecture section and a lab section from: B1, B2, B3, B4, or newly added lab sections F1 or F2 (found at end of AS 101 sections list).",
+        "Students registering for AS 101 must register for a lecture section and a lab section. The CAS AS 101 \"C1\" lecture section (meeting Tues/Thurs 2:00pm-3:15pm) is associated with 101 lab sections D1 - D4 *only*. Students registering for AS 101 C1 must register for the C1 lecture section and a lab section from: D1, D2, D3, or D4.",
+        "*NEW* - Additional Lab Sections Added Jun2026: Lab sections F1 and F2 added for the A1 lecture section only. Students enrolling in the A1 lecture section can choose from lab sections B1-B4, as well as F1 or F2. **PLEASE NOTE -- Due to how MyBU Student organizes section numbering, newly added lab sections F1 or F2 are located at the end of the AS 101 sections list. Students registering for AS 101 must register for a lecture section and a lab section. The CAS AS 101 \"A1\" lecture section (meeting Mon/Wed/Fri 1:25pm-2:15pm) is associated with 101 lab sections B1 - B4 and F1 - F2 *only*."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS AS 102": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-as-102/"
+      ],
+      "notes": [
+        "Students registering for CAS AS 102 must register for two sections: a Lecture section, and a Lab section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS AS 109": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-as-109/"
+      ],
+      "notes": [
+        "Students registering for CAS AS 109 must register for two sections: a Lecture section, and a Discussion section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CC 101": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cc-101/"
+      ],
+      "notes": [
+        "Students registering for CAS CC101 must register for the A1 lecture and a Discussion section. Note that seats are being held for first-year students with limited seats available for seniors and juniors. Contact core@bu.edu with questions about registration."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CC 111": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cc-111/"
+      ],
+      "notes": [
+        "Students registering for CAS CC111 must register for three sections: the A1 LEC section, a DIS section, and a LAB section. Note that seats are being held for first-year students with limited seats available for seniors and juniors. Contact core@bu.edu with questions about registration."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CC 201": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cc-201/"
+      ],
+      "notes": [
+        "Students registering for CAS CC201 must register for the A1 lecture and a Discussion section. Note that some seats are being reserved for Core Minors. Contact core@bu.edu with questions about registration."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CC 221": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cc-221/"
+      ],
+      "notes": [
+        "Students registering for CAS CC221 must register for the A1 lecture and a Discussion section. Note that some seats are being reserved for Core Minors. Contact core@bu.edu with questions about registration."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CI 200": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ci-200/"
+      ],
+      "notes": [
+        "Mts w/CAS EN176 ; Students Registering for CAS CI 200 must register for two sections: a lec section, and a Dis section. Monday will be for Film Screenings. Seats reserved for U1, U2 until April 21"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 111": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "lecture",
+          "sections": [
+            "A1",
+            "A2",
+            "A4"
+          ]
+        },
+        {
+          "id": "lab",
+          "sections": [
+            "B1",
+            "B2",
+            "B3",
+            "B5",
+            "B7",
+            "B8",
+            "B9",
+            "BA",
+            "BB",
+            "BC",
+            "BD",
+            "BE",
+            "BF"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-111/",
+        "https://cs-web.bu.edu/courses/cs111/"
+      ],
+      "notes": [
+        "Students registering for CAS CS111 must register for two sections: a Lecture section and a Lab section. IMPORTANT: Students in all CS111 sections should reserve Wednesday 6:30 - 7:45pm for exams during the semester."
+      ],
+      "reason": null,
+      "classificationBasis": "Official current course page identifies lecture section roster; catalog requires exactly one lecture and one other component. Remaining scheduled sections form that other component.",
+      "mappedCoverage": {
+        "lecture": [
+          "A2",
+          "A4"
+        ],
+        "lab": [
+          "B1",
+          "B3",
+          "B5",
+          "B7",
+          "B8",
+          "B9",
+          "BA",
+          "BB",
+          "BC",
+          "BD",
+          "BE",
+          "BF"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS CS 112": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-112/"
+      ],
+      "notes": [
+        "Students registering for CAS CS112 must register for two sections: a LEC section and a LAB section. IMPORTANT: Students in all CS112 sections should reserve Wednesday 6:30 - 8:00pm for exams during the semester."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 131": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-131/"
+      ],
+      "notes": [
+        "Students registering for CAS CS131 must register for two sections: a LEC section and a LAB section. IMPORTANT: Students in all CS131 sections should reserve Thursday 6:30 - 7:45pm for exams during the semester."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 132": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-132/"
+      ],
+      "notes": [
+        "Students registering for CAS CS132 must register for two sections: a Lecture section and a Lab section. IMPORTANT: Students in all CS132 sections should reserve Tuesday 6:30 - 7:45pm for exams during the semester."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 210": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-210/"
+      ],
+      "notes": [
+        "Students registering for CAS CS 210 must register for two sections: a Lec section, and a Dis section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 237": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "lecture",
+          "sections": [
+            "A1",
+            "A2"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "B2",
+            "B3",
+            "B4"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-237/",
+        "https://cs-people.bu.edu/sofya/cs237/"
+      ],
+      "notes": [
+        "Students registering for CAS CS 237 must register for two sections: a Lec section, and a Dis section."
+      ],
+      "reason": null,
+      "classificationBasis": "Official current course page identifies lecture section roster; catalog requires exactly one lecture and one other component. Remaining scheduled sections form that other component.",
+      "mappedCoverage": {
+        "lecture": [
+          "A1",
+          "A2"
+        ],
+        "discussion": [
+          "B2",
+          "B3",
+          "B4"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS CS 320": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-320/"
+      ],
+      "notes": [
+        "Students registering for CAS CS320 must register for two sections: a Lecture section and a Lab section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 330": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-330/"
+      ],
+      "notes": [
+        "Students registering for CAS CS330 must register for two sections: a Lecture section and a Lab section. IMPORTANT: Students in all CS330 sections should reserve Thursday 6:30 - 7:45pm for exams during the semester."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 332": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-332/"
+      ],
+      "notes": [
+        "Students registering for CAS CS 332 must register for two sections: a Lec section, and a Lab section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 460": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-cs-460/"
+      ],
+      "notes": [
+        "Students registering for CAS CS460 must register for two sections: a Lec section and a Lab section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 542": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-cs-542/"
+      ],
+      "notes": [
+        "Students registering for CAS CS542 must register for two sections: a Lec section, and a Lab lection. CAS CS542 will be reserved for CAS/GRS and ENG students until the beginning of the Fall semester. Undergrad prerequisite : CS365 OR MA225 Masters Students: MS/AI core requirement or MSCS. Applications requirement."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 611": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-cs-611/"
+      ],
+      "notes": [
+        "Students registering for GRS CS611 must register for two sections: a Lec section, and a Dis section. GRS CS 611 will be reserved for GRS CS Masters students. Masters Students: Software Requirement Will add more lab sections for enrollment increase"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 630": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-cs-630/"
+      ],
+      "notes": [
+        "Students registering for GRS CS630 must register for two sections: a Lec section, and a Dis section. GRS CS630 will be reserved for GRS CS Masters students. Masters Students: Theory Requirement"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS CS 655": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-cs-655/"
+      ],
+      "notes": [
+        "Students registering for GRS CS655 must register for two sections: a Lec section, and a Dis section. Masters Students: Systems Requirement"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS EC 101": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "lecture",
+          "sections": [
+            "AA",
+            "BB",
+            "CC",
+            "DD"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A0",
+            "A1",
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+            "A6",
+            "A7",
+            "A8",
+            "A9",
+            "B0",
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6",
+            "B7",
+            "B8",
+            "B9",
+            "C0",
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6",
+            "C7",
+            "C8",
+            "C9",
+            "D0",
+            "D1",
+            "D2",
+            "D3",
+            "D4",
+            "D5",
+            "D6",
+            "D7",
+            "D8",
+            "D9"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A9",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B7",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B2",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C8",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A5",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D2",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D9",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A6",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C2",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A7",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D7",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A8",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C9",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A0",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D1",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C3",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B5",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A2",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B3",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B6",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B0",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C5",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B4",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A3",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D6",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D5",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B1",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D0",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B8",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A4",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D3",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C6",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D8",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B9",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C1",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C4",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D4",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "DD"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C0",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C7",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "CC"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ec-101/"
+      ],
+      "notes": [
+        "You must be registered for LEC AA in order to enroll in this discussion section.",
+        "You must be registered for LEC BB in order to enroll in this discussion section.",
+        "You must be registered for LEC CC in order to enroll in this discussion section.",
+        "You must be registered for LEC DD in order to enroll in this discussion section.",
+        "Students registering for the EC101 AA lecture must register for an A0–A9 discussion section only.",
+        "Students registering for the EC101 CC lecture must register for any one C0–C9 discussion section only.",
+        "Students registering for the EC101 BB lecture must register for any one B0–B9 discussion section only.",
+        "Students registering for the EC101 DD lecture must register for any D0–D9 discussion section only."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "lecture": [],
+        "discussion": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A5",
+          "A6",
+          "A7",
+          "A9",
+          "B0",
+          "B1",
+          "B2",
+          "B3",
+          "B4",
+          "B5",
+          "B6",
+          "B7",
+          "B8",
+          "B9",
+          "C0",
+          "C1",
+          "C2",
+          "C4",
+          "C5",
+          "C6",
+          "C7",
+          "C8",
+          "D0",
+          "D1",
+          "D2",
+          "D3",
+          "D4",
+          "D5",
+          "D6",
+          "D7",
+          "D8",
+          "D9"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS EC 102": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "lecture",
+          "sections": [
+            "AA",
+            "BB"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A0",
+            "A1",
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+            "A6",
+            "A7",
+            "A8",
+            "A9",
+            "B0",
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6",
+            "B7",
+            "B8",
+            "B9"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A4",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B4",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B7",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A7",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B3",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B6",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B5",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A2",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A3",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A8",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B0",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A0",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A5",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B1",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A6",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B2",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B8",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A9",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "AA"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B9",
+          "requires": [
+            {
+              "component": "lecture",
+              "sections": [
+                "BB"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ec-102/"
+      ],
+      "notes": [
+        "You must be registered for LEC AA in order to enroll in this discussion section.",
+        "You must be registered for LEC BB in order to enroll in this discussion section.",
+        "Students registering for the EC102 AA lecture must register for an A0–A9 discussion section only.",
+        "Students registering for the EC102 BB lecture must register for a B0–B9 discussion section only."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "lecture": [],
+        "discussion": [
+          "A0",
+          "A1",
+          "A3",
+          "A6",
+          "A7",
+          "A8",
+          "B0",
+          "B6",
+          "B7",
+          "B9"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 113": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-113/"
+      ],
+      "notes": [
+        "Students registering for MA113 C1 must also register for a discussion section C2-C6.",
+        "Students registering for CASMA 113 A1 must also register for a discussion section A2-A6.",
+        "Students registering for MA113 B1 must also register for a discussion section B2-B4."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 115": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1",
+            "B1",
+            "C1",
+            "D1",
+            "E1",
+            "F1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+            "A6",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6",
+            "D2",
+            "D3",
+            "D4",
+            "D5",
+            "D6",
+            "E2",
+            "E3",
+            "E4",
+            "E5",
+            "F2",
+            "F3",
+            "F4",
+            "F5",
+            "F6"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "E1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "E2",
+                "E3",
+                "E4",
+                "E5"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "D2",
+                "D3",
+                "D4",
+                "D5",
+                "D6"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "F1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "F2",
+                "F3",
+                "F4",
+                "F5",
+                "F6"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "B2",
+                "B3",
+                "B4",
+                "B5",
+                "B6"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2",
+                "A3",
+                "A4",
+                "A5",
+                "A6"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "C1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "C2",
+                "C3",
+                "C4",
+                "C5",
+                "C6"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-115/"
+      ],
+      "notes": [
+        "Students registering for MA115 E1 must also register for a discussion section E2-E5.",
+        "Students registering for MA115 D1 must also register for a discussion section D2-D6.",
+        "Students registering for MA115 F1 must also register for a discussion section F2-F6.",
+        "Students registering for MA115 B1 must also register for a discussion section B2-B6",
+        "Students registering for MA115 A1 must also register for a discussion section A2-A6.",
+        "Students registering for MA115 C1 must also register for a discussion section C2-C6"
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "A1",
+          "B1",
+          "D1",
+          "E1",
+          "F1"
+        ],
+        "discussion": [
+          "A2",
+          "A4",
+          "A5",
+          "A6",
+          "B3",
+          "C2",
+          "C3",
+          "C5",
+          "D3",
+          "D4",
+          "D6"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS MA 116": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+            "A6"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2",
+                "A3",
+                "A4",
+                "A5",
+                "A6"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-116/"
+      ],
+      "notes": [
+        "Students registering for MA116 A1 must also register for a discussion section A2-A6."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "A1"
+        ],
+        "discussion": [
+          "A3",
+          "A5"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS MA 121": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1",
+            "B1",
+            "D1",
+            "E1",
+            "F1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+            "A6",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6",
+            "D2",
+            "D3",
+            "D4",
+            "D5",
+            "D6",
+            "E2",
+            "E3",
+            "E4",
+            "E5",
+            "E6",
+            "F2",
+            "F3",
+            "F4",
+            "F5",
+            "F6"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "F1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "F2",
+                "F3",
+                "F4",
+                "F5",
+                "F6"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "B2",
+                "B3",
+                "B4",
+                "B5",
+                "B6"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "E1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "E2",
+                "E3",
+                "E4",
+                "E5",
+                "E6"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2",
+                "A3",
+                "A4",
+                "A5",
+                "A6"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "D1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "D2",
+                "D3",
+                "D4",
+                "D5",
+                "D6"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-121/"
+      ],
+      "notes": [
+        "All students registering for MA121 F1 must also register for a discussion section F2-F6.",
+        "Students registering for MA121 B1 must also register for a discussion section B2-B6.",
+        "Students registering for MA121 E1 must also register for a discussion section E2-E6.",
+        "Students registering for MA121 A1 must also register for a discussion section A2-A6.",
+        "Students registering for MA121 D1 must also register for a discussion section D2-D6."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "D1"
+        ],
+        "discussion": [
+          "A2",
+          "A5",
+          "A6",
+          "B2",
+          "B4",
+          "B5",
+          "D3",
+          "D4",
+          "D5",
+          "D6",
+          "E2",
+          "E3",
+          "E6",
+          "F4",
+          "F6"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS MA 122": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "A3",
+            "A4"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2",
+                "A3",
+                "A4"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-122/"
+      ],
+      "notes": [
+        "Students registering for MA122 A1 must also register for a discussion section A2-A4."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "A1"
+        ],
+        "discussion": [
+          "A2",
+          "A3",
+          "A4"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS MA 123": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1",
+            "A2",
+            "A3",
+            "A4"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6",
+            "B7",
+            "B8",
+            "B9",
+            "BA",
+            "BB",
+            "BC"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-123/"
+      ],
+      "notes": [
+        "IMPORTANT: Students registered for MA123 should reserve Thursdays 6:30-8:30pm for exams throughout the term.Students registered for MA123 need to register for a Discussion section B1-BC",
+        "IMPORTANT: Students registered for MA123 should reserve Thursdays 6:30-8:30pm for exams throughout the term. Students registered for MA123 need to register for a Discussion section B1-BC"
+      ],
+      "reason": null,
+      "classificationBasis": "Catalog primary-section rows explicitly require a B1-BC discussion; no universal section-letter convention is used.",
+      "mappedCoverage": {
+        "primary": [],
+        "discussion": [
+          "B1",
+          "B2",
+          "B5",
+          "B6",
+          "B7",
+          "B8",
+          "BB",
+          "BC"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 124": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-124/"
+      ],
+      "notes": [
+        "IMPORTANT: Students registered for MA124 should reserve Thursdays 6:30-8:30pm for exams throughout the term. Students registered for MA124 need to register for a Discussion section B1-B7"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 213": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "lecture",
+          "sections": [
+            "A1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6"
+          ]
+        },
+        {
+          "id": "lab",
+          "sections": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-213/"
+      ],
+      "notes": [
+        "Students registering for MA 213 must register for a lecture section: MA213 A1, a discussion section: B1-B6, and a lab section: C1-C4"
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "lecture": [
+          "A1"
+        ],
+        "discussion": [
+          "B2",
+          "B4",
+          "B5",
+          "B6"
+        ],
+        "lab": [
+          "C1",
+          "C2",
+          "C3",
+          "C4"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS MA 214": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-214/"
+      ],
+      "notes": [
+        "Students registering for MA214 must register for the A1 lecture section, a B1-B4 discussion section, and a C1-C4 lab section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 225": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-225/"
+      ],
+      "notes": [
+        "Students registering for MA225 B1 must also register for a discussion section B2-B6.",
+        "All students registering for MA225 E1 must also register for a discussion section E2-E6.",
+        "All students registering for MA225 D1 must also register for a discussion section D2-D6.",
+        "Students registering for MA225 A1 must also register for a discussion section A2-A6.",
+        "Students registering for MA225 C1 must also register for a discussion section C2-C6."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 226": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1",
+            "B1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+            "A6",
+            "B2",
+            "B3",
+            "B4",
+            "B5"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "B1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "B2",
+                "B3",
+                "B4",
+                "B5"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2",
+                "A3",
+                "A4",
+                "A5",
+                "A6"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-226/"
+      ],
+      "notes": [
+        "Students registering for MA226 B1 must also register for a discussion Section B2-B5.",
+        "Students registering for MA226 A1 must also register for a discussion section A2-A6."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "B1"
+        ],
+        "discussion": [
+          "A2",
+          "A3",
+          "A4",
+          "A6",
+          "B3",
+          "B5"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS MA 231": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-231/"
+      ],
+      "notes": [
+        "Students registering for MA231 A1 must also register for discussion section A2."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [],
+        "discussion": [
+          "A2"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 242": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-242/"
+      ],
+      "notes": [
+        "Students registering for MA242 C1 must also register for discussion section C2-C6.",
+        "Students registering for MA242 B1 must also register for a discussion section.",
+        "Students registering for MA242 A1 must also register for a discussion section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 293": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1",
+            "B1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "B2"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2"
+              ]
+            }
+          ]
+        },
+        {
+          "section": "B1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "B2"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-293/"
+      ],
+      "notes": [
+        "Students registering for MA293 A1 must also register for discussion section A2",
+        "Students registering for MA 293 B1 must also register for discussion section B2"
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "A1",
+          "B1"
+        ],
+        "discussion": [
+          "A2",
+          "B2"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS MA 411": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "A3"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2",
+                "A3"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-411/"
+      ],
+      "notes": [
+        "Students registering for MA411 A1 must also register for discussion section A2-A3."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "A1"
+        ],
+        "discussion": []
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 416": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+            "A6"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2",
+                "A3",
+                "A4",
+                "A5",
+                "A6"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ma-416/"
+      ],
+      "notes": [
+        "Students registering for MA416 A1 must also register for a discussion section A2-A6."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "A1"
+        ],
+        "discussion": [
+          "A3",
+          "A5",
+          "A6"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS MA 511": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-ma-511/"
+      ],
+      "notes": [
+        "All students registering for MA511 A1 must also register for discussion section A2.",
+        "Students registering for MA511 B1 lecture section must also register for discussion section B2."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 541": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-ma-541/"
+      ],
+      "notes": [
+        "Students registering for MA 541 A1 must register for a DIS section B1-B2"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 575": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-ma-575/"
+      ],
+      "notes": [
+        "Students registering for MA575 A1 must register for a DIS section B1-B4, and a LAB section C1-C4."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 578": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-ma-578/"
+      ],
+      "notes": [
+        "Students registering for MA578 A1 must register for a DIS section B1"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 581": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-ma-581/"
+      ],
+      "notes": [
+        "Students registering for MA581 A1 must also register for a discussion section A2-A6. NEW TEXTBOOK required for this course: Sheldon Ross, A first course in probability, 10th ed., Pearson, 2019, ISBN-10: 0-13-475311-9 ISBN-13: 978-0-13-475311-9"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 582": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "A3",
+            "A4",
+            "A5"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2",
+                "A3",
+                "A4",
+                "A5"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-ma-582/"
+      ],
+      "notes": [
+        "Students registering for MA582 A1 must also register for a discussion section A2-A5"
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "A1"
+        ],
+        "discussion": [
+          "A3"
+        ]
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": true
+    },
+    "CAS MA 586": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-ma-586/"
+      ],
+      "notes": [
+        "Meets with CDS DS522 Students registering for MA586 A1 must register for a DIS section A2-A3"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 675": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-ma-675/"
+      ],
+      "notes": [
+        "MSSP students only; Students registering for GRSMA 675 A1 lecture must also register for discussion section B1 and a lab section C1-C3."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS MA 681": {
+      "status": "resolved",
+      "components": [
+        {
+          "id": "primary",
+          "sections": [
+            "A1"
+          ]
+        },
+        {
+          "id": "discussion",
+          "sections": [
+            "A2",
+            "A3"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "section": "A1",
+          "requires": [
+            {
+              "component": "discussion",
+              "sections": [
+                "A2",
+                "A3"
+              ]
+            }
+          ]
+        }
+      ],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/grs/courses/cas-ma-681/"
+      ],
+      "notes": [
+        "Students registering for MA681 A1 must also register for a discussion section A2-A3."
+      ],
+      "reason": null,
+      "mappedCoverage": {
+        "primary": [
+          "A1"
+        ],
+        "discussion": []
+      },
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS NE 234": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ne-234/"
+      ],
+      "notes": [
+        "Prereq PS 101. Mts w/ CAS PS 234. ; Students registering for NE234 A1 must also register for a discussion section (A2-A5)."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS NE 333": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ne-333/"
+      ],
+      "notes": [
+        "Mts w/CAS PS333 PRE-REQ: NE101 jr/sr NE Majors Only ; Students registering for CAS NE333 A1 must also register for a discussion section (A2-A4).",
+        "Mts w/CAS PS333 PRE-REQ: NE101 jr/sr NE Majors Only ; Students registering for CAS NE333 B1 must also register for a discussion section (B2-B5)."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS NE 338": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ne-338/"
+      ],
+      "notes": [
+        "Mts w/CAS PS338 PRE-REQ: NE203 NE Majors Only ; Students registering for CAS NE338 A1 must also register for a discussion section (A2-A4)."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS PH 100": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ph-100/"
+      ],
+      "notes": [
+        "Students registering for PH100 A1 must also register for a discussion section from A2 through A6."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS PH 150": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ph-150/"
+      ],
+      "notes": [
+        "Students registering for PH150 B1 must also register for a discussion section from B2 through B5"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS PH 159": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ph-159/"
+      ],
+      "notes": [
+        "Mts w/CAS CI263; Students registering for PH159 A1 must also register for a discussion section from A2 through A5"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS PH 160": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ph-160/"
+      ],
+      "notes": [
+        "Students registering for PH160 A1 must also register for a discussion section from A2 through A5."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS PH 251": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-ph-251/"
+      ],
+      "notes": [
+        "Students registering for PH251 A1 must also register for a discussion section from A2 through A5."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS PY 313": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-py-313/"
+      ],
+      "notes": [
+        "Prereq: PY212 ; Students registering for this course must register for three sections: a Lec section, a Dis section and a Lab section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": false,
+      "hasCompleteMappedOption": false
+    },
+    "CAS SO 100": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-so-100/"
+      ],
+      "notes": [
+        "Students registering for CAS SO100 B0 lecture must also register for CAS SO100 B(1-3) discussion.",
+        "Students registering for CAS SO100 A0 lecture must also register for CAS SO100 A(1-9) discussion."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS SO 201": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-so-201/"
+      ],
+      "notes": [
+        "Students registering for CAS SO201 A1 lecture must also register for CAS SO201 A(2-4) discussion."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS SO 207": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-so-207/"
+      ],
+      "notes": [
+        "Mts w/CAS AA207 ; Students registering for CAS SO207 A1 lecture must also register for CAS SO207 A(2-4) discussion."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CAS SO 215": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cas/courses/cas-so-215/"
+      ],
+      "notes": [
+        "Students registering for CAS SO215 A1 lecture must also register for CAS SO215 A(2-5) discussion."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CDS DS 701": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cds/courses/cds-ds-701/"
+      ],
+      "notes": [
+        "Students must register for both a lecture and discussion"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CFA AR 580": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cfa/courses/cfa-ar-580/"
+      ],
+      "notes": [
+        "30 seats reserved for MFA Graphic Design, 10 seats for BU community; students must register for the LEC section and DIS section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": false,
+      "hasCompleteMappedOption": false
+    },
+    "CFA TH 121": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cfa/courses/cfa-th-121/"
+      ],
+      "notes": [
+        "SOT 1st Yr Perf. Core only; Students registering for CFA TH121 must register for two sections: a Lec. section, and a Lab section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CGS HU 201": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cgs/courses/cgs-hu-201/"
+      ],
+      "notes": [
+        "If course has flag then open seats shown are not available ; Students registering for lecture HU201 YY must also register for HU 201 discussion section Y1, Y2, or Y3. Your other CGS core courses MUST be selected from YY or YA lecture options ONLY. Additional film hours required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture HU201 UU must also register for HU 201 discussion section U1, U2, or U3. Your other CGS core courses MUST be selected from UU lecture options ONLY. Additional film hours required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture HU201 VV must also register for HU 201 discussion section V1, V2, or V3. Your other CGS core courses MUST be selected from VV lecture options ONLY. Additional film hours required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture HU201 SS must also register for HU 201 discussion section S1, S2, or S3. Your other CGS core courses MUST be selected from SS or SA lecture options ONLY. Additional film hours required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture HU201 TT must also register for HU 201 discussion section T1, T2, or T3. Your other CGS core courses MUST be selected from TT lecture options ONLY. Additional film hours required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture HU201 WW must also register for HU 201 discussion section W1, W2, or W3. Your other CGS core courses MUST be selected from WW lecture options ONLY. Additional film hours required as assigned."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CGS NS 201": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cgs/courses/cgs-ns-201/"
+      ],
+      "notes": [
+        "If course has flag then open seats shown are not available ; Students registering for lecture NS201 YY must also register for NS201 lab Y1, Y2, Y3, or Y4. Your other CGS core courses MUST be selected from YY lecture options ONLY.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture NS201 TT must also register for NS201 lab T1, T2, T3, or T4. Your other CGS core courses MUST be selected from TT lecture options ONLY.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture NS201 WW must also register for NS201 lab W1, W2, W3, or W4. Your other CGS core courses MUST be selected from WW lecture options ONLY.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture NS201 SS must also register for NS201 lab S1, S2, S3, or S4. Your other CGS core courses MUST be selected from SS lecture options ONLY.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture NS201 UU must also register for NS201 lab U1, U2, U3, or U4. Your other CGS core courses MUST be selected from UU lecture options ONLY.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture NS201 VV must also register for NS201 lab V1, V2, V3, or V4. Your other CGS core courses MUST be selected from VV lecture options ONLY."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "CGS SS 201": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/cgs/courses/cgs-ss-201/"
+      ],
+      "notes": [
+        "If course has flag then open seats shown are not available ; Students registering for lecture SS201 TT must also register for SS201 discussion section T1, T2, or T3. Your other CGS core courses MUST be selected from TT lecture options ONLY. Additional film hours required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture SS201 YY must also register for SS201 discussions section Y1, Y2, or Y3. Yo ur other CGS core courses MUST be selected from YY lecture options ONLY. Additional film hours may be required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture SS201 VV must also register for SS201 discussion section V1, V2, or V3. Your other CGS core courses MUST be selected from VV lecture options ONLY. Additional film hours required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture SS201 WW must also register for SS201 discussion section W1, W2, or W3. Your other CGS core courses MUST be selected from WW lecture options ONLY. Additional film hours required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture SS201 UU must also register for SS201 discussion section U1, U2, or U3. Your other CGS core courses MUST be selected from UU lecture options ONLY. Additional film hours required as assigned.",
+        "If course has flag then open seats shown are not available ; Students registering for lecture SS201 SS must also register for SS201 discussion section S1, S2, or S3. Your other CGS core courses MUST be selected from SS lecture options ONLY. Additional film hours required as assigned. as assigned."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "COM CO 101": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/com/courses/com-co-101/"
+      ],
+      "notes": [
+        "Both COMCO 101 AA and BB will be open to all students at normal registration times. Students must register for a lecture and a discussion section. 250 total seats are reserved for incoming first-years. 80 total seats are reserved for incoming external transfer students until September 2. If there are any questions, please contact the COM Core at comcore@bu.edu."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "COM FT 250": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/com/courses/com-ft-250/"
+      ],
+      "notes": [
+        "This course is on the Film & TV Department's Fall 2026 waitlist. Please email filmtv@bu.edu for more info. Students registering for COMFT 250 must register for two components: a lecture section and a discussion section. *If you are unable to register for this, we are working on adding new discussion sections. Please contact filmtv@bu.edu to learn more about a waiting list. 3 seats are reserved for incoming external transfer students until September 2."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "COM FT 303": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/com/courses/com-ft-303/"
+      ],
+      "notes": [
+        "Students registering for COMFT 303 must register for two components: a lecture and discussion section. 5 seats are reserved for incoming external transfer students until September 2."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "COM FT 310": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/com/courses/com-ft-310/"
+      ],
+      "notes": [
+        "Students registering for COMFT 310 must register for two components: a lecture and a discussion section. The prerequisite for COMFT 310 is the first-year writing seminar. 5 seats are reserved for incoming external transfer students until September 2."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "ENG EC 311": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/eng/courses/eng-ec-311/"
+      ],
+      "notes": [
+        "Students registering for ENG EC311 must register for two sections; a Lec section, and a Lab section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "ENG EC 327": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/eng/courses/eng-ec-327/"
+      ],
+      "notes": [
+        "Students registering for ENG EC327 must register for two sections: a Lec section, and a Lab section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "ENG EC 330": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/eng/courses/eng-ec-330/"
+      ],
+      "notes": [
+        "Students registering for ENG EC330 must register for two sections: a Lec section, and a Dis section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "ENG EK 125": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/eng/courses/eng-ek-125/"
+      ],
+      "notes": [
+        "You must be registered with the same instructor for all three sections. (A1, B1, B2, C1) (A2, B3, B4, C2) (A3, B5, B6, C3) **Remaining seats will be available for non-ENG majors mid-summer** You must be registered with the same instructor for all three sections.",
+        "You must be registered with the same instructor for all three sections. (A1, B1, B2, C1) (A2, B3, B4, C2) (A3, B5, B6, C3)"
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "GMS AN 810": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/gms/courses/gms-an-810/"
+      ],
+      "notes": [
+        "Meets with GMS NE 700 A1 & B1, GRS BI 755 A1 & B1. Students must register for both A1 & B1 sections. A1 Tues at CRC, B1 Thurs at MED."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "GMS NE 700": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/gms/courses/gms-ne-700/"
+      ],
+      "notes": [
+        "Meets with GMS AN 810 A1 & B1, GRS BI 755 A1 & B1. Students must register for both A1 & B1 sections. A1 Tues at CRC, B1 Thurs at MED."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "QST FE 323": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/questrom/courses/qst-fe-323/"
+      ],
+      "notes": [
+        "To register for the Cross-Functional Core in Fall 2026, please register for the same section of QSTFE 323, QSTMK 323, QSTOM 323, QSTQM 323 and QSTSM 303 to be considered fully registered for Core. Please note that the A-sections are morning , the B-sections are midday and the C-sections are afternoon . Please note that instructor assignments are subject to change. Students must be registered for the same section of all five courses (example: QSTFE 323 C2, QSTMK 323 C2, QSTOM 323 C2, QSTQM 323 C2 and QSTSM 303 C2). If you’re having any trouble getting in to the same section of all five courses, please submit the Waitlist Request Form to request assistance. If you expect to be admitted to Questrom as of the Fall 2026 semester, please submit the Waitlist Request Form to request to be registered for Core. To request a section due to an academic, athletic, medical, religious or work conflict, please submit the Waitlist Request Form after your registration date/time, and after you have attempted to register for an available section. The last day to request to add or switch core sections is August 7, 2026. Please be reminded that students are expected to work their non-academic obligations out around their academic courses, and we cannot guarantee that we can accommodate waitlist requests. For questions, please contact questromreg@bu.edu ."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": false,
+      "hasCompleteMappedOption": false
+    },
+    "QST MK 323": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/questrom/courses/qst-mk-323/"
+      ],
+      "notes": [
+        "To register for the Cross-Functional Core in Fall 2026, please register for the same section of QSTFE 323, QSTMK 323, QSTOM 323, QSTQM 323 and QSTSM 303 to be considered fully registered for Core. Please note that the A-sections are morning , the B-sections are midday and the C-sections are afternoon . Please note that instructor assignments are subject to change. Students must be registered for the same section of all five courses (example: QSTFE 323 C2, QSTMK 323 C2, QSTOM 323 C2, QSTQM 323 C2 and QSTSM 303 C2). If you’re having any trouble getting in to the same section of all five courses, please submit the Waitlist Request Form to request assistance. If you expect to be admitted to Questrom as of the Fall 2026 semester, please submit the Waitlist Request Form to request to be registered for Core. To request a section due to an academic, athletic, medical, religious or work conflict, please submit the Waitlist Request Form after your registration date/time, and after you have attempted to register for an available section. The last day to request to add or switch core sections is August 7, 2026. Please be reminded that students are expected to work their non-academic obligations out around their academic courses, and we cannot guarantee that we can accommodate waitlist requests. For questions, please contact questromreg@bu.edu ."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": false,
+      "hasCompleteMappedOption": false
+    },
+    "QST OM 323": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/questrom/courses/qst-om-323/"
+      ],
+      "notes": [
+        "To register for the Cross-Functional Core in Fall 2026, please register for the same section of QSTFE 323, QSTMK 323, QSTOM 323, QSTQM 323 and QSTSM 303 to be considered fully registered for Core. Please note that the A-sections are morning , the B-sections are midday and the C-sections are afternoon . Please note that instructor assignments are subject to change. Students must be registered for the same section of all five courses (example: QSTFE 323 C2, QSTMK 323 C2, QSTOM 323 C2, QSTQM 323 C2 and QSTSM 303 C2). If you’re having any trouble getting in to the same section of all five courses, please submit the Waitlist Request Form to request assistance. If you expect to be admitted to Questrom as of the Fall 2026 semester, please submit the Waitlist Request Form to request to be registered for Core. To request a section due to an academic, athletic, medical, religious or work conflict, please submit the Waitlist Request Form after your registration date/time, and after you have attempted to register for an available section. The last day to request to add or switch core sections is August 7, 2026. Please be reminded that students are expected to work their non-academic obligations out around their academic courses, and we cannot guarantee that we can accommodate waitlist requests. For questions, please contact questromreg@bu.edu ."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": false,
+      "hasCompleteMappedOption": false
+    },
+    "QST QM 323": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/questrom/courses/qst-qm-323/"
+      ],
+      "notes": [
+        "To register for the Cross-Functional Core in Fall 2026, please register for the same section of QSTFE 323, QSTMK 323, QSTOM 323, QSTQM 323 and QSTSM 303 to be considered fully registered for Core. Please note that the A-sections are morning , the B-sections are midday and the C-sections are afternoon . Please note that instructor assignments are subject to change. Students must be registered for the same section of all five courses (example: QSTFE 323 C2, QSTMK 323 C2, QSTOM 323 C2, QSTQM 323 C2 and QSTSM 303 C2). If you’re having any trouble getting in to the same section of all five courses, please submit the Waitlist Request Form to request assistance. If you expect to be admitted to Questrom as of the Fall 2026 semester, please submit the Waitlist Request Form to request to be registered for Core. To request a section due to an academic, athletic, medical, religious or work conflict, please submit the Waitlist Request Form after your registration date/time, and after you have attempted to register for an available section. The last day to request to add or switch core sections is August 7, 2026. Please be reminded that students are expected to work their non-academic obligations out around their academic courses, and we cannot guarantee that we can accommodate waitlist requests. For questions, please contact questromreg@bu.edu ."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": false,
+      "hasCompleteMappedOption": false
+    },
+    "QST SM 131": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/questrom/courses/qst-sm-131/"
+      ],
+      "notes": [
+        "Questrom first-year students only. Students who register for SM131 FI (discussion) must also register for SM131 A3 (lecture). If QSTSM 131 A3 is full, please register for QSTSM 131 A2.",
+        "Questrom first-year students only. Students who register for SM131 FK (discussion) must also register for SM131 A3 (lecture). If QSTSM 131 A3 is full, please register for QSTSM 131 A2.",
+        "Questrom first-year students only. Students who register for SM131 FE (discussion) must also register for SM131 A2 (lecture).",
+        "Students registering for a QSTSM 131 G discussion section must also register for lecture QSTSM 131 A1.",
+        "Questrom first-year students only. Students who register for SM131 FJ (discussion) must also register for SM131 A3 (lecture). If QSTSM 131 A3 is full, please register for QSTSM 131 A2.",
+        "Questrom first-year students only. Students who register for SM131 FL (discussion) must also register for SM131 A3 (lecture). If QSTSM 131 A3 is full, please register for QSTSM 131 A2.",
+        "Questrom external transfer students only. Students registered for SM131 E1 must also register for lecture QSTSM 131 A3. If QSTSM 131 A3 is full, please register for QSTSM 131 A2.",
+        "Questrom first-year students only. Students who register for SM131 FO (discussion) must also register for SM131 A3 (lecture). If QSTSM 131 A3 is full, please register for QSTSM 131 A2.",
+        "Questrom first-year students only. Students who register for SM131 FG (discussion) must also register for SM131 A2 (lecture).",
+        "Questrom first-year students only. Students who register for SM131 FD (discussion) must also register for SM131 A2 (lecture).",
+        "Questrom first-year students only. Students who register for SM131 FB (discussion) must also register for SM131 A2 (lecture).",
+        "Questrom first-year students only. Students who register for SM131 FC (discussion) must also register for SM131 A2 (lecture).",
+        "Questrom first-year students only. Students who register for SM131 FN (discussion) must also register for SM131 A3 (lecture). If QSTSM 131 A3 is full, please register for QSTSM 131 A2.",
+        "Questrom external transfer students only. Students registered for SM131 E3 must also register for lecture QSTSM 131 A3. If QSTSM 131 A3 is full, please register for QSTSM 131 A2. If you are not able to register yourself for a Questrom course or section, please submit the Questrom Waitlist Request Form .",
+        "Questrom external transfer students only. Students registered for SM131 E2 must also register for lecture QSTSM 131 A3. If QSTSM 131 A3 is full, please register for QSTSM 131 A2.",
+        "Questrom first-year students only. Students who register for SM131 FA (discussion) must also register for SM131 A2 (lecture).",
+        "Questrom first-year students only. Students who register for SM131 FH (discussion) must also register for SM131 A2 (lecture).",
+        "Questrom first-year students only. Students who register for SM131 FF (discussion) must also register for SM131 A2 (lecture)."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "SAR HS 325": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/sar/courses/sar-hs-325/"
+      ],
+      "notes": [
+        "Students registering for SARHS325 must register for two sections: the LEC section and a DIS section."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    },
+    "WED HD 400": {
+      "status": "unresolved",
+      "components": [],
+      "dependencies": [],
+      "sourceUrls": [
+        "https://www.bu.edu/academics/wheelock/courses/wed-hd-400/"
+      ],
+      "notes": [
+        "Meets every other week. Applied Human Development minors only. This course is reserved for Juniors and Seniors only, others will be dropped. Students must register for both A1 Seminar and A2 Field Placement.After registering, students must contact Jessica Ghai (jghai@bu.edu) by April 15 for placement."
+      ],
+      "reason": "Linked registration is explicit, but component choices or compatibility are not fully resolved.",
+      "mappedCoverage": {},
+      "mappedCourse": true,
+      "hasCompleteMappedOption": false
+    }
+  },
+  "coverage": {
+    "linkedCourses": 88,
+    "resolved": 17,
+    "unresolved": 71,
+    "mappedLinkedCourses": 82,
+    "completeMappedCandidates": 11
+  },
+  "errors": [],
+  "sources": [
+    {
+      "url": "https://cs-web.bu.edu/courses/cs111/",
+      "requestedUrl": "https://cs-web.bu.edu/courses/cs111/",
+      "retrievedAt": "2026-10-24T19:21:00.811982+00:00",
+      "sha256": "92c7e4d5429e17272f9babe8783b9e53dc33b635859774cb10d4ee29f523f917",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/e1725b59335fa5e267a39f6905bedbadc53a26bf49623056a76f9dc805fddfa6.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://cs-people.bu.edu/sofya/cs237/",
+      "requestedUrl": "https://cs-people.bu.edu/sofya/cs237/",
+      "retrievedAt": "2026-10-24T19:21:00.863449+00:00",
+      "sha256": "24e1aef4fb2e83e4dfd8f465f407538b6424ac11104fd44bf8399ddfa718ad04",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/895efce784daa9319c645b840c994f579f230045f7c1054bf035598ef52b18ad.body",
+      "cacheUsed": true
+    }
+  ]
+}

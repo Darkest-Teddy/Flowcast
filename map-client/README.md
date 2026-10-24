@@ -4,13 +4,21 @@ Owner: 3D Map / Frontend Lead (see `.plans/campus-digital-twin-spec.md` Section 
 
 The 3D campus view uses saved Fall 2026 class schedules and a 36,977-student roster matching BU's Fall 2025 CDS census. The roster includes full-time and part-time undergraduate and graduate cohorts. Students keep the same modeled course sections throughout the week. Building labels show simulated counts, not measured occupancy.
 
-The roster is university-wide, not a claim that 36,977 people attend the mapped campuses. Published bed evidence supports 3,613 mapped residential slots, including 600 verified Tower A beds at Warren. Twelve explicit low-confidence housing scenarios assign another 3,293 students to estimated mapped homes, for 6,906 modeled residents in total; these extra allocations are not observed occupancy. Remaining residents and commuters use saved stop-to-building paths for modeled campus entry and exit, with the rest of their commute off-map. A stable gateway is a modeled access point, not evidence that the student rides transit. Campus allocation uses mapped course-seat weights because campus headcounts and online enrollment are unavailable. Course loads, enrollment, attendance, and between-class locations remain assumptions. Staff and visitors are not added without a defensible allocation.
+Mapped course demand uses the fraction of eligible catalog offerings that the map can represent, rather than forcing each student's entire degree load into mapped classrooms. Distinct courses and complete cross-listed timetables count once. This catalog-coverage fraction is a modeling proxy, not an enrollment measurement. Explicit lecture/lab/discussion requirements are assigned together; unresolved requirements or missing essential locations prevent partial enrollment in those courses.
+
+Course assignment follows the [BU Bulletin’s default course levels](https://www.bu.edu/academics/bulletin/abbreviations-and-symbols/): 100–399 undergraduate, 400–599 shared, and 600–999 graduate, with professional MD and graduate-school exceptions. The registrar describes 400–499 more narrowly, so the model keeps the broader Bulletin eligibility rather than excluding possible graduate enrollment. Mixed-level cross-listings share one physical roster and use the eligible course alias when reporting attendance. Individual prerequisites and special permissions are unknown. Each student has a stable modeled school preference: the planner tries to place all but one course there, then allows electives and feasible alternatives; this is not a recovered major. Nondegree 000–099 listings and [PDP classes, which became noncredit in Fall 2024](https://www.bu.edu/fitrec/2024/02/27/fall-2024-changes-to-physical-education-pdp-program-offerings/), do not pad the degree-course load. Their published listings remain visible, but this planner does not infer their registrations.
+
+The roster is university-wide, not a claim that 36,977 people attend the mapped campuses. Published bed evidence supports 3,613 mapped residential slots, including 600 verified Tower A beds at Warren. Twelve explicit low-confidence housing scenarios assign another 3,293 students to estimated mapped homes, for 6,906 modeled residents in total; these extra allocations are not observed occupancy. Remaining residents and commuters use saved stop-to-building paths for modeled campus entry and exit, with the rest of their commute off-map. A stable gateway is a modeled access point, not evidence that the student rides transit. Primary campus allocation uses degree-eligible weekly section-seat weights, deduplicated across repeated meetings and cross-listings. Undergraduate primary campuses start at Charles River, with Fenway housing allocated afterward; the saved fact sheet lists Medical graduate/nondegree FTE, not an undergraduate campus cohort. FTE is not converted to headcount. These weights remain sensitive to mapped catalog coverage because campus headcounts and online enrollment are unavailable. Course loads, enrollment, attendance, and between-class locations remain assumptions. Staff and visitors are not added without a defensible allocation.
 
 Walking duration is route length in metres divided by a stable 1.4 m/s modeled speed. This is a typical adult walking assumption, not a BU measurement or accessible crossing-design speed ([FHWA research](https://www.fhwa.dot.gov/publications/research/safety/pedbike/98107/section2.cfm)). Travel must fit between weekly classes. The playback clock advances by actual elapsed wall time even when rendering slows. Capacities retain their published or configured basis; they are not enlarged to fit predicted occupancy, and weather does not multiply simulated counts.
 
 Mapped residents also receive probabilistic meal, study, and gym visits on class days and weekends. These are explicit behavioral assumptions, not observed attendance; their rates and timing windows are named in `RESIDENT_ACTIVITIES`. Ordinary optional visits require applicable published hours for the whole stay: exact-date hours and closures override valid seasonal weekday schedules. Missing or merely undated hours do not permit ordinary visits. The exported `venueWindows` helper retains an explicit `estimatedFallback` option for nearest-week or typical-kind assumptions; these are model inputs, not published availability. Published classes remain governed by their own meeting times.
 
-The opening-hours audit covers all 13 activity venues. Eleven have published schedules; Agganis Arena and DeWolfe Boathouse are excluded from ordinary gym visits because they serve events and teams. GSU uses dated meal-vendor service windows, not general building hours or coffee-shop availability. Dining pages publish dates rather than a permanent weekly pattern, so dates outside the collected coverage remain unavailable. Library schedules use general hours, not departmental desks.
+Optional arrivals retain their core timing preferences, with 25% sampled across broader daytime windows so morning gym use, morning study, and late meals are possible. Uncovered academic course slots can reserve estimated two-hour weekly off-map study commitments; actual courses, locations and times are unknown. Both behaviors use existing students and preserve feasible physical travel. Neither is calibrated attendance evidence.
+
+The opening-hours audit covers all 13 activity venues. Eleven have published schedules; Agganis Arena and DeWolfe Boathouse are excluded from ordinary gym visits because they serve events and teams. GSU uses dated meal-vendor service windows, not general building hours or coffee-shop availability. Dining pages publish dates rather than a permanent weekly pattern. A missing service date is unknown, not a confirmed empty venue. The builder selects the current or next Monday week with the most published venue-day coverage; the saved student scenario currently uses October 26–November 1. Library schedules use general hours, not departmental desks. The separately saved MBTA timetable still represents October 19–25.
+
+Fenway residence and academic campus are separate assignments. Verified OSM pedestrian corridors connect Fenway homes to Charles River classes and provide the BU Bridge route to DeWolfe. Rebuild these routes offline with `python3 ../data-pipeline/build_cross_campus_routes.py --rebuild-source`; the compressed source extracts are committed. The map no longer adds the old independent demo transit riders to the institutional student roster.
 
 On-campus venues are selected only after checking hours, routes, and class conflicts, weighted by modeled capacity and travel time. Rejected visits are not redirected sequentially into an unknown-hours venue. `MODELED_OFF_CAMPUS_MEAL_SHARE` defaults to 0.35 of attempted resident meal visits, an explicit uncalibrated assumption. Those students walk to a saved gateway, spend their meal off-map, and return; they are not counted inside a campus building while away. Other unassigned meals can remain at home. Access arrivals vary by 2–12 minutes before classes, and long commuter gaps can include an exit and return walk.
 
@@ -19,6 +27,10 @@ Nine additional academic, research, community, arena, and rowing locations have 
 The **Data** tab exposes published class times, room seats, housing baselines, dining and library hours, events, historical library counts, and source links. The compact bundle maps 3,805 of 6,944 physical meeting records onto existing map locations; unmatched building codes are listed in the coverage panel. Date-restricted classes are excluded from the representative week. Seats and registrations never become observed attendance.
 
 `npm run prepare:data` rebuilds campus, population, timetable, and historical mobility bundles from committed snapshots without network access. Production builds run this automatically. `npm test` checks scheduling, routing, population conservation, clock timing, and transit freshness. The TypeScript simulation lives in `src/sim/sourceDay.ts` and `src/sim/population.ts`.
+
+The `Simulation accuracy checks` workflow builds these saved datasets and runs the Python and client tests on pull requests and pushes to main. The seven-day checks cover complete student timelines, physical walking speeds, room occupancy, venue hours, and estimated attendance quotas. Playback rejects duplicate student IDs and capacities changed after their source/model basis was selected. Display percentages are calculated from counts and capacities rather than independent visual adjustments.
+
+These checks establish internal consistency, not measured attendance accuracy. Course enrollment, optional visits, housing estimates, and the off-campus dining share remain assumptions. The 21 estimated building profiles are low-confidence scenarios; compare them with dated occupancy or pedestrian counts before treating their output as calibrated predictions. Staff, visitors, and unobserved off-map trips remain outside the student model. The source reference week is fixed; a live clock does not turn these saved schedules into current attendance data.
 
 ## Run it
 
@@ -80,7 +92,7 @@ Places open on hover of the model, outline or field itself too, through invisibl
 | `src/TransitTags.tsx`, `src/tags/glassTags.ts` | HTML tags for stations, bus and shuttle stops, Bluebikes docks and the hovered vehicle |
 | `src/PlaceTags.tsx` | HTML tags for monuments, landmarks, public art, open spaces and fields |
 | `src/sim/playback.ts` | Where everyone is at time *t* and how full each place is. The server takes this over later (plan Section 8.1) |
-| `src/sim/riders.ts`, `src/layers/riders.ts` | Riders waiting at stops, boarding and alighting |
+| `src/sim/riders.ts`, `src/layers/riders.ts` | Legacy demo rider model; not used by the production map |
 | `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
 | `src/App.tsx` | The frame loop, dashboard panel and timeline |
 
@@ -164,3 +176,27 @@ python3 map-client/scripts/embed_glb_textures.py "<unzipped pack>/Models/GLB for
 - Click-to-inspect building panel with the day's occupancy curve (plan Section 3.3); `Playback.occupancyAt` already gives every point of it.
 - Swap `loadDay()` for the server's Socket.IO stream once `/server` exists.
 - Interior view (Section 6.7): the characters already ship a `sit` animation.
+
+### BU hackathon sources (local, restricted access)
+
+Put `CATALOG_API_KEY` in the ignored `map-client/.env.local` and restart Vite to prefer
+BU's authenticated transit API. The key stays in the Vite server; only an enabled flag
+enters the browser bundle. Without a key the existing public TransLoc integration is
+used. Configured API failures do not switch sources silently. Routes and physical-stop
+arrivals retain the same BU IDs; vehicle freshness uses `reported_at`, never fetch time,
+and stale upstream responses are rejected.
+
+The local server and `vite preview` expose only GET routes, vehicles, and numeric-stop
+arrivals under `/api/bu/transit/bus`. They cache routes/arrivals for five minutes and
+vehicles for one minute, deduplicate concurrent fetches, and limit each server process
+to 80 upstream requests per minute and 8,000 per UTC day. These budgets reset on server
+restart and do not coordinate with other team processes; the shared key still has the
+provider's 100/minute and 10,000/day limits. Arrival predictions can lag by five minutes;
+old vehicle observations still expire under the normal 90-second freshness rule.
+
+If `data-pipeline/.cache/hackathon/campus-data.json` exists, the local server serves that
+private bundle at `/data/campus-data.json` with `Cache-Control: no-store`. It is not copied
+into `dist` or committed. Keep this server on localhost for the team’s hackathon use.
+A static public deployment does not supply this proxy or private bundle: deployment of
+restricted data requires an authenticated server and permission consistent with the
+access terms. Rebuild without the key for the ordinary public-data static app.

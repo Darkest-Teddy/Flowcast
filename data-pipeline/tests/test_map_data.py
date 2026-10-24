@@ -1,4 +1,5 @@
 import hashlib
+from datetime import date
 import copy
 import json
 from pathlib import Path
@@ -7,15 +8,34 @@ import unittest
 from unittest.mock import patch
 
 from build_map_data import (DATASETS, DEFAULT_INPUT, DEFAULT_MAP, build, build_bundle,
-                            calendar_restricted, event_location, hour_windows, routable_ids)
+                            calendar_restricted, event_location, hour_windows, routable_ids, reference_week)
 
 
 class MapDataTests(unittest.TestCase):
+    def test_reference_week_uses_dated_coverage_without_projecting_hours(self):
+        venues = {"dining": {"hoursStatus": "published", "hours": [
+            {"date": "2026-10-24", "windows": [[36000, 72000]]},
+            {"date": "2026-10-26", "windows": [[36000, 72000]]},
+            {"date": "2026-10-27", "windows": []},
+        ]}}
+        self.assertEqual(reference_week(date(2026, 10, 24), venues), date(2026, 10, 26))
+        self.assertEqual(reference_week(date(2026, 10, 24), {}), date(2026, 10, 19))
+
     @classmethod
     def setUpClass(cls):
         cls.datasets = {name: json.loads((DEFAULT_INPUT / f'{name}.json').read_text()) for name in DATASETS}
         cls.day = json.loads(DEFAULT_MAP.read_text())
         cls.bundle = build_bundle(cls.datasets, cls.day)
+
+    def test_fitrec_observations_and_calendar_are_bundled_with_dated_evidence(self):
+        usage = self.bundle['fitrecUsage']
+        self.assertEqual(usage, self.datasets['fitrec_usage']['usage'])
+        self.assertEqual(self.bundle['academicCalendar'], self.datasets['academic_calendar']['calendar'])
+        evidence = self.bundle['locations']['fitrec']['evidence']
+        visits = next(row for row in evidence if row['id'] == 'fitrec:hourly-visits')
+        self.assertEqual(visits['value'], sum(row['visits'] for row in usage['observations']))
+        self.assertIn(usage['periodStart'], visits['note'])
+        self.assertFalse(any(row['label'] == 'FitRec daily visits (more than)' for row in evidence))
 
     def test_hours_audit_replaces_undated_snapshots_and_department_hours(self):
         datasets = copy.deepcopy(self.datasets)
@@ -53,6 +73,7 @@ class MapDataTests(unittest.TestCase):
             self.assertNotIn('position', location)
             for row in location['meetings']:
                 self.assertTrue(row['sourceUrl'].startswith('https://'))
+                self.assertIn(row['buildingCode'], location['buildingCodes'])
                 for interval in row['intervals']:
                     self.assertLess(interval['startSec'], interval['endSec'])
                     self.assertGreaterEqual(interval['startSec'], 0)
@@ -110,7 +131,7 @@ class MapDataTests(unittest.TestCase):
         self.assertEqual(hour_windows('Closed'), [])
         self.assertEqual(hour_windows('Open 24 hours'), [[0,86400]])
         self.assertEqual(hour_windows('Hours unavailable'), [])
-        self.assertEqual(self.bundle['referenceWeekStart'], '2026-10-19')
+        self.assertEqual(self.bundle['referenceWeekStart'], '2026-10-26')
         self.assertTrue(any(row['date'] == '2026-10-19' for row in self.bundle['locations']['mugar']['hours']))
         dining = self.bundle['locations']['warren-dining']['hours']
         self.assertTrue(dining)
@@ -125,11 +146,10 @@ class MapDataTests(unittest.TestCase):
         self.assertEqual(self.bundle['coverage']['mappedEvents'], 4)
         self.assertIsNone(event_location({'locationStatus':'hidden','locationName':'GSU'}, self.bundle['locations'], []))
 
-    def test_routes_reject_cross_campus_or_unknown_destinations(self):
+    def test_routes_allow_precomputed_cross_campus_and_reject_unknown_destinations(self):
         day = {'locations':[{'id':'a','campus':'one'},{'id':'b','campus':'two'}],
                'walkRoutes':{'a>b':{'path':[[0,0],[1,1]],'cumulative':[0,10]}}}
-        with self.assertRaisesRegex(ValueError,'crosses campuses'):
-            routable_ids(day)
+        self.assertEqual(routable_ids(day), {'a', 'b'})
         day['walkRoutes'] = {'a>missing': {'path':[[0,0],[1,1]],'cumulative':[0,10]}}
         with self.assertRaisesRegex(ValueError,'unknown location'):
             routable_ids(day)

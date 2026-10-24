@@ -15,7 +15,8 @@
 import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
-import { mergeFlatMaterials } from './gltf-palette';
+import { mergeMaterialPrimitives } from './gltf-materials';
+import { MaterialScenegraphLayer } from './material-scenegraph';
 import { daylightAt } from '../map/daylight';
 import { gltfExtent, setCullBox, type CullBox } from './culling';
 
@@ -60,11 +61,7 @@ export async function loadBuildingModels(manifest: BuildingModelManifest): Promi
     jobs.push([c.id, c.model]);
     for (const [when, url] of Object.entries(c.lights ?? {})) if (url) jobs.push([`${c.id}:${when}`, url]);
   }
-  // The lit-window meshes keep their primitives: their TEXCOORD_0 carries window schedules, not UVs.
-  const entries = await Promise.all(jobs.map(async ([key, url]) => {
-    const model = await load(url, GLTFLoader);
-    return [key, key.includes(':') ? model : mergeFlatMaterials(model)] as const;
-  }));
+  const entries = await Promise.all(jobs.map(async ([key, url]) => [key, mergeMaterialPrimitives(await load(url, GLTFLoader), { materialAttributes: true })] as const));
   return Object.fromEntries(entries);
 }
 
@@ -167,7 +164,7 @@ interface ExtraProps {
  * - for the lit-window mesh, a tiny shader module that switches each window on and off by its
  *   own schedule against a clock uniform.
  */
-class BuildingModelLayer extends ScenegraphLayer<Instance, ExtraProps> {
+class BuildingModelLayer extends MaterialScenegraphLayer<Instance, ExtraProps> {
   static layerName = 'BuildingModelLayer';
   getShaders() {
     const shaders = super.getShaders();

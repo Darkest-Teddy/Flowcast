@@ -9,10 +9,10 @@
 // glTF is right-handed, so with +Y up, +X is 90° anticlockwise of +Z seen from above).
 // So to point a model's +X at bearing b: yaw = 90 - b.
 import { PathLayer, PolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
-import { ScenegraphLayer } from '@deck.gl/mesh-layers';
+import { MaterialScenegraphLayer as ScenegraphLayer } from './material-scenegraph';
+import { mergeMaterialPrimitives } from './gltf-materials';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
-import { mergeFlatMaterials } from './gltf-palette';
 import type { Color } from '@deck.gl/core';
 import type { MbtaFeed, TransitData, TransitRoute, TransitStop } from '../transit/mbta';
 import { offsetPath, pointAlong, snapToTracks, type Track } from '../transit/tracks';
@@ -61,7 +61,7 @@ export async function loadStreet(url = '/data/street.json'): Promise<Street> {
         const head = await fetch(modelUrl, { method: 'HEAD' }).catch(() => null);
         // Vite's dev server answers unknown paths with index.html, so check the type too.
         if (!head?.ok || head.headers.get('content-type')?.includes('text/html')) return [name, undefined];
-        return [name, await load(modelUrl, GLTFLoader).then(mergeFlatMaterials).catch(() => undefined)];
+        return [name, await load(modelUrl, GLTFLoader).then((model) => mergeMaterialPrimitives(model, { materialAttributes: true })).catch(() => undefined)];
       }),
     ),
   ]);

@@ -107,6 +107,28 @@
         "dashboardLinks": 1
       },
       "errors": []
+    },
+    {
+      "dataset": "academic_calendar",
+      "path": "academic_calendar.json",
+      "status": "ok",
+      "sha256": "bbebdc4965a559df7af8f02d01aaace8486054adfee082b07e920a2302891edd",
+      "sourceCount": 2,
+      "recordCounts": {
+        "terms": 2
+      },
+      "errors": []
+    },
+    {
+      "dataset": "fitrec_usage",
+      "path": "fitrec_usage.json",
+      "status": "ok",
+      "sha256": "cb0b4e559d8e02fa069f9c3633aa8eb94927c713bc36ae70565a1f752c955d8b",
+      "sourceCount": 4,
+      "recordCounts": {
+        "observations": 119
+      },
+      "errors": []
     }
   ],
   "uncollectedInstitutionalSources": [

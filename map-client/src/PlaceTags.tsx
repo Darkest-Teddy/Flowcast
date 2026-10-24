@@ -7,7 +7,7 @@
 // Placed after the building and transit tags through the shared placer.
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { SolidPolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
-import { WebMercatorViewport } from '@deck.gl/core';
+import { TagProjection } from './tags/projection';
 import type { CameraState } from './map/basemap';
 import type { LabelPlacer, Projector } from './layers/placement';
 import { LABEL_MIN_ZOOM, labelPosition, type Monument } from './layers/monuments';
@@ -96,6 +96,7 @@ export function PlaceTags({ ref }: { ref: Ref<PlaceTagsHandle> }) {
     places: [] as Place[],
     specs: new Map<string, GlassTagSpec>(),
     hovered: null as string | null,
+    projection: new TagProjection<Place>(MARGIN),
   }).current;
 
   useEffect(() => {
@@ -127,24 +128,9 @@ export function PlaceTags({ ref }: { ref: Ref<PlaceTagsHandle> }) {
         }
         // The map's projection gives the ground point (with the view padding); an unpadded
         // viewport of the same camera gives the offset up to the tag's height (as BuildingTags).
-        const viewport = new WebMercatorViewport({
-          width,
-          height,
-          longitude: camera.center[0],
-          latitude: camera.center[1],
-          zoom: camera.zoom,
-          pitch: camera.pitch,
-          bearing: camera.bearing,
-        });
+        const anchors = s.projection.get(s.places, camera, width, height, project, p => p.anchor, undefined, p => p.minZoom);
         const items: GlassTagItem[] = [];
-        for (const p of s.places) {
-          if (camera.zoom < p.minZoom) continue;
-          const [lng, lat, z] = p.anchor;
-          const [gx, gy] = project([lng, lat]);
-          const [ax, ay] = viewport.project([lng, lat, 0]);
-          const [rx, ry] = viewport.project([lng, lat, z]);
-          const anchor: [number, number] = [gx + rx - ax, gy + ry - ay];
-          if (anchor[0] < -MARGIN || anchor[0] > width + MARGIN || anchor[1] < -MARGIN || anchor[1] > height + MARGIN) continue;
+        for (const [p, anchor] of anchors) {
           items.push({ spec: s.specs.get(p.id)!, anchor });
         }
         pool.update(items, placer, { direction: -1, gap: 10, maxLift: 2, openId: s.hovered });
