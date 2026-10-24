@@ -9,6 +9,7 @@ import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } 
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
+import { trackCorridors } from './transit/tracks';
 import { CameraControls } from './CameraControls';
 
 const SPEEDS = [1, 30, 120, 600];
@@ -115,6 +116,8 @@ export default function App() {
         );
         feed.start();
         transitRef.current = { data: transitData, feed, models: vehicleModels };
+        // Keep the base map's trees off the Green Line trackbed.
+        basemap.clipModels(trackCorridors(feed.tracks.filter((t) => t.route.startsWith('Green-')), 3.2));
       }
 
       const playback = new Playback(day);
@@ -426,7 +429,7 @@ export default function App() {
                   <ul className="legend" aria-label="Traffic legend">
                     {TRAFFIC_LEVELS.map((l) => (
                       <li key={l.key}>
-                        <span className="swatch" style={{ background: l.color, height: l.width + 1 }} aria-hidden="true" />
+                        <span className="swatch" style={{ background: l.color, height: Math.round(3 * l.boost) }} aria-hidden="true" />
                         {l.label}
                       </li>
                     ))}
