@@ -1839,6 +1839,9 @@ class Ctx:
         # A landmark that replaces one of the base map's own 3D models sets the ring (local metres)
         # to hide that model under (written to the manifest as `clip`).
         self.clip = None
+        # A landmark with floodlights (Fenway Park) sets their glow points, schedule and the lit
+        # field's outline (written to the manifest as `floodlights`, for the fields layer).
+        self.floodlights = None
 
     def record(self, ring, base, top):
         self.massing.append((ring, max(0.0, base), top))
@@ -3609,20 +3612,227 @@ def _face_up(mesh, mat, pts):
     mesh.face(mat, pts if ny >= 0 else pts[::-1])
 
 
+FT = 0.3048
+# Fenway Park's home plate (its back point, where the foul lines meet) and the bearing from there
+# to centre field. Fitted to the OSM outline with the park's real dimensions: 310 ft down the
+# left-field line to the Green Monster, 302 ft down the right-field line to Pesky's Pole, 390 ft
+# to centre field.
+FENWAY_HOME = (-71.097761, 42.346236)
+FENWAY_CF_BEARING = 43.8
+# The light towers: (lng, lat of the mast, top of its lamp bank in metres, lamp heads across,
+# rows). Three atop the Green Monster, one behind the centre-field bleachers, one over the
+# right-field grandstand and three on the grandstand roof down the lines (none straight behind
+# home plate, where it would stand in the view from behind the plate).
+FENWAY_LIGHTS = [
+    (-71.097668, 42.347118, 44.0, 8, 4),  # Monster, left field
+    (-71.097351, 42.347118, 46.0, 8, 4),  # Monster, left-centre
+    (-71.097035, 42.347118, 44.0, 8, 4),  # Monster, at the centre-field end
+    (-71.096098, 42.346879, 42.0, 8, 4),  # behind the bleachers
+    (-71.096366, 42.346151, 36.0, 6, 3),  # right-field grandstand
+    (-71.097400, 42.345808, 40.0, 8, 4),  # roof, first-base side
+    (-71.098410, 42.346313, 40.0, 8, 4),  # roof, third-base side
+    (-71.098300, 42.346807, 40.0, 8, 4),  # roof, third base towards left field
+]
+# When the floodlights burn, on the lit mesh's 12..36 h axis: from late afternoon (the layer's
+# daylight fade keeps them dark until dusk) to 11:30 PM, when a night game has let out.
+FENWAY_LIGHTS_ON = (15.0, 23.5)
+
+
+def _face_toward(mesh, mat, pts, want, uvs=None):
+    """mesh.face, wound so the face's normal points along `want` (glTF axes)."""
+    nx = ny = nz = 0.0
+    n = len(pts)
+    for i in range(n):
+        x1, y1, z1 = pts[i]
+        x2, y2, z2 = pts[(i + 1) % n]
+        nx += (y1 - y2) * (z1 + z2)
+        ny += (z1 - z2) * (x1 + x2)
+        nz += (x1 - x2) * (y1 + y2)
+    mesh.face(mat, pts if nx * want[0] + ny * want[1] + nz * want[2] >= 0 else pts[::-1], uvs)
+
+
+def _clip_half(poly, nrm, origin, d):
+    """Sutherland-Hodgman: the part of poly where (p - origin) . nrm >= d."""
+    def side(p):
+        return (p[0] - origin[0]) * nrm[0] + (p[1] - origin[1]) * nrm[1] - d
+    out = []
+    for i in range(len(poly)):
+        a, c = poly[i - 1], poly[i]
+        sa, sc = side(a), side(c)
+        if (sa >= 0) != (sc >= 0):
+            t = sa / (sa - sc)
+            out.append((a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t))
+        if sc >= 0:
+            out.append(c)
+    return [p for i, p in enumerate(out) if dist(p, out[i - 1]) > 1e-6]
+
+
+def _ballpark_home(ctx, F):
+    """Home plate and the unit vector from it towards centre field (local metres)."""
+    hp = ctx.frame.to_local(*FENWAY_HOME)
+    b = math.radians(FENWAY_CF_BEARING)
+    if poly_contains([F], hp):
+        return hp, (math.sin(b), math.cos(b))
+    # Some other outline (OSM redrawn): home in the field's south-west corner, the diamond
+    # pointing out between the foul poles.
+    home = min(F, key=lambda p: p[0] + p[1])
+    lf = max(F, key=lambda p: p[1] - p[0])
+    rf = max(F, key=lambda p: p[0] - p[1])
+    ax = ((lf[0] - home[0]) / dist(home, lf) + (rf[0] - home[0]) / dist(home, rf),
+          (lf[1] - home[1]) / dist(home, lf) + (rf[1] - home[1]) / dist(home, rf))
+    ax = (ax[0] / math.hypot(*ax), ax[1] / math.hypot(*ax))
+    return (home[0] + ax[0] * 17.0, home[1] + ax[1] * 17.0), ax
+
+
+def _floodlight(mesh, lit, q, base, top, aim, cols, rows):
+    """A light tower: a steel mast from `base` and at its head a bank of cols x rows floodlights
+    (white lenses on a dark frame), tilted down at the field towards `aim`. The lenses are also
+    lit-mesh quads on the FENWAY_LIGHTS_ON schedule, facing the field like the real lamps (from
+    behind, a bank is dark). Returns the bank's centre (x, y, height) for the app's glow."""
+    L = dist(q, aim) or 1.0
+    u = ((aim[0] - q[0]) / L, (aim[1] - q[1]) / L)
+    e = (-u[1], u[0])
+    pitch, rim = 0.95, 0.2
+    hw, hh = cols * pitch / 2 + rim, rows * pitch / 2 + rim
+    yc = top - hh
+    tilt = min(0.7, max(0.25, math.atan2(yc, L)))  # aimed at the field: 14-40 degrees down
+    c = (q[0] + u[0] * 0.8, q[1] + u[1] * 0.8)  # the bank hangs in front of the mast
+    nrm = (u[0] * math.cos(tilt), -math.sin(tilt), u[1] * math.cos(tilt))  # (east, up, north)
+    up = (u[0] * math.sin(tilt), math.cos(tilt), u[1] * math.sin(tilt))
+
+    def P(a, b, d):
+        return (c[0] + e[0] * a + up[0] * b + nrm[0] * d, yc + up[1] * b + nrm[1] * d,
+                -(c[1] + e[1] * a + up[2] * b + nrm[2] * d))
+
+    def g(v, k=1.0):  # (east, up, north) -> glTF axes
+        return (v[0] * k, v[1] * k, -v[2] * k)
+    mesh.box("trim_metal", q, u, 0.45, 0.45, base, yc + 0.2)
+    D = -0.4  # the frame's depth
+    for pts, want in (([P(-hw, -hh, 0), P(hw, -hh, 0), P(hw, hh, 0), P(-hw, hh, 0)], g(nrm)),
+                      ([P(-hw, -hh, D), P(hw, -hh, D), P(hw, hh, D), P(-hw, hh, D)], g(nrm, -1)),
+                      ([P(-hw, hh, 0), P(hw, hh, 0), P(hw, hh, D), P(-hw, hh, D)], g(up)),
+                      ([P(-hw, -hh, 0), P(hw, -hh, 0), P(hw, -hh, D), P(-hw, -hh, D)], g(up, -1)),
+                      ([P(hw, -hh, 0), P(hw, hh, 0), P(hw, hh, D), P(hw, -hh, D)], (e[0], 0.0, -e[1])),
+                      ([P(-hw, -hh, 0), P(-hw, hh, 0), P(-hw, hh, D), P(-hw, -hh, D)], (-e[0], 0.0, e[1]))):
+        _face_toward(mesh, "trim_metal", pts, want)
+    lens = 0.75
+    sched = [FENWAY_LIGHTS_ON] * 4
+    for i in range(cols):
+        a0 = -hw + rim + i * pitch + (pitch - lens) / 2
+        for j in range(rows):
+            b0 = -hh + rim + j * pitch + (pitch - lens) / 2
+            for target, mat, d, uvs in ((mesh, "trim_white", 0.05, None), (lit, "lit_neutral", 0.09, sched)):
+                if target is not None:
+                    _face_toward(target, mat, [P(a0, b0, d), P(a0 + lens, b0, d), P(a0 + lens, b0 + lens, d), P(a0, b0 + lens, d)],
+                                 g(nrm), uvs)
+    return (c[0] + nrm[0] * 1.0, c[1] + nrm[2] * 1.0, yc + nrm[1] * 1.0)
+
+
+def _ballpark_field(mesh, F, hp, ax):
+    """The playing field, in flat layers 12 cm apart so nothing z-fights: mown stripes over the
+    whole field; the warning track and the infield dirt; the infield grass; the home-plate circle
+    and the mound; then the chalk lines, bases and plate. Real sizes (MLB rules): bases 90 ft
+    apart, the rubber 60 ft 6 in from home, the infield arc 95 ft from the rubber, a 26 ft circle
+    round home plate, an 18 ft mound 10 in high, 6 x 4 ft batter's boxes. The chalk lines are
+    drawn wider than the real 4 in so they hold up at map zooms. F: the field's edge, stands on
+    its left (its closing edge is the bullpen gap)."""
+    pp = (-ax[1], ax[0])  # across the diamond, towards third base
+    r2 = math.sqrt(2.0)
+
+    def at(s, t):  # s along the line to centre field, t towards third base, from home plate
+        return (hp[0] + ax[0] * s + pp[0] * t, hp[1] + ax[1] * s + pp[1] * t)
+
+    def flat(mat, st, y):
+        mesh.flat(mat, [oriented([at(s, t) for s, t in st], True)], y, True)
+
+    def circle(cs, r, k):
+        return [(cs + r * math.cos(2 * math.pi * i / k), r * math.sin(2 * math.pi * i / k)) for i in range(k)]
+    Y_GRASS, Y_DIRT, Y_INFIELD, Y_CIRCLE, Y_LINE = 0.1, 0.22, 0.34, 0.46, 0.58
+    field = oriented(F, True)
+    # Mown stripes 5 m wide, parallel to the line from home plate to centre field.
+    ts = [(p[0] - hp[0]) * pp[0] + (p[1] - hp[1]) * pp[1] for p in field]
+    W = 5.0
+    for i in range(math.floor(min(ts) / W - 0.5), math.ceil(max(ts) / W + 0.5) + 1):
+        stripe = _clip_half(_clip_half(field, pp, hp, (i - 0.5) * W), (-pp[0], -pp[1]), hp, -(i + 0.5) * W)
+        if len(stripe) >= 3:
+            mesh.flat("grass" if i % 2 == 0 else "roof_green", [oriented(stripe, True)], Y_GRASS, True)
+    # The warning track: 15 ft of dirt along the walls and the stands.
+    n = len(F)
+    rn = [right_normal(F[k], F[k + 1]) for k in range(n - 1)]  # into the field
+    inner = []
+    for k in range(n):
+        nb = [rn[j] for j in (k - 1, k) if 0 <= j < n - 1]
+        mx, my = sum(v[0] for v in nb), sum(v[1] for v in nb)
+        ml = math.hypot(mx, my) or 1.0
+        mx, my = mx / ml, my / ml
+        sc = 15 * FT / max(0.5, mx * nb[0][0] + my * nb[0][1])
+        inner.append((F[k][0] + mx * sc, F[k][1] + my * sc))
+    for k in range(n - 1):
+        if dist(F[k], F[k + 1]) > 1.0:
+            _face_up(mesh, "fin_rust", [(p[0], Y_DIRT, -p[1]) for p in (F[k], F[k + 1], inner[k + 1], inner[k])])
+    # Infield dirt: the 95 ft arc round the rubber from foul line to foul line, and the base
+    # paths, 3 ft either side of the lines.
+    rub, R, off, B = 60.5 * FT, 95 * FT, 3 * FT, 90 * FT / r2
+    c0 = off * off + r2 * rub * off + rub * rub - R * R
+    d = (r2 * rub + math.sqrt(2 * rub * rub - 4 * c0)) / 2  # where the 1B path's outer edge meets the arc
+    e1 = ((d - off) / r2, -(d + off) / r2)
+    a1 = math.atan2(e1[1], e1[0] - rub)
+    arc = [(rub + R * math.cos(a1 - 2 * a1 * i / 24), R * math.sin(a1 - 2 * a1 * i / 24)) for i in range(25)]
+    flat("fin_rust", [(-off * r2, 0.0)] + arc, Y_DIRT)
+    # Infield grass: the square inside the base paths.
+    g = B - off * r2
+    flat("grass", [(B - g, 0.0), (B, -g), (B + g, 0.0), (B, g)], Y_INFIELD)
+    # The dirt circle round home plate, and the mound (rising 10 in to a flat top) with the rubber.
+    flat("fin_rust", circle(0.216, 13 * FT, 24), Y_CIRCLE)
+    mound, table = circle(59 * FT, 9 * FT, 16), circle(59 * FT, 0.9, 16)
+    for i in range(16):
+        quad = [at(*mound[i - 1]), at(*mound[i]), at(*table[i]), at(*table[i - 1])]
+        _face_up(mesh, "fin_rust", [(p[0], y, -p[1]) for p, y in zip(quad, (Y_CIRCLE, Y_CIRCLE, Y_CIRCLE + 0.25, Y_CIRCLE + 0.25))])
+    flat("fin_rust", table, Y_CIRCLE + 0.25)
+    flat("trim_white", [(rub, -FT), (rub + 0.5 * FT, -FT), (rub + 0.5 * FT, FT), (rub, FT)], Y_CIRCLE + 0.27)
+
+    # Chalk: the foul lines out to the poles, the batter's and catcher's boxes.
+    def line(s0, t0, s1, t1, w):
+        L = math.hypot(s1 - s0, t1 - t0) or 1.0
+        ns, nt = -(t1 - t0) / L * w / 2, (s1 - s0) / L * w / 2
+        flat("trim_white", [(s0 - ns, t0 - nt), (s1 - ns, t1 - nt), (s1 + ns, t1 + nt), (s0 + ns, t0 + nt)], Y_LINE)
+    s0, s1 = 0.216 - 3 * FT, 0.216 + 3 * FT
+    catcher = 43 / 24 * FT  # half of the catcher's box, 43 in wide
+    for side in (1, -1):  # third base, first base
+        u = ((ax[0] + side * pp[0]) / r2, (ax[1] + side * pp[1]) / r2)
+        reach = _ray_hit(field, hp, u)
+        if reach < 200:
+            line(0.0, 0.0, reach / r2, side * reach / r2, 0.2)
+        ti, to = side * 0.368, side * (0.368 + 4 * FT)
+        for q in ((s0, ti, s1, ti), (s1, ti, s1, to), (s1, to, s0, to), (s0, to, s0, ti)):
+            line(*q, 0.12)
+        line(s0, side * catcher, s0 - 8 * FT, side * catcher, 0.12)
+    line(s0 - 8 * FT, -catcher, s0 - 8 * FT, catcher, 0.12)
+    # Bases (18 in bags; first and third inside the diamond's corners) and home plate.
+    inset = 9 * 0.0254 * r2
+    side_dir = ((ax[0] - pp[0]) / r2, (ax[1] - pp[1]) / r2)
+    for s, t in ((B, -B + inset), (2 * B, 0.0), (B, B - inset)):
+        mesh.box("trim_white", at(s, t), side_dir, 9 * 0.0254, 9 * 0.0254, Y_DIRT, Y_LINE + 0.06)
+    flat("trim_white", [(0.0, 0.0), (0.216, -0.216), (0.432, -0.216), (0.432, 0.216), (0.216, 0.216)], Y_LINE + 0.06)
+
+
 def landmark_ballpark(mesh, b, ctx, rng, vols):
     """Fenway Park (1912), modest. OSM maps the stands as one ring wrapped round the field (open to
     the outside through a narrow gap in right-centre). From the field's edge a raked seating bowl
     (green seats, a concourse aisle) climbs from the padded wall to the concourse roof at 11.5 m;
     where the stand is too thin for seats (left field, along Lansdowne Street) the bowl is a sheer
     wall instead: the Green Monster, 37 ft (11.3 m). The deep grandstands behind home plate and down
-    the lines carry a roofed upper deck (suites and press box under an overhanging metal roof) and
-    the light towers. Outside: red brick, three storeys, the ground floor arcaded. The field gets
-    grass, the infield dirt and the mound.
-    Mapbox Standard draws its own (white) Fenway Park; the manifest's `clip` hides it."""
+    the lines carry a roofed upper deck (suites and press box under an overhanging metal roof).
+    Eight light towers (FENWAY_LIGHTS) stand on that roof, atop the Monster and behind the
+    bleachers, their floodlights lit after dark. Outside: red brick, three storeys, the ground
+    floor arcaded. The field is a real-size diamond from home plate (FENWAY_HOME) in the south-west
+    corner, centre field to the north-east (_ballpark_field).
+    Mapbox Standard draws its own (white) Fenway Park; the manifest's `clip` hides it. The
+    manifest's `floodlights` give the app the lamps' glow points, their schedule and the field."""
     b.name = b.name or "Fenway Park"
     ring = local_rings(ctx.frame, *b.rings_ll[0])[0]
     n = len(ring)
-    H, H_UP, WALL_H, TOWER = 11.5, 20.5, 1.2, 42.0
+    H, H_UP, WALL_H = 11.5, 20.5, 1.2
     dirs = [(math.cos(k * math.pi / 12), math.sin(k * math.pi / 12)) for k in range(24)]
     # 1. Edges facing the field: every ray ahead lands on the stands again, most of them far away
     #    (the gap between the bleachers and the right-field deck has only very short ones).
@@ -3740,43 +3950,28 @@ def landmark_ballpark(mesh, b, ctx, rng, vols):
             if not (0 <= other < m - 1 and width[other] and width[other + 1]):
                 mesh.wall(facade, back[j], rear[j], H, H_UP)
                 mesh.wall(facade, rear[j], back[j], H, H_UP)
-    # 6. Light towers on the deep stands, spread round the bowl.
-    towers = []
-    for k in sorted((k for k in range(1, m - 1) if depth[k] > 8), key=lambda k: -thick[k]):
-        if len(towers) < 6 and all(dist(back[k], back[j]) > 55 for j in towers):
-            towers.append(k)
-    for k in towers:
-        u = into[k]
-        eu = (-u[1], u[0])
-        q = (back[k][0] + u[0] * 1.5, back[k][1] + u[1] * 1.5)
-        base = H_UP if width[k] else H
-        mesh.box("trim_metal", q, eu, 0.45, 0.45, base, TOWER - 3.0)
-        mesh.box("trim_metal", (q[0] - u[0] * 0.6, q[1] - u[1] * 0.6), eu, 4.0, 0.35, TOWER - 4.5, TOWER, top_mat="trim_metal")
-        mesh.box("trim_white", (q[0] - u[0] * 1.0, q[1] - u[1] * 1.0), eu, 3.7, 0.08, TOWER - 4.2, TOWER - 0.3)
-    # 7. The field. Home plate is in the south-west corner (Jersey and Van Ness Streets); the
-    #    diamond points out between the foul poles.
-    mesh.flat("grass", [oriented(F, True)], 0.1, True)
-    home = min(F, key=lambda p: p[0] + p[1])
-    lf = max(F, key=lambda p: p[1] - p[0])
-    rf = max(F, key=lambda p: p[0] - p[1])
-    ul = ((lf[0] - home[0]) / dist(home, lf), (lf[1] - home[1]) / dist(home, lf))
-    ur = ((rf[0] - home[0]) / dist(home, rf), (rf[1] - home[1]) / dist(home, rf))
-    ax = (ul[0] + ur[0], ul[1] + ur[1])
-    ax = (ax[0] / math.hypot(*ax), ax[1] / math.hypot(*ax))
-    pp = (-ax[1], ax[0])
-    hp = (home[0] + ax[0] * 17.0, home[1] + ax[1] * 17.0)
-
-    def rhombus(d0, d1, half):
-        mid = (d0 + d1) / 2
-        return oriented([(hp[0] + ax[0] * d0, hp[1] + ax[1] * d0), (hp[0] + ax[0] * mid + pp[0] * half, hp[1] + ax[1] * mid + pp[1] * half),
-                         (hp[0] + ax[0] * d1, hp[1] + ax[1] * d1), (hp[0] + ax[0] * mid - pp[0] * half, hp[1] + ax[1] * mid - pp[1] * half)], True)
-    mesh.flat("fin_rust", [rhombus(-4.0, 42.0, 23.0)], 0.22, True)
-    mesh.flat("grass", [rhombus(3.5, 35.5, 16.0)], 0.34, True)
-    mound = (hp[0] + ax[0] * 18.4, hp[1] + ax[1] * 18.4)
-    mesh.flat("fin_rust", [[(mound[0] + 2.7 * math.cos(k * math.pi / 4), mound[1] + 2.7 * math.sin(k * math.pi / 4)) for k in range(8)]], 0.46, True)
+    # 6. Light towers: steel masts on the grandstand roof, atop the Green Monster and behind the
+    #    bleachers, each with a bank of floodlights aimed at the field (lit after dark).
+    hp, ax = _ballpark_home(ctx, F)
+    aim = (hp[0] + ax[0] * 45.0, hp[1] + ax[1] * 45.0)  # between second base and centre field
+    deck = [[back[k], back[k + 1], rear[k + 1], rear[k]] for k in range(m - 1) if width[k] and width[k + 1]]
+    top = H_UP
+    lamps = []
+    for lng, lat, mast_top, cols, rows in FENWAY_LIGHTS:
+        q = ctx.frame.to_local(lng, lat)
+        if not poly_contains([outline], q):
+            continue
+        base = H_UP if any(point_in_ring(q, quad) for quad in deck) else H
+        lamps.append(_floodlight(mesh, ctx.lit, q, base, mast_top, aim, cols, rows))
+        top = max(top, mast_top)
+    # 7. The field: a real-size diamond (see _ballpark_field).
+    _ballpark_field(mesh, F, hp, ax)
+    ctx.floodlights = {"on": FENWAY_LIGHTS_ON[0], "off": FENWAY_LIGHTS_ON[1],
+                       "lamps": [[*ctx.frame.to_lnglat(x, y), round(z, 1)] for x, y, z in lamps],
+                       "field": [ctx.frame.to_lnglat(*p) for p in oriented(F, True)]}
     ctx.record(ring, 0.0, H)
     ctx.clip = offset_ring(convex_hull(ring), 3.0)
-    return TOWER
+    return top
 
 
 LANDMARK_FN = {"castle": landmark_castle, "theology": landmark_theology, "questrom": landmark_questrom, "garage": landmark_garage, "chapel": landmark_chapel, "cas": landmark_cas, "warren": landmark_warren, "stuvi": landmark_stuvi,
@@ -4011,9 +4206,13 @@ def manifest_json(manifest):
         key = f"@@volume{len(compact)}@@"
         compact[key] = json.dumps(v, separators=(",", ":"))
         return key
-    stubbed = {**manifest, "campuses": [
-        {**c, "buildings": [{**e, "volumes": [stub(v) for v in e["volumes"]]} if "volumes" in e else e
-                            for e in c["buildings"]]} for c in manifest["campuses"]]}
+    def entry(e):
+        if "volumes" in e:
+            e = {**e, "volumes": [stub(v) for v in e["volumes"]]}
+        if "floodlights" in e:  # Fenway's lamps and field, one line too
+            e = {**e, "floodlights": stub(e["floodlights"])}
+        return e
+    stubbed = {**manifest, "campuses": [{**c, "buildings": [entry(e) for e in c["buildings"]]} for c in manifest["campuses"]]}
     text = json.dumps(stubbed, indent=1)
     text = re.sub(r'"(@@volume\d+@@)"', lambda m: compact[m.group(1)], text)
     return text + "\n"
@@ -4218,6 +4417,12 @@ def main():
                 # by the app's clip layer so the two never overlap.
                 entries[-1]["clip"] = [[round(lng, 7), round(lat, 7)] for lng, lat in (frame.to_lnglat(x, y) for x, y in ctx.clip)]
                 ctx.clip = None
+            if ctx.floodlights:
+                fl = ctx.floodlights
+                entries[-1]["floodlights"] = {"on": fl["on"], "off": fl["off"],
+                                              "lamps": [[round(lng, 7), round(lat, 7), z] for lng, lat, z in fl["lamps"]],
+                                              "field": [[round(lng, 7), round(lat, 7)] for lng, lat in fl["field"]]}
+                ctx.floodlights = None
             # Pieces Mapbox's vector tiles carry as separate features: building:part ways and a
             # relation's member ways. Listed so the app's city layer leaves them out too.
             extra = [f"{p['type']}/{p['id']}" for p in b.parts]
