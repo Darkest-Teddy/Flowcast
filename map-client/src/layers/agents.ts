@@ -38,7 +38,7 @@ function phaseOf(id: string): number {
 const REAL_SCALE = 2.3;
 
 /** True size at street level; grows as the camera pulls back so people stay visible on the
- *  campus overview (sizeMinPixels then keeps them at least ~14 px tall). */
+ *  campus overview (sizeMinPixels then keeps them at least ~17 px tall). */
 export function walkerScale(zoom: number) {
   return REAL_SCALE * Math.min(8, Math.max(1, 2 ** (18.6 - zoom)));
 }
