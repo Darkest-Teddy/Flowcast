@@ -4,9 +4,20 @@ Python acquires and normalizes public evidence for the revised [Flowcast plan](.
 
 The sources come from the supplied *BU population data sources* guide dated 24 October 2026. Source URLs are defined alongside their parsers. No login, university account, private roster, or participant schedule is used.
 
-## Setup and run
+## Use the saved datasets
 
-Run from the repository root with Python 3.10 or newer:
+The normalized public datasets in [`output/`](output/) are committed. Use them directly; application setup and data analysis do not require another scrape or the scraper dependencies.
+
+- [`output/catalog.json`](output/catalog.json): the campus-wide Fall 2026 snapshot, with 8,900 course pages, 8,454 unique course codes, 6,944 physical meeting records, and 437 verified classroom capacities.
+- [`output/manifest.json`](output/manifest.json): checksums and collection status for all six categories.
+- [`output/campus-wide/coverage.json`](output/campus-wide/coverage.json): per-school coverage and explicit schedule/capacity gaps.
+- The other category JSON files contain the saved events, dining, library, housing, and supplemental-signal records.
+
+The campus-wide folder also retains discovered URLs and parsed JSONL records for resuming an intentional update. Root and campus-wide catalogs are identical snapshots. Raw HTTP response bodies and run logs remain local; published provenance uses repository-relative cache paths, and the cache is not required to consume these JSON datasets.
+
+## Refresh the data only when needed
+
+The commands below perform acquisition and can overwrite the saved outputs. Run them only when intentionally updating the snapshot, from the repository root with Python 3.10 or newer:
 
 ```sh
 python3 -m venv data-pipeline/.venv
@@ -44,6 +55,23 @@ data-pipeline/.venv/bin/python data-pipeline/scrape_population_data.py \
 | `signals.json` | Warren planning report Table 7-6, FitRec guide/dashboard link, hockey box scores | Pedestrian flows, dated daily gym volume, reported event attendance; no instantaneous occupancy inferred |
 
 Identifiers are stable source identities, not yet the simulator's validated location IDs. `locationId` remains null until the data lead maps aliases and verifies a graph-connected entrance. Building codes, room codes, addresses, source names, raw evidence, and source URLs support that mapping. Do not publish these records as supported simulation destinations without reachability validation.
+
+### Campus-wide crawl
+
+Use the dedicated crawler to discover every course index linked by the BU Academics school/area pages and follow its full numeric pagination:
+
+```sh
+data-pipeline/.venv/bin/python data-pipeline/crawl_campus_catalog.py \
+  --term 'FALL 2026' --workers 8 --delay 0.25 --resume
+```
+
+It writes `output/campus-wide/catalog.json`, a per-area/per-school `coverage.json`, discovered URLs, progressive course/meeting JSONL files, and a checksum manifest. `coverage.json` is checkpointed during the run. With `--resume`, complete parsed JSONL records are reused as well as HTTP snapshots. Incomplete records and failed details are retried; excluded records must also be present before a course can be reused. `--offline` reconstructs from a complete cache.
+
+The request interval is shared across workers, so eight workers do not multiply the configured request rate. A 0.25-second interval caps new requests at four per second. HTTP 429 responses slow all workers, and `Retry-After` establishes a shared host cooldown. The room pass first follows the public classroom search pagination, then uses its canonical room-page links. Rooms without a matching directory entry remain unknown, avoiding unnecessary requests for guessed URLs. Combined-room entries are kept distinct from individual rooms.
+
+The crawler verifies final URLs before attributing a page to a school and records source failures. Areas with external sites or no own public course index are listed separately. Courses without target-term schedules remain in the course catalogue with explicit status. Fall-term rows retain their notes and a calendar-review flag because intensive/block sessions may cover only selected dates.
+
+This output is separate from the three-example dataset produced by the ordinary `scrape_catalog.py` default. Catalogue coverage is not a verified complete MyBU offering list, and public classroom capacities remain distinct from enrollment.
 
 ### Expand classes beyond the three examples
 
@@ -99,7 +127,7 @@ HTTP requests use a research User-Agent, a default minimum 0.5-second interval p
 data-pipeline/.venv/bin/python data-pipeline/scrape_population_data.py --offline
 ```
 
-Offline replay requires the same requested URLs and discovery limits to have been acquired already. The cache and generated output are ignored by Git. Keep the cache with an acquisition when preserving reproducibility; absolute `rawPath` values refer to the collecting machine.
+Offline replay requires the same requested URLs and discovery limits to have been acquired already. The raw HTTP cache and run logs are ignored by Git. Normalized datasets and manifests are versioned. Keep the cache with an acquisition when preserving reproducibility; committed `rawPath` values are relative to the repository root. Fresh local acquisitions may initially record absolute paths.
 
 Each dataset has a schema version, generation time, status, source list, warnings, and errors. The runner's manifest records checksums, source counts, record counts, per-category failures, and institutional sources still unavailable. Writes are atomic. A category failure does not prevent the other categories from being saved. Any acquisition/parser failure makes the runner exit nonzero with a `partial` manifest; inspect the error details instead of treating the run as complete.
 

@@ -178,22 +178,21 @@ const BOSTON_LIMITS = {
 const TRAFFIC_LAYER = 'flowcast-traffic';
 const ROAD_LABEL_MIN_ZOOM = 17.2;
 const CITY_BUILDINGS = 'flowcast-city-buildings';
-// Google Maps-style live traffic: every main road carries a continuous line coloured by speed.
-// Thickness follows the road's size; heavier traffic is also slightly thicker, so the overlay
-// never relies on colour alone.
+// Google Maps-style live traffic, kept calm: only the main roads carry a line, coloured by
+// speed. Free-flowing roads are a thin, quiet green so the eye goes to slowdowns; heavier
+// traffic is also thicker, so the overlay never relies on colour alone.
 export const TRAFFIC_LEVELS = [
-  { key: 'low', label: 'Fast', color: '#2DB84C', boost: 1 },
+  { key: 'low', label: 'Fast', color: '#34A853', boost: 0.7 },
   { key: 'moderate', label: 'Slow', color: '#F5A623', boost: 1.1 },
-  { key: 'heavy', label: 'Heavy', color: '#E5341D', boost: 1.2 },
-  { key: 'severe', label: 'Stopped', color: '#8E1515', boost: 1.3 },
+  { key: 'heavy', label: 'Heavy', color: '#E5341D', boost: 1.3 },
+  { key: 'severe', label: 'Stopped', color: '#8E1515', boost: 1.45 },
 ] as const;
 
+const TRAFFIC_ROADS = ['motorway', 'trunk', 'primary', 'secondary'];
 // Line width (px) at zoom 13 and zoom 18, by road class.
 const TRAFFIC_ROAD_WIDTHS: [string[], number, number][] = [
-  [['motorway', 'trunk'], 2.6, 9],
-  [['primary', 'secondary'], 2.2, 7],
-  [['tertiary'], 1.6, 5.5],
-  [['street', 'street_limited'], 1.0, 4],
+  [['motorway', 'trunk'], 2.4, 7],
+  [['primary', 'secondary'], 2.0, 5.5],
 ];
 
 function addTrafficLayer(map: import('mapbox-gl').Map) {
@@ -211,25 +210,23 @@ function addTrafficLayer(map: import('mapbox-gl').Map) {
     source: 'mapbox-traffic',
     'source-layer': 'traffic',
     slot: 'middle',
-    // Known congestion only. Main roads always; minor streets once zoomed in, where there's room.
     filter: [
       'all',
       ['match', ['get', 'congestion'], TRAFFIC_LEVELS.map((l) => l.key), true, false],
-      [
-        'any',
-        ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'], true, false],
-        ['>=', ['zoom'], 16],
-      ],
+      ['match', ['get', 'class'], TRAFFIC_ROADS, true, false],
     ],
-    // Round caps at full opacity: overlapping same-colour segment ends merge invisibly, so the
-    // line is continuous instead of beaded or patchy.
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    // Worst congestion drawn last, so a red stretch is never covered by the green beside it.
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round',
+      'line-sort-key': byLevel((l) => TRAFFIC_LEVELS.indexOf(l), 0) as never,
+    },
     paint: {
       'line-color': byLevel((l) => l.color, '#888888') as never,
       'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 13, widthAt(1), 18, widthAt(2)] as never,
-      // Each direction is its own feature: on one line when zoomed out, side by side when close.
-      'line-offset': ['interpolate', ['linear'], ['zoom'], 15, 0, 18, 3.5] as never,
-      'line-opacity': 1,
+      // One line per road until zoomed right in; then each direction on its own side.
+      'line-offset': ['interpolate', ['linear'], ['zoom'], 17, 0, 18.5, 3] as never,
+      'line-opacity': ['match', ['get', 'congestion'], 'low', 0.55, 0.95] as never,
     },
   });
 }
