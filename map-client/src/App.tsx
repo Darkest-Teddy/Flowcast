@@ -6,6 +6,7 @@ import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/ag
 import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './layers/crowd';
 import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
+import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
@@ -112,6 +113,7 @@ export default function App() {
   const selectedRef = useRef<string | null>(null);
   const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitTagsRef = useRef<TransitTagsHandle>(null);
+  const placeTagsRef = useRef<PlaceTagsHandle>(null);
   const transitRef = useRef<Transit | null>(null);
   const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
@@ -258,6 +260,7 @@ export default function App() {
         onHover: ({ object }: PickingInfo) => {
           tagsRef.current?.hoverBuilding(buildingUnder(object));
           transitTagsRef.current?.hoverMarker(markerUnder(object));
+          placeTagsRef.current?.hoverPlace(placeUnder(object));
         },
         // Building footprints and labels both carry the building id; anything else clears.
         onClick: ({ object }: PickingInfo) => {
@@ -272,6 +275,7 @@ export default function App() {
           // Touch has no hover: a tap opens the stop's or dock's tag (a tapped building's tag opens
           // because it's selected).
           transitTagsRef.current?.hoverMarker(markerUnder(object));
+          placeTagsRef.current?.hoverPlace(placeUnder(object));
           const isBuilding = object && ('polygon' in object || 'share' in object);
           const id = isBuilding ? (object as { id: string }).id : null;
           selectedRef.current = id;
@@ -288,6 +292,8 @@ export default function App() {
           // Stops and docks with a tag expand it instead of showing a tooltip.
           const marker = markerUnder(object);
           if (marker && transitTagsRef.current?.hasTag(marker)) return null;
+          // Places (monuments, open spaces, fields) open their tag instead.
+          if (placeUnder(object)) return null;
           const bikes = bikesRef.current;
           const bikeText = bikes ? bikeTooltip(object, bikes.data, bikes.feed, timeRef.current) : null;
           if (bikeText) return bikeText;
@@ -395,6 +401,14 @@ export default function App() {
           transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay } : null,
           bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
         });
+        // Then monuments, artworks, open spaces and fields.
+        placeTagsRef.current?.update({
+          placer,
+          project: basemap.project,
+          camera: basemap.getCamera(),
+          monuments: monuments?.monuments ?? null,
+          fields: fields?.fields ?? null,
+        });
         const frameLayers = [
           ...(detailedBuildings
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' })
@@ -413,8 +427,9 @@ export default function App() {
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
-          ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
-          ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
+          ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), lightPreset: lightRef.current }) : []),
+          ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), lightPreset: lightRef.current }) : []),
+          ...placeHitLayers(monuments?.monuments ?? null, fields?.fields ?? null, basemap.getZoom()),
           ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
@@ -577,6 +592,7 @@ export default function App() {
       )}
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
       <TransitTags ref={transitTagsRef} />
+      <PlaceTags ref={placeTagsRef} />
 
       <header className="panel title">
         <h1>Flowcast</h1>
