@@ -175,3 +175,11 @@ test('saved campus bundle conserves all1200 students and valid routes throughout
     }
   }
 });
+
+test('weather changes activity intensity without changing the student population', async () => {
+  const { adjustOccupancy } = await import('../src/weather/weather.ts');
+  const rows = [{ location: location('dining', 'dining'), count: 12, share: 0.12 }];
+  const adjusted = adjustOccupancy(rows, { condition: 'rain' });
+  assert.equal(adjusted[0].count, 12);
+  assert.ok(adjusted[0].share > rows[0].share);
+});
