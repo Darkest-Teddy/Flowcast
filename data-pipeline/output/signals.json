@@ -1,0 +1,506 @@
+{
+  "schemaVersion": 1,
+  "dataset": "signals",
+  "generatedAt": "2026-10-24T15:13:58.358378+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "pedestrianCounts": [
+    {
+      "id": "1481d71e0d8185d508e3",
+      "intersection": "Commonwealth Avenue at St Mary's Street",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 836,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "08:00",
+      "endLocal": "09:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "511628e4481f9553ed8a",
+      "intersection": "Commonwealth Avenue at St Mary's Street",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 1632,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "17:00",
+      "endLocal": "18:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "5fe5d3afd02bfe7a68e2",
+      "intersection": "Commonwealth Avenue at Cummington Mall",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 548,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "08:00",
+      "endLocal": "09:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "2c9e820a42d9f7cbb122",
+      "intersection": "Commonwealth Avenue at Cummington Mall",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 1159,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "17:00",
+      "endLocal": "18:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "b173fcaef3a5fe0f17ec",
+      "intersection": "Commonwealth Avenue at Granby Street",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 613,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "08:00",
+      "endLocal": "09:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "023c1c0c4a56184eb0ed",
+      "intersection": "Commonwealth Avenue at Granby Street",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 1995,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "17:00",
+      "endLocal": "18:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "953a3119b3d6c774f539",
+      "intersection": "Commonwealth Avenue at Hinsdale Mall",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 371,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "08:00",
+      "endLocal": "09:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "c573eecb9a9af4e58896",
+      "intersection": "Commonwealth Avenue at Hinsdale Mall",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 984,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "17:00",
+      "endLocal": "18:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "efda58b576fe311d16eb",
+      "intersection": "Commonwealth Avenue at Silber Way/Blandford Mall",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 818,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "08:00",
+      "endLocal": "09:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "77b08ccff96bd7b5df3b",
+      "intersection": "Commonwealth Avenue at Silber Way/Blandford Mall",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 1818,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "17:00",
+      "endLocal": "18:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "5842c3690e48db00826e",
+      "intersection": "Bay State Road at Granby Street/Back Street",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 235,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "08:00",
+      "endLocal": "09:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "0c5685d121367d1f1cb1",
+      "intersection": "Bay State Road at Granby Street/Back Street",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 403,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "17:00",
+      "endLocal": "18:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "dc38ae82795d89834669",
+      "intersection": "Silber Way at Bay State Road",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 293,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "08:00",
+      "endLocal": "09:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    },
+    {
+      "id": "3e45a396fb07e72c31ae",
+      "intersection": "Silber Way at Bay State Road",
+      "locationId": null,
+      "measure": "pedestrian_flow",
+      "value": 534,
+      "unit": "pedestrian_crossings_per_hour",
+      "startLocal": "17:00",
+      "endLocal": "18:00",
+      "collectionDates": [
+        "2023-10-18",
+        "2023-10-19"
+      ],
+      "exactIntersectionDate": null,
+      "basis": "Table 7-6, printed page 7-17, PDF page 136",
+      "limitations": "May include nonstudents and repeated people; do not sum intersections as unique people or occupancy.",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+        "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+        "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+        "cacheUsed": true,
+        "pdfPage": 136,
+        "table": "7-6"
+      }
+    }
+  ],
+  "fitrecMetrics": [
+    {
+      "id": "c5f13411c9fb8668287b",
+      "location": "FitRec",
+      "locationId": null,
+      "measure": "daily_visits",
+      "value": 4000,
+      "qualifier": "more_than",
+      "unit": "visits_per_day",
+      "sourcePublishedAt": "2025-11-03T12:48:00+00:00",
+      "observationPeriod": null,
+      "evidence": "est time to visit FitRec With more than 4,000 members stopping by every day, FitRec can get pretty packed during peak hours. Early morning through early afternoon—6 am to 2 pm— is usually the least crowded. Attendance starts to build later in the day, especially from 4 to 8 pm. Before you go, check the usage data FitRec updates daily so you don’t end up waiting around for your workout. ",
+      "limitations": "Dated published volume and usage pattern, not current occupancy or verified unique visitors.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2025/fitrec-what-to-know/",
+        "requestedUrl": "https://www.bu.edu/articles/2025/fitrec-what-to-know/",
+        "retrievedAt": "2026-10-24T15:03:19.699412+00:00",
+        "sha256": "95014e8eca17ec84732ed629723696259ace4b5aeaf02ccc3db7c5f0e3e34278",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/5439685d8da5a03e26499a824b3d725f87cfff46309aa3709b4301d4b975202a.body",
+        "cacheUsed": true
+      }
+    }
+  ],
+  "sportsAttendance": [
+    {
+      "id": "09ce1c8fd2f9c7839384",
+      "title": "Men's Ice Hockey vs Brown on 10/10/2026 - Box Score - Boston University Athletics",
+      "date": "2026-10-10",
+      "startAt": null,
+      "location": "Boston, Massachusetts",
+      "venue": null,
+      "locationId": null,
+      "measure": "reported_event_attendance",
+      "value": 4951,
+      "unit": "reported_attendees_per_event",
+      "limitations": "Event total, not an arrival curve or instantaneous building occupancy; exact counting method unspecified.",
+      "provenance": {
+        "url": "https://goterriers.com/sports/mens-ice-hockey/stats/2026-27/brown/boxscore/33104",
+        "requestedUrl": "https://goterriers.com/sports/mens-ice-hockey/stats/2026-27/brown/boxscore/33104",
+        "retrievedAt": "2026-10-24T15:03:21.823615+00:00",
+        "sha256": "ab363c3a072f684381b9f497de7330b102c16478c7bf1bf1a40f5b6cc220737c",
+        "contentType": "text/html;charset=utf-8",
+        "rawPath": "data-pipeline/.cache/sources/d2b0c11f7d2aea5ff73ee5865e2897bbfc69d6f14c9849bcb5b879361725f33d.body",
+        "cacheUsed": true
+      }
+    }
+  ],
+  "dashboardLinks": [
+    {
+      "url": "https://app.powerbi.com/view?r=eyJrIjoiYmFkYTZlY2QtMTkwYi00ODNhLTkzNmEtN2I2ZmJmODUzMjk0IiwidCI6ImQ1N2QzMmNjLWMxMjEtNDg4Zi1iMDdiLWRmZTcwNTY4MGM3MSIsImMiOjN9",
+      "status": "link_only_export_not_collected",
+      "provenance": {
+        "url": "https://www.bu.edu/fitrec/peak-quiet-hours/",
+        "requestedUrl": "https://www.bu.edu/fitrec/peak-quiet-hours/",
+        "retrievedAt": "2026-10-24T15:03:20.230433+00:00",
+        "sha256": "582c08aa392c4a80286d408ea7ec1d1a06fb54156849c08cfc7a63f9702d7a60",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/526e28297573171837246f077dfd4b0360ec43c5a00e45ba5804f21c5fb59494.body",
+        "cacheUsed": true
+      }
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+      "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+      "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+      "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+      "contentType": "application/pdf",
+      "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/articles/2025/fitrec-what-to-know/",
+      "requestedUrl": "https://www.bu.edu/articles/2025/fitrec-what-to-know/",
+      "retrievedAt": "2026-10-24T15:03:19.699412+00:00",
+      "sha256": "95014e8eca17ec84732ed629723696259ace4b5aeaf02ccc3db7c5f0e3e34278",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/5439685d8da5a03e26499a824b3d725f87cfff46309aa3709b4301d4b975202a.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/fitrec/peak-quiet-hours/",
+      "requestedUrl": "https://www.bu.edu/fitrec/peak-quiet-hours/",
+      "retrievedAt": "2026-10-24T15:03:20.230433+00:00",
+      "sha256": "582c08aa392c4a80286d408ea7ec1d1a06fb54156849c08cfc7a63f9702d7a60",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/526e28297573171837246f077dfd4b0360ec43c5a00e45ba5804f21c5fb59494.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://goterriers.com/sports/mens-ice-hockey/stats/2026-27/brown/boxscore/33104",
+      "requestedUrl": "https://goterriers.com/sports/mens-ice-hockey/stats/2026-27/brown/boxscore/33104",
+      "retrievedAt": "2026-10-24T15:03:21.823615+00:00",
+      "sha256": "ab363c3a072f684381b9f497de7330b102c16478c7bf1bf1a40f5b6cc220737c",
+      "contentType": "text/html;charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/d2b0c11f7d2aea5ff73ee5865e2897bbfc69d6f14c9849bcb5b879361725f33d.body",
+      "cacheUsed": true
+    }
+  ],
+  "warnings": [
+    "No Power BI chart values are exported; the public dashboard link is retained for follow-up."
+  ],
+  "errors": []
+}

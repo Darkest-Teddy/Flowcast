@@ -1,0 +1,1506 @@
+{
+  "schemaVersion": 1,
+  "dataset": "housing",
+  "generatedAt": "2026-10-24T15:13:57.793570+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "residences": [
+    {
+      "id": "housing:10-buick-street",
+      "name": "10 Buick Street",
+      "url": "https://www.bu.edu/housing/residence/student-village/10-buick-street/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/student-village/10-buick-street/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/student-village/10-buick-street/",
+        "retrievedAt": "2026-10-24T15:04:15.815657+00:00",
+        "sha256": "12833755fbd7da8ed0d80dd63aa6e4350a104421bb9b105295d180c88313192b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/a5b8eb74a178d6e565f0fb4f455c7427251abfc2a12d6e3239708977fd2bee44.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "10 Buick Street"
+    },
+    {
+      "id": "housing:33-harry-agganis-way",
+      "name": "33 Harry Agganis Way",
+      "url": "https://www.bu.edu/housing/residence/student-village/33-harry-agganis-way/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/student-village/33-harry-agganis-way/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/student-village/33-harry-agganis-way/",
+        "retrievedAt": "2026-10-24T15:04:16.573505+00:00",
+        "sha256": "a9f34f54b829a4822f65904b41708f59ba5322a89b03d4746db21e1013f22038",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/3ed772e976c576d9ab14ce1a586550c04820c8c7d9390c3aa57bec0f2287286b.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "33 Harry Agganis Way"
+    },
+    {
+      "id": "housing:central-campus-apartments",
+      "name": "Central Campus Apartments",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/",
+        "retrievedAt": "2026-10-24T15:04:18.922895+00:00",
+        "sha256": "846db777be278f0322a1487c4a8cfe754e9321ba341bbcf60add7081632a5047",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/7f2f892d3e796f810575bcafef37cb4031cd196a816315e59644d3601e8ac615.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:central-campus-traditional-brownstones",
+      "name": "Central Campus Traditional Brownstones",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/",
+        "retrievedAt": "2026-10-24T15:04:19.750092+00:00",
+        "sha256": "9f820951e2dd32cb696a2c6914240538b70c9fd7d5bd04057dcf939b047ef52a",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/b481b4f96936c5a23f44fcb61b8143198bb9bd20d57ebdb77e7d11e63397e149.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:east-campus-apartments",
+      "name": "East Campus Apartments",
+      "url": "https://www.bu.edu/housing/residence/east-campus-apartments/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/east-campus-apartments/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/east-campus-apartments/",
+        "retrievedAt": "2026-10-24T15:04:20.527662+00:00",
+        "sha256": "7d68aeb243973f8b0e1efc8f2f5911129b9c059030f1c98717a87cf5aed3a5d3",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/b3a8a55b56786cba5c1925cd2444d7929d1c7a100a8ef6f391d97d55396b63f0.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:east-campus-traditional-brownstones",
+      "name": "East Campus Traditional Brownstones",
+      "url": "https://www.bu.edu/housing/residence/east-campus-traditional-brownstones/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/east-campus-traditional-brownstones/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/east-campus-traditional-brownstones/",
+        "retrievedAt": "2026-10-24T15:04:21.044060+00:00",
+        "sha256": "316b699e2449ce27a6e6fa49d96a697d604e59840df042ac6de492e3549608c3",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/6e3e706b3d5a78fca6530ad3067faebeefcb4dc9ede03163d54a3b6a1b1366e0.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:fenway-campus",
+      "name": "Fenway Campus",
+      "url": "https://www.bu.edu/housing/residence/fenway-campus/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/fenway-campus/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/fenway-campus/",
+        "retrievedAt": "2026-10-24T15:04:21.568097+00:00",
+        "sha256": "1ce7e628f67cec40b7ee745479740adefac753b4ee35e4344d6f233a1152e300",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/19fc567913470ff18b8756c66c62cfeefa2ee164f81d7172bbbf323b8f1953d3.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:large-traditional-style-residences",
+      "name": "Large Traditional-Style Residences",
+      "url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/large-traditional-style-residences/",
+        "retrievedAt": "2026-10-24T15:04:22.251680+00:00",
+        "sha256": "04eeedd69d564ed69ccb53c7cdd5e2bec3ed33e3d5b242792f8a3687376e1788",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/ec607896ed5afe759786a3771ee13b77787ae2b2f68e92af5902e84816adf980.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:living-learning-specialty-communities",
+      "name": "Living-Learning & Specialty Communities",
+      "url": "https://www.bu.edu/housing/residence/living-learning-specialty-communities/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/living-learning-specialty-communities/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/living-learning-specialty-communities/",
+        "retrievedAt": "2026-10-24T15:04:22.727794+00:00",
+        "sha256": "5625e99971480d32789b205bf4c3c5e89234784dc290b85906264295060c230d",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/63d60fc2ad5a5d3a8cf9c2dba09550fe88fe71c200c918481f586b12d70c619d.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:south-campus-apartments",
+      "name": "South Campus Apartments",
+      "url": "https://www.bu.edu/housing/residence/south-campus-apartments/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/south-campus-apartments/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/south-campus-apartments/",
+        "retrievedAt": "2026-10-24T15:04:24.160903+00:00",
+        "sha256": "4321ed08723a93e89b56788b5f0c84d53242b7147f9d8890a625cec2a2255e11",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/b800c4534125e742ec549840f997d50cc268128269fdb059a999f4438bc86442.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:south-campus-traditional-brownstones",
+      "name": "South Campus Traditional Brownstones",
+      "url": "https://www.bu.edu/housing/residence/south-campus-traditional-brownstones/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/south-campus-traditional-brownstones/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/south-campus-traditional-brownstones/",
+        "retrievedAt": "2026-10-24T15:04:24.904687+00:00",
+        "sha256": "508a6d9cbb7c8a33c3789e1f156de0425d48bec1ee2aae8f1cd108349c1eab0f",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/da30abf391b990a36a9b41cf096be9d44a966473d4efc1d188080f8e73be170e.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:student-village",
+      "name": "Student Village",
+      "url": "https://www.bu.edu/housing/residence/student-village/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/student-village/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/student-village/",
+        "retrievedAt": "2026-10-24T15:05:11.621825+00:00",
+        "sha256": "a1ba7f6ef7336e146efddfddcf10c102bdd2b19182349cb49f986ad01b204de5",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/c74c21a039d424e3630fcdc381a49f8927785fbc5d7eade04b69d2190ea2e93c.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:west-campus-traditional-residences",
+      "name": "West Campus Traditional Residences",
+      "url": "https://www.bu.edu/housing/residence/west-campus-traditional-residences/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/west-campus-traditional-residences/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/west-campus-traditional-residences/",
+        "retrievedAt": "2026-10-24T15:05:12.053785+00:00",
+        "sha256": "17b88fad25089769c280a2c578e9d108c84fd466609df4cdb0b2b70390824fce",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/07fbd457eeb57357a38232d5528e395281edcfee344f75e4c112473d39ff604f.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    },
+    {
+      "id": "housing:171-bay-state-road",
+      "name": "171-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/171-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/171-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/171-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:12.451395+00:00",
+        "sha256": "12fecd47c04a10f459d74fcc4f7dffc0b3cb6ba3bc60ac347d05f9aa43aa122e",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/e608ddd2c8e9b409c46f919b6cebfa4d094cdf4ebde625b32465bc3b8a8ac968.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:173-bay-state-road",
+      "name": "173-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/173-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/173-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/173-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:12.966722+00:00",
+        "sha256": "ec8ec57b4291a2b812d157370b9632b6c2e88e201eb9c5a559f0e4c19dd992d1",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/91bc0cd21b3731465ea16c8a49bc53e7e30362d710ed3b035a8a997b8155258d.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:198-bay-state-road",
+      "name": "198-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/198-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/198-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/198-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:13.485709+00:00",
+        "sha256": "2e4f0cd32d2820b01a3cd88d48a1f09fa18ee567b6f4da8f304be17ec02f612f",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/e57671159b68c71e99dc42dfe63f8440d953c0c0b2c7750787a32247e1bb1406.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:214-bay-state-road",
+      "name": "214-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/214-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/214-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/214-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:14.268982+00:00",
+        "sha256": "eefbf011756f92186ec7caa44f4312505874f158fb51776d888525f4b4798ca1",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/2d27d9db9c541535b6a12a556564f7640e1604ea4689fe550b4e61c35289e099.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:627-629-commonwealth-avenue",
+      "name": "627-629-commonwealth-avenue",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/627-629-commonwealth-avenue/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/627-629-commonwealth-avenue/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/627-629-commonwealth-avenue/",
+        "retrievedAt": "2026-10-24T15:05:14.789345+00:00",
+        "sha256": "18543e8b5232e7fe4c9c1144e5acdb997a71f99f7d1f6bc004c2054859d51d4c",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/608052eaf365618f374b86127ed80e6c911d209bdc91d36833dd9005f7635548.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:708-commonwealth-avenue",
+      "name": "708-commonwealth-avenue",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/708-commonwealth-avenue/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/708-commonwealth-avenue/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/708-commonwealth-avenue/",
+        "retrievedAt": "2026-10-24T15:05:15.132740+00:00",
+        "sha256": "0fe9f6f848c4d6ea770eafa7cb4e927e7cd9d5e391f31a223d177d9643402fda",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/7d234d1efa64d9f10f7af4340c1fd35207830208d493199e047a754c25e8996b.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "518 Park Drive"
+    },
+    {
+      "id": "housing:714-commonwealth-avenue",
+      "name": "714-commonwealth-avenue",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/714-commonwealth-avenue/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/714-commonwealth-avenue/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/714-commonwealth-avenue/",
+        "retrievedAt": "2026-10-24T15:05:15.733857+00:00",
+        "sha256": "fc3af524b0c8822cf16033e54de74f03b3ffc02d4b109b1a27176539c5b740e9",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/7d222e4aa442e2e4a92c1385c2944f89a2b2f0bc644c963d763559c8fcb59879.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "518 Park Drive"
+    },
+    {
+      "id": "housing:722-commonwealth-avenue",
+      "name": "722-commonwealth-avenue",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/722-commonwealth-avenue/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/722-commonwealth-avenue/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/722-commonwealth-avenue/",
+        "retrievedAt": "2026-10-24T15:05:16.230613+00:00",
+        "sha256": "90309b9b1dceff5af32a8e70ad2499c852972452886aea64bc502f5915b7913f",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/25cb43d61640dbb4704c3d4953aa078c85b67e0c81198955865ed666396f674a.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "518 Park Drive"
+    },
+    {
+      "id": "housing:726-commonwealth-avenue",
+      "name": "726-commonwealth-avenue",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/726-commonwealth-avenue/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/726-commonwealth-avenue/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/726-commonwealth-avenue/",
+        "retrievedAt": "2026-10-24T15:05:16.637823+00:00",
+        "sha256": "5547fb0c0bce321fb4b1a2136c909c065cf47e1202bf7cd875a024f33e245908",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/5b9d64e140238eace13928edf29164f0da34fdfb7fcd0af4e2033392db8071d5.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "518 Park Drive"
+    },
+    {
+      "id": "housing:728-commonwealth-avenue",
+      "name": "728-commonwealth-avenue",
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/728-commonwealth-avenue/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-apartments/728-commonwealth-avenue/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/728-commonwealth-avenue/",
+        "retrievedAt": "2026-10-24T15:05:17.174050+00:00",
+        "sha256": "57c3e72d3cfd0461b125944b5f317a956c3ca7cf91f0d320f13b04f367a4d1f1",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/1ea316bebcc2c00d6ce443b8fbc922af389612a758f56003b4d9dcb20f4be1db.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "518 Park Drive"
+    },
+    {
+      "id": "housing:153-bay-state-road",
+      "name": "153-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/153-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/153-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/153-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:17.684688+00:00",
+        "sha256": "404b79395afa833c7caa07b84281a4881d3276ebaa07c405bcb1fe96fe6e4823",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/ed445b7e2aaf869f887f104e2b428de027c2231f5e72f7525ec38889ed55866f.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:159-bay-state-road",
+      "name": "159-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/159-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/159-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/159-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:18.286122+00:00",
+        "sha256": "7acede730cbe13d4d7be6f8b60bf3efb7c18a6d56a3aab5ff39defff95ac21eb",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/8d8b10e0aa2ff239046d7f36345b30dcf29e9b9e2156eabd9bd8c085363dafb1.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:162-164-bay-state-road",
+      "name": "162-164-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/162-164-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/162-164-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/162-164-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:18.841703+00:00",
+        "sha256": "586b726d5bf525c11d96fd3ea2d4575298de49906241f084fbdb3b6d2592f5b4",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/eaf107e77076a322a53001a12dcb2ec82153f91226497bc8ca5332d4b8fb7843.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:163-bay-state-road",
+      "name": "163-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/163-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/163-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/163-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:19.262797+00:00",
+        "sha256": "c222d0630baccddaebde1b2222aedd5caec5d6820613fc3b8c2bb1ddef8dd75d",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/a04fbf6daca9c3998727a3919446961186228ee52b798ecad1d8ad2800182a67.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:167-169-bay-state-road",
+      "name": "167-169-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/167-169-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/167-169-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/167-169-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:19.760044+00:00",
+        "sha256": "378f8eeeafe711b75b085b04926608172f05b669655495e8255483365dd8b21c",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/822b3b56622be3934857ad721332a904bab2ab81fcb88a994248a268b5cd37e7.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:172-bay-state-road",
+      "name": "172-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/172-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/172-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/172-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:20.291021+00:00",
+        "sha256": "682e9c4ca65663468d54f6b066c8088b1d037c5c21976de8b35bbaccd1d4f3e2",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/059f5b2ca9ee9fd8d6e76655d85d7f6abb9964c4303ced058d977575a047f399.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:175-bay-state-road",
+      "name": "175-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/175-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/175-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/175-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:20.938231+00:00",
+        "sha256": "c2db36099df1696fc6da55a77811d9286e5c5c9e4d27a6c56ea6c118c200dd0c",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/a2027b6ffac62f4a3ab0a6b8156475f086951199ebd92ef6ad9a6feaf1ec0681.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:177-bay-state-road",
+      "name": "177-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/177-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/177-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/177-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:21.386820+00:00",
+        "sha256": "71bfb25bacc40ed4b9b43395555742558b4ef6ad2e99b5a5b0cc4e9312c4981e",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/dd38f4bf751fd81e6efd0ef9394704d58137511f4d97a02a15fa1f40a1f56257.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:178-bay-state-road",
+      "name": "178-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/178-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/178-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/178-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:21.885019+00:00",
+        "sha256": "cb2b71a0f69006777601c71424aa4d66e197ce80aa7ce3bbd8f9810088854ef6",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/73685c7385dcd8c74bf13e8f4d824d2182b2651b4f2083315868f1931c02364c.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:180-bay-state-road",
+      "name": "180-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/180-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/180-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/180-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:22.466826+00:00",
+        "sha256": "a1b50486947923e14685fea676b46abf554e3830cfb7c329e9074f3385f2a42e",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0cb83967add92277ef0bc85dfcc813858b19ab31a115f3bc791c82940ed3258d.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:181-bay-state-road",
+      "name": "181-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/181-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/181-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/181-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:22.880332+00:00",
+        "sha256": "82ac9ce40ace1a66eb2bc91eafb8cc28e5b106f91d147582eb196b985a374c0e",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/56fe95cf6ba8a2a5f0f418996965d773ea091306eaf44ef0d88510d2e281498c.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:182-bay-state-road",
+      "name": "182-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/182-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/182-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/182-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:23.437124+00:00",
+        "sha256": "df74814e2935a7eb2411e361b3e0c863e232546532fad1edb29b4694a0635d29",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/44c79308712874b502e9dc461d04f503ca79cd94742fce804fdf8c14afff772a.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:184-186-bay-state-road",
+      "name": "184-186-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/184-186-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/184-186-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/184-186-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:23.960206+00:00",
+        "sha256": "84fc9f0315a7678f12f9e1a37247472afb4fd200f369576de17012759c4b3a0f",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/37a16924a71f926da4e820f6d8d67c844f6227a0558e7062157fcc4b589bdaee.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:188-190-bay-state-road",
+      "name": "188-190-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/188-190-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/188-190-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/188-190-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:24.470324+00:00",
+        "sha256": "c2b1b217825770bd05768e9fc6d6b882625eb8caf40275fdf7dc22dd174eb129",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/4a3e86533a572de478bbe5aa01514f0263afb1012409d66758726dd65a2f010d.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:192-bay-state-road",
+      "name": "192-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/192-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/192-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/192-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:25.003164+00:00",
+        "sha256": "3a2c9617ff19401fd01f3b34182680cc059c2686cc907b1cd9cf1abe35ffb00c",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/b28b8dcccdc642ff3bff36e0d7e5038526e07284ed9c14916cb94af2cec6ef8d.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:194-bay-state-road",
+      "name": "194-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/194-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/194-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/194-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:25.341986+00:00",
+        "sha256": "afc6be66c78c2d1368315830b9af6033d9c97970574b743d8445448d7b91e374",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/83658d2a5024dd082920e89ecffb441582b75fecf17ffa5112fd433aaf623c4f.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:195-197-bay-state-road",
+      "name": "195-197-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/195-197-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/195-197-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/195-197-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:26.043792+00:00",
+        "sha256": "593d16810efca8a135d2c1c261d64bec2df418a46e0b96ed31ada6a0aa6bb6d6",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/2103829a1d0593819724e2e2b6cb58e8a2e973c511663e0fda7eeaa3a64d7859.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:196-bay-state-road",
+      "name": "196-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/196-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/196-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/196-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:26.564195+00:00",
+        "sha256": "68ded1c88a21255e688f9423b11d2bc1e8fa44febd0c4363b8617bd143de1956",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/9104c721f8c9e37a257b86d6624cba12dff85dd3d2f15bc414339124ac3fea18.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:199-bay-state-road",
+      "name": "199-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/199-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/199-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/199-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:27.102772+00:00",
+        "sha256": "15aa8152b76fd8931ebb43d04d098df51458ab961d25dd86cf1f8c942cdf7d5f",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/c9545b84b10ce0138e6751ef6b7572c20378b154cef3b9278114a97b3a01168b.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:201-bay-state-road",
+      "name": "201-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/201-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/201-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/201-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:27.609011+00:00",
+        "sha256": "dbe5b898096e3ed7c0e0331a8c74b16dcad1b097c1dd95a52635174995a41be1",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/03ded1daee6af0fc50065ccb7475ad38ad2360bd52b4003c618c2ac41868a09e.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    },
+    {
+      "id": "housing:202-bay-state-road",
+      "name": "202-bay-state-road",
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/202-bay-state-road/",
+      "pageKind": "residence",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/202-bay-state-road/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/202-bay-state-road/",
+        "retrievedAt": "2026-10-24T15:05:27.954195+00:00",
+        "sha256": "c18bbb72fec3dac1f618e9170470fa639432aee37d4a85ac2a0cee0806f81500",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/720698a2bfb1cf441ebfee78f12d72f735d8a2cec79db37e32421cc22cec69dd.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": "575 Commonwealth Avenue"
+    }
+  ],
+  "directoryPages": [
+    {
+      "id": "housing:residences",
+      "name": "Undergraduate Residences",
+      "url": "https://www.bu.edu/housing/undergrad-housing/residences/",
+      "pageKind": "directory",
+      "sourcePublishedDate": null,
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/undergrad-housing/residences/",
+        "requestedUrl": "https://www.bu.edu/housing/undergrad-housing/residences/",
+        "retrievedAt": "2026-10-24T15:04:17.891211+00:00",
+        "sha256": "176f6c15fd40aa003e398893ef65eaa688aedda4702e12b1c8b4cdd0609ad1d0",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/cd5c982ebad00a4ee0985fdebb32dc08db4c2be200ad7383a547a7d657c735bd.body",
+        "cacheUsed": true
+      },
+      "residenceLifeOfficeAddress": null
+    }
+  ],
+  "measurements": [
+    {
+      "id": "c54d2aa314ef4b082dc9",
+      "entityKey": "housing:10-buick-street",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "capacity",
+      "value": 802,
+      "unit": "bed-spaces",
+      "basis": "inventory_derived",
+      "sourcePublishedDate": null,
+      "observationDate": null,
+      "evidence": "StuVi-1 has 185 four-person apartments, each with four single bedrooms, two bathrooms, a kitchen, and a living/dining area. There are also 31 two-person apartments each with two single bedrooms, a bathroom, kitchen, and living/dining area.",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/student-village/10-buick-street/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/student-village/10-buick-street/",
+        "retrievedAt": "2026-10-24T15:04:15.815657+00:00",
+        "sha256": "12833755fbd7da8ed0d80dd63aa6e4350a104421bb9b105295d180c88313192b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/a5b8eb74a178d6e565f0fb4f455c7427251abfc2a12d6e3239708977fd2bee44.body",
+        "cacheUsed": true
+      },
+      "components": [
+        {
+          "apartments": 185,
+          "spacesPerApartment": 4,
+          "evidence": "StuVi-1 has 185 four-person apartments, each with four single bedrooms, two bathrooms, a kitchen, and a living/dining area. There are also 31 two-person apartments each with two single bedrooms, a bathroom, kitchen, and living/dining area."
+        },
+        {
+          "apartments": 31,
+          "spacesPerApartment": 2,
+          "evidence": "StuVi-1 has 185 four-person apartments, each with four single bedrooms, two bathrooms, a kitchen, and a living/dining area. There are also 31 two-person apartments each with two single bedrooms, a bathroom, kitchen, and living/dining area."
+        }
+      ],
+      "currentOccupancy": false
+    },
+    {
+      "id": "28004467ae89b8fa6cc7",
+      "entityKey": "housing:33-harry-agganis-way",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "residential_baseline",
+      "value": 960,
+      "unit": "residential-spaces",
+      "basis": "published_residential_description",
+      "sourcePublishedDate": null,
+      "observationDate": null,
+      "evidence": "One of our newest residences, StuVi-2 accommodates 960 residents in two, unique high-rises. The 26-story north tower hosts juniors and seniors in an apartment-style setting, and the 19-story south tower houses sophomores, juniors, and seniors in a suite-style setting.",
+      "provenance": {
+        "url": "https://www.bu.edu/housing/residence/student-village/33-harry-agganis-way/",
+        "requestedUrl": "https://www.bu.edu/housing/residence/student-village/33-harry-agganis-way/",
+        "retrievedAt": "2026-10-24T15:04:16.573505+00:00",
+        "sha256": "a9f34f54b829a4822f65904b41708f59ba5322a89b03d4746db21e1013f22038",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/3ed772e976c576d9ab14ce1a586550c04820c8c7d9390c3aa57bec0f2287286b.body",
+        "cacheUsed": true
+      },
+      "currentOccupancy": false
+    },
+    {
+      "id": "b0d4d500baa771f0c3ca",
+      "entityKey": "housing:warren-towers",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "residential_baseline",
+      "value": 1800,
+      "unit": "residential-spaces",
+      "basis": "nominal_complex_total",
+      "sourcePublishedDate": "2026-09-15",
+      "observationDate": null,
+      "evidence": "Tower A is the first phase of a $550 million overhaul of Warren Towers, BU’s largest residence hall and the second-largest nonmilitary dorm in the country. The complex, which houses 1,800 students per year, comprises three 18-story towers and opened in the mid-1960s. Klinger describes Warren as “an extraordinary asset” for the University, given its central location and the fact that so many undergraduates pass through its doors every year.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+        "requestedUrl": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+        "retrievedAt": "2026-10-24T15:04:12.254202+00:00",
+        "sha256": "07e4457b9eb6d95d3ba82e5bcc3744ee2c2936eec3b8fa7607333f524fa5089a",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/e88fdc3fb0afd5c5080321d186533e4b793afc22ade455959e6ec517b9146a7c.body",
+        "cacheUsed": true
+      },
+      "aggregate": true,
+      "includes": [
+        "housing:warren-tower-a",
+        "housing:warren-tower-b",
+        "housing:warren-tower-c"
+      ],
+      "currentOccupancy": false,
+      "warning": "Staggered renovation closures and relocations require target-date confirmation."
+    },
+    {
+      "id": "fe5fe42da5a358bb528a",
+      "entityKey": "housing:warren-tower-a",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "residential_baseline",
+      "value": 600,
+      "unit": "residential-spaces",
+      "basis": "published_tower_subset",
+      "sourcePublishedDate": "2026-09-15",
+      "observationDate": null,
+      "evidence": "The newly renovated Tower A houses 600 students in single, double, and triple rooms.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+        "requestedUrl": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+        "retrievedAt": "2026-10-24T15:04:12.254202+00:00",
+        "sha256": "07e4457b9eb6d95d3ba82e5bcc3744ee2c2936eec3b8fa7607333f524fa5089a",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/e88fdc3fb0afd5c5080321d186533e4b793afc22ade455959e6ec517b9146a7c.body",
+        "cacheUsed": true
+      },
+      "partOf": "housing:warren-towers",
+      "currentOccupancy": false
+    },
+    {
+      "id": "bb48ae562a69c4d603bb",
+      "entityKey": "housing:west-campus",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "residential_baseline",
+      "value": 1800,
+      "unit": "residential-spaces",
+      "basis": "published_group_total",
+      "sourcePublishedDate": "2022-10-08",
+      "observationDate": null,
+      "evidence": "Built in 1963 and 1964 and last renovated from 2010 to 2012, the three 13-story residential towers, named for Boston University’s founders, Isaac Rich, Jacob Sleeper, and Lee Claflin, today are home to approximately 1,800 students.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2022/video-tour-of-west-campus/",
+        "requestedUrl": "https://www.bu.edu/articles/2022/video-tour-of-west-campus/",
+        "retrievedAt": "2026-10-24T15:04:13.213764+00:00",
+        "sha256": "33fff875f31a551bff65ecd24bdce85f0171f97b2888c1020e81d8ad8e000596",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/d2a0e9726c00bd6ef62c95a4a16a845e9bf4afe5675827d513cf68b3df51a7ca.body",
+        "cacheUsed": true
+      },
+      "aggregate": true,
+      "includes": [
+        "housing:claflin-hall",
+        "housing:sleeper-hall",
+        "housing:rich-hall"
+      ],
+      "perBuildingSplit": null,
+      "currentOccupancy": false
+    },
+    {
+      "id": "b7ec34e6468996ad0448",
+      "entityKey": "housing:the-towers",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "residential_baseline",
+      "value": 521,
+      "unit": "residential-spaces",
+      "basis": "dated_population_description",
+      "sourcePublishedDate": "2023-04-03",
+      "observationDate": null,
+      "evidence": "Tucked just a block away from the bustle of Comm Ave, The Towers , the dorm-style residence hall at 140 Bay State Road, is conveniently located next to the Questrom School of Business and the Metcalf Center for Science & Engineering. Built in 1957, the building comprises two nine-story towers—East and West—connected by a common area. Home to 521 students, the dorm features double rooms on single-gender floors, as well as specialty floors for students enrolled in Questrom, the College of Engineering, and the College of Health & Rehabilitation Sciences: Sargent College.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2023/video-a-tour-of-the-towers/",
+        "requestedUrl": "https://www.bu.edu/articles/2023/video-a-tour-of-the-towers/",
+        "retrievedAt": "2026-10-24T15:04:25.776092+00:00",
+        "sha256": "ada8dc304e662d115d4a1bb03d2ba2841394d134255a25faecfa6a274292dcee",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/ad3c31eba7113907cf1cc89b97b1280e4907a8ef03187e3d08c2dd4bff0f72aa.body",
+        "cacheUsed": true
+      },
+      "currentOccupancy": false
+    },
+    {
+      "id": "2be53e26ff2b0364b495",
+      "entityKey": "housing:610-beacon-street",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "residential_baseline",
+      "value": 730,
+      "unit": "residential-spaces",
+      "basis": "planning_document_post_renovation",
+      "sourcePublishedDate": "2024-02",
+      "observationDate": null,
+      "evidence": "Myles Standish Hall and Annex Renovation, 610-632 Beacon Street Myles Standish Hall was originally constructed in 1927 as a suite -style hotel and has been used by BU for undergraduate housing since 1949. Together with the Myles Standish Annex, which was acquired in 1980, the complex provided 760 student bed spaces. The renovation of the Myles Standish Hall and Annex maintained the historic structure while adapting the building to meet contemporary housing needs and accessibility. The renovation maximized bed count and private bedrooms, as well as implementing modern amenities, to provide space for 730 students",
+      "provenance": {
+        "url": "https://www.bu.edu/community/files/2024/02/BU-IMPNF-for-Renewal-7th-Amendment.pdf",
+        "requestedUrl": "https://www.bu.edu/community/files/2024/02/BU-IMPNF-for-Renewal-7th-Amendment.pdf",
+        "retrievedAt": "2026-10-24T15:04:26.898640+00:00",
+        "sha256": "cf584149b40c1c6258aec288f3ffe9bf36f96cfcb7a7af5a62aedb518014f489",
+        "contentType": "application/pdf",
+        "rawPath": "data-pipeline/.cache/sources/2dc5290ffeb78eb47ca27ef0f178c29e2bac462547357973cb8c48a1d239ee04.body",
+        "cacheUsed": true
+      },
+      "pdfPage": 34,
+      "printedPage": "2-21",
+      "currentOccupancy": false
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://www.bu.edu/housing/residence/student-village/10-buick-street/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/student-village/10-buick-street/",
+      "retrievedAt": "2026-10-24T15:04:15.815657+00:00",
+      "sha256": "12833755fbd7da8ed0d80dd63aa6e4350a104421bb9b105295d180c88313192b",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/a5b8eb74a178d6e565f0fb4f455c7427251abfc2a12d6e3239708977fd2bee44.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/student-village/33-harry-agganis-way/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/student-village/33-harry-agganis-way/",
+      "retrievedAt": "2026-10-24T15:04:16.573505+00:00",
+      "sha256": "a9f34f54b829a4822f65904b41708f59ba5322a89b03d4746db21e1013f22038",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/3ed772e976c576d9ab14ce1a586550c04820c8c7d9390c3aa57bec0f2287286b.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/undergrad-housing/residences/",
+      "requestedUrl": "https://www.bu.edu/housing/undergrad-housing/residences/",
+      "retrievedAt": "2026-10-24T15:04:17.891211+00:00",
+      "sha256": "176f6c15fd40aa003e398893ef65eaa688aedda4702e12b1c8b4cdd0609ad1d0",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/cd5c982ebad00a4ee0985fdebb32dc08db4c2be200ad7383a547a7d657c735bd.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/",
+      "retrievedAt": "2026-10-24T15:04:18.922895+00:00",
+      "sha256": "846db777be278f0322a1487c4a8cfe754e9321ba341bbcf60add7081632a5047",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/7f2f892d3e796f810575bcafef37cb4031cd196a816315e59644d3601e8ac615.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/",
+      "retrievedAt": "2026-10-24T15:04:19.750092+00:00",
+      "sha256": "9f820951e2dd32cb696a2c6914240538b70c9fd7d5bd04057dcf939b047ef52a",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/b481b4f96936c5a23f44fcb61b8143198bb9bd20d57ebdb77e7d11e63397e149.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/east-campus-apartments/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/east-campus-apartments/",
+      "retrievedAt": "2026-10-24T15:04:20.527662+00:00",
+      "sha256": "7d68aeb243973f8b0e1efc8f2f5911129b9c059030f1c98717a87cf5aed3a5d3",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/b3a8a55b56786cba5c1925cd2444d7929d1c7a100a8ef6f391d97d55396b63f0.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/east-campus-traditional-brownstones/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/east-campus-traditional-brownstones/",
+      "retrievedAt": "2026-10-24T15:04:21.044060+00:00",
+      "sha256": "316b699e2449ce27a6e6fa49d96a697d604e59840df042ac6de492e3549608c3",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/6e3e706b3d5a78fca6530ad3067faebeefcb4dc9ede03163d54a3b6a1b1366e0.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/fenway-campus/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/fenway-campus/",
+      "retrievedAt": "2026-10-24T15:04:21.568097+00:00",
+      "sha256": "1ce7e628f67cec40b7ee745479740adefac753b4ee35e4344d6f233a1152e300",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/19fc567913470ff18b8756c66c62cfeefa2ee164f81d7172bbbf323b8f1953d3.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/large-traditional-style-residences/",
+      "retrievedAt": "2026-10-24T15:04:22.251680+00:00",
+      "sha256": "04eeedd69d564ed69ccb53c7cdd5e2bec3ed33e3d5b242792f8a3687376e1788",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/ec607896ed5afe759786a3771ee13b77787ae2b2f68e92af5902e84816adf980.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/living-learning-specialty-communities/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/living-learning-specialty-communities/",
+      "retrievedAt": "2026-10-24T15:04:22.727794+00:00",
+      "sha256": "5625e99971480d32789b205bf4c3c5e89234784dc290b85906264295060c230d",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/63d60fc2ad5a5d3a8cf9c2dba09550fe88fe71c200c918481f586b12d70c619d.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/south-campus-apartments/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/south-campus-apartments/",
+      "retrievedAt": "2026-10-24T15:04:24.160903+00:00",
+      "sha256": "4321ed08723a93e89b56788b5f0c84d53242b7147f9d8890a625cec2a2255e11",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/b800c4534125e742ec549840f997d50cc268128269fdb059a999f4438bc86442.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/south-campus-traditional-brownstones/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/south-campus-traditional-brownstones/",
+      "retrievedAt": "2026-10-24T15:04:24.904687+00:00",
+      "sha256": "508a6d9cbb7c8a33c3789e1f156de0425d48bec1ee2aae8f1cd108349c1eab0f",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/da30abf391b990a36a9b41cf096be9d44a966473d4efc1d188080f8e73be170e.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/student-village/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/student-village/",
+      "retrievedAt": "2026-10-24T15:05:11.621825+00:00",
+      "sha256": "a1ba7f6ef7336e146efddfddcf10c102bdd2b19182349cb49f986ad01b204de5",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/c74c21a039d424e3630fcdc381a49f8927785fbc5d7eade04b69d2190ea2e93c.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/west-campus-traditional-residences/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/west-campus-traditional-residences/",
+      "retrievedAt": "2026-10-24T15:05:12.053785+00:00",
+      "sha256": "17b88fad25089769c280a2c578e9d108c84fd466609df4cdb0b2b70390824fce",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/07fbd457eeb57357a38232d5528e395281edcfee344f75e4c112473d39ff604f.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/171-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/171-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:12.451395+00:00",
+      "sha256": "12fecd47c04a10f459d74fcc4f7dffc0b3cb6ba3bc60ac347d05f9aa43aa122e",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/e608ddd2c8e9b409c46f919b6cebfa4d094cdf4ebde625b32465bc3b8a8ac968.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/173-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/173-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:12.966722+00:00",
+      "sha256": "ec8ec57b4291a2b812d157370b9632b6c2e88e201eb9c5a559f0e4c19dd992d1",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/91bc0cd21b3731465ea16c8a49bc53e7e30362d710ed3b035a8a997b8155258d.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/198-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/198-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:13.485709+00:00",
+      "sha256": "2e4f0cd32d2820b01a3cd88d48a1f09fa18ee567b6f4da8f304be17ec02f612f",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/e57671159b68c71e99dc42dfe63f8440d953c0c0b2c7750787a32247e1bb1406.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/214-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/214-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:14.268982+00:00",
+      "sha256": "eefbf011756f92186ec7caa44f4312505874f158fb51776d888525f4b4798ca1",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/2d27d9db9c541535b6a12a556564f7640e1604ea4689fe550b4e61c35289e099.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/627-629-commonwealth-avenue/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/627-629-commonwealth-avenue/",
+      "retrievedAt": "2026-10-24T15:05:14.789345+00:00",
+      "sha256": "18543e8b5232e7fe4c9c1144e5acdb997a71f99f7d1f6bc004c2054859d51d4c",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/608052eaf365618f374b86127ed80e6c911d209bdc91d36833dd9005f7635548.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/708-commonwealth-avenue/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/708-commonwealth-avenue/",
+      "retrievedAt": "2026-10-24T15:05:15.132740+00:00",
+      "sha256": "0fe9f6f848c4d6ea770eafa7cb4e927e7cd9d5e391f31a223d177d9643402fda",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/7d234d1efa64d9f10f7af4340c1fd35207830208d493199e047a754c25e8996b.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/714-commonwealth-avenue/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/714-commonwealth-avenue/",
+      "retrievedAt": "2026-10-24T15:05:15.733857+00:00",
+      "sha256": "fc3af524b0c8822cf16033e54de74f03b3ffc02d4b109b1a27176539c5b740e9",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/7d222e4aa442e2e4a92c1385c2944f89a2b2f0bc644c963d763559c8fcb59879.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/722-commonwealth-avenue/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/722-commonwealth-avenue/",
+      "retrievedAt": "2026-10-24T15:05:16.230613+00:00",
+      "sha256": "90309b9b1dceff5af32a8e70ad2499c852972452886aea64bc502f5915b7913f",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/25cb43d61640dbb4704c3d4953aa078c85b67e0c81198955865ed666396f674a.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/726-commonwealth-avenue/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/726-commonwealth-avenue/",
+      "retrievedAt": "2026-10-24T15:05:16.637823+00:00",
+      "sha256": "5547fb0c0bce321fb4b1a2136c909c065cf47e1202bf7cd875a024f33e245908",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/5b9d64e140238eace13928edf29164f0da34fdfb7fcd0af4e2033392db8071d5.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-apartments/728-commonwealth-avenue/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-apartments/728-commonwealth-avenue/",
+      "retrievedAt": "2026-10-24T15:05:17.174050+00:00",
+      "sha256": "57c3e72d3cfd0461b125944b5f317a956c3ca7cf91f0d320f13b04f367a4d1f1",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/1ea316bebcc2c00d6ce443b8fbc922af389612a758f56003b4d9dcb20f4be1db.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/153-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/153-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:17.684688+00:00",
+      "sha256": "404b79395afa833c7caa07b84281a4881d3276ebaa07c405bcb1fe96fe6e4823",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/ed445b7e2aaf869f887f104e2b428de027c2231f5e72f7525ec38889ed55866f.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/159-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/159-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:18.286122+00:00",
+      "sha256": "7acede730cbe13d4d7be6f8b60bf3efb7c18a6d56a3aab5ff39defff95ac21eb",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/8d8b10e0aa2ff239046d7f36345b30dcf29e9b9e2156eabd9bd8c085363dafb1.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/162-164-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/162-164-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:18.841703+00:00",
+      "sha256": "586b726d5bf525c11d96fd3ea2d4575298de49906241f084fbdb3b6d2592f5b4",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/eaf107e77076a322a53001a12dcb2ec82153f91226497bc8ca5332d4b8fb7843.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/163-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/163-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:19.262797+00:00",
+      "sha256": "c222d0630baccddaebde1b2222aedd5caec5d6820613fc3b8c2bb1ddef8dd75d",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/a04fbf6daca9c3998727a3919446961186228ee52b798ecad1d8ad2800182a67.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/167-169-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/167-169-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:19.760044+00:00",
+      "sha256": "378f8eeeafe711b75b085b04926608172f05b669655495e8255483365dd8b21c",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/822b3b56622be3934857ad721332a904bab2ab81fcb88a994248a268b5cd37e7.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/172-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/172-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:20.291021+00:00",
+      "sha256": "682e9c4ca65663468d54f6b066c8088b1d037c5c21976de8b35bbaccd1d4f3e2",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/059f5b2ca9ee9fd8d6e76655d85d7f6abb9964c4303ced058d977575a047f399.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/175-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/175-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:20.938231+00:00",
+      "sha256": "c2db36099df1696fc6da55a77811d9286e5c5c9e4d27a6c56ea6c118c200dd0c",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/a2027b6ffac62f4a3ab0a6b8156475f086951199ebd92ef6ad9a6feaf1ec0681.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/177-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/177-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:21.386820+00:00",
+      "sha256": "71bfb25bacc40ed4b9b43395555742558b4ef6ad2e99b5a5b0cc4e9312c4981e",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/dd38f4bf751fd81e6efd0ef9394704d58137511f4d97a02a15fa1f40a1f56257.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/178-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/178-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:21.885019+00:00",
+      "sha256": "cb2b71a0f69006777601c71424aa4d66e197ce80aa7ce3bbd8f9810088854ef6",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/73685c7385dcd8c74bf13e8f4d824d2182b2651b4f2083315868f1931c02364c.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/180-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/180-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:22.466826+00:00",
+      "sha256": "a1b50486947923e14685fea676b46abf554e3830cfb7c329e9074f3385f2a42e",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/0cb83967add92277ef0bc85dfcc813858b19ab31a115f3bc791c82940ed3258d.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/181-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/181-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:22.880332+00:00",
+      "sha256": "82ac9ce40ace1a66eb2bc91eafb8cc28e5b106f91d147582eb196b985a374c0e",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/56fe95cf6ba8a2a5f0f418996965d773ea091306eaf44ef0d88510d2e281498c.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/182-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/182-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:23.437124+00:00",
+      "sha256": "df74814e2935a7eb2411e361b3e0c863e232546532fad1edb29b4694a0635d29",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/44c79308712874b502e9dc461d04f503ca79cd94742fce804fdf8c14afff772a.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/184-186-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/184-186-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:23.960206+00:00",
+      "sha256": "84fc9f0315a7678f12f9e1a37247472afb4fd200f369576de17012759c4b3a0f",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/37a16924a71f926da4e820f6d8d67c844f6227a0558e7062157fcc4b589bdaee.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/188-190-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/188-190-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:24.470324+00:00",
+      "sha256": "c2b1b217825770bd05768e9fc6d6b882625eb8caf40275fdf7dc22dd174eb129",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/4a3e86533a572de478bbe5aa01514f0263afb1012409d66758726dd65a2f010d.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/192-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/192-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:25.003164+00:00",
+      "sha256": "3a2c9617ff19401fd01f3b34182680cc059c2686cc907b1cd9cf1abe35ffb00c",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/b28b8dcccdc642ff3bff36e0d7e5038526e07284ed9c14916cb94af2cec6ef8d.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/194-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/194-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:25.341986+00:00",
+      "sha256": "afc6be66c78c2d1368315830b9af6033d9c97970574b743d8445448d7b91e374",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/83658d2a5024dd082920e89ecffb441582b75fecf17ffa5112fd433aaf623c4f.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/195-197-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/195-197-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:26.043792+00:00",
+      "sha256": "593d16810efca8a135d2c1c261d64bec2df418a46e0b96ed31ada6a0aa6bb6d6",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/2103829a1d0593819724e2e2b6cb58e8a2e973c511663e0fda7eeaa3a64d7859.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/196-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/196-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:26.564195+00:00",
+      "sha256": "68ded1c88a21255e688f9423b11d2bc1e8fa44febd0c4363b8617bd143de1956",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/9104c721f8c9e37a257b86d6624cba12dff85dd3d2f15bc414339124ac3fea18.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/199-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/199-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:27.102772+00:00",
+      "sha256": "15aa8152b76fd8931ebb43d04d098df51458ab961d25dd86cf1f8c942cdf7d5f",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/c9545b84b10ce0138e6751ef6b7572c20378b154cef3b9278114a97b3a01168b.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/201-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/201-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:27.609011+00:00",
+      "sha256": "dbe5b898096e3ed7c0e0331a8c74b16dcad1b097c1dd95a52635174995a41be1",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/03ded1daee6af0fc50065ccb7475ad38ad2360bd52b4003c618c2ac41868a09e.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/202-bay-state-road/",
+      "requestedUrl": "https://www.bu.edu/housing/residence/central-campus-traditional-brownstones/202-bay-state-road/",
+      "retrievedAt": "2026-10-24T15:05:27.954195+00:00",
+      "sha256": "c18bbb72fec3dac1f618e9170470fa639432aee37d4a85ac2a0cee0806f81500",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/720698a2bfb1cf441ebfee78f12d72f735d8a2cec79db37e32421cc22cec69dd.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+      "requestedUrl": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+      "retrievedAt": "2026-10-24T15:04:12.254202+00:00",
+      "sha256": "07e4457b9eb6d95d3ba82e5bcc3744ee2c2936eec3b8fa7607333f524fa5089a",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/e88fdc3fb0afd5c5080321d186533e4b793afc22ade455959e6ec517b9146a7c.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/articles/2022/video-tour-of-west-campus/",
+      "requestedUrl": "https://www.bu.edu/articles/2022/video-tour-of-west-campus/",
+      "retrievedAt": "2026-10-24T15:04:13.213764+00:00",
+      "sha256": "33fff875f31a551bff65ecd24bdce85f0171f97b2888c1020e81d8ad8e000596",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/d2a0e9726c00bd6ef62c95a4a16a845e9bf4afe5675827d513cf68b3df51a7ca.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/articles/2023/video-a-tour-of-the-towers/",
+      "requestedUrl": "https://www.bu.edu/articles/2023/video-a-tour-of-the-towers/",
+      "retrievedAt": "2026-10-24T15:04:25.776092+00:00",
+      "sha256": "ada8dc304e662d115d4a1bb03d2ba2841394d134255a25faecfa6a274292dcee",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/ad3c31eba7113907cf1cc89b97b1280e4907a8ef03187e3d08c2dd4bff0f72aa.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/community/files/2024/02/BU-IMPNF-for-Renewal-7th-Amendment.pdf",
+      "requestedUrl": "https://www.bu.edu/community/files/2024/02/BU-IMPNF-for-Renewal-7th-Amendment.pdf",
+      "retrievedAt": "2026-10-24T15:04:26.898640+00:00",
+      "sha256": "cf584149b40c1c6258aec288f3ffe9bf36f96cfcb7a7af5a62aedb518014f489",
+      "contentType": "application/pdf",
+      "rawPath": "data-pipeline/.cache/sources/2dc5290ffeb78eb47ca27ef0f178c29e2bac462547357973cb8c48a1d239ee04.body",
+      "cacheUsed": true
+    }
+  ],
+  "warnings": [
+    "Housing discovery capped at 45 pages; 117 discovered URLs remain unvisited",
+    "Residential baselines are dated capacities or population descriptions, never current occupancy. Do not sum a complex and its subsets or split an aggregate evenly without evidence. Map entity aliases and validate reachable entrances before simulation use."
+  ],
+  "errors": []
+}
