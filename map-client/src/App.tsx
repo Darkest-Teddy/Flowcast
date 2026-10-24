@@ -3,9 +3,10 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, modelRoofHeights } from './layers/crowd';
+import { crowdLayers, modelRoofHeights, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
+import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
@@ -14,7 +15,7 @@ import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
-import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
+import { Playback, formatClock, loadDay, type BuildingFootprint, type BuildingOccupancy, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
@@ -42,7 +43,7 @@ import {
   type BikeTrip,
   type DockEstimate,
 } from './bikes/bluebikes';
-import { bikeLayers, bikeTooltip } from './layers/bikes';
+import { bikeLayers, bikeTooltip, loadBikeModels } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
@@ -109,6 +110,7 @@ export default function App() {
   const selectedRef = useRef<string | null>(null);
   const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitTagsRef = useRef<TransitTagsHandle>(null);
+  const placeTagsRef = useRef<PlaceTagsHandle>(null);
   const transitRef = useRef<Transit | null>(null);
   const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
@@ -187,6 +189,7 @@ export default function App() {
         loadPublishedSchedule().catch((error: Error) => { setScheduleError(error.message); return null; }),
         loadMobility().catch((error: Error) => { setMobilityError(error.message); return null; }),
         loadFields().catch(() => null),
+        loadBikeModels().catch(() => null), // Bluebikes riders; plain blocks without them
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -253,6 +256,7 @@ export default function App() {
         onHover: ({ object }: PickingInfo) => {
           tagsRef.current?.hoverBuilding(buildingUnder(object));
           transitTagsRef.current?.hoverMarker(markerUnder(object));
+          placeTagsRef.current?.hoverPlace(placeUnder(object));
         },
         // Building footprints and labels both carry the building id; anything else clears.
         onClick: ({ object }: PickingInfo) => {
@@ -267,6 +271,7 @@ export default function App() {
           // Touch has no hover: a tap opens the stop's or dock's tag (a tapped building's tag opens
           // because it's selected).
           transitTagsRef.current?.hoverMarker(markerUnder(object));
+          placeTagsRef.current?.hoverPlace(placeUnder(object));
           const isBuilding = object && ('polygon' in object || 'share' in object);
           const id = isBuilding ? (object as { id: string }).id : null;
           selectedRef.current = id;
@@ -283,6 +288,8 @@ export default function App() {
           // Stops and docks with a tag expand it instead of showing a tooltip.
           const marker = markerUnder(object);
           if (marker && transitTagsRef.current?.hasTag(marker)) return null;
+          // Places (monuments, open spaces, fields) open their tag instead.
+          if (placeUnder(object)) return null;
           const bikes = bikesRef.current;
           const bikeText = bikes ? bikeTooltip(object, bikes.data, bikes.feed, timeRef.current) : null;
           if (bikeText) return bikeText;
@@ -361,7 +368,8 @@ export default function App() {
         }
         // One placer per frame, shared by every label layer: building tags first, then stations.
         const placer = createPlacer(basemap.project);
-        const buildings = playback.byBuilding(occupancy);
+        const buildingOccupancy = playback.byBuilding(occupancy);
+        const buildings = splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights);
         tagsRef.current?.update({
           buildings,
           footprints: day.buildings,
@@ -387,13 +395,21 @@ export default function App() {
           transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay } : null,
           bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
         });
+        // Then monuments, artworks, open spaces and fields.
+        placeTagsRef.current?.update({
+          placer,
+          project: basemap.project,
+          camera: basemap.getCamera(),
+          monuments: monuments?.monuments ?? null,
+          fields: fields?.fields ?? null,
+        });
         const frameLayers = [
           ...(detailedBuildings
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' })
             : []),
           ...crowdLayers({
             footprints: day.buildings,
-            buildings: buildings.filter((building) => building.modeled !== false),
+            buildings: buildingOccupancy.filter((building) => building.modeled !== false),
             trips: playback.data.trips,
             time: t,
             speed: speedRef.current,
@@ -403,8 +419,9 @@ export default function App() {
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
-          ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
-          ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
+          ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
+          ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), lightPreset: lightRef.current }) : []),
+          ...placeHitLayers(monuments?.monuments ?? null, fields?.fields ?? null, basemap.getZoom()),
           ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
@@ -566,6 +583,7 @@ export default function App() {
       )}
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
       <TransitTags ref={transitTagsRef} />
+      <PlaceTags ref={placeTagsRef} />
 
       <header className="panel title">
         <h1>Flowcast</h1>
@@ -978,4 +996,57 @@ const NO_SAILING = new Set(['drizzle', 'rain', 'heavy-rain', 'snow', 'fog', 'thu
 function sailingWeather(weather: ActiveWeather | null, light: LightPreset): boolean {
   if (light === 'night') return false;
   return !weather || !NO_SAILING.has(weather.condition);
+}
+
+const PODIUM_ROOF_M = 16;
+
+/**
+ * Building tags, with dining halls that share a building with a dorm given their own tag: Warren
+ * Towers shows one "Warren Towers" tag over the middle of all three towers, plus "Warren Dining" on
+ * the podium. The dorm tag keeps the dorm's own load; the glow still uses the busier of the two.
+ */
+function splitSharedTags(
+  buildings: BuildingOccupancy[],
+  occupancy: Occupancy[],
+  footprints: BuildingFootprint[],
+  roofHeights: RoofHeights | undefined,
+): BuildingOccupancy[] {
+  const byBuilding = new Map<string, Occupancy[]>();
+  for (const o of occupancy) {
+    if (o.location.kind === 'off-campus') continue;
+    byBuilding.set(o.location.building, [...(byBuilding.get(o.location.building) ?? []), o]);
+  }
+  const out: BuildingOccupancy[] = [];
+  for (const b of buildings) {
+    const places = byBuilding.get(b.id) ?? [];
+    const dining = places.filter((o) => o.location.kind === 'dining');
+    const rest = places.filter((o) => o.location.kind !== 'dining');
+    if (!dining.length || !rest.length) {
+      out.push(b);
+      continue;
+    }
+    // The whole building's tag: its centre (over all its parts), named without a part suffix.
+    const rings = footprints.filter((f) => f.id === b.id);
+    const pts = rings.flatMap((f) => f.polygon);
+    const centre: [number, number] = pts.length
+      ? [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length]
+      : b.position;
+    const main = rest.reduce((a, o) => (o.share > a.share ? o : a));
+    out.push({ ...b, position: centre, name: main.location.name, short: main.location.short, count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, capacityBasis: main.location.capacityBasis });
+    for (const d of dining) {
+      out.push({
+        id: `${b.id}#${d.location.id}`,
+        name: d.location.name,
+        short: d.location.short,
+        position: d.location.position,
+        modeled: d.modeled,
+        capacityBasis: d.location.capacityBasis,
+        count: d.count,
+        capacity: d.location.capacity,
+        share: d.share,
+        roof: Math.min(PODIUM_ROOF_M, roofHeights?.get(b.id) ?? PODIUM_ROOF_M),
+      });
+    }
+  }
+  return out;
 }

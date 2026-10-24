@@ -12,7 +12,7 @@ registerHooks({
     }
   },
 });
-const { buildSourceDay } = await import('../src/sim/sourceDay.ts');
+const { buildSourceDay, venueWindows } = await import('../src/sim/sourceDay.ts');
 const { Playback } = await import('../src/sim/playback.ts');
 
 function location(id, kind, campus = 'main') {
@@ -160,15 +160,35 @@ test('weekend resident trips are deterministic, probability-bounded and respect 
   assert.equal(buildSourceDay(base,data,5),day);
 });
 
-test('unknown and merely undated venue hours never permit optional gym, study or dining visits',()=>{
+test('merely undated venue hours never permit optional visits',()=>{
   const {base,data}=fixture();data.locations.class.meetings=[];
-  base.agents=Array.from({length:100},(_,i)=>({id:`unknown${i}`,home:'home',residency:'resident',campus:'main',model:0}));
-  data.locations.meal.hours=[{date:null,windows:[[0,86400]],text:'Undated',sourceUrl:'source',qualifier:null}];
-  data.locations.study.hours=[];data.locations.gym.hours=[];
+  base.agents=Array.from({length:100},(_,i)=>({id:`undated${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  const undated=[{date:null,windows:[[0,86400]],text:'Undated',sourceUrl:'source',qualifier:null}];
+  data.locations.meal.hours=undated;data.locations.study.hours=undated;data.locations.gym.hours=undated;
   const day=buildSourceDay(base,data,5);validate(day);
   assert.ok(!day.stays.some(s=>['meal','study','gym'].includes(s.location)));
   assert.ok(day.sourceStats.modeledOffCampusMeals>0);
-  assert.ok(day.trips.every(t=>t.from==='off-campus'||t.to==='off-campus'));
+});
+
+test('typical hours require an explicit estimated fallback and never authorize ordinary visits',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  base.agents=Array.from({length:100},(_,i)=>({id:`unknown${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  data.locations.meal.hours=[];data.locations.study.hours=[];data.locations.gym.hours=[];
+  assert.deepEqual(venueWindows(data,'meal','dining',5),[]);
+  assert.deepEqual(venueWindows(data,'meal','dining',5,{estimatedFallback:true}),[[10*3600,20*3600]]);
+  const day=buildSourceDay(base,data,5);validate(day);
+  assert.ok(!day.stays.some(s=>['meal','study','gym'].includes(s.location)));
+});
+
+test('nearest-week estimated fallback preserves exact-date closures and does not invent undated authority',()=>{
+  const {data}=fixture();
+  data.locations.meal.hours=[{date:'2026-10-26',windows:[[8*3600,20*3600]],text:'Next Monday',sourceUrl:'source',qualifier:null}];
+  assert.deepEqual(venueWindows(data,'meal','dining',0),[]);
+  assert.deepEqual(venueWindows(data,'meal','dining',0,{estimatedFallback:true}),[[8*3600,20*3600]]);
+  data.locations.meal.hours.push({date:'2026-10-19',windows:[],text:'Closed',sourceUrl:'source',qualifier:null});
+  assert.deepEqual(venueWindows(data,'meal','dining',0,{estimatedFallback:true}),[]);
+  data.locations.meal.hours=[{date:null,windows:[[0,86400]],text:'Undated',sourceUrl:'source',qualifier:null}];
+  assert.deepEqual(venueWindows(data,'meal','dining',0,{estimatedFallback:true}),[]);
 });
 
 test('exact-date closures override valid weekly openings and expired weekly schedules stay unavailable',()=>{

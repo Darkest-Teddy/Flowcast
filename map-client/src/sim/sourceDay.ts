@@ -292,10 +292,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     const key = `${location}:${weekday}`;
     const cached = openingCache.get(key);
     if (cached) return cached;
-    const date = dates[weekday];
-    const hours = data.locations[location]?.hours ?? [];
-    const selected = openingHoursForDate(hours, date, weekday);
-    const windows = selected.flatMap(entry => entry.windows);
+    const windows = venueWindows(data, location, locations.get(location)?.kind, weekday);
     openingCache.set(key, windows); return windows;
   };
   const isOpen = (stop: WeeklyStop): boolean => {
@@ -612,4 +609,55 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     days.set(weekday, result);
     return result;
   };
+}
+
+/**
+ * Typical opening hours (seconds since midnight) for places with no published schedule, by kind.
+ * Weekday = 0 Monday ... 6 Sunday. BU dining halls serve roughly 7 AM-9 PM on weekdays and from
+ * brunch at weekends; libraries 8 AM-midnight; FitRec-style gyms 6 AM-11 PM. Assumptions, labelled.
+ */
+function typicalWindows(kind: string | undefined, weekday: number): [number, number][] {
+  const h = (hour: number) => hour * 3600;
+  const weekend = weekday >= 5;
+  switch (kind) {
+    case 'dining':
+      return weekend ? [[h(10), h(20)]] : [[h(7), h(21)]];
+    case 'library':
+      return weekend ? [[h(10), h(22)]] : [[h(8), h(24)]];
+    case 'gym':
+      return weekend ? [[h(8), h(22)]] : [[h(6), h(23)]];
+    default:
+      return [];
+  }
+}
+
+/** Monday-first weekday (0 = Monday) of an ISO date, as a calendar date (no timezone shift). */
+function isoWeekday(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number);
+  return (new Date(y, m - 1, d).getDay() + 6) % 7;
+}
+
+/** The nearest dated entry on the same weekday, within four weeks of `date`. */
+function sameWeekdayWindows(hours: { date: string | null; windows: [number, number][] }[], date: string, weekday: number): [number, number][] {
+  const target = Date.parse(`${date}T12:00:00Z`);
+  let best: { gap: number; windows: [number, number][] } | null = null;
+  for (const entry of hours) {
+    if (!entry.date || isoWeekday(entry.date) !== weekday) continue;
+    const gap = Math.abs(Date.parse(`${entry.date}T12:00:00Z`) - target);
+    if (gap <= 28 * 86400000 && (!best || gap < best.gap)) best = { gap, windows: entry.windows };
+  }
+  return best?.windows ?? [];
+}
+
+/** Published availability is strict by default. Estimated callers may explicitly request
+ * nearest-week or typical-kind assumptions; those windows never establish published hours. */
+export function venueWindows(data: CampusData, location: string, kind: string | undefined, weekday: number,
+  options: { estimatedFallback?: boolean } = {}): [number, number][] {
+  const date = dateForWeekday(data, weekday);
+  const hours = data.locations[location]?.hours ?? [];
+  const selected = openingHoursForDate(hours, date, weekday);
+  if (selected.length) return selected.flatMap((entry) => entry.windows);
+  if (!options.estimatedFallback || data.locations[location]?.hoursStatus === 'restricted') return [];
+  if (hours.length) return sameWeekdayWindows(hours, date, weekday);
+  return typicalWindows(kind, weekday);
 }

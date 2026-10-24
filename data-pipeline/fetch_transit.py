@@ -215,6 +215,26 @@ def snap_to_rails(path, rails):
     return out, matched
 
 
+# A surface stretch shorter than this between two tunnel spans is drawn as tunnel too. Leaving
+# Kenmore, the D branch surfaces for 142 m, dips under a 65 m road overpass that OSM tags as a
+# tunnel, then surfaces for good before Fenway: drawn literally, the track popped up, vanished and
+# popped up again.
+MIN_SURFACE_METRES = 200
+
+
+def merge_short_surface(spans, path):
+    cum = [0.0]
+    for a, b in zip(path, path[1:]):
+        cum.append(cum[-1] + math.hypot((b[0] - a[0]) * 111320 * math.cos(math.radians(a[1])), (b[1] - a[1]) * 110540))
+    merged = []
+    for start, end in spans:
+        if merged and cum[start] - cum[merged[-1][1]] < MIN_SURFACE_METRES:
+            merged[-1][1] = end
+        else:
+            merged.append([start, end])
+    return merged
+
+
 def underground_spans(path, segs):
     """[start, end] point-index spans of `path` that run through a tunnel."""
     def metres_to_segment(p, a, b):
@@ -314,7 +334,7 @@ def main():
                         entry["isTrack"] = True  # already the track itself: the map adds no offset
                         # Kenmore, Hynes and the D past Fenway run underground: the map draws no
                         # track there and trains vanish into the portal.
-                        entry["underground"] = underground_spans(track, tunnels)
+                        entry["underground"] = merge_short_surface(underground_spans(track, tunnels), track)
                     paths.append(entry)
         is_green = rid.startswith("Green-")
         out_routes.append({
