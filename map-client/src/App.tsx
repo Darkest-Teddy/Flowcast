@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
@@ -8,6 +8,7 @@ import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './Buildi
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer } from './layers/placement';
+import { cullLayers } from './layers/culling';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
 import { loadMonuments, monumentLayers } from './layers/monuments';
@@ -30,8 +31,12 @@ import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
-import { type ActiveWeather } from './weather/weather';
-import { precipitationLayers } from './weather/precipitation';
+import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
+import { calibrateCapacities } from './sim/calibrate';
+import { riderLayers, withRiders } from './layers/riders';
+import { RiderSim } from './sim/riders';
+import { precipitationLayers, setParticleScale } from './weather/precipitation';
+import { quality } from './perf/quality';
 import {
   BikeReplay,
   BluebikesFeed,
@@ -48,6 +53,11 @@ import { ActivityChart } from './ActivityChart';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
+
+// The HUD re-renders the app twice a second; these only need to when their own props change.
+const MemoPerfMonitor = memo(PerfMonitor);
+const MemoCameraControls = memo(CameraControls);
+const MemoWeatherControls = memo(WeatherControls);
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
@@ -130,6 +140,7 @@ export default function App() {
   const shownLight = light === 'auto' ? autoPreset : light;
   const lightRef = useRef<LightPreset>(shownLight); // current preset, read by the frame loop (layer tints)
   const lightModeRef = useRef<LightPreset | 'auto'>('auto');
+  const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes' | 'traffic'>('crowds');
   const [weekday, setWeekday] = useState(START_WEEKDAY);
@@ -236,7 +247,8 @@ export default function App() {
       baseDayRef.current = populationBase;
       setSourceData(snapshot);
       setMobilityData(mobilitySnapshot);
-      const playback = new Playback(buildSourceDay(populationBase, snapshot, weekdayRef.current));
+      // Capacities sized to the loaded day so % full never goes above 100 (sim/calibrate.ts).
+      const playback = new Playback(calibrateCapacities(buildSourceDay(populationBase, snapshot, weekdayRef.current)));
       playbackRef.current = playback;
       setRange([0, 86400]);
       setCampuses(day.campuses ?? []);
@@ -252,6 +264,8 @@ export default function App() {
       overlay = new MapboxOverlay({
         interleaved: new URLSearchParams(window.location.search).get('interleaved') !== '0',
         _animate: true, // keeps the walk cycles ticking between data updates
+        // Skips drawing models that are wholly off-screen (see layers/culling.ts).
+        layerFilter: cullLayers,
         // Hovering a building or a stop/dock dot expands its tag.
         onHover: ({ object }: PickingInfo) => {
           tagsRef.current?.hoverBuilding(buildingUnder(object));
@@ -309,16 +323,22 @@ export default function App() {
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, transitRef, bikesRef, populationBase } });
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, transitRef, bikesRef, populationBase, quality } });
       setStatus('');
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       let last = performance.now();
       let lastOccupancy = 0;
-      let occupancy = playback.occupancyAt(timeRef.current);
+      let occupancy = adjustOccupancy(playback.occupancyAt(timeRef.current), weatherRef.current);
+      // People getting on and off trains, buses and shuttles at stops near campus.
+      const riders = transitRef.current ? new RiderSim(day, transitRef.current.data, transitRef.current.feed.tracks) : null;
       let mobilityKey = '';
       let currentMobility: MobilityView | null = null;
+      let buildings: BuildingOccupancy[] = [];
+      let buildingOccupancy: BuildingOccupancy[] = [];
+      let buildingsFrom: Occupancy[] | null = null;
+      let buildingsPlayback: Playback | null = null;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       const tick = (now: number) => {
         const elapsed = now - last;
@@ -335,14 +355,16 @@ export default function App() {
         if (nextDay !== weekdayRef.current) {
           weekdayRef.current = nextDay;
           setWeekday(nextDay);
-          playbackRef.current = new Playback(buildSourceDay(populationBase, snapshot, nextDay));
+          playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(populationBase, snapshot, nextDay)));
           lastOccupancy = 0;
         }
         const playback = playbackRef.current!;
         const t = timeRef.current;
         if (lightModeRef.current === 'auto') {
-          // Mapbox Standard has four presets: switch at solar thresholds (cached per sim half-minute).
-          const preset = daylightAt(t).preset;
+          // Mapbox Standard has four presets: pick one by the sun (cached per sim half-minute) and set
+          // the veil in the same frame, so the switch itself doesn't flash.
+          const { preset, veil } = daylightAt(t);
+          if (veilRef.current) veilRef.current.style.opacity = String(veil);
           if (preset !== lightRef.current) {
             lightRef.current = preset;
             basemap.setLightPreset(preset);
@@ -355,11 +377,15 @@ export default function App() {
           mobilityKey = nextMobilityKey;
           setMobilityView(currentMobility);
         }
+        // Performance setting (perf/quality.ts): Auto watches these frame times.
+        quality.frame(now);
+        const q = quality.settings;
+        setParticleScale(q.particles);
         const walking = playback.walkingAt(t);
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
-          occupancy = playback.occupancyAt(t);
+          occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
           lastOccupancy = now;
           if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
           const ridingByCampus = new Map<string, number>();
@@ -368,8 +394,13 @@ export default function App() {
         }
         // One placer per frame, shared by every label layer: building tags first, then stations.
         const placer = createPlacer(basemap.project);
-        const buildingOccupancy = playback.byBuilding(occupancy);
-        const buildings = splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights);
+        // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
+        if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
+          buildingOccupancy = playback.byBuilding(occupancy);
+          buildings = splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights);
+          buildingsFrom = occupancy;
+          buildingsPlayback = playback;
+        }
         tagsRef.current?.update({
           buildings,
           footprints: day.buildings,
@@ -383,6 +414,7 @@ export default function App() {
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
         const source = transit ? transitSourceAt(transit, t, liveRef.current, weekdayRef.current) : null;
+        if (riders && source) riders.step(t, now, source);
         const showBikesNow = bikes && showBikesRef.current;
         // Shown time and day (0 = Sunday), for BU shuttle service hours.
         const serviceTime = liveRef.current ? wallClockSeconds() : t;
@@ -405,7 +437,7 @@ export default function App() {
         });
         const frameLayers = [
           ...(detailedBuildings
-            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' })
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows })
             : []),
           ...crowdLayers({
             footprints: day.buildings,
@@ -426,7 +458,8 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+          ...agentLayers(nearView(withRiders(walking, riders, showTransitRef.current), basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
+          ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
@@ -478,6 +511,10 @@ export default function App() {
   };
 
   const getPerfCounts = useCallback(() => perfRef.current, []);
+  const onWeather = useCallback((w: ActiveWeather) => {
+    weatherRef.current = w;
+    setWeather(w);
+  }, []);
 
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
@@ -528,7 +565,7 @@ export default function App() {
   const changeDay = (value: number) => {
     if (!baseDayRef.current || !sourceData) return;
     leaveLive();
-    playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value));
+    playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(baseDayRef.current, sourceData, value)));
     setWeekday(value);
     weekdayRef.current = value;
     setHud((prev) => ({
@@ -562,6 +599,11 @@ export default function App() {
   const ranked = hud
     ? hud.occupancy.filter((o) => (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
     : [];
+  // The camera tour only cares which places are in the campus (it re-picks when that set changes),
+  // so it gets a new list only then, not on every HUD refresh.
+  const tourKey = ranked.map((o) => o.location.id).sort().join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const tourLocations = useMemo(() => ranked.map((o) => o.location), [tourKey]);
   // Re-read every render (the HUD re-renders twice a second), so "N min" counts down live.
   const transit = transitRef.current;
   const stations = transit?.data.stops.filter((s) => s.kind === 'station' && s.area === campus) ?? [];
@@ -577,9 +619,9 @@ export default function App() {
     <div className="app">
       <div ref={containerRef} />
       {light === 'auto' && hud && (
-        // Auto lighting: a faint dusk veil carries the scene between Mapbox's four light presets.
-        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'rgb(18, 24, 52)',
-          mixBlendMode: 'multiply', opacity: daylightAt(hud.time).veil, transition: 'opacity 0.5s linear' }} />
+        // Auto lighting: a blue multiply veil darkens the chosen preset to the sun's brightness (set per frame).
+        <div ref={veilRef} aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'rgb(18, 24, 52)',
+          mixBlendMode: 'multiply', opacity: daylightAt(hud.time).veil }} />
       )}
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
       <TransitTags ref={transitTagsRef} />
@@ -608,9 +650,9 @@ export default function App() {
 
       {status && <div className="panel status" role="status">{status}</div>}
 
-      <PerfMonitor counts={getPerfCounts} />
-      {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
-      {mapKind && <WeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
+      <MemoPerfMonitor counts={getPerfCounts} />
+      {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}
+      {mapKind && <MemoWeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={onWeather} />}
 
       {hud && (
         <aside className="panel side">
@@ -632,6 +674,7 @@ export default function App() {
           {tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
 
+              {weather && <WeatherImpact weather={weather} />}
               <h2>Campus activity</h2>
               <ol>
                 {ranked.slice(0, 8).map((o) => {
@@ -967,6 +1010,18 @@ function readableOn(hex: string): string {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.18 ? '#111' : '#fff';
 }
 
+/** Walkers within `radius` metres of the view centre (all of them when radius is null). */
+function nearView(walkers: WalkingAgent[], center: [number, number], radius: number | null): WalkingAgent[] {
+  if (radius === null) return walkers;
+  const kx = 111_320 * Math.cos((center[1] * Math.PI) / 180);
+  const r2 = radius * radius;
+  return walkers.filter((w) => {
+    const dx = (w.position[0] - center[0]) * kx;
+    const dy = (w.position[1] - center[1]) * 110_540;
+    return dx * dx + dy * dy <= r2;
+  });
+}
+
 /**
  * Live mode draws the real MBTA and BU feeds. When the day is played back or fast-forwarded,
  * live vehicles can't keep up, so scheduled service on the simulation clock takes over.
@@ -1049,4 +1104,17 @@ function splitSharedTags(
     }
   }
   return out;
+}
+
+function WeatherImpact({ weather }: { weather: ActiveWeather }) {
+  const { note, boost } = weatherImpact(weather.condition);
+  return (
+    <p className="weather-impact">
+      <strong>Weather impact:</strong> {note}.
+      <span className="muted">
+        {weather.sourceLabel}
+        {boost > 0 && ` · dining and library occupancy shown +${Math.round(boost * 100)}%; walking routes unchanged`}
+      </span>
+    </p>
+  );
 }

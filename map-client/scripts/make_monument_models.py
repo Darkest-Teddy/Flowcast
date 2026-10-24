@@ -30,8 +30,15 @@ agganis-statue.glb
     Armand LaMontagne's bronze "Golden Greek" (2004): Harry Agganis in his Terrier football
     uniform, left arm drawn back to throw, on a granite pedestal outside Agganis Arena. Origin =
     centre of the pedestal; the figure faces +Z.
+bu-seal.glb
+    Boston University's coat of arms set into Marsh Plaza in front of Marsh Chapel: a ~3.2 m disc
+    of dark stone inlaid with verdigris bronze strips (border rings and lozenges, two scroll
+    ribbons lettered BOSTON UNIVERSITY and LEARNING · VIRTUE · PIETY, the shield's outline) and
+    the polished bronze floriated cross with three crowns. A few cm proud of the paving. Origin =
+    centre; reads upright from +Z. (Photos: BU Today, "The Myths and Legends behind the BU Seal",
+    2019; size and place from Esri World Imagery.)
 
-    python3 map-client/scripts/make_monument_models.py           # write all four models + citgo-lights.json
+    python3 map-client/scripts/make_monument_models.py           # write all five models + citgo-lights.json
     python3 map-client/scripts/make_monument_models.py --check   # also print bounds/tri counts
 """
 
@@ -92,6 +99,15 @@ MATERIALS = {
     "citgo_neon": mat("#CFE6FF", 0.0, 0.3),        # LED strips down the letters
     "led_strip": mat("#D9DCDF", 0.2, 0.35),        # white LED strips across the face (unlit)
     "steel": mat("#4A4F55", 0.6, 0.5),             # rooftop frame, catwalks
+    # The BU seal in Marsh Plaza: "black stone with bronze letters" (BU Today, 2019). The strips
+    # have weathered to verdigris; the cross and crowns are kept polished.
+    # Only a hint of metal and light base colours: lying flat, with no environment map to
+    # reflect, metal reads near-black, and the map's noon light renders them at about 60%.
+    "seal_stone": mat("#4E555E", 0.0, 0.5),
+    "seal_stone_edge": mat("#30353B", 0.0, 0.7),
+    "seal_verdigris": mat("#A6E3CE", 0.05, 0.35),
+    "seal_bronze": mat("#F4D9A0", 0.08, 0.3),
+    "seal_crown": mat("#FFD978", 0.1, 0.3),
 }
 
 
@@ -613,6 +629,238 @@ def build_agganis_statue():
 
 
 # --------------------------------------------------------------------------------------------
+# The BU seal (coat of arms) set into Marsh Plaza
+# --------------------------------------------------------------------------------------------
+
+SEAL_R = 1.6            # ~3.2 m across (Esri World Imagery: 42-45 px at 7.5 cm/px; ~6.5 paving squares)
+SEAL_TOP = 0.03         # the stone stands a few cm proud of the paving in the model, so it never sinks
+SEAL_STEP = 0.006       # each inlay layer above the last (keeps the depth test clean)
+SEAL_LINE = 0.016       # bronze strip width, in units of SEAL_R (about 2.5 cm)
+
+# A stroke font for the inlaid capitals, on a 4 x 6 grid (x right, y up); each glyph is a list of
+# polylines. The real letters are thin bronze strips, so strokes match them better than pixels.
+SEAL_FONT = {
+    "A": [[(0, 0), (2, 6), (4, 0)], [(0.8, 2.2), (3.2, 2.2)]],
+    "B": [[(0, 0), (0, 6), (3, 6), (4, 5), (4, 4), (3, 3), (0, 3)], [(3, 3), (4, 2), (4, 1), (3, 0), (0, 0)]],
+    "E": [[(4, 6), (0, 6), (0, 0), (4, 0)], [(0, 3), (3, 3)]],
+    "G": [[(4, 5), (3, 6), (1, 6), (0, 5), (0, 1), (1, 0), (3, 0), (4, 1), (4, 2.6), (2.2, 2.6)]],
+    "I": [[(0, 0), (0, 6)]],
+    "L": [[(0, 6), (0, 0), (4, 0)]],
+    "N": [[(0, 0), (0, 6), (4, 0), (4, 6)]],
+    "O": [[(1, 0), (3, 0), (4, 1), (4, 5), (3, 6), (1, 6), (0, 5), (0, 1), (1, 0)]],
+    "P": [[(0, 0), (0, 6), (3, 6), (4, 5), (4, 4), (3, 3), (0, 3)]],
+    "R": [[(0, 0), (0, 6), (3, 6), (4, 5), (4, 4), (3, 3), (0, 3)], [(1.8, 3), (4, 0)]],
+    "S": [[(4, 5), (3, 6), (1, 6), (0, 5), (0, 4), (1, 3), (3, 3), (4, 2), (4, 1), (3, 0), (1, 0), (0, 1)]],
+    "T": [[(0, 6), (4, 6)], [(2, 6), (2, 0)]],
+    "U": [[(0, 6), (0, 1), (1, 0), (3, 0), (4, 1), (4, 6)]],
+    "V": [[(0, 6), (2, 0), (4, 6)]],
+    "Y": [[(0, 6), (2, 3), (4, 6)], [(2, 3), (2, 0)]],
+    " ": [],
+    "·": [],  # drawn as a small diamond
+}
+SEAL_GLYPH_W = {"I": 0, " ": 2.0, "·": 1.0}  # glyph widths that aren't the usual 4
+
+
+def seal_pt(u, v, h):
+    """Design coordinates (in units of SEAL_R, v up = toward the chapel) to model metres. The
+    seal faces +Z (the viewer stands south of it, on the Commonwealth Ave side), so design up is
+    -Z and design right is +X."""
+    return (u * SEAL_R, h, -v * SEAL_R)
+
+
+def seal_poly(m, uv, material, layer):
+    m.poly([seal_pt(u, v, SEAL_TOP + layer * SEAL_STEP) for u, v in uv], material, outward=(0.0, 1.0, 0.0))
+
+
+def seal_dot(m, cu, cv, r, material, layer, seg=10):
+    seal_poly(m, [(cu + r * math.cos(2 * math.pi * i / seg), cv + r * math.sin(2 * math.pi * i / seg)) for i in range(seg)],
+              material, layer)
+
+
+def seal_strip(m, pts, width, material, layer, closed=False):
+    """A bronze strip of the given width along a polyline (quads per segment, round-ish joints)."""
+    pts = list(pts) + ([pts[0]] if closed else [])
+    hw = width / 2
+    for (ua, va), (ub, vb) in zip(pts, pts[1:]):
+        du, dv = ub - ua, vb - va
+        n = math.hypot(du, dv)
+        if n < 1e-9:
+            continue
+        ou, ov = -dv / n * hw, du / n * hw
+        seal_poly(m, [(ua + ou, va + ov), (ua - ou, va - ov), (ub - ou, vb - ov), (ub + ou, vb + ov)], material, layer)
+    for u, v in pts[1:-1] if not closed else pts[:-1]:
+        seal_dot(m, u, v, hw, material, layer, seg=6)
+
+
+def seal_arc(r, a0, a1, seg):
+    """Points on a circle of radius r from a0 to a1 (degrees, counter-clockwise from +u)."""
+    return [(r * math.cos(math.radians(a0 + (a1 - a0) * i / seg)), r * math.sin(math.radians(a0 + (a1 - a0) * i / seg)))
+            for i in range(seg + 1)]
+
+
+def seal_ring(m, r0, r1, material, layer, seg=72):
+    for q in ring_quads(0.0, 0.0, r0, r0, r1, r1, 0.0, 360.0, seg):
+        seal_poly(m, q, material, layer)
+
+
+def seal_text(m, text, r_base, centre_deg, span_deg, cap, material, layer, top=True):
+    """Capitals around the seal, centred on `centre_deg` and spread over `span_deg`. Along the top
+    the letters stand on r_base with their tops outward, read clockwise; along the bottom they hang
+    from r_base with their tops toward the centre, read counter-clockwise (as on the seal)."""
+    unit = cap / 6.0
+    widths = [SEAL_GLYPH_W.get(ch, 4.0) for ch in text]
+    gap = (math.radians(span_deg) * (r_base + (cap / 2 if top else -cap / 2)) / unit - sum(widths)) / max(1, len(text) - 1)
+    total = sum(widths) + gap * (len(text) - 1)
+    x = -total / 2
+    for ch, w in zip(text, widths):
+        xc = x + w / 2  # glyph centre along the line, in font units
+        x += w + gap
+        if ch == " ":
+            continue
+        r_mid = r_base + (cap / 2 if top else -cap / 2)
+        theta = math.radians(centre_deg) + (-1 if top else 1) * xc * unit / r_mid
+        radial = (math.cos(theta), math.sin(theta))
+        tangent = (math.sin(theta), -math.cos(theta)) if top else (-math.sin(theta), math.cos(theta))
+        up = radial if top else (-radial[0], -radial[1])
+
+        def at(gx, gy):
+            s, t = (gx - w / 2) * unit, gy * unit
+            return (r_base * radial[0] + s * tangent[0] + t * up[0], r_base * radial[1] + s * tangent[1] + t * up[1])
+
+        if ch == "·":
+            c = at(w / 2, 3)
+            d = 0.75 * unit
+            seal_poly(m, [(c[0] + d * up[0], c[1] + d * up[1]), (c[0] + d * tangent[0], c[1] + d * tangent[1]),
+                          (c[0] - d * up[0], c[1] - d * up[1]), (c[0] - d * tangent[0], c[1] - d * tangent[1])], material, layer)
+            continue
+        for line in SEAL_FONT[ch]:
+            seal_strip(m, [at(gx, gy) for gx, gy in line], 0.75 * unit, material, layer)
+
+
+def seal_ribbon(m, a0, a1, r0, r1, tail_dir, material, layer):
+    """A scroll ribbon outlined in bronze: a band between radii r0 and r1 from a0 to a1 (degrees,
+    counter-clockwise), whose two ends fold back and roll up. tail_dir = -1 rolls the ends toward
+    the centre of the seal (top ribbon, hanging down), +1 away from it (bottom ribbon, curling up)."""
+    w = SEAL_LINE
+    seal_strip(m, seal_arc(r1, a0, a1, 40), w, material, layer)
+    seal_strip(m, seal_arc(r0, a0, a1, 40), w, material, layer)
+    for a, away in ((a0, -1), (a1, 1)):  # `away`: the direction (in angle) beyond the band's end
+        ca, sa = math.cos(math.radians(a)), math.sin(math.radians(a))
+        seal_strip(m, [(r0 * ca, r0 * sa), (r1 * ca, r1 * sa)], w, material, layer)
+        # The fold: a short tail of ribbon beyond the end, dropped by a third of the band.
+        shift = tail_dir * (r1 - r0) * 0.3
+        t0, t1 = r0 + shift, r0 + shift + (r1 - r0) * 0.7
+        b = a + away * 10
+        seal_strip(m, seal_arc(t1, a, b, 5), w, material, layer)
+        seal_strip(m, seal_arc(t0, a, b, 5), w, material, layer)
+        # The rolled end: a small round roll at the tail's tip.
+        cb, sb = math.cos(math.radians(b)), math.sin(math.radians(b))
+        rc = (t1 - t0) / 2
+        cu, cv = (t0 + rc) * cb, (t0 + rc) * sb
+        seal_strip(m, [(cu + rc * math.cos(2 * math.pi * k / 12), cv + rc * math.sin(2 * math.pi * k / 12)) for k in range(12)],
+                   w, material, layer, closed=True)
+
+
+def seal_crown(m, cu, cv, width, material, layer, groove="seal_stone_edge"):
+    """A heraldic crown: a band with five points, the outer and inner ones tipped with pearls. It
+    lies on the bronze cross, so (as on the seal) a dark groove around every piece sets it off."""
+    hw = width / 2
+    band = 0.034
+    polys = [[(cu - hw, cv), (cu + hw, cv), (cu + hw * 0.92, cv + band), (cu - hw * 0.92, cv + band)]]
+    for k, (du, height, base) in enumerate(((0.0, 0.085, 0.05), (-0.055, 0.05, 0.034), (0.055, 0.05, 0.034),
+                                           (-hw + 0.012, 0.062, 0.03), (hw - 0.012, 0.062, 0.03))):
+        u = cu + du
+        lean = 0.0 if k < 3 else (-0.012 if du < 0 else 0.012)  # outer points splay out
+        tip = (u + lean, cv + band + height)
+        polys.append([(u - base / 2, cv + band - 0.002), (u + base / 2, cv + band - 0.002), tip])
+        if k:  # pearls
+            polys.append([(tip[0] + 0.015 * math.cos(2 * math.pi * i / 8), tip[1] + 0.008 + 0.015 * math.sin(2 * math.pi * i / 8))
+                          for i in range(8)])
+    # The centre point is a fleur: a lozenge head on its spike.
+    polys.append([(cu, cv + band + 0.062), (cu + 0.026, cv + band + 0.088), (cu, cv + band + 0.118), (cu - 0.026, cv + band + 0.088)])
+    grow = 0.013
+    for pts in polys:
+        mu, mv = sum(u for u, _ in pts) / len(pts), sum(v for _, v in pts) / len(pts)
+        out = []
+        for u, v in pts:
+            d = math.hypot(u - mu, v - mv) or 1.0
+            out.append((u + (u - mu) / d * grow, v + (v - mv) / d * grow))
+        seal_poly(m, out, groove, layer)
+    for pts in polys:
+        seal_poly(m, pts, material, layer + 1)
+
+
+def seal_cross_end(m, cu, cv, du, dv, material, layer):
+    """A floriated end of the cross: the limb flares into a broad tip with a lobe either side and a
+    point in the middle. (du, dv) is the unit direction out along the limb, (cu, cv) the tip."""
+    pu, pv = -dv, du  # across the limb
+    hw0, hw1, flare = 0.062, 0.11, 0.1
+    a = (cu - du * flare + pu * hw0, cv - dv * flare + pv * hw0)
+    b = (cu - du * flare - pu * hw0, cv - dv * flare - pv * hw0)
+    c = (cu - pu * hw1, cv - pv * hw1)
+    d = (cu + pu * hw1, cv + pv * hw1)
+    seal_poly(m, [a, b, c, d], material, layer)
+    for s in (1, -1):  # lobes curling back at the corners
+        seal_dot(m, cu - du * 0.012 + s * pu * (hw1 - 0.018), cv - dv * 0.012 + s * pv * (hw1 - 0.018), 0.034, material, layer)
+    seal_poly(m, [(cu + pu * 0.045, cv + pv * 0.045), (cu + du * 0.05, cv + dv * 0.05), (cu - pu * 0.045, cv - pv * 0.045)],
+              material, layer)
+
+
+def build_bu_seal():
+    """Boston University's coat of arms as inlaid in Marsh Plaza: a disc of dark granite with
+    verdigris bronze strips (two border rings with 20 lozenges between them, a scroll ribbon over
+    the top reading BOSTON UNIVERSITY and one below reading LEARNING · VIRTUE · PIETY, and the
+    outline of the shield) and, on the shield, the floriated cross in polished bronze with the
+    three crowns. Layout from the BU Today photos (2019) of the inlay. Origin = centre, on the
+    paving; the design reads upright from +Z (the Commonwealth Ave side), its top toward -Z."""
+    m = Mesh()
+    cylinder(m, (0.0, 0.0, 0.0), (0.0, SEAL_TOP, 0.0), SEAL_R, "seal_stone_edge", seg=72, caps=(False, False))
+    seal_poly(m, seal_arc(1.0, 0.0, 360.0, 72)[:-1], "seal_stone", 0)
+
+    green, bright, crown = "seal_verdigris", "seal_bronze", "seal_crown"
+    # Border: two rings and 20 lozenges between them.
+    seal_ring(m, 0.958, 0.976, green, 1)
+    seal_ring(m, 0.886, 0.902, green, 1)
+    for k in range(20):
+        a = math.radians(90 + 18 * k)
+        cu, cv = 0.93 * math.cos(a), 0.93 * math.sin(a)
+        ru, rv, tu, tv = math.cos(a), math.sin(a), -math.sin(a), math.cos(a)
+        d, e = 0.02, 0.016
+        seal_poly(m, [(cu + ru * d, cv + rv * d), (cu + tu * e, cv + tv * e), (cu - ru * d, cv - rv * d), (cu - tu * e, cv - tv * e)],
+                  green, 1)
+
+    # The scroll ribbons and their lettering.
+    seal_ribbon(m, 30, 150, 0.665, 0.845, -1, green, 1)
+    seal_ribbon(m, 197, 343, 0.665, 0.845, -1, green, 1)
+    seal_text(m, "BOSTON UNIVERSITY", 0.7, 90, 96, 0.105, green, 1, top=True)
+    seal_text(m, "LEARNING · VIRTUE · PIETY", 0.81, 270, 124, 0.105, green, 1, top=False)
+
+    # The shield: a flat top, straight sides, and curves meeting in a point at the bottom.
+    hw, top, shoulder, tip = 0.41, 0.5, -0.08, -0.64
+    side = [(hw, top), (hw, shoulder)]
+    for i in range(1, 11):  # each lower edge is a quarter-ellipse-ish curve to the point
+        t = i / 10
+        side.append((hw * math.cos(t * math.pi / 2) ** 0.9, shoulder + (tip - shoulder) * math.sin(t * math.pi / 2)))
+    outline = [(-hw, top)] + side + [(-u, v) for u, v in reversed(side[1:-1])]
+    seal_strip(m, outline, SEAL_LINE, green, 1, closed=True)
+
+    # The floriated cross, in polished bronze: the upright and the arms, each end flared.
+    bar = 0.062
+    arm_v, arm_u, top_v, foot_v = 0.2, 0.37, 0.47, -0.47
+    seal_poly(m, [(-bar, foot_v + 0.09), (bar, foot_v + 0.09), (bar, top_v - 0.09), (-bar, top_v - 0.09)], bright, 2)
+    seal_poly(m, [(-arm_u + 0.09, arm_v - bar), (arm_u - 0.09, arm_v - bar), (arm_u - 0.09, arm_v + bar), (-arm_u + 0.09, arm_v + bar)],
+              bright, 2)
+    seal_cross_end(m, 0.0, top_v, 0.0, 1.0, bright, 2)
+    seal_cross_end(m, 0.0, foot_v, 0.0, -1.0, bright, 2)
+    seal_cross_end(m, arm_u, arm_v, 1.0, 0.0, bright, 2)
+    seal_cross_end(m, -arm_u, arm_v, -1.0, 0.0, bright, 2)
+    # The three crowns: on the upper limb, over the crossing, and on the lower limb.
+    for cv in (0.29, 0.07, -0.29):
+        seal_crown(m, 0.0, cv, 0.21, crown, 3)
+    return m
+
+
+# --------------------------------------------------------------------------------------------
 # GLB writer (as in make_vehicle_models.py, with this file's materials)
 # --------------------------------------------------------------------------------------------
 
@@ -678,6 +926,7 @@ def main():
         "rhett-bench": build_rhett_bench(),
         "citgo-sign": build_citgo_sign(),
         "agganis-statue": build_agganis_statue(),
+        "bu-seal": build_bu_seal(),
     }
     lights = OUT.parent / "data" / "citgo-lights.json"
     lights.write_text(json.dumps(citgo_light_geometry(), separators=(",", ":")) + "\n")

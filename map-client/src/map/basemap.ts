@@ -6,6 +6,7 @@ import type { IControl } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { MapWeather } from '../weather/weather';
+import { quality, type QualitySettings } from '../perf/quality';
 
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -138,13 +139,14 @@ function cameraApi(map: CameraMap, maxPitch: number) {
   };
 }
 
-// From over the Charles looking south, so the whole Comm Ave strip (Kenmore to West Campus) fits.
+// From behind Kenmore looking west up Comm Ave: the Citgo sign's lit face up front, the whole campus
+// strip along the Charles behind it, Fenway Park to the left.
 // Any field can be overridden from the URL, e.g. ?lng=-71.105&lat=42.350&zoom=18&pitch=70&bearing=-60
 const DEFAULT_VIEW = {
-  center: [-71.1106, 42.3498] as [number, number],
-  zoom: 15.5,
+  center: [-71.1018, 42.3477] as [number, number],
+  zoom: 15.6,
   pitch: 58,
-  bearing: 192,
+  bearing: 250,
 };
 
 // Keeps the campus centred in the area the dashboard panel doesn't cover.
@@ -263,7 +265,12 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       projection: 'mercator',
       ...INITIAL_VIEW,
       ...BOSTON_LIMITS,
-      antialias: true,
+      // 4x MSAA. Speed mode starts without it (it can only be chosen when the map is created).
+      antialias: quality.mode !== 'speed',
+      // Render settings that cost nothing visible: one world (the camera is held to Boston, so
+      // copies never show) and no Mapbox performance telemetry uploads.
+      renderWorldCopies: false,
+      performanceMetricsCollection: false,
       config: {
         // Standard's own 3D buildings are off from the start: we draw the city ourselves
         // (excludeBuildings). Switching them off after load raced Mapbox's 3D tile loading.
@@ -301,6 +308,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     };
     updateRoadLabels();
     map.on('zoom', updateRoadLabels);
+    const stopQuality = applyMapboxQuality(map);
     return {
       kind: 'mapbox',
       addControl: (control) => map.addControl(control),
@@ -395,7 +403,10 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         return [p.x, p.y];
       },
       getZoom: () => map.getZoom(),
-      remove: () => map.remove(),
+      remove: () => {
+        stopQuality();
+        map.remove();
+      },
       ...cameraApi(map as unknown as CameraMap, 80),
     };
   }
@@ -410,7 +421,8 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     ...INITIAL_VIEW,
     ...BOSTON_LIMITS,
     maxPitch: 85, // the default 60 is too flat for the street-level view
-    canvasContextAttributes: { antialias: true },
+    canvasContextAttributes: { antialias: quality.mode !== 'speed' },
+    renderWorldCopies: false,
   });
   map.setPadding(VIEW_PADDING);
   tameInteractions(map);
@@ -434,4 +446,19 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     remove: () => map.remove(),
     ...cameraApi(map as unknown as CameraMap, 85),
   };
+}
+
+/**
+ * The Performance setting (perf/quality.ts) on Mapbox: in Speed mode Standard's 3D objects (trees
+ * and the like) and footpaths off. (The pixel-ratio cap is applied once, before the map exists.)
+ */
+function applyMapboxQuality(map: import('mapbox-gl').Map): () => void {
+  const detail: Partial<Record<'show3dObjects' | 'showPedestrianRoads', boolean>> = {};
+  return quality.onChange((q: QualitySettings) => {
+    const want = { show3dObjects: q.map3dObjects, showPedestrianRoads: q.mapPedestrianRoads };
+    for (const [key, value] of Object.entries(want) as [keyof typeof want, boolean][]) {
+      if (detail[key] === undefined && value) continue; // untouched until first turned off
+      if (detail[key] !== value) map.setConfigProperty('basemap', key, (detail[key] = value));
+    }
+  });
 }

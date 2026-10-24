@@ -16,6 +16,7 @@ import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import { daylightAt } from '../map/daylight';
+import { gltfExtent, setCullBox, type CullBox } from './culling';
 
 export interface BuildingModelEntry {
   osm: string; // e.g. "way/277434241", the same ids as demo-day.json's buildings
@@ -74,6 +75,8 @@ export type BuildingLight = 'dawn' | 'day' | 'dusk' | 'night';
 export interface BuildingLayerOptions {
   /** The current Mapbox light preset: tints the models when `clock` isn't given or in manual mode. */
   lightPreset?: BuildingLight;
+  /** False drops the lit-window meshes (the Performance setting's Speed level). Default true. */
+  litWindows?: boolean;
   /** Sim time, seconds since Boston midnight. Drives the window lights (and, with `auto`, the tint). */
   clock?: number;
   /** Auto lighting: tint and window brightness follow the sun's altitude at `clock`. */
@@ -185,6 +188,31 @@ class BuildingModelLayer extends ScenegraphLayer<Instance, ExtraProps> {
   }
 }
 
+// One instance per campus, built once, with the campus model's real extent. The layers are rebuilt
+// every frame, and a new `data` array each time made deck.gl re-upload every attribute of all the
+// model's primitives per frame. Model frame: +x east, +y up, +z south.
+const instanceCache = new WeakMap<CampusModel, { data: Instance[]; box: CullBox | null }>();
+function campusInstance(c: CampusModel, model: unknown) {
+  let cached = instanceCache.get(c);
+  if (!cached) {
+    const extent = gltfExtent(model);
+    const pad = 5;
+    const kx = 111_320 * Math.cos((c.origin[1] * Math.PI) / 180);
+    const ky = 110_540;
+    const box: CullBox | null = extent && [
+      c.origin[0] + (extent.min[0] - pad) / kx,
+      c.origin[1] - (extent.max[2] + pad) / ky,
+      extent.min[1] - pad,
+      c.origin[0] + (extent.max[0] + pad) / kx,
+      c.origin[1] - (extent.min[2] - pad) / ky,
+      extent.max[1] + pad,
+    ];
+    cached = { data: [{ position: [c.origin[0], c.origin[1], 0] }], box };
+    instanceCache.set(c, cached);
+  }
+  return cached;
+}
+
 /** Sim seconds since midnight -> hours on the 12..36 axis the window schedules use. */
 function scheduleHour(seconds: number): number {
   const h = (((seconds / 3600) % 24) + 24) % 24;
@@ -211,18 +239,21 @@ export function buildingModelLayers(
   const layers: BuildingModelLayer[] = [];
   for (const c of manifest.campuses) {
     if (!models[c.id] || (campuses && !campuses.includes(c.id))) continue;
+    const { data, box } = campusInstance(c, models[c.id]);
     const parts: { id: string; key: string; color: [number, number, number, number]; windowClock: ExtraProps['windowClock'] }[] = [
       { id: c.id, key: c.id, color: tint, windowClock: null },
     ];
     // Lit windows: emissive, so untinted; skipped entirely in daylight.
-    if (strength > 0.01 && models[`${c.id}:scheduled`]) {
+    if (strength > 0.01 && models[`${c.id}:scheduled`] && options.litWindows !== false) {
       parts.push({ id: `${c.id}-lights`, key: `${c.id}:scheduled`, color: [255, 255, 255, 255], windowClock: { hour, strength } });
     }
     for (const part of parts) {
+      // An off-screen campus (Fenway and Medical from the Charles River views) skips its draws.
+      setCullBox(`building-models-${part.id}`, box);
       layers.push(
         new BuildingModelLayer({
           id: `building-models-${part.id}`,
-          data: [{ position: [c.origin[0], c.origin[1], 0] }],
+          data,
           scenegraph: models[part.key] as never,
           getPosition: (d) => d.position,
           // glTF is y-up; roll 90 stands it on the map: +x east, +y up, -z north.

@@ -258,7 +258,18 @@ class FieldModelLayer<D> extends ScenegraphLayer<D> {
   }
 }
 
+// Per-frame rebuilds must hand deck.gl the same arrays while nothing changed: a new `data` array
+// makes it regenerate and re-upload every attribute (for every primitive of every model).
+interface FieldCache {
+  single: Map<Field, Field[]>;
+  towers: Map<boolean, Map<string, TowerInstance[]>>;
+}
+const fieldCache = new WeakMap<FieldData, FieldCache>();
+const NO_TOWERS: TowerInstance[] = [];
+
 export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk' }: FieldLayerOptions) {
+  let cache = fieldCache.get(data);
+  if (!cache) fieldCache.set(data, (cache = { single: new Map(data.fields.map((f) => [f, [f]])), towers: new Map() }));
   const { fields, models } = data;
   const g = geometry(data);
   const on = lit(lightPreset);
@@ -267,10 +278,14 @@ export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk' }: Fie
   const [tr, tg, tb] = TURF_TINT[lightPreset];
   const shade = (c: RGB): Color => [c[0] * tr, c[1] * tg, c[2] * tb, 255];
 
-  const towerModels = new Map<string, TowerInstance[]>();
-  for (const t of g.towers) {
-    const url = on ? t.tower.litModel : t.tower.model;
-    if (models[url]) towerModels.set(url, [...(towerModels.get(url) ?? []), t]);
+  let towerModels = cache.towers.get(on);
+  if (!towerModels) {
+    towerModels = new Map<string, TowerInstance[]>();
+    for (const t of g.towers) {
+      const url = on ? t.tower.litModel : t.tower.model;
+      if (models[url]) towerModels.set(url, [...(towerModels.get(url) ?? []), t]);
+    }
+    cache.towers.set(on, towerModels);
   }
 
   return [
@@ -341,7 +356,7 @@ export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk' }: Fie
         (f) =>
           new FieldModelLayer<Field>({
             id: `field-props-${f.id}`,
-            data: [f],
+            data: cache.single.get(f) ?? [f],
             scenegraph: models[f.props] as never,
             sizeScale: 1, // real size: these are metres
             _lighting: 'pbr',
@@ -382,7 +397,7 @@ export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk' }: Fie
       ({ id, radius, alpha, minPixels }) =>
         new ScatterplotLayer<TowerInstance>({
           id: `field-light-${id}`,
-          data: on ? g.towers : [],
+          data: on ? g.towers : NO_TOWERS,
           getPosition: (t) => at(t.tower.glow, t.altitude + t.tower.lampHeight),
           getRadius: (t) => radius * (t.tower.height > 25 ? 1.3 : 1),
           radiusUnits: 'meters',

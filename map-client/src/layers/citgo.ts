@@ -169,26 +169,30 @@ const COLOURS: Record<Group, Color> = {
 };
 const WIDTHS: Record<Group, number> = { border: 0.28, row: 0.13, left: 0.22, bottom: 0.22, right: 0.22, letter: 0.55 };
 
-function placer({ position, bearing, altitude }: CitgoPlacement) {
+/** The sign is drawn 25% larger than life at every zoom so it reads from the campus; the monument
+ * layer scales its model by the same factor. */
+export const CITGO_SCALE = 1.25;
+
+function placer({ position, bearing, altitude }: CitgoPlacement, scale = 1) {
   const rad = Math.PI / 180;
   const fz = [Math.sin(bearing * rad), Math.cos(bearing * rad)]; // +Z: the front face's bearing
   const fx = [Math.sin((bearing - 90) * rad), Math.cos((bearing - 90) * rad)]; // +X
   const mx = 111320 * Math.cos(position[1] * rad);
   const my = 110540;
   return (x: number, y: number, z: number): [number, number, number] => {
-    const east = x * fx[0] + z * fz[0];
-    const north = x * fx[1] + z * fz[1];
-    return [position[0] + east / mx, position[1] + north / my, altitude + y];
+    const east = (x * fx[0] + z * fz[0]) * scale;
+    const north = (x * fx[1] + z * fz[1]) * scale;
+    return [position[0] + east / mx, position[1] + north / my, altitude + y * scale];
   };
 }
 
 const geometryCache = new WeakMap<CitgoLights, Map<string, { tubes: Tube[]; at: ReturnType<typeof placer> }>>();
 
-function tubesFor(lights: CitgoLights, sign: CitgoPlacement) {
-  const key = `${sign.position}|${sign.bearing}|${sign.altitude}`;
+function tubesFor(lights: CitgoLights, sign: CitgoPlacement, scale: number) {
+  const key = `${sign.position}|${sign.bearing}|${sign.altitude}|${scale}`;
   const cached = geometryCache.get(lights)?.get(key);
   if (cached) return cached;
-  const at = placer(sign);
+  const at = placer(sign, scale);
   const tubes: Tube[] = [];
   for (const side of [1, -1]) {
     // The back face is the front turned 180 degrees about Y.
@@ -244,11 +248,12 @@ const ADDITIVE_ON_SURFACE = { ...ADDITIVE, depthBias: -1, depthBiasSlopeScale: -
 
 const scaleAlpha = (c: Color, a: number): Color => [c[0], c[1], c[2], Math.round(Math.min(255, Math.max(0, a)))];
 
-export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { time, lightPreset, zoom, now }: CitgoLightOptions) {
+export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { time, lightPreset, now }: CitgoLightOptions) {
   const schedule = citgoSchedule(time, lightPreset);
   const power = powerLevel(schedule.on, now);
   if (power <= 0.01) return [];
-  const { tubes, at } = tubesFor(lights, sign);
+  const scale = CITGO_SCALE;
+  const { tubes, at } = tubesFor(lights, sign, scale);
   const anim = animationState(now);
   const rows = lights.rows.length;
   const tris = lights.triangles.length;
@@ -257,10 +262,9 @@ export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { ti
     : t.group === 'border' ? !anim.flashOff
     : t.group === 'row' ? anim.row(t.index, rows)
     : anim.triangle(t.index, tris);
-  // Zoomed out, every tube is under a pixel: the bloom carries the sign, so it grows and brightens.
-  const far = Math.min(1, Math.max(0, (18 - zoom) / 2.5));
+  // The lit trimark and letters carry the sign; the bloom is just a soft, steady halo.
   const dark = schedule.darkness;
-  const key = `${anim.key}|${power.toFixed(2)}|${dark.toFixed(2)}|${far.toFixed(2)}`;
+  const key = `${anim.key}|${power.toFixed(2)}|${dark.toFixed(2)}|${scale}`;
 
   // Bloom: how much of each colour is lit right now, so the halos breathe with the animation.
   const share = (group: Group[]) => {
@@ -274,9 +278,10 @@ export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { ti
     const out = (u: number, v: number, dz: number) => at(side * u, v, side * (lights.face + dz));
     const [tu, tv] = lights.trimarkCentre;
     const [lu, lv] = lights.lettersCentre;
-    glows.push({ position: out(tu, tv, 2.5), color: scaleAlpha([255, 40, 28, 255], 125 * (1 + far) * redShare * dark), size: 34 + 90 * far });
-    glows.push({ position: out(lu, lv, 2.0), color: scaleAlpha([60, 130, 255, 255], 120 * (1 + 0.5 * far) * dark), size: 22 + 30 * far });
-    glows.push({ position: out(lights.centre[0], lights.centre[1], 3.5), color: scaleAlpha([255, 196, 180, 255], (16 + 24 * whiteShare) * (1 - 0.5 * far) * dark), size: 64 + 60 * far });
+    // Soft and steady (a little brighter with more tubes lit), sized to the sign, never a pulsing dot.
+    glows.push({ position: out(tu, tv, 2.5), color: scaleAlpha([255, 40, 28, 255], (45 + 25 * redShare) * dark), size: 26 * scale });
+    glows.push({ position: out(lu, lv, 2.0), color: scaleAlpha([60, 130, 255, 255], 55 * dark), size: 18 * scale });
+    glows.push({ position: out(lights.centre[0], lights.centre[1], 3.5), color: scaleAlpha([255, 196, 180, 255], (10 + 10 * whiteShare) * dark), size: 40 * scale });
   }
   // Light falling on the truss under the sign.
   glows.push({ position: at(0, lights.centre[1] - 13, 0), color: scaleAlpha([255, 120, 90, 255], 60 * dark), size: 16 });
@@ -316,7 +321,7 @@ export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { ti
       data: tubes,
       getPath: (t) => t.path,
       getColor: (t) => (lit(t) ? scaleAlpha(COLOURS[t.group], (t.group === 'row' ? 14 : t.group === 'letter' ? 70 : t.group === 'border' ? 50 : 22) * dark) : [0, 0, 0, 0]),
-      getWidth: (t) => WIDTHS[t.group] * (t.group === 'letter' ? 3 : t.group === 'row' ? 3.5 : 4.5),
+      getWidth: (t) => WIDTHS[t.group] * scale * (t.group === 'letter' ? 3 : t.group === 'row' ? 3.5 : 4.5),
       widthUnits: 'meters',
       widthMinPixels: 2,
       billboard: true,
@@ -333,8 +338,8 @@ export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { ti
       id: 'citgo-tubes',
       data: tubes,
       getPath: (t) => t.path,
-      getColor: (t) => (!lit(t) ? [0, 0, 0, 0] : t.group === 'row' ? scaleAlpha(COLOURS.row, 255 * (1 - 0.7 * far)) : COLOURS[t.group]),
-      getWidth: (t) => WIDTHS[t.group],
+      getColor: (t) => (!lit(t) ? [0, 0, 0, 0] : COLOURS[t.group]),
+      getWidth: (t) => WIDTHS[t.group] * scale,
       widthUnits: 'meters',
       widthMinPixels: 1,
       billboard: true,
@@ -358,11 +363,11 @@ export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { ti
       getSize: (d) => d.size,
       getColor: (d) => d.color,
       sizeUnits: 'meters',
-      sizeMinPixels: 30, // still a glowing point from the campus overview
+      sizeMinPixels: 0,
       billboard: true,
       opacity: power,
       parameters: ADDITIVE,
-      updateTriggers: { getColor: key, getSize: far.toFixed(2) },
+      updateTriggers: { getColor: key, getSize: scale },
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
