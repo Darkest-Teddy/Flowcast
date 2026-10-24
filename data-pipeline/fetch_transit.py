@@ -10,7 +10,9 @@ Standard library only:
 Set MBTA_API_KEY for a higher rate limit (free at https://api-v3.mbta.com); not needed for this.
 """
 
+import hashlib
 import json
+import math
 import os
 import sys
 import time
@@ -20,6 +22,10 @@ import urllib.request
 from pathlib import Path
 
 API = "https://api-v3.mbta.com"
+OVERPASS = "https://overpass-api.de/api/interpreter"
+CACHE = Path(__file__).resolve().parent / ".cache" / "overpass"
+# A path point within this many metres of an OSM rail tunnel is underground.
+TUNNEL_MATCH_METRES = 15
 OUT = Path(__file__).resolve().parent.parent / "map-client" / "public" / "data" / "transit.json"
 
 # Campus ids match data-pipeline/campuses/*.json. bbox is (west, south, east, north).
@@ -75,6 +81,69 @@ def get(path, params):
             time.sleep(min(wait + 1, 65))
 
 
+def overpass(query):
+    """Overpass with a User-Agent (406 without), polite retries, and a disk cache."""
+    cached = CACHE / f"{hashlib.sha1(query.encode()).hexdigest()[:16]}.json"
+    if cached.exists():
+        return json.loads(cached.read_text())
+    req = urllib.request.Request(
+        OVERPASS,
+        data=urllib.parse.urlencode({"data": query}).encode(),
+        headers={"User-Agent": "Flowcast-DSX-hackathon/0.1"},
+    )
+    for attempt in range(6):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                elements = json.load(resp)["elements"]
+            break
+        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError) as err:
+            if attempt == 5:
+                raise
+            print(f"  Overpass busy ({err}), retrying...", file=sys.stderr)
+            time.sleep(8 * (attempt + 1))
+    CACHE.mkdir(parents=True, exist_ok=True)
+    cached.write_text(json.dumps(elements))
+    return elements
+
+
+def tunnel_segments():
+    """Green Line tunnel geometry from OSM, as ((lng, lat), (lng, lat)) segments."""
+    w = min(a["bbox"][0] for a in AREAS)
+    s = min(a["bbox"][1] for a in AREAS)
+    e = max(a["bbox"][2] for a in AREAS)
+    n = max(a["bbox"][3] for a in AREAS)
+    ways = overpass(f'[out:json][timeout:60];way["railway"~"^(light_rail|subway|tram)$"]["tunnel"]({s - 0.01},{w - 0.01},{n + 0.01},{e + 0.01});out geom;')
+    segs = []
+    for way in ways:
+        if way.get("tags", {}).get("tunnel") in ("no",):
+            continue
+        g = [(p["lon"], p["lat"]) for p in way["geometry"]]
+        segs += list(zip(g, g[1:]))
+    return segs
+
+
+def underground_spans(path, segs):
+    """[start, end] point-index spans of `path` that run through a tunnel."""
+    def metres_to_segment(p, a, b):
+        kx = 111320 * math.cos(math.radians(p[1]))
+        ax, ay = (a[0] - p[0]) * kx, (a[1] - p[1]) * 110540
+        bx, by = (b[0] - p[0]) * kx, (b[1] - p[1]) * 110540
+        dx, dy = bx - ax, by - ay
+        f = max(0.0, min(1.0, -(ax * dx + ay * dy) / ((dx * dx + dy * dy) or 1)))
+        return math.hypot(ax + dx * f, ay + dy * f)
+
+    inside = [any(metres_to_segment(p, a, b) < TUNNEL_MATCH_METRES for a, b in segs) for p in path]
+    spans, start = [], None
+    for i, flag in enumerate(inside + [False]):
+        if flag and start is None:
+            start = i
+        elif not flag and start is not None:
+            if i - start >= 2:
+                spans.append([start, i - 1])
+            start = None
+    return spans
+
+
 def in_bbox(bbox, lon, lat, pad=0.0):
     w, s, e, n = bbox
     return w - pad <= lon <= e + pad and s - pad <= lat <= n + pad
@@ -120,6 +189,9 @@ def main():
     route_ids = sorted({r for area in AREAS for r in area["routes"]})
     areas_for_route = {r: [a for a in AREAS if r in a["routes"]] for r in route_ids}
 
+    print("Fetching Green Line tunnels from OpenStreetMap...", file=sys.stderr)
+    tunnels = tunnel_segments()
+    print(f"  {len(tunnels)} tunnel segments", file=sys.stderr)
     routes = get("/routes", {"filter[id]": ",".join(route_ids)})["data"]
     patterns = get("/route_patterns", {"filter[route]": ",".join(route_ids), "include": "representative_trip.shape"})
     shapes = {i["id"]: i["attributes"]["polyline"] for i in patterns.get("included", []) if i["type"] == "shape"}
@@ -138,7 +210,13 @@ def main():
             # on its own right-hand track and point vehicles along it.
             direction = p["attributes"]["direction_id"]
             for area in areas_for_route[rid]:
-                paths += [{"direction": direction, "path": run} for run in clip(shape, area["bbox"])]
+                for run in clip(shape, area["bbox"]):
+                    entry = {"direction": direction, "path": run}
+                    if attrs["type"] in (0, 1):
+                        # Kenmore, Hynes and the D past Fenway run underground: the map draws no
+                        # track there and trains vanish into the portal.
+                        entry["underground"] = underground_spans(run, tunnels)
+                    paths.append(entry)
         is_green = rid.startswith("Green-")
         out_routes.append({
             "id": rid,
