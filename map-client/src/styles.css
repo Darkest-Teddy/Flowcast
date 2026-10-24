@@ -78,7 +78,8 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   padding: 10px 16px;
 }
 .timeline input[type='range'] { flex: 1; accent-color: var(--accent); min-height: 32px; }
-.clock { min-width: 84px; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.clock { min-width: 84px; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.live-badge { padding: 2px 6px; border-radius: 4px; background: #d62828; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; }
 .timeline button, .timeline select {
   min-height: 36px;
   min-width: 44px;

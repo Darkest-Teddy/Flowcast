@@ -19,7 +19,8 @@ npm run dev                  # http://localhost:5173
 
 | Param | Example | Effect |
 |---|---|---|
-| `at` | `at=12:20` | Start playback at this time (24h) |
+| (none) | | **Live** (default): the simulated Wednesday follows the real clock at 1×, so walkers, trains and buses move at true relative speeds |
+| `at` | `at=12:20` | Start playback at this time (24h) instead of Live |
 | `speed` | `speed=120` | Start at this playback speed |
 | `lng`, `lat`, `zoom`, `pitch`, `bearing` | `lng=-71.1058&lat=42.3501&zoom=19` | Start camera |
 | `interleaved` | `interleaved=0` | Draw deck.gl as a plain overlay instead of mixing into the map (debug fallback; characters will no longer hide behind buildings) |
@@ -79,8 +80,10 @@ The **Transit & traffic** tab and the map show live data for whichever campus is
   "locations": [{ "id": "cds", "name": "Computing & Data Sciences", "short": "CDS", "kind": "classroom",
                   "position": [lng, lat], "capacity": 33, "building": "way/277434241", "campus": "charles-river" }],
   "agents":    [{ "id": "a000", "home": "warren", "model": 0, "campus": "charles-river" }], // model = Kenney character 0–11
-  "trips":     [{ "agent": "a000", "from": "warren", "to": "cds",
-                  "path": [[lng, lat], …], "timestamps": [32400.0, …] }] // seconds since midnight, one per point
+  // Each walk route once; a trip names its route by "from>to". The map rebuilds
+  // timestamps = depart + metres / speed (seconds since midnight, one per point).
+  "walkRoutes": { "warren>cds": { "path": [[lng, lat], …], "cumulative": [0, 12.4, …] } },
+  "trips":     [{ "agent": "a0000", "from": "warren", "to": "cds", "depart": 32400.0, "speed": 1.31 }]
 }
 ```
 

@@ -80,10 +80,23 @@ export interface Occupancy {
   share: number; // count / capacity, can exceed 1
 }
 
+/** The file on disk: each walk route stored once, trips as who/where/when/how fast. */
+interface DayFile extends Omit<DayData, 'trips'> {
+  walkRoutes: Record<string, { path: [number, number][]; cumulative: number[] }>;
+  trips: { agent: string; from: string; to: string; depart: number; speed: number }[];
+}
+
 export async function loadDay(url: string): Promise<DayData> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
-  return res.json();
+  const file: DayFile = await res.json();
+  // Expand to full trips; trips on the same route share its path array.
+  const trips = file.trips.map(({ agent, from, to, depart, speed }) => {
+    const route = file.walkRoutes[`${from}>${to}`];
+    return { agent, from, to, path: route.path, timestamps: route.cumulative.map((m) => depart + m / speed) };
+  });
+  const { walkRoutes: _routes, ...rest } = file;
+  return { ...rest, trips };
 }
 
 function bearingBetween(a: [number, number], b: [number, number]): number {

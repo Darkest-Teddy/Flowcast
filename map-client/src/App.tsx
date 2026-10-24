@@ -10,16 +10,26 @@ import { Playback, formatClock, loadDay, type Campus, type Occupancy, type Walki
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData } from './transit/mbta';
 
 const SPEEDS = [1, 30, 120, 600];
+const params = new URLSearchParams(window.location.search);
+// Live by default: the simulated day follows the real clock at 1x, so walkers, trains and buses
+// all move at their true relative speeds. ?at= or ?speed= start in playback mode instead.
+const START_LIVE = !params.has('at') && !params.has('speed');
+
+/** Seconds since local midnight, right now. */
+function wallClockSeconds(): number {
+  const d = new Date();
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000;
+}
 
 /** ?at=9:00 (24h clock) starts playback there; default is the run-up to the 9:05 class change. */
 function startTimeFromUrl(): number {
-  const at = new URLSearchParams(window.location.search).get('at');
+  const at = params.get('at');
   const match = at?.match(/^(\d{1,2}):(\d{2})$/);
   return match ? Number(match[1]) * 3600 + Number(match[2]) * 60 : 8 * 3600 + 50 * 60;
 }
 
-const START_AT = startTimeFromUrl();
-const START_SPEED = Number(new URLSearchParams(window.location.search).get('speed')) || SPEEDS[1];
+const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
+const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
 
 interface Hud {
@@ -40,6 +50,7 @@ export default function App() {
   const timeRef = useRef(START_AT);
   const speedRef = useRef(START_SPEED);
   const playingRef = useRef(true);
+  const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
   const transitRef = useRef<Transit | null>(null);
   const showTransitRef = useRef(true);
@@ -49,6 +60,7 @@ export default function App() {
   const [hud, setHud] = useState<Hud | null>(null);
   const [range, setRange] = useState<[number, number]>([0, 86400]);
   const [speed, setSpeed] = useState(START_SPEED);
+  const [live, setLive] = useState(START_LIVE);
   const [playing, setPlaying] = useState(true);
   const [light, setLight] = useState<LightPreset>('dusk');
   const [selected, setSelected] = useState<string | null>(null);
@@ -127,7 +139,9 @@ export default function App() {
       const tick = (now: number) => {
         const dt = Math.min(now - last, 100) / 1000;
         last = now;
-        if (playingRef.current) {
+        if (liveRef.current) {
+          timeRef.current = wallClockSeconds();
+        } else if (playingRef.current) {
           timeRef.current += dt * speedRef.current;
           if (timeRef.current > playback.endTime) timeRef.current = playback.startTime;
         }
@@ -153,7 +167,7 @@ export default function App() {
               placer,
             }),
             ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transit.feed, now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
-            ...agentLayers(walking, models, t),
+            ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
           ],
         });
         frame = requestAnimationFrame(tick);
@@ -194,15 +208,30 @@ export default function App() {
     setShowTransit(showTransitRef.current);
   };
 
+  const leaveLive = () => {
+    liveRef.current = false;
+    setLive(false);
+  };
+  const goLive = () => {
+    liveRef.current = true;
+    setLive(true);
+    speedRef.current = 1;
+    setSpeed(1);
+    playingRef.current = true;
+    setPlaying(true);
+  };
   const changeSpeed = (s: number) => {
+    leaveLive();
     speedRef.current = s;
     setSpeed(s);
   };
   const togglePlaying = () => {
+    leaveLive();
     playingRef.current = !playingRef.current;
     setPlaying(playingRef.current);
   };
   const scrub = (t: number) => {
+    leaveLive();
     timeRef.current = t;
   };
   const select = (o: Occupancy) => {
@@ -381,7 +410,10 @@ export default function App() {
           <button className="play" onClick={togglePlaying} aria-label={playing ? 'Pause' : 'Play'}>
             {playing ? '❚❚' : '▶'}
           </button>
-          <output className="clock" aria-live="off">{formatClock(hud.time)}</output>
+          <output className="clock" aria-live="off">
+            {formatClock(hud.time)}
+            {live && <span className="live-badge">LIVE</span>}
+          </output>
           <input
             type="range"
             min={range[0]}
@@ -393,8 +425,11 @@ export default function App() {
             aria-valuetext={formatClock(hud.time)}
           />
           <div className="speeds" role="group" aria-label="Playback speed">
+            <button onClick={goLive} aria-pressed={live} title="Follow the real clock: everything moves at true speed">
+              Live
+            </button>
             {SPEEDS.map((s) => (
-              <button key={s} onClick={() => changeSpeed(s)} aria-pressed={speed === s}>
+              <button key={s} onClick={() => changeSpeed(s)} aria-pressed={!live && speed === s}>
                 {s}×
               </button>
             ))}
