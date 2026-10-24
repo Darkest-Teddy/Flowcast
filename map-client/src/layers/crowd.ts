@@ -1,7 +1,7 @@
 // The prediction, drawn on the map:
-//  - each tracked building's real footprint glows from cool to hot with how full it is,
+//  - each tracked building's real footprint glows from cool to hot with relative simulated activity,
 //  - fading trails behind walkers show the flows between buildings,
-//  - a label on every building gives the exact "% full" (never colour alone — plan Section 10.3).
+//  - a label on every building gives its simulated student count.
 // All three work in deck.gl's interleaved mode, so buildings still hide what's behind them.
 // (HeatmapLayer doesn't render in interleaved mode, which is why there isn't one.)
 import { PolygonLayer, TextLayer } from '@deck.gl/layers';
@@ -44,7 +44,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
   const order = [...buildings].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.share - a.share);
   const lifts = placer.place(order, {
     position: (d) => d.position,
-    width: (d) => labelWidth(`${d.short}\n100% · Moderate`, 13),
+    width: (d) => labelWidth(`${d.short}\n1200 students`, 13),
     height: LABEL_HEIGHT,
     direction: -1,
   });
@@ -94,7 +94,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       data: visible,
       // Anchored at the building's base so the screen-space placement above lines up with it.
       getPosition: (d) => d.position,
-      getText: (d) => `${d.short}\n${Math.round(d.share * 100)}% · ${crowdLevel(d.share).label}`,
+      getText: (d) => `${d.short}\n${d.count} ${d.count === 1 ? 'student' : 'students'}`,
       getTextAnchor: 'middle',
       getAlignmentBaseline: 'bottom',
       getSize: (d) => (d.id === selectedId ? 16 : 13),

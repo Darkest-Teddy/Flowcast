@@ -161,3 +161,16 @@ These scripts feed `map-client/` until the shared simulation core produces its o
 - `make_demo_routes.py`: placeholder plans for the map. It pulls each campus's walk network and building footprints from OpenStreetMap, routes a synthetic Wednesday for 300 students with Dijkstra, and writes `map-client/public/data/demo-day.json` (format: `map-client/README.md`, "Data contract"). Run `python3 data-pipeline/make_demo_routes.py`.
 - `campuses/*.json`: the campuses and real BU locations that script uses (`campus`, `name`, `bbox` [S, W, N, E], `locations` with `id`, `name`, `short`, `kind`, `lat`, `lon`, `capacity`, `osm`, optional `height`). Every file is loaded; files with the same `campus` id merge (bboxes union). Each campus gets its own walk network and at least 40 of the 300 agents.
 - `fetch_transit.py`: snapshots the MBTA routes and stops serving each campus into `map-client/public/data/transit.json`. The map polls live vehicles and predictions itself.
+
+### Map integration (offline)
+
+`python3 data-pipeline/build_map_data.py` transforms the six committed snapshots into
+`map-client/public/data/campus-data.json`. It reads local files only and records input
+SHA-256 hashes. Rebuild this bundle after deliberately refreshing source datasets;
+opening the map does not scrape BU again.
+
+Mappings target existing map location IDs. Unknown building codes and ambiguous event
+venues remain explicitly unmapped. The map displays source facts with dates and units,
+while `map-client/src/sim/sourceDay.ts` generates fictional student attendance against
+published class times. Historical library counts, registrations, residential baselines,
+and dining volumes are not treated as live occupancy.

@@ -2,7 +2,11 @@
 
 Owner: 3D Map / Frontend Lead (see `.plans/campus-digital-twin-spec.md` Section 2).
 
-The big-screen 3D campus view. **It runs today:** real BU buildings and walkways, a placeholder Wednesday of 300 students walking between classes as animated Kenney characters, buildings glowing by how full they are, flow trails, a "busiest right now" panel and a time scrubber.
+The 3D campus view uses saved Fall 2026 class schedules to place a synthetic cohort of 1,200 students. The weekday selector rebuilds their trips locally over existing pedestrian routes. Building labels show simulated counts; colors use a model activity scale, not measured occupancy.
+
+The **Data** tab exposes published class times, room seats, housing baselines, dining and library hours, events, historical library counts, and source links. The compact bundle maps 3,805 of 6,944 physical meeting records onto existing map locations; unmatched building codes are listed in the coverage panel. Date-restricted classes are excluded from the representative week. Seats and registrations never become observed attendance.
+
+`npm run prepare:data` rebuilds `public/data/campus-data.json` from the committed acquisition snapshots without network access. Production builds run this automatically. `npm test` checks scheduling, routing, and population invariants. The TypeScript simulation lives in `src/sim/sourceDay.ts`; the offline adapter is `../data-pipeline/build_map_data.py`.
 
 ## Run it
 
@@ -19,8 +23,8 @@ npm run dev                  # http://localhost:5173
 
 | Param | Example | Effect |
 |---|---|---|
-| (none) | | **Live** (default): the simulated Wednesday follows the real clock at 1×, so walkers, trains and buses move at true relative speeds |
-| `at` | `at=12:20` | Start playback at this time (24h) instead of Live |
+| (none) | | **Clock** (default): the selected simulated weekday follows Boston time at 1×, so walkers, trains and buses move at true relative speeds |
+| `at` | `at=12:20` | Start playback at this time (24h) instead of Clock |
 | `speed` | `speed=120` | Start at this playback speed |
 | `lng`, `lat`, `zoom`, `pitch`, `bearing` | `lng=-71.1058&lat=42.3501&zoom=19` | Start camera |
 | `spin` | `spin=0` | Don't start the slow camera orbit on load (it never auto-starts under prefers-reduced-motion) |
@@ -34,10 +38,10 @@ Example: <http://localhost:5173/?at=12:15&speed=30> shows the lunch rush.
 Mapbox GL JS (Standard) or MapLibre ──── base map, real 3D buildings
   └─ deck.gl MapboxOverlay, interleaved ── our layers share the map's depth buffer,
        │                                  so buildings hide characters behind them
-       ├─ PolygonLayer   crowd-buildings  real OSM footprints, extruded, tinted by % full
+       ├─ PolygonLayer   crowd-buildings  real OSM footprints, extruded, tinted by model activity
        ├─ TripsLayer     flow-trails      fading trails behind walkers = flows between buildings
        ├─ ScenegraphLayer agents-*        Kenney Mini Characters, GPU-instanced, walk animation
-       └─ TextLayer      crowd-labels     "CDS · 87% · Packed" (number and word, never colour alone)
+       └─ TextLayer      crowd-labels     "CDS · 87 simulated" (number and word, never colour alone)
 ```
 
 | File | What it does |
@@ -49,9 +53,9 @@ Mapbox GL JS (Standard) or MapLibre ──── base map, real 3D buildings
 | `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
 | `src/App.tsx` | The frame loop, dashboard panel and timeline |
 
-**Characters walking without lockstep.** A `ScenegraphLayer` plays one animation clock for every instance it draws, so with a single layer all 300 characters would stride in unison. `agents.ts` splits each of the 12 character models across 3 layers whose walk cycles start a third of a stride apart and run at slightly different speeds. Characters face their direction of travel. Anyone not walking is inside a building, which matches the interior-view plan in Section 6.7.
+**Characters walking without lockstep.** A `ScenegraphLayer` plays one animation clock for every instance it draws, so with a single layer all 1,200 characters would stride in unison. `agents.ts` splits each of the 12 character models across 3 layers whose walk cycles start a third of a stride apart and run at slightly different speeds. Characters face their direction of travel. Anyone not walking is inside a building, which matches the interior-view plan in Section 6.7.
 
-**Accessibility.** Glow, label background and dashboard bar all come from one four-step scale in `crowd.ts`. Every label carries the percentage and a word. Label text meets 4.5:1 contrast. All controls are real buttons with ARIA labels.
+**Accessibility.** Glow, label background and dashboard bar all come from one four-step scale in `crowd.ts`. Every label carries a simulated count. Label text meets 4.5:1 contrast. All controls are real buttons with ARIA labels.
 
 ## Live MBTA and traffic
 
@@ -67,7 +71,7 @@ The **Transit & traffic** tab and the map show live data for whichever campus is
 - **Live data** comes from `src/transit/mbta.ts`, which polls MBTA v3 `/vehicles` every 12 s and `/predictions` every 30 s, straight from the browser (CORS is open). Vehicles glide between reports.
 - **Rate limit:** without a key the MBTA allows **20 requests/minute per IP**, and the whole venue shares one IP. One open tab uses about 7/min. If the panel says "rate limit reached", it backs off and retries automatically. For the demo, get a free key at <https://api-v3.mbta.com> and put `VITE_MBTA_API_KEY=...` in `map-client/.env.local` (gitignored); that raises the limit to 1000/min.
 - **Traffic** is Mapbox's live traffic tileset (needs the Mapbox token). Congestion is shown by line width as well as colour. Free-flowing traffic is only drawn on main roads.
-- Transit is **live (real clock)** while the crowd simulation plays its own **simulated Wednesday**. If a judge asks, say so plainly.
+- Transit is **live (real clock)** while the crowd simulation plays its own **selected simulated weekday**. If a judge asks, say so plainly.
 
 ## Data contract (what the pipeline / server must provide)
 

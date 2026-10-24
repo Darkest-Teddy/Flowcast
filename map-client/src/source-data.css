@@ -1,0 +1,32 @@
+.source-data { font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.source-data h2 { color: var(--text); }
+.source-data h3 { margin: 14px 0 6px; color: var(--text); font-size: 13px; }
+.source-data p { margin: 6px 0; }
+.source-data a { color: #ffe66a; text-underline-offset: 3px; }
+.source-data a:hover { color: #fff3b3; }
+.source-data a:focus-visible, .source-data summary:focus-visible, .source-data button:focus-visible, .source-data select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.source-data .source-caption { color: var(--muted); font-size: 12px; }
+.source-data .source-caution { padding: 7px 9px; border-left: 2px solid var(--accent); color: #ffe9a3; background: rgba(255,214,10,.06); font-size: 12px; }
+.source-data .source-now { color: #a4f1d5; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.source-data .source-building-picker { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; color: var(--muted); font-size: 12px; }
+.source-data .source-building-picker select { width: 100%; min-height: 40px; padding: 6px 8px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; background: #242832; color: var(--text); font: inherit; }
+.source-data .source-building-list, .source-data .source-evidence, .source-data .source-meetings, .source-data .source-events { list-style: none; padding: 0; margin: 0; }
+.source-data .source-building-list li + li { border-top: 1px solid rgba(255,255,255,.08); }
+.source-data button { font: inherit; color: inherit; cursor: pointer; }
+.source-data .source-building-list button { display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 44px; padding: 8px; border: 0; border-radius: 6px; background: transparent; text-align: left; }
+.source-data .source-building-list button:hover { background: rgba(255,255,255,.06); }
+.source-data .source-meetings > li, .source-data .source-evidence > li, .source-data .source-events > li, .source-data .source-hours { display: flex; flex-direction: column; gap: 3px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.1); }
+.source-data .source-meeting-head { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.source-data .source-meeting-head > a { font-weight: 650; }
+.source-data .source-evidence strong { font-variant-numeric: tabular-nums; font-size: 14px; }
+.source-data details { margin: 8px 0; }
+.source-data summary { min-height: 32px; padding: 5px 0; cursor: pointer; color: var(--text); font-size: 12px; }
+.source-data details > p, .source-data details > ul { margin: 6px 0 8px; }
+.source-data .source-overview { margin-top: 16px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.16); }
+.source-data .source-overview > summary { font-size: 13px; font-weight: 650; }
+.source-data .source-events button { align-self: start; min-height: 36px; padding: 4px 10px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; background: rgba(255,255,255,.06); }
+.source-data .source-assumptions { padding-left: 18px; color: var(--muted); font-size: 12px; }
+.source-data .source-assumptions li + li { margin-top: 6px; }
+@media (max-width: 600px) {
+  .source-data .source-meeting-head { flex-wrap: wrap; gap: 3px 8px; }
+}
