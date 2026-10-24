@@ -827,3 +827,16 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .parking-events .when { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .parking-events .meta { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
 .parking-events .sample { padding: 0 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.12); color: #e5e7eb; font-size: 10.5px; font-weight: 700; }
+
+/* Clean view (H): just the map, buildings, people and transit. Mapbox's attribution stays. */
+.app.is-clean .panel,
+.app.is-clean .btags,
+.app.is-clean .gtags,
+.app.is-clean .deck-tooltip { display: none !important; }
+.clean-hint {
+  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 3;
+  padding: 8px 14px; border-radius: 999px; background: rgba(17, 20, 28, 0.85); color: #fff; font-size: 13px;
+  pointer-events: none; animation: clean-hint 2.6s ease forwards;
+}
+@keyframes clean-hint { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .clean-hint { animation: none; opacity: 0.9; } }

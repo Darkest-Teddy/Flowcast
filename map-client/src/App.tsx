@@ -219,6 +219,9 @@ export default function App() {
   const loadDeferredRef = useRef<((campus: string) => void) | null>(null);
   // First names for hover text (sim/names.ts), one per student, matching the character's gender.
   const namesRef = useRef<Map<string, string> | null>(null);
+  // Clean view (H): no panels, tags or data overlays, just the map, buildings, people and transit.
+  const [clean, setClean] = useState(false);
+  const cleanRef = useRef(false);
   const playbackRef = useRef<Playback | null>(null);
   // Campus events: on by default. Which date's events play is decided by eventDateFor().
   const [eventsOn, setEventsOn] = useState(START_EVENTS);
@@ -564,7 +567,7 @@ export default function App() {
           buildingsFrom = occupancy;
           buildingsPlayback = playback;
         }
-        tagsRef.current?.update({
+        if (!cleanRef.current) tagsRef.current?.update({
           buildings: buildings.filter(building => !damagedIds.has(building.id.split('#')[0])),
           footprints: day.buildings,
           locations: populationBase.locations,
@@ -584,7 +587,7 @@ export default function App() {
             parkingState = parkingAt(parking.model, parkingDay(snapshot, liveRef.current, weekdayRef.current), liveRef.current ? wallClockSeconds() : t, parking.campusEvents);
             setParkingView(parkingState);
           }
-          parkingTagsRef.current?.update({ placer, project: basemap.project, camera: basemap.getCamera(), state: parkingState });
+          if (!cleanRef.current) parkingTagsRef.current?.update({ placer, project: basemap.project, camera: basemap.getCamera(), state: parkingState });
         } else parkingState = null;
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
@@ -594,7 +597,7 @@ export default function App() {
         const serviceTime = liveRef.current ? wallClockSeconds() : t;
         const serviceDay = liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7;
         // Then station, stop and dock tags, through the same placer.
-        transitTagsRef.current?.update({
+        if (!cleanRef.current) transitTagsRef.current?.update({
           placer,
           project: basemap.project,
           zoom: basemap.getZoom(),
@@ -605,7 +608,7 @@ export default function App() {
           bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
         });
         // Then monuments, artworks, open spaces and fields.
-        placeTagsRef.current?.update({
+        if (!cleanRef.current) placeTagsRef.current?.update({
           placer,
           project: basemap.project,
           camera: basemap.getCamera(),
@@ -628,7 +631,7 @@ export default function App() {
           ...(detailedBuildings
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows, damage, footprints: damageFootprints })
             : []),
-          ...crowdLayers({
+          ...(cleanRef.current ? [] : crowdLayers({
             footprints: day.buildings,
             buildings: buildingOccupancy.filter((building) => building.modeled !== false && !damagedIds.has(building.id)),
             trips: playback.trailsAt(t, Math.min(600, Math.max(20, speedRef.current * 3))),
@@ -638,12 +641,12 @@ export default function App() {
             zoom: basemap.getZoom(),
             roofHeights,
             volumes,
-          }),
+          })),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' }) : []),
-          ...(parking && parkingState ? parkingLayers(parking.data, parkingState) : []),
+          ...(cleanRef.current ? [] : [...(parking && parkingState ? parkingLayers(parking.data, parkingState) : [])]),
           ...placeHitLayers(monuments?.monuments ?? null, fields?.fields ?? null, basemap.getZoom()),
           ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
           ...(showBikesNow
@@ -654,8 +657,8 @@ export default function App() {
           // Fire apparatus: no layers unless a fire alarm's response is under way.
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
           ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
-          ...askRouteLayers(askRouteRef.current),
-          ...(currentMobility && showCountsRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
+          ...(cleanRef.current ? [] : askRouteLayers(askRouteRef.current)),
+          ...(currentMobility && showCountsRef.current && !cleanRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
@@ -684,6 +687,18 @@ export default function App() {
     };
     // The map is created once; light changes go through setLightPreset below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (e.metaKey || e.ctrlKey || e.altKey || target?.closest('input, select, textarea, [contenteditable="true"]')) return;
+      if (e.key !== 'h' && e.key !== 'H') return;
+      cleanRef.current = !cleanRef.current;
+      setClean(cleanRef.current);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   useEffect(() => {
@@ -960,7 +975,8 @@ export default function App() {
   const ridingHere = hud?.riding.get(campus) ?? 0;
 
   return (
-    <div className="app">
+    <div className={clean ? 'app is-clean' : 'app'}>
+      {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
         // Auto lighting: a blue multiply veil darkens the chosen preset to the sun's brightness (set per frame).
