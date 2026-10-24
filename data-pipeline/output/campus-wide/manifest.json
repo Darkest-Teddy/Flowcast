@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-24T16:25:44.523643+00:00",
+  "status": "partial",
+  "dataset": "campus-wide-public-catalog",
+  "term": "FALL 2026",
+  "counts": {
+    "courseUrlsDiscovered": 8900,
+    "coursePagesParsed": 8900,
+    "coursesListed": 8900,
+    "uniqueCourseCodes": 8454,
+    "coursesWithTargetTermTables": 4172,
+    "coursesWithoutTargetTermTables": 4728,
+    "coursesWithUnavailableDetails": 0,
+    "physicalMeetingRows": 6944,
+    "excludedRows": 4786,
+    "classroomsVerified": 437,
+    "classroomsAttempted": 441,
+    "classroomsReferenced": 609,
+    "classroomsWithoutDirectoryEntry": 168,
+    "errors": 4
+  },
+  "files": [
+    {
+      "path": "catalog.json",
+      "sha256": "fe8fe3b1f4dae4ca99972ff68c8ca2e59d69264037329eb2405b992d9d30bad2"
+    },
+    {
+      "path": "coverage.json",
+      "sha256": "31d2e8a18dbd52346025cd5c6f982f8d24898fb1406ad8e640747aaedf443c8c"
+    },
+    {
+      "path": "course-urls.json",
+      "sha256": "969a66daf555a786a5ecb0bb63b109331177c30aaad62a37c37552252a29fdc0"
+    },
+    {
+      "path": "courses.jsonl",
+      "sha256": "51bbb8d8ba7141ce36fc833f5440622c7347488c9d00e52660f278d72a232741"
+    },
+    {
+      "path": "meetings.jsonl",
+      "sha256": "eede328084b9397499a2b12976aac1d2c9ba7528cb15fb39f818efd998bb30b9"
+    },
+    {
+      "path": "excluded-meetings.jsonl",
+      "sha256": "d06ce3fde510d9f2bb65702fbbc68672888e20c108e7dd5a5f106db259cff779"
+    }
+  ]
+}

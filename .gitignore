@@ -33,5 +33,10 @@ data-pipeline/.cache/
 # TypeScript incremental build state
 *.tsbuildinfo
 
-# Generated public-source acquisitions (rebuild with the scraping CLIs)
-data-pipeline/output/
+# Version normalized public snapshots; keep logs and scratch output local.
+data-pipeline/output/*
+!data-pipeline/output/*.json
+!data-pipeline/output/campus-wide/
+data-pipeline/output/campus-wide/*
+!data-pipeline/output/campus-wide/*.json
+!data-pipeline/output/campus-wide/*.jsonl

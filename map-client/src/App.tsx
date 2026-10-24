@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
@@ -7,6 +7,7 @@ import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './la
 import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
+import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
@@ -15,6 +16,7 @@ import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
 import { ScheduledTransit } from './transit/scheduled';
 import { CameraControls } from './CameraControls';
+import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
 
@@ -64,6 +66,7 @@ export default function App() {
   const selectedRef = useRef<string | null>(null);
   const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitRef = useRef<Transit | null>(null);
+  const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
 
   const [status, setStatus] = useState('Loading campus…');
@@ -98,7 +101,7 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, monuments] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
@@ -108,14 +111,15 @@ export default function App() {
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
         loadBuildings().catch(() => null),
         loadStreet().catch(() => null),
+        loadMonuments().catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
+      const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
       if (detailedBuildings) {
         // Our detailed models replace Mapbox's own copies of those buildings.
-        const ids = detailedBuildings.manifest.campuses.flatMap((c) => c.buildings.map((b) => Number(b.osm.split('/')[1])));
-        basemap.excludeBuildings(ids);
+        basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])));
       }
 
       if (transitData) {
@@ -204,26 +208,33 @@ export default function App() {
           roofHeights,
         });
         const transit = transitRef.current;
-        overlay!.setProps({
-          layers: [
-            ...(detailedBuildings
-              ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
-              : []),
-            ...crowdLayers({
-              footprints: day.buildings,
-              buildings,
-              trips: day.trips,
-              time: t,
-              speed: speedRef.current,
-              selectedId: selectedRef.current,
-              zoom: basemap.getZoom(),
-              roofHeights,
-            }),
-            ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
-            ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
-            ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
-          ],
-        });
+        const frameLayers = [
+          ...(detailedBuildings
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
+            : []),
+          ...crowdLayers({
+            // Every tracked building, modelled or not: the glow is light around and on top of
+            // the model (at its real height), never a box over it.
+            footprints: day.buildings,
+            buildings,
+            trips: day.trips,
+            time: t,
+            speed: speedRef.current,
+            selectedId: selectedRef.current,
+            zoom: basemap.getZoom(),
+            roofHeights,
+          }),
+          ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
+          ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+          ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
+          ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+        ];
+        overlay!.setProps({ layers: frameLayers });
+        perfRef.current = {
+          walkers: walking.length,
+          vehicles: transit ? (liveRef.current ? transit.feed.positionsAt(now) : transit.schedule.positionsAt()).length : 0,
+          layers: frameLayers.length,
+        };
         frame = requestAnimationFrame(tick);
       };
       frame = requestAnimationFrame(tick);
@@ -257,6 +268,8 @@ export default function App() {
     if (c.id === 'charles-river') basemapRef.current?.flyTo(INITIAL_VIEW.center, INITIAL_VIEW.zoom);
     else basemapRef.current?.flyTo(c.center, 16.4);
   };
+
+  const getPerfCounts = useCallback(() => perfRef.current, []);
 
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
@@ -334,6 +347,7 @@ export default function App() {
 
       {status && <div className="panel status" role="status">{status}</div>}
 
+      <PerfMonitor counts={getPerfCounts} />
       {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
       {mapKind && <WeatherControls basemap={basemapRef.current} light={light} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
 
