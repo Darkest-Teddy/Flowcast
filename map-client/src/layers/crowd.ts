@@ -225,17 +225,9 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
-    // Roof: a faint wash of the level's colour, just above the roof.
-    new SolidPolygonLayer<Glow>({
-      id: 'crowd-roofs',
-      data: flatRoofs,
-      getPolygon: (d) => ring3d(d.geo.outline, d.top + ROOF_LIFT),
-      getFillColor: (d) => withAlpha(d.level.glow, Math.min(255, d.level.roof * roofBoost)),
-      parameters: GLOW_PARAMETERS,
-      updateTriggers: { getFillColor: [key, zoomKey] },
-      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
-      slot: 'middle',
-    }),
+    // (No roof wash: a filled plane at the model's top floated as a tinted sheet wherever the top
+    // isn't a flat roof over the whole footprint, e.g. over Marsh Plaza next to CAS. The rim,
+    // edges and halo carry the level.)
     // Corners: hairlines of light from the roof, fading out before they reach the street.
     new LineLayer<Edge>({
       id: 'crowd-edges',
