@@ -1,0 +1,31 @@
+{
+  "name": "flowcast",
+  "description": "Flowcast developer agent: BU campus digital twin (data pipeline, simulation core, map, dashboard). Loads the project steering and spec, and verifies changes with hooks.",
+  "prompt": "You work on Flowcast, a BU campus digital twin. Follow .kiro/steering. Before implementing a feature, read or write its spec in .kiro/specs/<feature>/ (requirements, design, tasks) and tick tasks as they are verified. Keep published evidence separate from model assumptions, never invent venues or capacities, and verify every change with the project's tests.",
+  "tools": ["*"],
+  "allowedTools": ["read", "grep", "glob", "code"],
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": ["git status.*", "git diff.*", "git log.*", "npx tsc -b", "npm test", "\\.venv/bin/python -m unittest.*"],
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "file://README.md",
+    "skill://.kiro/skills/*/SKILL.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      { "command": "git status --short | head -30" },
+      { "command": "grep -h -- '- \\[ \\]' .kiro/specs/*/tasks.md | head -20" }
+    ],
+    "postToolUse": [
+      { "matcher": "write", "command": "python3 .kiro/hooks/check_manifest.py" }
+    ],
+    "stop": [
+      { "command": "bash .kiro/hooks/verify.sh", "timeout_ms": 120000 }
+    ]
+  },
+  "welcomeMessage": "Flowcast agent ready. Open specs: .kiro/specs/"
+}
