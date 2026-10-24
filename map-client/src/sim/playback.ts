@@ -4,7 +4,41 @@
 
 export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'off-campus';
 
+export interface EstimatedHousingProfile {
+  locationId: string;
+  campus: string;
+  studentLevel: 'undergraduate' | 'graduate';
+  capacity: number;
+  occupancyRate: number;
+  confidence: 'low';
+  basis: string;
+  note: string;
+  proxy: string;
+  capacityRange?: [number, number];
+  occupancyRateRange?: [number, number];
+}
+export interface EstimatedActivityProfile {
+  locationId: string;
+  campus: string;
+  purpose: 'academic' | 'research' | 'community' | 'arena' | 'rowing';
+  studentLevel: 'undergraduate' | 'graduate' | 'any';
+  weekdayWindows: { weekday: number; windows: [number, number][] }[];
+  durationMinutes: number;
+  attendanceProbability: number;
+  capacity: number;
+  dailyParticipants: number;
+  confidence: 'low';
+  basis: string;
+  note: string;
+  proxy: string;
+  capacityRange?: [number, number];
+  participantRange?: [number, number];
+}
 export interface CampusLocation {
+  estimatedProfile?: EstimatedActivityProfile;
+  estimatedHousingProfile?: EstimatedHousingProfile;
+  activityModeled?: boolean;
+  capacityBasis?: string;
   id: string;
   name: string;
   short: string; // what students call it: "CDS", "GSU", "StuVi"
@@ -33,6 +67,8 @@ export interface BuildingFootprint {
 }
 
 export interface BuildingOccupancy {
+  modeled?: boolean;
+  capacityBasis?: string;
   id: string;
   name: string; // the building's busiest location right now
   short: string;
@@ -90,6 +126,7 @@ export interface WalkingAgent {
 }
 
 export interface Occupancy {
+  modeled?: boolean;
   location: CampusLocation;
   count: number;
   share: number; // count / capacity, can exceed 1
@@ -197,21 +234,16 @@ export class Playback {
   }
 
   /**
-   * Roll location occupancy up to footprints, so co-located places share one label and glow.
-   * Counts include every co-located place. The color scale retains the busiest place's
-   * model load so a busy dining hall remains visible beneath a quiet dorm.
+   * Show the busiest modeled space on each footprint. Its name, count and reference
+   * capacity describe that same space, rather than mixing totals with a maximum ratio.
    */
   byBuilding(occupancy: Occupancy[]): BuildingOccupancy[] {
     const out = new Map<string, BuildingOccupancy>();
-    for (const { location, count, share } of occupancy) {
+    for (const { location, count, share, modeled = location.activityModeled !== false } of occupancy) {
       if (location.kind === 'off-campus') continue;
       const current = out.get(location.building);
-      if (current) {
-        current.count += count;
-        current.capacity += location.capacity;
-        current.share = Math.max(current.share, share);
-        continue;
-      }
+      if (current && (Number(current.modeled !== false) > Number(modeled)
+        || (current.modeled !== false) === modeled && (current.share > share || current.share === share && current.count >= count))) continue;
       out.set(location.building, {
         id: location.building,
         name: location.name,
@@ -220,6 +252,8 @@ export class Playback {
         count,
         capacity: location.capacity,
         share,
+        modeled,
+        capacityBasis: location.capacityBasis,
       });
     }
     return [...out.values()];
@@ -235,7 +269,7 @@ export class Playback {
       }
       return this.locations.filter((location) => location.kind !== 'off-campus').map((location) => {
         const count = counts.get(location.id) ?? 0;
-        return { location, count, share: location.capacity > 0 ? count / location.capacity : 0 };
+        return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false };
       });
     }
     for (const [agentId, trips] of this.tripsByAgent) {
@@ -248,7 +282,7 @@ export class Playback {
     }
     return this.locations.map((location) => {
       const count = counts.get(location.id) ?? 0;
-      return { location, count, share: location.capacity > 0 ? count / location.capacity : 0 };
+      return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false };
     });
   }
 }

@@ -39,3 +39,42 @@ class RuntimeDataTests(unittest.TestCase):
         self.assertEqual(actual['locationCapacityBasis']['renovated']['coverage'], 'partial')
         source['referenceWeekStart'] = '2026-10-26'
         self.assertEqual(build_population(population, campuses, source, availability)['residentialCapacities'], {})
+
+    def test_classrooms_deduplicate_room_seats_without_creating_residential_beds(self):
+        population = {'students': {'total': 10, 'cohorts': [{'headcount': 10}]}}
+        campuses = [{'locations': [{'id': 'mixed', 'kind': 'dorm', 'capacity': 0},
+                                  {'id': 'class', 'kind': 'classroom', 'capacity': 900}]}]
+        meeting = lambda room, seats: {'roomCode': room, 'roomCapacity': seats, 'calendarRestricted': False}
+        source = {'locations': {'mixed': {'evidence': [], 'meetings': [meeting('114', None), meeting('114', 150), meeting('114', 150)]},
+                               'class': {'evidence': [], 'meetings': [meeting('A', 100), meeting('A', 100), meeting('B', None)]}}}
+        actual = build_population(population, campuses, source)
+        self.assertEqual(actual['locationCapacities']['mixed'], 150)
+        self.assertNotIn('mixed', actual['residentialCapacities'])
+        self.assertEqual(actual['locationCapacities']['class'], 124)
+        self.assertEqual(actual['academicCapacities']['mixed']['confidence'], 'published')
+        self.assertEqual(actual['academicCapacities']['class']['modeledRooms'], 1)
+
+    def test_same_room_number_in_distinct_buildings_is_not_merged(self):
+        population = {'students': {'total': 1, 'cohorts': [{'headcount': 1}]}}
+        campuses = [{'locations': [{'id': 'combined', 'kind': 'classroom', 'capacity': 900}]}]
+        meetings = [{'buildingCode': code, 'roomCode': '101', 'roomCapacity': seats} for code, seats in [('A', 40), ('B', 60)]]
+        source = {'locations': {'combined': {'buildingCodes': ['A', 'B'], 'evidence': [], 'meetings': meetings}}}
+        actual = build_population(population, campuses, source)
+        self.assertEqual(actual['locationCapacities']['combined'], 100)
+        del meetings[0]['buildingCode']
+        with self.assertRaisesRegex(ValueError, 'Ambiguous building code'):
+            build_population(population, campuses, source)
+
+    def test_activity_quota_does_not_replace_building_reference_and_estimates_expire(self):
+        population = {'students': {'total': 1, 'cohorts': [{'headcount': 1}]}}
+        campuses = [{'locations': [{'id': 'arena', 'kind': 'gym', 'capacity': 1500}]}]
+        source = {'referenceWeekStart': '2026-10-19', 'locations': {'arena': {'evidence': [], 'meetings': []}}}
+        profiles = {'referenceWeekStart': '2026-10-19', 'housing': [], 'activities': [
+            {'locationId': 'arena', 'capacity': 120, 'confidence': 'low', 'note': 'Student practice quota', 'proxy': 'Configured size and purpose'}]}
+        actual = build_population(population, campuses, source, estimates=profiles)
+        self.assertEqual(actual['locationCapacities']['arena'], 1500)
+        self.assertEqual(actual['locationEstimatedProfiles']['arena']['capacity'], 120)
+        self.assertEqual(actual['locationCapacityBasis']['arena']['basis'], 'estimated_student_capacity')
+        source['referenceWeekStart'] = '2026-10-26'
+        with self.assertRaisesRegex(ValueError, 'require review'):
+            build_population(population, campuses, source, estimates=profiles)
