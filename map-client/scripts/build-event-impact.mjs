@@ -16,20 +16,23 @@ registerHooks({ resolve(specifier, context, next) {
 } });
 const { buildPopulation } = await import('../src/sim/population.ts');
 const { buildSourceDay } = await import('../src/sim/sourceDay.ts');
+const { createTransitService, mergeSchedules } = await import('../src/sim/transitService.ts');
 const { GATHERING_ASSUMPTIONS, GATHERING_ATTENDANCE_PROBABILITY, gatheringExclusion, gatheringsOnDate, weekdayOf } = await import('../src/sim/gatherings.ts');
 
 const dataDir = new URL('../public/data/', import.meta.url);
 const outputUrl = new URL('event-impact.json', dataDir);
-const inputs = ['campus-data', 'demo-day', 'population'].map(name => readFileSync(new URL(`${name}.json`, dataDir)));
-const code = ['sourceDay.ts', 'gatherings.ts', 'population.ts'].map(name => readFileSync(new URL(`../src/sim/${name}`, import.meta.url)));
+const inputs = ['campus-data', 'demo-day', 'population', 'transit-schedule', 'shuttle-schedule'].map(name => readFileSync(new URL(`${name}.json`, dataDir)));
+const code = ['sourceDay.ts', 'gatherings.ts', 'population.ts', 'transitService.ts'].map(name => readFileSync(new URL(`../src/sim/${name}`, import.meta.url)));
 const inputHash = createHash('sha256').update(Buffer.concat([...inputs, ...code])).digest('hex');
 if (process.argv.includes('--if-stale') && existsSync(outputUrl) && JSON.parse(readFileSync(outputUrl)).inputHash === inputHash) {
   console.log('event-impact.json is up to date');
   process.exit(0);
 }
 
-const [source, demoDay, population] = inputs.map(body => JSON.parse(body));
+const [source, demoDay, population, mbta, shuttle] = inputs.map(body => JSON.parse(body));
 const base = buildPopulation(demoDay, source, population);
+// Same timetable as the map, so commuters ride the same scheduled trips in both.
+const transit = createTransitService(mergeSchedules(mbta, shuttle));
 const places = base.locations.filter(location => location.kind !== 'off-campus');
 
 /** Hourly mean head count per place; places that are empty all day are omitted. */
@@ -48,13 +51,13 @@ function hourlyOccupancy(day) {
 
 const started = Date.now();
 const baseline = {};
-for (let weekday = 0; weekday < 7; weekday++) baseline[weekday] = hourlyOccupancy(buildSourceDay(base, source, weekday));
+for (let weekday = 0; weekday < 7; weekday++) baseline[weekday] = hourlyOccupancy(buildSourceDay(base, source, weekday, transit));
 
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
 const dates = {};
 const eventDates = [...new Set(source.events.map(event => event.start.slice(0, 10)))].filter(date => gatheringsOnDate(source, date).length).sort();
 for (const date of eventDates) {
-  const day = buildSourceDay(base, source, weekdayOf(date), { eventDate: date });
+  const day = buildSourceDay(base, source, weekdayOf(date), transit, { eventDate: date });
   const occupancy = hourlyOccupancy(day);
   const before = baseline[weekdayOf(date)];
   // Keep only places the events changed; everything else equals the weekday baseline.

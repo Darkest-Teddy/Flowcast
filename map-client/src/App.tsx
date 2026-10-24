@@ -3,7 +3,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, modelRoofHeights, type RoofHeights } from './layers/crowd';
+import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
@@ -27,6 +27,8 @@ import { dateForWeekday, loadCampusData, WEEKDAYS, type CampusData } from './dat
 import { buildSourceDay, type SourceDay } from './sim/sourceDay';
 import { weekdayOf } from './sim/gatherings';
 import { EventsPanel } from './EventsPanel';
+import { createTransitService, mergeSchedules, type TransitService } from './sim/transitService';
+import { waitingCharacters, waitingRiderLayers } from './layers/waitingRiders';
 import { SourceDataPanel } from './SourceDataPanel';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
@@ -36,6 +38,7 @@ import { activeWindFromDegrees } from './weather/weather';
 import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
 import { quality } from './perf/quality';
+import { pacer } from './perf/pacer';
 import {
   BikeReplay,
   BluebikesFeed,
@@ -53,6 +56,9 @@ import { LoadingScreen, createLoadProgress } from './LoadingScreen';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
+import { IncidentPanel, type IncidentRun } from './IncidentPanel';
+import { applyIncident, type IncidentKind } from './sim/incidents';
+import { incidentLayers } from './layers/incidents';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -101,6 +107,8 @@ interface Hud {
   occupancy: Occupancy[];
   /** Bluebikes riders on the map, by the campus of the BU dock they left or are heading to. */
   riding: Map<string, number>;
+  /** Students standing at stops for a published departure. */
+  waiting: number;
 }
 
 interface Transit {
@@ -149,12 +157,17 @@ export default function App() {
   const lightModeRef = useRef<LightPreset | 'auto'>('auto');
   const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes' | 'traffic'>('crowds');
+  const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes' | 'traffic' | 'incidents'>('crowds');
+  const [incidentRun, setIncidentRun] = useState<IncidentRun | null>(null);
+  const incidentRunRef = useRef<IncidentRun | null>(null);
+  const baselinePlaybackRef = useRef<Playback | null>(null);
   const [weekday, setWeekday] = useState(START_WEEKDAY);
   const weekdayRef = useRef(START_WEEKDAY); // 0 = Monday (the day picker's index), read by the frame loop
   const [sourceData, setSourceData] = useState<CampusData | null>(null);
   const [scheduleError, setScheduleError] = useState('');
   const baseDayRef = useRef<PopulationBase | null>(null);
+  // Published MBTA service the students ride (null: timetable unavailable, gateways are walk-only).
+  const transitServiceRef = useRef<TransitService | undefined>(undefined);
   const playbackRef = useRef<Playback | null>(null);
   // Campus events: on by default. Which date's events play is decided by eventDateFor().
   const [eventsOn, setEventsOn] = useState(START_EVENTS);
@@ -174,7 +187,7 @@ export default function App() {
   };
   /** Build (or fetch from cache) one simulated day with its campus events, and make it current. */
   const playDay = (base: PopulationBase, data: CampusData, day: number): Playback => {
-    const built = buildSourceDay(base, data, day, { eventDate: eventDateFor(data, day) });
+    const built = buildSourceDay(base, data, day, transitServiceRef.current, { eventDate: eventDateFor(data, day) });
     setSimDay(built);
     return new Playback(built);
   };
@@ -212,7 +225,9 @@ export default function App() {
     (async () => {
       loadProgress.reset();
       const track = loadProgress.track;
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, timetable, mobilitySnapshot, fields] = await Promise.all([
+      // BU Shuttle timetable (recorded TransLoc schedules + BU's GTFS baseline); MBTA-only without it.
+      const shuttleTimetable = loadPublishedSchedule('/data/shuttle-schedule.json').catch(() => null);
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields] = await Promise.all([
         track('Drawing the map', createBasemap(mapElement, shownLight)),
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
         track('Dressing the students', loadCharacterModels() as Promise<LoadedModels>),
@@ -233,6 +248,8 @@ export default function App() {
         track('Saddling up riders', loadBikeModels()).catch(() => null), // Bluebikes riders; plain blocks without them
       ]);
       if (cancelled) return basemap.remove();
+      const shuttleSchedule = await shuttleTimetable;
+      const timetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
@@ -277,6 +294,7 @@ export default function App() {
       baseDayRef.current = populationBase;
       setSourceData(snapshot);
       setMobilityData(mobilitySnapshot);
+      transitServiceRef.current = timetable ? createTransitService(timetable) : undefined;
       const playback = playDay(populationBase, snapshot, weekdayRef.current);
       playbackRef.current = playback;
       setRange([0, 86400]);
@@ -347,7 +365,7 @@ export default function App() {
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
           // Riders walking to a stop are headed for a transit stop, not a building.
-          return `Student ${agent.id} → ${playback.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
+          return `Student ${agent.id} → ${playbackRef.current?.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
         },
       });
       basemap.addControl(overlay);
@@ -368,6 +386,7 @@ export default function App() {
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
+      const volumes = modelVolumes(detailedBuildings?.manifest);
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
@@ -379,6 +398,11 @@ export default function App() {
       let buildingsPlayback: Playback | null = null;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       const tick = (now: number) => {
+        // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
+        if (!pacer.shouldRender(now)) {
+          frame = requestAnimationFrame(tick);
+          return;
+        }
         const elapsed = now - last;
         last = now;
         let nextDay = weekdayRef.current;
@@ -394,6 +418,9 @@ export default function App() {
           weekdayRef.current = nextDay;
           setWeekday(nextDay);
           playbackRef.current = playDay(populationBase, snapshot, nextDay);
+          baselinePlaybackRef.current = null;
+          incidentRunRef.current = null;
+          setIncidentRun(null);
           lastOccupancy = 0;
         }
         const playback = playbackRef.current!;
@@ -420,6 +447,7 @@ export default function App() {
         const q = quality.settings;
         setParticleScale(q.particles);
         const walking = playback.walkingAt(t);
+        const waitingRiders = playback.waitingAt(t);
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
@@ -428,10 +456,11 @@ export default function App() {
           if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
           const ridingByCampus = new Map<string, number>();
           for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
-          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus });
+          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length });
         }
-        // One placer per frame, shared by every label layer: building tags first, then stations.
+        // Reserve the active assembly label before placing building and transit tags.
         const placer = createPlacer(basemap.project);
+        const incidentFrameLayers = incidentLayers(incidentRunRef.current, t, occupancy, day.buildings, placer);
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
         if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
           buildingOccupancy = playback.byBuilding(occupancy);
@@ -461,7 +490,10 @@ export default function App() {
           placer,
           project: basemap.project,
           zoom: basemap.getZoom(),
-          transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay } : null,
+          transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay,
+            // Modeled BU students on a published trip; live vehicles have no matching trip id.
+            aboard: (vehicleId: string) => aboardPublished(vehicleId, t, playback),
+            waiting: waitingByStop(waitingRiders) } : null,
           bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
         });
         // Then monuments, artworks, open spaces and fields.
@@ -485,6 +517,7 @@ export default function App() {
             selectedId: selectedRef.current,
             zoom: basemap.getZoom(),
             roofHeights,
+            volumes,
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
@@ -496,6 +529,8 @@ export default function App() {
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
           ...agentLayers(nearView(walking, basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
+          ...incidentFrameLayers,
+          ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
@@ -566,6 +601,7 @@ export default function App() {
     setLive(false);
   };
   const goLive = () => {
+    resetIncident();
     liveRef.current = true;
     setLive(true);
     speedRef.current = 1;
@@ -593,6 +629,7 @@ export default function App() {
   const scrub = (t: number) => {
     leaveLive();
     timeRef.current = t;
+    refreshIncidentHud();
   };
   const selectBuilding = (id: string | null) => {
     selectedRef.current = id;
@@ -608,6 +645,9 @@ export default function App() {
     if (!baseDayRef.current || !sourceData) return;
     leaveLive();
     playbackRef.current = playDay(baseDayRef.current, sourceData, value);
+    baselinePlaybackRef.current = null;
+    incidentRunRef.current = null;
+    setIncidentRun(null);
     setWeekday(value);
     weekdayRef.current = value;
     setHud((prev) => ({
@@ -615,6 +655,7 @@ export default function App() {
       walking: playbackRef.current!.walkingAt(timeRef.current).length,
       occupancy: playbackRef.current!.occupancyAt(timeRef.current),
       riding: prev?.riding ?? new Map(),
+      waiting: playbackRef.current!.waitingAt(timeRef.current).length,
     }));
   };
   /** Turn campus events on or off for the shown day. */
@@ -632,9 +673,43 @@ export default function App() {
   };
   const selectSource = (location: CampusLocation) => {
     setCampus(location.campus ?? 'charles-river');
-    selectedRef.current = location.building;
-    setSelected(location.building);
+    selectedRef.current = location.kind === 'outdoor' ? null : location.building;
+    setSelected(selectedRef.current);
     basemapRef.current?.flyTo(location.position);
+  };
+  const refreshIncidentHud = () => {
+    const playback = playbackRef.current;
+    if (!playback) return;
+    setHud((previous) => ({
+      time: timeRef.current,
+      walking: playback.walkingAt(timeRef.current).length,
+      occupancy: playback.occupancyAt(timeRef.current),
+      riding: previous?.riding ?? new Map(),
+      waiting: playback.waitingAt(timeRef.current).length,
+    }));
+  };
+  const startIncident = (kind: IncidentKind, locationId: string, duration: number) => {
+    const baseline = playbackRef.current;
+    if (!baseline || baselinePlaybackRef.current) throw new Error('Reset the current scenario before starting another incident.');
+    if (timeRef.current + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
+    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration };
+    const result = applyIncident(baseline.data, incident, sourceData ? { sourceData, weekday: weekdayRef.current } : undefined);
+    const playback = new Playback(result.day);
+    baselinePlaybackRef.current = baseline;
+    playbackRef.current = playback;
+    leaveLive();
+    const run = { incident, location: baseline.locations.find((location) => location.id === locationId)!,
+      assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants };
+    incidentRunRef.current = run;
+    setIncidentRun(run);
+    refreshIncidentHud();
+  };
+  const resetIncident = () => {
+    if (baselinePlaybackRef.current) playbackRef.current = baselinePlaybackRef.current;
+    baselinePlaybackRef.current = null;
+    incidentRunRef.current = null;
+    setIncidentRun(null);
+    refreshIncidentHud();
   };
   const changeMobilityMode = (mode: MobilityMode) => {
     mobilityModeRef.current = mode;
@@ -652,7 +727,7 @@ export default function App() {
   };
   const currentCampus = campuses.find((c) => c.id === campus);
   const ranked = hud
-    ? hud.occupancy.filter((o) => (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
+    ? hud.occupancy.filter((o) => o.location.kind !== 'outdoor' && (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
     : [];
   // The camera tour only cares which places are in the campus (it re-picks when that set changes),
   // so it gets a new list only then, not on every HUD refresh.
@@ -685,7 +760,7 @@ export default function App() {
       <header className="panel title">
         <h1>Flowcast</h1>
         <p>
-          {currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]} {hud ? `· ${hud.walking} walking` : ''}
+          {currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]} {hud ? `· ${hud.walking} walking` : ''}{hud?.waiting ? ` · ${hud.waiting} at stops` : ''}
           {bikes && showBikes && hud ? ` · ${ridingHere} on Bluebikes` : ''}
         </p>
         <p className="model-note">{sourceData ? 'Campus simulation · Fall 2026' : 'Campus simulation · Demo'}</p>
@@ -716,6 +791,7 @@ export default function App() {
               Crowds
             </button>
             <button role="tab" id="tab-data" aria-selected={tab === 'data'} aria-controls="panel-data" onClick={() => setTab('data')}>Data</button>
+            <button role="tab" id="tab-incidents" aria-selected={tab === 'incidents'} aria-controls="panel-incidents" onClick={() => setTab('incidents')}>Incidents</button>
             <button role="tab" id="tab-transit" aria-selected={tab === 'transit'} aria-controls="panel-transit" onClick={() => setTab('transit')}>
               Transit
             </button>
@@ -726,7 +802,10 @@ export default function App() {
               </button>
             )}
           </div>
-          {tab === 'crowds' ? (
+          {tab === 'incidents' ? (
+            <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
+              onStart={startIncident} onReset={resetIncident} onLocate={selectSource} />
+          ) : tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
               {sourceData && baseDayRef.current && (
                 <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
@@ -990,7 +1069,7 @@ export default function App() {
             max={range[1]}
             step={60}
             value={hud.time}
-            onChange={(e) => scrub(Number(e.target.value))}
+            onInput={(e) => scrub(Number(e.currentTarget.value))}
             aria-label="Time of day"
             aria-valuetext={formatClock(hud.time)}
           />
@@ -1068,6 +1147,18 @@ function readableOn(hex: string): string {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.18 ? '#111' : '#fff';
 }
 
+/** Students aboard a published vehicle (`published:<weekday>:<offset>:<trip>:<run>`); null for live or overnight runs. */
+function aboardPublished(vehicleId: string, t: number, playback: Playback): number | null {
+  const match = /^published:\d+:0:(.+):\d+$/.exec(vehicleId);
+  return match ? playback.studentsAboard(match[1], t) : null;
+}
+
+function waitingByStop(waiting: { stop: string }[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const rider of waiting) counts.set(rider.stop, (counts.get(rider.stop) ?? 0) + 1);
+  return counts;
+}
+
 /** Walkers within `radius` metres of the view centre (all of them when radius is null). */
 function nearView(walkers: WalkingAgent[], center: [number, number], radius: number | null): WalkingAgent[] {
   if (radius === null) return walkers;
@@ -1126,7 +1217,7 @@ function splitSharedTags(
 ): BuildingOccupancy[] {
   const byBuilding = new Map<string, Occupancy[]>();
   for (const o of occupancy) {
-    if (o.location.kind === 'off-campus') continue;
+    if (o.location.kind === 'off-campus' || o.location.kind === 'outdoor') continue;
     byBuilding.set(o.location.building, [...(byBuilding.get(o.location.building) ?? []), { ...o, share: occupancyShare(o.count, o.location.capacity) }]);
   }
   const out: BuildingOccupancy[] = [];

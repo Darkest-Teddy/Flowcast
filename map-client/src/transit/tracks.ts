@@ -43,6 +43,201 @@ export function offsetPath(points: [number, number][], metres: number): [number,
   });
 }
 
+// ---------------------------------------------------------------------------------------------
+// Two parallel tracks per line. The Green Line paths are snapped onto OpenStreetMap's rails, whose
+// nodes wander: along Comm Ave the two directions came out anywhere from 0 to 6 m apart, merging
+// into one line at crossovers (BU Central) and drifting elsewhere. Where the two directions run
+// together they're rebuilt from one straightened, smoothed centreline, each exactly
+// TRACK_HALF_SPACING to the right of it (right-hand running), so they're straight and parallel.
+// Where they really part (tunnel portals, junctions) each keeps its own path, blended in over a
+// few metres. Point counts and order are kept, so tunnel spans (point indices) stay valid.
+// ---------------------------------------------------------------------------------------------
+
+/** Half the distance between the two tracks' centres (Green Line track centres are ~3.9 m apart). */
+export const TRACK_HALF_SPACING = 1.95;
+const PAIR_MAX_METRES = 9; // the two directions count as running together when closer than this
+const FULL_SNAP_METRES = PAIR_MAX_METRES / 2 + 0.5; // ...fully rebuilt this close to the shared centreline
+const BLEND_END_METRES = FULL_SNAP_METRES + 2.5; // blended back to their own path out to here
+const CENTRELINE_TOLERANCE = 1.8; // metres: shifts this small are straightened out of the centreline
+// Only midpoints where the two tracks are a normal distance apart shape the centreline. At
+// crossovers (0 m apart) the midpoint sits on one track, and where one track swings out past a
+// platform (~6 m apart) it's pulled sideways; both made the tracks jog and come back.
+const GOOD_SEPARATION: [number, number] = [2.5, 5.5];
+const SMOOTH_HALF_WINDOW = 10; // metres: moving average over the centreline (keeps real curves)
+const RESAMPLE_STEP = 2; // metres
+
+type XY = [number, number];
+
+function nearestOnPolyline(p: XY, line: XY[]): { point: XY; distance: number; segment: number } {
+  let best = { point: line[0], distance: Infinity, segment: 0 };
+  for (let i = 1; i < line.length; i++) {
+    const [ax, ay] = line[i - 1];
+    const sx = line[i][0] - ax;
+    const sy = line[i][1] - ay;
+    const len2 = sx * sx + sy * sy || 1;
+    const f = Math.max(0, Math.min(1, ((p[0] - ax) * sx + (p[1] - ay) * sy) / len2));
+    const q: XY = [ax + sx * f, ay + sy * f];
+    const d = Math.hypot(p[0] - q[0], p[1] - q[1]);
+    if (d < best.distance) best = { point: q, distance: d, segment: i };
+  }
+  return best;
+}
+
+/** Douglas-Peucker: keep only the points that bend the line by more than `tolerance` metres. */
+function simplify(line: XY[], tolerance: number): XY[] {
+  if (line.length < 3) return line;
+  const keep = new Uint8Array(line.length);
+  keep[0] = keep[line.length - 1] = 1;
+  const stack: [number, number][] = [[0, line.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    const [ax, ay] = line[a];
+    const dx = line[b][0] - ax;
+    const dy = line[b][1] - ay;
+    const len = Math.hypot(dx, dy) || 1;
+    let worst = -1;
+    let at = -1;
+    for (let i = a + 1; i < b; i++) {
+      const d = Math.abs((line[i][0] - ax) * dy - (line[i][1] - ay) * dx) / len;
+      if (d > worst) {
+        worst = d;
+        at = i;
+      }
+    }
+    if (worst > tolerance) {
+      keep[at] = 1;
+      stack.push([a, at], [at, b]);
+    }
+  }
+  return line.filter((_, i) => keep[i]);
+}
+
+/** The line resampled every `step` metres (ends kept). */
+function resample(line: XY[], step: number): XY[] {
+  const out: XY[] = [line[0]];
+  let carry = 0;
+  for (let i = 1; i < line.length; i++) {
+    const [ax, ay] = line[i - 1];
+    const dx = line[i][0] - ax;
+    const dy = line[i][1] - ay;
+    const len = Math.hypot(dx, dy);
+    let at = step - carry;
+    while (at <= len) {
+      out.push([ax + (dx * at) / len, ay + (dy * at) / len]);
+      at += step;
+    }
+    carry = len - (at - step);
+  }
+  const last = line[line.length - 1];
+  if (Math.hypot(last[0] - out[out.length - 1][0], last[1] - out[out.length - 1][1]) > step / 4) out.push(last);
+  return out;
+}
+
+/** Moving average over +-`half` samples, the window shrinking at the ends so they stay put. */
+function movingAverage(line: XY[], half: number): XY[] {
+  return line.map((_, i) => {
+    const h = Math.min(half, i, line.length - 1 - i);
+    let x = 0;
+    let y = 0;
+    for (let k = i - h; k <= i + h; k++) {
+      x += line[k][0];
+      y += line[k][1];
+    }
+    return [x / (2 * h + 1), y / (2 * h + 1)] as XY;
+  });
+}
+
+/** Chaikin corner cutting: rounds the simplified line's corners into curves (ends stay put). */
+function smooth(line: XY[], rounds = 2): XY[] {
+  let out = line;
+  for (let r = 0; r < rounds && out.length > 2; r++) {
+    const next: XY[] = [out[0]];
+    for (let i = 0; i < out.length - 1; i++) {
+      const [ax, ay] = out[i];
+      const [bx, by] = out[i + 1];
+      if (i > 0) next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+      if (i < out.length - 2) next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+    }
+    next.push(out[out.length - 1]);
+    out = next;
+  }
+  return out;
+}
+
+/**
+ * Rebuild a line's two directions (each in its own travel order) as parallel tracks where they
+ * run together (see above). Returns new paths with the same number of points as the inputs.
+ */
+export function alignTrackPair(
+  path0: [number, number][],
+  path1: [number, number][],
+  halfSpacing = TRACK_HALF_SPACING,
+): [[number, number][], [number, number][]] {
+  if (path0.length < 2 || path1.length < 2) return [path0, path1];
+  const lat0 = path0[0][1];
+  const kx = metresPerDegLng(lat0);
+  const toXY = ([lng, lat]: [number, number]): XY => [lng * kx, lat * METRES_PER_DEG_LAT];
+  const toLngLat = ([x, y]: XY): [number, number] => [x / kx, y / METRES_PER_DEG_LAT];
+  const a = path0.map(toXY);
+  const b = path1.map(toXY);
+
+  // The shared centreline: midway between the two directions wherever they run together, from
+  // the midpoints where they're a normal distance apart (bridging straight across the others),
+  // then smoothed and straightened.
+  const runs: XY[][] = [];
+  let run: XY[] = [];
+  let paired = 0;
+  const close = () => {
+    if (run.length > 1 && paired > 1) runs.push(run);
+    run = [];
+    paired = 0;
+  };
+  for (const p of a) {
+    const q = nearestOnPolyline(p, b);
+    if (q.distance >= PAIR_MAX_METRES) {
+      close();
+      continue;
+    }
+    paired++;
+    if (q.distance >= GOOD_SEPARATION[0] && q.distance <= GOOD_SEPARATION[1]) run.push([(p[0] + q.point[0]) / 2, (p[1] + q.point[1]) / 2]);
+  }
+  close();
+  const centrelines = runs.map((r) => {
+    const even = resample(r, RESAMPLE_STEP);
+    return smooth(simplify(movingAverage(even, Math.round(SMOOTH_HALF_WINDOW / RESAMPLE_STEP)), CENTRELINE_TOLERANCE), 4);
+  });
+  if (!centrelines.length) return [path0, path1];
+
+  const place = (path: XY[]): [number, number][] =>
+    path.map((p, i) => {
+      let best: { point: XY; distance: number; segment: number; line: XY[] } | null = null;
+      for (const line of centrelines) {
+        const q = nearestOnPolyline(p, line);
+        if (!best || q.distance < best.distance) best = { ...q, line };
+      }
+      if (!best || best.distance >= BLEND_END_METRES) return toLngLat(p);
+      // The centreline's direction at that point, turned to this track's direction of travel.
+      const s0 = best.line[best.segment - 1];
+      const s1 = best.line[best.segment];
+      let tx = s1[0] - s0[0];
+      let ty = s1[1] - s0[1];
+      const tl = Math.hypot(tx, ty) || 1;
+      tx /= tl;
+      ty /= tl;
+      const prev = path[Math.max(0, i - 1)];
+      const next = path[Math.min(path.length - 1, i + 1)];
+      if ((next[0] - prev[0]) * tx + (next[1] - prev[1]) * ty < 0) {
+        tx = -tx;
+        ty = -ty;
+      }
+      // Right-hand normal of the direction of travel (x east, y north).
+      const target: XY = [best.point[0] + ty * halfSpacing, best.point[1] - tx * halfSpacing];
+      const w = best.distance <= FULL_SNAP_METRES ? 1 : 1 - (best.distance - FULL_SNAP_METRES) / (BLEND_END_METRES - FULL_SNAP_METRES);
+      return toLngLat([p[0] + (target[0] - p[0]) * w, p[1] + (target[1] - p[1]) * w]);
+    });
+  return [place(a), place(b)];
+}
+
 export function makeTrack(
   route: string,
   direction: 0 | 1,

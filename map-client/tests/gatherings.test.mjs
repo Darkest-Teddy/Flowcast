@@ -84,7 +84,7 @@ test('unmapped, multi-day and open-ended events are handled without inventing an
 test('an event draws free students to its venue; class assignments and the baseline do not change', () => {
   const { base, data } = world(80, [event('talk', '2026-10-19', 17 * HOUR, 19 * HOUR)]);
   const baseline = buildSourceDay(base, data, 0);
-  const withEvent = buildSourceDay(base, data, 0, { eventDate: '2026-10-19' });
+  const withEvent = buildSourceDay(base, data, 0, undefined, { eventDate: '2026-10-19' });
   assertCompleteTimelines(withEvent);
   assert.equal(baseline.eventDate, null);
   assert.deepEqual(baseline.gatherings, []);
@@ -98,13 +98,13 @@ test('an event draws free students to its venue; class assignments and the basel
   assert.ok(withEvent.sourceStats.assumptions.some(text => text.includes('Gathering')));
   // The baseline is cached separately and not altered by the event run.
   assert.equal(buildSourceDay(base, data, 0), baseline);
-  assert.throws(() => buildSourceDay(base, data, 1, { eventDate: '2026-10-19' }), /does not fall on weekday/);
+  assert.throws(() => buildSourceDay(base, data, 1, undefined, { eventDate: '2026-10-19' }), /does not fall on weekday/);
 });
 
 test('students in class during an event never attend it, and room seats cap attendance', () => {
   const { base, data } = world(200, [event('clash', '2026-10-19', 10 * HOUR, 11 * HOUR),
     event('seminar', '2026-10-19', 16 * HOUR, 17 * HOUR, { roomCode: '101', roomCapacity: 12 })]);
-  const day = buildSourceDay(base, data, 0, { eventDate: '2026-10-19' });
+  const day = buildSourceDay(base, data, 0, undefined, { eventDate: '2026-10-19' });
   assertCompleteTimelines(day);
   const inClass = new Set(day.sourceAssignments.filter(a => a.startSec < 11 * HOUR && a.endSec > 10 * HOUR).map(a => a.agentId));
   assert.ok(inClass.size > 0);
@@ -133,7 +133,7 @@ test('property: generated event days conserve people, respect caps and keep clas
     });
     const { base, data } = world(g.int(20, 120), events, { hallCapacity: g.int(5, 200) });
     const baseline = buildSourceDay(base, data, weekday);
-    const day = buildSourceDay(base, data, weekday, { eventDate: date });
+    const day = buildSourceDay(base, data, weekday, undefined, { eventDate: date });
     const label = `seed ${1000 + run}`;
     assertCompleteTimelines(day);
     assert.deepEqual(day.sourceAssignments, baseline.sourceAssignments, `${label}: classes unchanged`);
@@ -162,7 +162,7 @@ test('real bundle: a mapped event date raises its venue during the event only', 
   const base = buildPopulation(read('demo-day'), source, read('population'));
   const weekday = weekdayOf(date);
   const baseline = buildSourceDay(base, source, weekday);
-  const day = buildSourceDay(base, source, weekday, { eventDate: date });
+  const day = buildSourceDay(base, source, weekday, undefined, { eventDate: date });
   assert.deepEqual(day.sourceAssignments, baseline.sourceAssignments);
   assert.ok(day.gatherings.some(g => g.attendees > 0));
   for (const g of day.gatherings.filter(row => row.attendees > 0)) {

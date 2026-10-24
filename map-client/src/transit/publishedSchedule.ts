@@ -36,6 +36,9 @@ export class PublishedTransit implements TransitSource {
   readonly tracks: Track[];
   readonly coverage: { publishedTrips: number; mappedRuns: number; unmappedTrips: number };
   private readonly byDay = new Map<number, Run[]>();
+  /** Per weekday and route: first published start and last published end (service-day seconds). */
+  private readonly spans = new Map<string, [number, number]>();
+  private readonly timetabledRoutes = new Set<string>();
   private readonly routeNames: Map<string, string>;
   private active: { run: Run; offset: number }[] = [];
   private activeKey = '';
@@ -93,6 +96,11 @@ export class PublishedTransit implements TransitSource {
       if (tripRuns) mappedTrips++;
     }
     for (const rows of this.byDay.values()) rows.sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+    for (const [day, runs] of this.byDay) for (const run of runs) {
+      const key = `${day}|${run.route}`, span = this.spans.get(key);
+      this.spans.set(key, span ? [Math.min(span[0], run.start), Math.max(span[1], run.end)] : [run.start, run.end]);
+      this.timetabledRoutes.add(run.route);
+    }
     this.coverage = { publishedTrips: schedule.trips.length, mappedRuns: runCount, unmappedTrips: schedule.trips.length - mappedTrips };
   }
 
@@ -155,6 +163,12 @@ export class PublishedTransit implements TransitSource {
         track: run.track, sFrom: s, sTo: s });
     }
     return vehicles;
+  }
+
+  inService(routeId: string): boolean | undefined {
+    if (!this.timetabledRoutes.has(routeId)) return undefined;
+    const within = (day: number, t: number) => { const span = this.spans.get(`${day}|${routeId}`); return !!span && span[0] <= t && t <= span[1]; };
+    return within(this.weekday, this.time) || within((this.weekday + 6) % 7, this.time + DAY);
   }
 
   nextArrivals(stopId: string, now = Date.now()): Arrival[] {

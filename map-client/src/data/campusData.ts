@@ -50,6 +50,28 @@ export function openingHoursForDate(hours: OpeningHours[], date: string, weekday
     && (!entry.validTo || date <= entry.validTo));
 }
 
+export const CARRY_FORWARD_DAYS = 7;
+
+/**
+ * Dated service hours from the same weekday one week away, used only when `date` falls past the
+ * venue's published dated horizon (before its first or after its last dated entry). Dates inside the
+ * published range keep their strict meaning: an omitted day is not reopened. Exact-date and valid
+ * weekly entries always take precedence, so known closures are never overridden.
+ */
+export function carriedForwardHours(hours: OpeningHours[], date: string, weekday: number): OpeningHours[] {
+  if (openingHoursForDate(hours, date, weekday).length) return [];
+  const dated = hours.filter((entry): entry is OpeningHours & { date: string } => entry.date !== null).map(entry => entry.date).sort();
+  if (!dated.length || (date >= dated[0] && date <= dated.at(-1)!)) return [];
+  const target = Date.parse(`${date}T12:00:00Z`);
+  for (const offset of [-CARRY_FORWARD_DAYS, CARRY_FORWARD_DAYS]) {
+    const sourceDate = new Date(target + offset * 86400000).toISOString().slice(0, 10);
+    const entries = hours.filter(entry => entry.date === sourceDate);
+    if (entries.length) return entries.map(entry => ({ ...entry,
+      qualifier: `Carried forward from published hours for ${sourceDate}; ${date} is past the published schedule horizon.${entry.qualifier ? ` ${entry.qualifier}` : ''}` }));
+  }
+  return [];
+}
+
 export interface SourceLocation {
   id: string;
   buildingCodes: string[];

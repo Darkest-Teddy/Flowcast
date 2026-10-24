@@ -7,7 +7,7 @@
 //
 // - Quality: everything (shadows, 3D trees, footpaths, lit windows) at the screen's pixel ratio.
 // - Auto (default): starts where it last settled on this machine and steps one level at a time:
-//   0 everything, 1 no shadows, 2 no footpaths, 3 no 3D trees and walkers only near the view
+//   0 everything, 1 no shadows, 2 no footpaths or building AO, 3 no 3D trees and walkers only near the view
 //   (still at the screen's pixel ratio, lit windows kept). Down when the 1% low stays under
 //   45 FPS, back up with headroom.
 // - Speed: level 3 plus pixel ratio 1, no MSAA and no lit windows, for weak laptops.
@@ -34,6 +34,8 @@ export interface QualitySettings {
   mapShadows: boolean;
   map3dObjects: boolean;
   mapPedestrianRoads: boolean;
+  /** Ambient-occlusion shading at the foot of the city buildings (an extra ground pass per tile). */
+  mapBuildingAO: boolean;
 }
 
 const nativeDpr = (() => {
@@ -48,14 +50,14 @@ function levelSettings(level: number, speedMode = mode === 'speed'): QualitySett
   const pixelRatio = speedMode ? 1 : nativeDpr();
   switch (speedMode ? SPEED_LEVEL : level) {
     case 0:
-      return { level: 0, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: true, map3dObjects: true, mapPedestrianRoads: true };
+      return { level: 0, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: true, map3dObjects: true, mapPedestrianRoads: true, mapBuildingAO: true };
     case 1:
-      return { level: 1, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: true };
+      return { level: 1, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: true, mapBuildingAO: true };
     case 2:
-      return { level: 2, pixelRatio, particles: 0.6, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: false };
+      return { level: 2, pixelRatio, particles: 0.6, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: false, mapBuildingAO: false };
     default:
       // Lit windows stay: they're two draws, and most of the night view.
-      return { level: SPEED_LEVEL, pixelRatio, particles: 0.35, litWindows: !speedMode, walkerRadius: 1200, mapShadows: false, map3dObjects: false, mapPedestrianRoads: false };
+      return { level: SPEED_LEVEL, pixelRatio, particles: 0.35, litWindows: !speedMode, walkerRadius: 1200, mapShadows: false, map3dObjects: false, mapPedestrianRoads: false, mapBuildingAO: false };
   }
 }
 export const SPEED_LEVEL = 3;

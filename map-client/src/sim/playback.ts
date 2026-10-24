@@ -3,7 +3,7 @@
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
 import { createOccupancyIndex, type OccupancyIndex } from './occupancyIndex';
 
-export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'off-campus';
+export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'outdoor' | 'off-campus';
 
 export interface EstimatedHousingProfile {
   locationId: string;
@@ -23,7 +23,8 @@ export interface EstimatedActivityProfile {
   campus: string;
   purpose: 'academic' | 'research' | 'community' | 'arena' | 'rowing';
   studentLevel: 'undergraduate' | 'graduate' | 'any';
-  weekdayWindows: { weekday: number; windows: [number, number][] }[];
+  /** `dailyParticipants` on a row overrides the profile-wide limit for that weekday. */
+  weekdayWindows: { weekday: number; windows: [number, number][]; dailyParticipants?: number }[];
   durationMinutes: number;
   attendanceProbability: number;
   capacity: number;
@@ -103,10 +104,41 @@ export interface Trip {
   timestamps: number[]; // seconds since midnight, one per path point
 }
 
-export interface Stay { agent: string; location: string; start: number; end: number }
+/** Why an agent occupies a stay. `fixed` stays (published classes) must never be relocated. */
+export type StayPurpose =
+  | { kind: 'class'; fixed: true; meetingId: string; courseCode: string }
+  | { kind: 'dining' | 'library' | 'gym'; fixed: false }
+  | { kind: 'estimated'; fixed: false; purpose: EstimatedActivityProfile['purpose'] }
+  | { kind: 'off-campus-meal' | 'off-campus-outing' | 'unmapped-academic'; fixed: false }
+  | { kind: 'gathering'; fixed: false; eventId: string }
+  | { kind: 'wait'; fixed: false; before: 'class' | 'activity' }
+  | { kind: 'home'; fixed: false };
+export interface Stay { agent: string; location: string; start: number; end: number; purpose?: StayPurpose }
+
+/**
+ * A student stepping off (`alight`) or onto (`board`) one published MBTA trip at a campus stop.
+ * `time` is the published arrival (alight) or departure (board); boarders wait from `waitStart`.
+ */
+export interface TransitRide {
+  /** A scenario can invalidate a future ride without rewriting playback before the incident. */
+  cancelledAt?: number;
+  agent: string;
+  kind: 'alight' | 'board';
+  trip: string; // GTFS trip id
+  route: string;
+  direction: 0 | 1;
+  stop: string; // map stop id
+  time: number;
+  waitStart?: number;
+  position: [number, number];
+}
+
+/** A student standing at a stop for their published departure. */
+export interface WaitingRider { id: string; model: number; stop: string; route: string; direction: 0 | 1; position: [number, number]; boardsAt: number }
 
 export interface DayData {
   stays?: Stay[];
+  transitRides?: TransitRide[];
   day: string;
   campuses?: Campus[];
   buildings: BuildingFootprint[];
@@ -173,7 +205,10 @@ export class Playback {
   private readonly staysByAgent = new Map<string, Stay[]>();
   private readonly stayOccupancy: OccupancyIndex | null;
   private readonly walkingBuckets = new Map<number, Trip[]>();
+  private readonly outdoorStays: { stay: Stay; location: CampusLocation }[] = [];
   private trailWindow: { first: number; last: number; trips: Trip[] } | null = null;
+  private readonly ridesByTrip = new Map<string, TransitRide[]>();
+  private readonly waitingBuckets = new Map<number, TransitRide[]>();
 
   readonly data: DayData;
 
@@ -204,9 +239,23 @@ export class Playback {
         this.walkingBuckets.set(bucket, active);
       }
     }
+    for (const ride of data.transitRides ?? []) {
+      const list = this.ridesByTrip.get(ride.trip) ?? [];
+      list.push(ride); this.ridesByTrip.set(ride.trip, list);
+      if (ride.kind !== 'board' || ride.waitStart === undefined) continue;
+      for (let bucket = Math.floor(ride.waitStart / 300); bucket <= Math.floor(ride.time / 300); bucket++) {
+        const waiting = this.waitingBuckets.get(bucket) ?? [];
+        waiting.push(ride); this.waitingBuckets.set(bucket, waiting);
+      }
+    }
     for (const stay of data.stays ?? []) {
       const list = this.staysByAgent.get(stay.agent) ?? [];
       list.push(stay); this.staysByAgent.set(stay.agent, list);
+    }
+    const outdoorLocations = new Map(data.locations.filter(location => location.kind === 'outdoor').map(location => [location.id, location]));
+    for (const stay of data.stays ?? []) {
+      const location = outdoorLocations.get(stay.location);
+      if (location) this.outdoorStays.push({ stay, location });
     }
     for (const list of this.staysByAgent.values()) list.sort((a, b) => a.start - b.start);
     for (const list of this.tripsByAgent.values()) list.sort((a, b) => a.timestamps[0] - b.timestamps[0]);
@@ -248,6 +297,28 @@ export class Playback {
     return this.trailWindow.trips;
   }
 
+  /** Modeled students aboard a published trip at time t: those yet to step off plus those who got on. */
+  studentsAboard(trip: string, t: number): number {
+    let count = 0;
+    for (const ride of this.ridesByTrip.get(trip) ?? []) {
+      if (ride.cancelledAt !== undefined && t >= ride.cancelledAt) continue;
+      if (ride.kind === 'alight' ? t < ride.time : t >= ride.time) count++;
+    }
+    return count;
+  }
+
+  /** Students waiting at stops for their published departure at time t. */
+  waitingAt(t: number): WaitingRider[] {
+    const out: WaitingRider[] = [];
+    for (const ride of this.waitingBuckets.get(Math.floor(t / 300)) ?? []) {
+      if (ride.cancelledAt !== undefined && t >= ride.cancelledAt) continue;
+      if (ride.waitStart! > t || t >= ride.time) continue;
+      out.push({ id: ride.agent, model: this.agents.get(ride.agent)?.model ?? 0, stop: ride.stop, route: ride.route,
+        direction: ride.direction, position: ride.position, boardsAt: ride.time });
+    }
+    return out;
+  }
+
   /** Only trips active in this five-minute bucket need position interpolation. */
   walkingAt(t: number): WalkingAgent[] {
     const out: WalkingAgent[] = [];
@@ -271,10 +342,23 @@ export class Playback {
     return out;
   }
 
+  /** Stationary outdoor people are distinct from walkers and off-map students. */
+  outdoorAt(t: number): WalkingAgent[] {
+    return this.outdoorStays.filter(({ stay }) => stay.start <= t && t < stay.end).map(({ stay, location }) => ({
+      id: stay.agent,
+      model: this.agents.get(stay.agent)!.model,
+      position: [location.position[0], location.position[1], 0],
+      bearing: 0,
+      to: location.id,
+    }));
+  }
+
   populationAt(t: number) {
-    const indoors = this.occupancyAt(t).reduce((sum, entry) => sum + entry.count, 0);
+    const occupancy = this.occupancyAt(t);
+    const indoors = occupancy.reduce((sum, entry) => sum + (entry.location.kind === 'outdoor' ? 0 : entry.count), 0);
+    const outdoors = occupancy.reduce((sum, entry) => sum + (entry.location.kind === 'outdoor' ? entry.count : 0), 0);
     const walking = this.walkingAt(t).length;
-    return { total: this.data.agents.length, indoors, walking, offCampus: this.data.agents.length - indoors - walking };
+    return { total: this.data.agents.length, indoors, outdoors, walking, offCampus: this.data.agents.length - indoors - outdoors - walking };
   }
 
   /**
@@ -284,7 +368,7 @@ export class Playback {
   byBuilding(occupancy: Occupancy[]): BuildingOccupancy[] {
     const out = new Map<string, BuildingOccupancy>();
     for (const { location, count, modeled = location.activityModeled !== false } of occupancy) {
-      if (location.kind === 'off-campus') continue;
+      if (location.kind === 'off-campus' || location.kind === 'outdoor') continue;
       const share = occupancyShare(count, location.capacity);
       const current = out.get(location.building);
       if (current && (Number(current.modeled !== false) > Number(modeled)

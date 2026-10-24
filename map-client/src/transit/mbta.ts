@@ -7,7 +7,7 @@
 
 import { pollShuttleArrivals, pollShuttleVehicles, type ShuttleData } from './buShuttle';
 import { isFreshObservation, parseObservationTime } from './liveFreshness';
-import { isUnderground, makeTrack, pointAlong, snapToTracks, type Track } from './tracks';
+import { alignTrackPair, isUnderground, makeTrack, pointAlong, snapToTracks, type Track } from './tracks';
 import { JUMP_METRES, newFollower, stepFollower, trackFeatures, type Follower, type Holding } from './motion';
 
 const API = 'https://api-v3.mbta.com';
@@ -157,6 +157,8 @@ export interface TransitSource {
   positionsAt(now: number): Vehicle[];
   nextArrivals(stopId: string, now?: number): Arrival[];
   nextEachWay(stopId: string, now?: number): Partial<Record<0 | 1, Arrival>>;
+  /** Whether a published timetable has this route in service now; undefined when it has no timetable for it. */
+  inService?(routeId: string): boolean | undefined;
 }
 
 /** Polls the MBTA and keeps the latest vehicles and arrivals; call positionsAt() every frame. */
@@ -186,11 +188,16 @@ export class MbtaFeed {
     this.routeIds = data.routes.filter((r) => r.kind !== 'shuttle').map((r) => r.id).join(',');
     this.stopIds = data.stops.filter((s) => s.kind !== 'shuttle').map((s) => s.id).join(',');
     for (const stop of data.stops) for (const platform of stop.platforms) this.stopForPlatform.set(platform, stop.id);
-    this.tracks = data.routes.flatMap((route) =>
-      route.paths.map(({ direction, path, underground, isTrack }) =>
+    this.tracks = data.routes.flatMap((route) => {
+      // Rail lines whose two directions are snapped onto OSM's rails: straighten them into two
+      // parallel tracks (tracks.ts, alignTrackPair).
+      const paths = route.paths.map((p) => ({ ...p }));
+      const [d0, d1] = [0, 1].map((dir) => paths.find((p) => p.direction === dir));
+      if (route.kind === 'subway' && d0?.isTrack && d1?.isTrack) [d0.path, d1.path] = alignTrackPair(d0.path, d1.path);
+      return paths.map(({ direction, path, underground, isTrack }) =>
         makeTrack(route.id, direction, path, isTrack ? 0 : TRACK_OFFSET[route.kind], underground),
-      ),
-    );
+      );
+    });
   }
 
   start() {

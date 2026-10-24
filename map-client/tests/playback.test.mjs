@@ -49,7 +49,20 @@ test('trail windows retain fading and long walks, cache candidates, and follow s
 test('off-map stays are excluded from building occupancy without losing population', () => {
   const location = {id:'home',name:'Home',short:'Home',kind:'dorm',position:[-71,42],capacity:1,building:'h'};
   const playback = new Playback({ day:'Monday',buildings:[],locations:[location],agents:[{id:'a',home:'home',model:0},{id:'b',home:'off-campus',model:0}],trips:[],stays:[{agent:'a',location:'home',start:0,end:86400},{agent:'b',location:'off-campus',start:0,end:86400}] });
-  assert.deepEqual(playback.populationAt(36000), {total:2,indoors:1,walking:0,offCampus:1});
+  assert.deepEqual(playback.populationAt(36000), {total:2,indoors:1,outdoors:0,walking:0,offCampus:1});
+});
+
+test('outdoor assembly stays remain visible in population without becoming building occupancy', () => {
+  const location = {id:'assembly',name:'Assembly',short:'Assembly',kind:'outdoor',position:[-71,42],capacity:0,building:''};
+  const playback = new Playback({day:'Monday',buildings:[],locations:[location],
+    agents:[{id:'a',home:'off-campus',model:2}],trips:[],
+    stays:[{agent:'a',location:'off-campus',start:0,end:100},{agent:'a',location:'assembly',start:100,end:200},{agent:'a',location:'off-campus',start:200,end:86400}]});
+  assert.deepEqual(playback.populationAt(150),{total:1,indoors:0,outdoors:1,walking:0,offCampus:0});
+  assert.equal(playback.occupancyAt(150)[0].count,1);
+  assert.deepEqual(playback.byBuilding(playback.occupancyAt(150)),[]);
+  assert.deepEqual(playback.outdoorAt(100),[{id:'a',model:2,position:[-71,42,0],bearing:0,to:'assembly'}]);
+  assert.deepEqual(playback.outdoorAt(99),[]);
+  assert.deepEqual(playback.outdoorAt(200),[]);
 });
 
 test('overlapping stays retain first-match occupancy semantics', () => {
