@@ -346,7 +346,7 @@ const IMPACT: Partial<Record<Condition, { boost: number; note: string }>> = {
   heatwave: { boost: 0.06, note: 'Heatwave: fewer midday outdoor stays; air-conditioned libraries and dining busier' },
 };
 
-/** The one-line note for the Crowds tab, and the boost applied to dining and library occupancy. */
+/** The one-line note for the Crowds tab, and the boost applied to dining and library activity. */
 export function weatherImpact(condition: Condition): { note: string; boost: number } {
   const impact = IMPACT[condition];
   if (impact) return impact;
@@ -354,13 +354,12 @@ export function weatherImpact(condition: Condition): { note: string; boost: numb
   return { note: 'No weather effect on campus routines', boost: 0 };
 }
 
-/** Nudge indoor dining and library occupancy up in wet, snowy or hot weather. Everything else is untouched. */
+/** Boost dining and library color intensity while preserving the simulated population. */
 export function adjustOccupancy(occupancy: Occupancy[], weather: ActiveWeather | null): Occupancy[] {
   const boost = weather ? weatherImpact(weather.condition).boost : 0;
   if (!boost) return occupancy;
   return occupancy.map((o) => {
     if (o.location.kind !== 'dining' && o.location.kind !== 'library') return o;
-    const count = Math.round(o.count * (1 + boost));
-    return { ...o, count, share: o.share * (1 + boost) };
+    return { ...o, share: o.share * (1 + boost) };
   });
 }
