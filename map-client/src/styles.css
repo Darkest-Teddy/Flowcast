@@ -73,6 +73,14 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .incident-casualties h4, .incident-response h4 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
 .incident-casualties .model-note, .incident-response .model-note { margin-bottom: 0; }
 .incident-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.incident-dispersal { margin: 16px 0; padding: 14px 0; border-block: 1px solid var(--muted); }
+.incident-dispersal h4 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+.incident-dispersal table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.incident-dispersal :is(th, td) { padding: 4px 0; text-align: right; font-variant-numeric: tabular-nums; }
+.incident-dispersal :is(thead th, tbody th) { font-weight: 400; color: var(--muted); }
+.incident-dispersal tbody th { text-align: left; color: inherit; padding-right: 8px; }
+.incident-dispersal thead th:first-child { text-align: left; }
+.incident-panel .incident-option { display: flex; align-items: center; gap: 8px; }
 .incident-result .incident-counts { grid-template-columns: 1fr 1fr; gap: 12px; }
 .incident-counts dd { margin: 4px 0 0; font-size: 18px; font-variant-numeric: tabular-nums; }
 .incident-decisions { margin: 16px 0; }

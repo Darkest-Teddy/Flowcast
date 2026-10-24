@@ -133,6 +133,21 @@ const driveOffset = (net: FireNetwork, edge: number) => (net.oneway[edge] ? 0 : 
 // pavement or in a building's wall.
 const parkOffset = (net: FireNetwork, edge: number) => Math.max(driveOffset(net, edge), Math.min(3.6, roadHalfWidth(net, edge) - 1.6));
 
+/** Street centreline segments within `radius` metres of `center`, each with half its modeled carriageway
+ * width: lets a fire's outdoor crowd (sim/fireEvacuation.ts) keep off the road. */
+export function roadsNear(net: FireNetwork, center: readonly number[], radius: number): { a: [number, number]; b: [number, number]; halfWidth: number }[] {
+  const [cx, cy] = toXY(center);
+  const out: { a: [number, number]; b: [number, number]; halfWidth: number }[] = [];
+  for (let e = 0; e < net.ea.length; e++) {
+    const ax = net.x[net.ea[e]], ay = net.y[net.ea[e]], bx = net.x[net.eb[e]], by = net.y[net.eb[e]];
+    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    const f = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((cx - ax) * dx + (cy - ay) * dy) / l2));
+    if (Math.hypot(ax + f * dx - cx, ay + f * dy - cy) > radius) continue;
+    out.push({ a: toLngLat(ax, ay), b: toLngLat(bx, by), halfWidth: roadHalfWidth(net, e) });
+  }
+  return out;
+}
+
 // --------------------------------------------------------------------------------------------
 // Snapping and routing
 // --------------------------------------------------------------------------------------------

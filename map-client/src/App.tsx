@@ -69,7 +69,9 @@ import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
 import type { WalkRoute } from './sim/playback';
 import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireModels } from './layers/fireTrucks';
-import { loadFireNetwork, planFireResponse, signalOracle, type FireNetwork } from './sim/fireResponse';
+import { loadFireNetwork, planFireResponse, roadsNear, signalOracle, type FireNetwork } from './sim/fireResponse';
+import { crowdCharacters } from './layers/fireCrowd';
+import { segmentsNear } from './sim/fireEvacuation';
 import { registeredSignals } from './sim/signals';
 import { FireSiren } from './fireSiren';
 import { ParkingTags, type ParkingTagsHandle } from './ParkingTags';
@@ -205,6 +207,7 @@ export default function App() {
   // Boston Fire apparatus for fire alarms: street graph and models, loaded after the map starts.
   const fireRef = useRef<Promise<{ network: FireNetwork; models: FireModels } | null> | null>(null);
   const fireModelsRef = useRef<FireModels>({});
+  const fireNetworkRef = useRef<FireNetwork | null>(null);
   const [responsePending, setResponsePending] = useState(false);
   const [siren, setSiren] = useState(false);
   const sirenRef = useRef<FireSiren | null>(null);
@@ -437,7 +440,7 @@ export default function App() {
       basemap.addControl(overlay);
       // Fire response data is only needed once someone sounds a fire alarm: fetch it in the background.
       fireRef.current = Promise.all([loadFireNetwork(), loadFireModels()])
-        .then(([network, models]) => { fireModelsRef.current = models; return { network, models }; })
+        .then(([network, models]) => { fireModelsRef.current = models; fireNetworkRef.current = network; return { network, models }; })
         .catch(() => null);
       // Dev-only handle for poking at layers from the browser console.
       if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, get incident() { return incidentRunRef.current; }, transitRef, bikesRef, populationBase, quality } });
@@ -545,6 +548,9 @@ export default function App() {
           basemap.excludeBuildings([...baselineExcludedBuildings, ...damage.map(building => Number(building.id.split('/')[1])).filter(Number.isFinite)], damageExclusionAreas(damage, detailedBuildings?.manifest));
           damageExclusionKey = damageKey;
         }
+        // A fire's evacuees standing outside (nothing without an outdoor crowd).
+        const crowd = incidentRunRef.current?.crowd;
+        const standing = crowd ? crowdCharacters(playback.outdoorAt(t), crowd) : [];
         const response = incidentRunRef.current?.fireResponse;
         const fireTrucks = response ? fireResponseAt(response, t) : [];
         const incidentFrameLayers = incidentLayers(incidentRunRef.current, t, occupancy, day.buildings, placer, damage);
@@ -644,7 +650,10 @@ export default function App() {
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
-          ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
+          // People standing about: riders waiting at stops, and a fire's evacuees in their crowds (same idle layers).
+          ...(transit || standing.length ? waitingRiderLayers(nearView(standing.length
+            ? [...(transit ? waitingCharacters(waitingRiders, transit.feed.tracks) : []), ...standing]
+            : waitingCharacters(waitingRiders, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
           ...askRouteLayers(askRouteRef.current),
           ...(currentMobility && showCountsRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
@@ -829,23 +838,32 @@ export default function App() {
       waiting: playback.waitingAt(timeRef.current).length,
     }));
   };
-  const startIncident = (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number) => {
+  const startIncident = (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number, outdoorCrowd?: boolean) => {
     const baseline = playbackRef.current;
     if (!baseline || baselinePlaybackRef.current) throw new Error('Reset the current scenario before starting another incident.');
     if (timeRef.current + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
-    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration, radiusMetres };
-    const result = applyIncident(baseline.data, incident, sourceData ? { sourceData, weekday: weekdayRef.current } : undefined);
+    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration, radiusMetres,
+      ...(kind === 'fire' && outdoorCrowd ? { outdoorCrowd: true } : {}) };
     const location = baseline.locations.find((entry) => entry.id === locationId)!;
+    // The trucks depend only on the fire's active period, so they are planned first: the outdoor crowd keeps clear of where they park.
     const responsePlan = kind === 'fire' ? (transitRef.current
-      ? planDisasterFireResponse({ incident, location, hazard: result.hazard }, transitRef.current.data, baseline.data.buildings)
+      ? planDisasterFireResponse({ incident, location, hazard: { activeUntil: incident.start + duration } }, transitRef.current.data, baseline.data.buildings)
       : { plan: null, reason: 'no-road-data' as const }) : null;
     const fireResponse = responsePlan?.plan ?? null;
+    const fireScene = incident.outdoorCrowd ? {
+      // Streets (Boston Fire's network, once loaded) and the surface Green Line trackbed and platforms in the median.
+      roads: [...(fireNetworkRef.current ? roadsNear(fireNetworkRef.current, location.position, 600) : []),
+        ...segmentsNear((transitRef.current?.feed.tracks ?? []).filter((track) => track.route.startsWith('Green-')).map((track) => track.points), location.position, 600, 5.5)],
+      apparatus: (fireResponse?.trucks ?? []).flatMap((truck) => fireResponseAt(fireResponse, truck.fightStart).filter((frame) => frame.id === truck.id).map((frame) => frame.position)),
+    } : undefined;
+    const result = applyIncident(baseline.data, incident, sourceData
+      ? { sourceData, weekday: weekdayRef.current, transit: transitServiceRef.current, ...(fireScene ? { fireScene } : {}) } : undefined);
     const playback = new Playback(result.day);
     baselinePlaybackRef.current = baseline;
     playbackRef.current = playback;
     leaveLive();
     const run = { incident, location, fireResponse, fireResponseUnavailable: responsePlan?.reason,
-      hazard: result.hazard, casualties: result.casualties, assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants };
+      hazard: result.hazard, casualties: result.casualties, assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants, crowd: result.crowd };
     incidentRunRef.current = run;
     setIncidentRun(run);
     refreshIncidentHud();

@@ -7,6 +7,15 @@ import { CASUALTY_LIMITATIONS, type CasualtyEvent } from './sim/casualties';
 import { IncidentDecisions } from './IncidentDecisions';
 import { FireResponsePanel } from './FireResponsePanel';
 import type { FireResponse } from './sim/fireResponse';
+import { FIRE_CROWD_LIMITATIONS, type FireCrowd, type FireDispersal } from './sim/fireCrowd';
+
+const dispersalNames: Record<FireDispersal, string> = {
+  'next-activity': 'Went on to their next class or activity',
+  home: 'Went home',
+  transit: 'Left campus by transit',
+  relocated: 'Moved a meal, study or workout elsewhere',
+  shelter: 'Sheltering elsewhere (home is closed)',
+};
 
 const names: Record<IncidentKind, string> = {
   'fire-drill': 'Fire drill', 'fire-alarm': 'Fire alarm', 'building-closure': 'Building closure',
@@ -36,13 +45,15 @@ export interface IncidentRun {
   participants: IncidentParticipant[];
   /** Disaster casualty events (IncidentResult.casualties); the panel only counts those at or before `time`. */
   casualties?: CasualtyEvent[];
+  /** Fire with an outdoor crowd: standing areas and each evacuee's spot. */
+  crowd?: FireCrowd;
 }
 
 export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate, siren = false, onSiren, responsePending }: {
   locations: CampusLocation[];
   time: number;
   run: IncidentRun | null;
-  onStart: (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number) => void;
+  onStart: (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number, outdoorCrowd?: boolean) => void;
   onReset: () => void;
   onLocate: (location: CampusLocation) => void;
   siren?: boolean;
@@ -54,6 +65,7 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
   const [minutes, setMinutes] = useState(30);
   const [error, setError] = useState('');
   const [radius, setRadius] = useState(250);
+  const [outdoorCrowd, setOutdoorCrowd] = useState(true);
   const available = locations.filter((location) => location.kind !== 'off-campus' && location.kind !== 'outdoor').sort((a, b) => a.name.localeCompare(b.name));
   const target = available.find((location) => location.id === locationId) ?? available.find((location) => location.short === 'CDS') ?? available[0];
   const progress = run && incidentProgress(run, time);
@@ -69,6 +81,14 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
   const areaEvent = kind === 'earthquake' || kind === 'meteor';
   const showCasualties = !!run && isDisasterKind(run.incident.kind) && !!run.casualties;
   const minimumMinutes = isDisasterKind(kind) ? DISASTER_ASSUMPTIONS[kind].minDurationSeconds / 60 : 0;
+  // Fire outdoor crowd: how people moved on so far (each choice is revealed when they leave the crowd or turn back).
+  const dispersed = new Map<FireDispersal, [number, number]>();
+  if (run?.crowd) for (const person of decisions) {
+    if (!person.dispersal || !person.decision || person.decision.at > time) continue;
+    const row = dispersed.get(person.dispersal) ?? [0, 0];
+    row[person.role === 'occupant' ? 0 : 1]++;
+    dispersed.set(person.dispersal, row);
+  }
 
   return (
     <section id="panel-incidents" role="tabpanel" aria-labelledby="tab-incidents" className="incident-panel">
@@ -111,6 +131,8 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
             <div><dt>{showCasualties ? 'Inside, able to evacuate' : 'Still inside'}</dt><dd>{progress.inside.toLocaleString()}</dd></div>
             {isDrill && <><div><dt>Walking to assembly</dt><dd>{progress.evacuating.toLocaleString()}</dd></div>
             <div><dt>At assembly</dt><dd>{progress.assembled.toLocaleString()}</dd></div></>}
+            {run.crowd && <><div><dt>Walking out</dt><dd>{progress.evacuating.toLocaleString()}</dd></div>
+            <div><dt>Evacuated, standing outside</dt><dd>{progress.assembled.toLocaleString()}</dd></div></>}
             <div><dt>Arrivals diverted so far</dt><dd>{progress.diverted.toLocaleString()}</dd></div>
             <div><dt>Chose another venue</dt><dd>{progress.relocated.toLocaleString()}</dd></div>
             {!isDrill && <><div><dt>Visits canceled so far</dt><dd>{progress.cancelled.toLocaleString()}</dd></div>
@@ -118,6 +140,16 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
             <div><dt>Rejoining schedule</dt><dd>{progress.recovering.toLocaleString()}</dd></div>
             <div><dt>Schedule resumed</dt><dd>{progress.resumed.toLocaleString()}</dd></div>
           </dl>}
+          {run.crowd && progress.phase !== 'Scheduled' && <section className="incident-dispersal" aria-label="Where evacuees went">
+            <h4>Where people went</h4>
+            {dispersed.size ? <table>
+              <thead><tr><th scope="col">Outcome</th><th scope="col">Evacuated</th><th scope="col">Turned back</th></tr></thead>
+              <tbody>{(Object.keys(dispersalNames) as FireDispersal[]).filter((key) => dispersed.has(key)).map((key) => (
+                <tr key={key}><th scope="row">{dispersalNames[key]}</th><td>{dispersed.get(key)![0].toLocaleString()}</td><td>{dispersed.get(key)![1].toLocaleString()}</td></tr>
+              ))}</tbody>
+            </table> : <p className="model-note">Evacuees are standing outside. Most move on 10 to 20 minutes after the alarm.</p>}
+            <p className="model-note">The building counts 0 people while closed. People standing outside count as outdoors, never in a building.</p>
+          </section>}
           {isAlarm && <FireResponsePanel response={run.response ?? null} time={time} siren={siren} onSiren={(on) => onSiren?.(on)} pending={responsePending} />}
           <IncidentDecisions participants={decisions} time={time} locations={locations} onLocate={onLocate} />
           {!run.hazard && time >= run.incident.start && time < run.endsAt && <p role="status">Access reopens in {Math.ceil((run.endsAt - time) / 60)} simulated minutes.</p>}
@@ -138,7 +170,7 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
           event.preventDefault();
           setError('');
           if (!target) return;
-          try { onStart(kind, target.id, minutes * 60, areaEvent ? radius : undefined); }
+          try { onStart(kind, target.id, minutes * 60, areaEvent ? radius : undefined, kind === 'fire' && outdoorCrowd); }
           catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not start this incident.'); }
         }}>
           <label>Incident
@@ -172,6 +204,15 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
             </select>
           </label>
           {kind === 'fire-drill' && <p className="model-note">A scheduled drill is run by building staff and announced to the fire department in advance, so no apparatus are sent. Choose Fire alarm for an unplanned alarm.</p>}
+          {kind === 'fire' && <>
+            <label className="incident-option">
+              <input type="checkbox" checked={outdoorCrowd} onChange={(event) => setOutdoorCrowd(event.target.checked)} />
+              Evacuees gather outside first
+            </label>
+            <p className="model-note">{outdoorCrowd
+              ? 'A real fire: everyone inside leaves by the nearest exits and spreads out along the sidewalks and plazas 30 to 80 m away, clear of the fire trucks. After 10 to 20 minutes most move on: to their next class or activity, home, or to their bus or train. Residents of a burning dorm shelter at an open dining hall, library or gym. People heading for the building turn back short of it.'
+              : 'Occupants leave straight onto their next saved walk or wait at the nearest building outside the fire.'} The building stays closed for the rest of the day; the duration sets how long the fire burns.</p>
+          </>}
           {kind === 'fire-alarm' && <p className="model-note">Boston Fire sends the nearest engines, ladder trucks and a district chief by drive time, with lights and optional siren.</p>}
           <p className="model-note">Starts at {formatClock(time)}. {descriptions[kind]} Classes stay tied to their scheduled location. Meals, studying, and exercise can move when a suitable venue and enough time are available.</p>
           {error && <p role="alert">{error}</p>}
@@ -181,7 +222,7 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
       <p className="model-note">Restrictions apply to visits to affected buildings. Through-traffic on saved paths may still cross the affected area. Disaster effects are illustrative; damage is stylized. Disaster casualties are uncalibrated scenario rules, and rescue and treatment are not simulated.</p>
       <details className="model-note">
         <summary>Model assumptions</summary>
-        {[...INCIDENT_LIMITATIONS, ...ACTIVITY_DECISION_LIMITATIONS, ...DISASTER_LIMITATIONS, ...CASUALTY_LIMITATIONS, ...FIRE_RESPONSE_LIMITATIONS].map((note) => <p key={note}>{note}</p>)}
+        {[...INCIDENT_LIMITATIONS, ...ACTIVITY_DECISION_LIMITATIONS, ...DISASTER_LIMITATIONS, ...FIRE_CROWD_LIMITATIONS, ...CASUALTY_LIMITATIONS, ...FIRE_RESPONSE_LIMITATIONS].map((note) => <p key={note}>{note}</p>)}
       </details>
     </section>
   );
