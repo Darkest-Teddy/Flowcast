@@ -7,6 +7,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { MapWeather } from '../weather/weather';
 import { quality, type QualitySettings } from '../perf/quality';
+import { paceMapRendering } from '../perf/pacer';
 
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -180,6 +181,7 @@ const BOSTON_LIMITS = {
 const TRAFFIC_LAYER = 'flowcast-traffic';
 const ROAD_LABEL_MIN_ZOOM = 17.2;
 const CITY_BUILDINGS = 'flowcast-city-buildings';
+const CITY_AO = 0.35; // ambient occlusion at the city buildings' feet (Auto drops it from level 2)
 const ROOF_SNOW = 'flowcast-roof-snow';
 // Google Maps-style live traffic, kept calm: only the main roads carry a line, coloured by
 // speed. Free-flowing roads are a thin, quiet green so the eye goes to slowdowns; heavier
@@ -279,6 +281,8 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     });
     map.setPadding(VIEW_PADDING);
     tameInteractions(map);
+    paceMapRendering(map);
+    skipSlotGroupMoves(map);
     await new Promise<void>((resolve) => map.once('style.load', () => resolve()));
     addTrafficLayer(map);
     // Distance haze: the tilted camera would otherwise show the whole region out to the
@@ -308,6 +312,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     };
     updateRoadLabels();
     map.on('zoom', updateRoadLabels);
+    hideStandardFootprints(map);
     const stopQuality = applyMapboxQuality(map);
     return {
       kind: 'mapbox',
@@ -355,7 +360,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
             'fill-extrusion-height': ['get', 'height'],
             'fill-extrusion-base': ['get', 'min_height'],
             'fill-extrusion-opacity': 1,
-            'fill-extrusion-ambient-occlusion-intensity': 0.35,
+            'fill-extrusion-ambient-occlusion-intensity': quality.settings.mapBuildingAO ? CITY_AO : 0,
             'fill-extrusion-vertical-gradient': true,
           },
         });
@@ -426,6 +431,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
   });
   map.setPadding(VIEW_PADDING);
   tameInteractions(map);
+  paceMapRendering(map);
   await new Promise<void>((resolve) => map.once('load', () => resolve()));
   return {
     kind: 'maplibre',
@@ -449,8 +455,47 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
 }
 
 /**
+ * @deck.gl/mapbox re-checks its layer groups' order on every setProps (every frame here) and wants
+ * each to be the style's last layer. With two slot groups (`middle`, `top`) both can't be, so one
+ * was moved every frame, and each move marked the style changed: a style update, a layer re-merge
+ * and change events on every frame, ~8% of the main thread. A slot group's place is set by its
+ * slot, not its index, so moving it changes nothing on screen. Those moves are skipped.
+ */
+function skipSlotGroupMoves(map: import('mapbox-gl').Map) {
+  const moveLayer = map.moveLayer.bind(map);
+  map.moveLayer = ((id: string, beforeId?: string) => {
+    if (id.startsWith('deck-layer-group-slot:') && beforeId === undefined && map.getLayer(id)) return map;
+    return moveLayer(id, beforeId);
+  }) as typeof map.moveLayer;
+}
+
+/**
+ * Standard draws every building as a flat footprint (and an outline) when its 3D buildings are
+ * off. Ours are all covered by the city extrusions and the BU models, so those two layers were
+ * ~700 GL calls a frame of nothing visible. Standard has no switch for them; its layers live in
+ * the style import ("fragment"), whose own style object takes layout changes. Internal API, so
+ * it's guarded: if Mapbox changes shape the footprints simply stay.
+ */
+const HIDDEN_STANDARD_LAYERS = ['2d-building', '2d-building-outline'];
+function hideStandardFootprints(map: import('mapbox-gl').Map) {
+  const hide = () => {
+    try {
+      const fragment = (map as unknown as { style?: { fragments?: { id: string; style: { getLayer(id: string): unknown; getLayoutProperty(id: string, p: string): unknown; setLayoutProperty(id: string, p: string, v: unknown): void } }[] } }).style?.fragments?.find((f) => f.id === 'basemap');
+      for (const id of HIDDEN_STANDARD_LAYERS) {
+        if (fragment?.style.getLayer(id) && fragment.style.getLayoutProperty(id, 'visibility') !== 'none') fragment.style.setLayoutProperty(id, 'visibility', 'none');
+      }
+    } catch {
+      // Mapbox internals changed: leave Standard's footprints as they are.
+    }
+  };
+  hide();
+  // Config changes (Auto's quality steps, light presets) can rebuild the import's layers.
+  map.on('styledata', hide);
+}
+
+/**
  * The Performance setting (perf/quality.ts) on Mapbox: shadows, Standard's 3D objects (trees and
- * the like) and footpaths. Each is left as the style has it until a level first turns it off.
+ * the like), footpaths and the city buildings' ambient occlusion. Each is left as the style has it until a level first turns it off.
  * (The pixel-ratio cap and MSAA are applied once, before the map exists.)
  */
 function applyMapboxQuality(map: import('mapbox-gl').Map): () => void {
@@ -466,6 +511,10 @@ function applyMapboxQuality(map: import('mapbox-gl').Map): () => void {
     // rebuild ~130 vertex arrays a frame. Standard has no switch for them, so the style's own
     // lights are re-set with the directional light's cast-shadows flag changed; its colours and
     // intensities are expressions on the light preset, so they keep following Dawn/Day/Dusk/Night.
+    if (map.getLayer(CITY_BUILDINGS)) {
+      const ao = q.mapBuildingAO ? CITY_AO : 0;
+      if (map.getPaintProperty(CITY_BUILDINGS, 'fill-extrusion-ambient-occlusion-intensity') !== ao) map.setPaintProperty(CITY_BUILDINGS, 'fill-extrusion-ambient-occlusion-intensity', ao);
+    }
     if ((shadows === null && q.mapShadows) || shadows === q.mapShadows) return;
     const lights = map.getLights();
     const sun = lights?.find((l) => l.type === 'directional');

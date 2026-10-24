@@ -34,6 +34,7 @@ import { activeWindFromDegrees } from './weather/weather';
 import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
 import { quality } from './perf/quality';
+import { pacer } from './perf/pacer';
 import {
   BikeReplay,
   BluebikesFeed,
@@ -335,6 +336,11 @@ export default function App() {
       let buildingsPlayback: Playback | null = null;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       const tick = (now: number) => {
+        // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
+        if (!pacer.shouldRender(now)) {
+          frame = requestAnimationFrame(tick);
+          return;
+        }
         const elapsed = now - last;
         last = now;
         let nextDay = weekdayRef.current;

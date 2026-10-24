@@ -54,6 +54,7 @@ npm run dev                  # http://localhost:5173
 | `spin` | `spin=0` | Don't start the slow camera orbit on load (it never auto-starts under prefers-reduced-motion) |
 | `interleaved` | `interleaved=0` | Draw deck.gl as a plain overlay instead of mixing into the map (debug fallback; characters will no longer hide behind buildings) |
 | `quality` | `quality=speed` | Performance setting for this load: `auto` (default), `quality` or `speed` (also on the perf panel, `P`) |
+| `fps` | `fps=60` | Cap the frame rate on a steady beat (off by default) |
 | `msaa`, `dpr` | `msaa=1&dpr=1.5` | Force 4x MSAA on or off, or cap the pixel ratio (for perf testing) |
 | `debug` | `debug` | Expose `window.__flowcast` (overlay, basemap, playback, quality) in a production build |
 
@@ -164,7 +165,9 @@ The frame rate is set by the **number of WebGL calls per frame**, not by shader 
 - **Mapbox VAO cache** (`map/vaoCache.ts`): Mapbox rebuilt ~130 vertex arrays a frame with shadows on.
 - **No MSAA at pixel ratio ≥ 1.75**: it doubled GPU time on Retina screens, whose density already smooths edges.
 - **No `backdrop-filter` on panels**: re-blurring the moving map behind each panel every frame cost a third of the frame rate.
-- **Auto** (`perf/quality.ts`) drops shadows, then footpaths, then 3D trees when the 1% low stays under 45 FPS, never the resolution, and remembers where it settled.
+- **No per-frame Mapbox style churn**: @deck.gl/mapbox moved one of its two slot layer groups on every `setProps`, re-running Mapbox's style update each frame (`skipSlotGroupMoves` in `map/basemap.ts`). Standard's flat 2D building footprints, hidden under the city extrusions anyway, are switched off.
+- **Auto** (`perf/quality.ts`) drops shadows, then footpaths and building ambient occlusion, then 3D trees when the 1% low stays under 45 FPS, never the resolution, and remembers where it settled.
+- **Optional frame cap**: `?fps=60` renders on a steady beat (every other refresh on a 120 Hz screen) via `perf/pacer.ts`; off by default.
 
 To measure a change, open the perf panel (`P`) or use `?debug` and the browser's Performance tab. Watch the per-frame GL call count, not just FPS.
 
