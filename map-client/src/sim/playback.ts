@@ -171,7 +171,7 @@ export interface Occupancy {
 }
 
 /** The file on disk: each walk route stored once, trips as who/where/when/how fast. */
-interface DayFile extends Omit<DayData, 'trips'> {
+export interface DayFile extends Omit<DayData, 'trips'> {
   walkRoutes: Record<string, WalkRoute>;
   trips: { agent: string; from: string; to: string; depart: number; speed: number }[];
 }
@@ -179,7 +179,11 @@ interface DayFile extends Omit<DayData, 'trips'> {
 export async function loadDay(url: string): Promise<DayData> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
-  const file: DayFile = await res.json();
+  return expandDay(await res.json());
+}
+
+/** The parsed day file as playable data. The server reads the same file from disk. */
+export function expandDay(file: DayFile): DayData {
   // Expand to full trips; trips on the same route share its path array.
   const trips = file.trips.map(({ agent, from, to, depart, speed }) => {
     const route = file.walkRoutes[`${from}>${to}`];

@@ -59,6 +59,10 @@ import { MobilityPanel } from './MobilityPanel';
 import { IncidentPanel, type IncidentRun } from './IncidentPanel';
 import { applyIncident, type IncidentKind } from './sim/incidents';
 import { incidentLayers } from './layers/incidents';
+import { AskPanel, type AskShow } from './AskPanel';
+import { askRouteLayers, type AskRoute } from './layers/askRoute';
+import { askMeetings, type AskContext } from './insights';
+import type { WalkRoute } from './sim/playback';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -101,6 +105,8 @@ function wallClockDate(): string { return BOSTON_DATE.format(new Date()); }
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
 const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
+/** ?ask=least+crowded+library opens the Ask tab with that question answered. */
+const START_QUESTION = params.get('ask');
 
 interface Hud {
   time: number;
@@ -158,10 +164,12 @@ export default function App() {
   const lightModeRef = useRef<LightPreset | 'auto'>('auto');
   const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes' | 'traffic' | 'incidents'>('crowds');
+  const [tab, setTab] = useState<'ask' | 'crowds' | 'data' | 'transit' | 'bikes' | 'traffic' | 'incidents'>(START_QUESTION ? 'ask' : 'crowds');
   const [incidentRun, setIncidentRun] = useState<IncidentRun | null>(null);
   const incidentRunRef = useRef<IncidentRun | null>(null);
   const baselinePlaybackRef = useRef<Playback | null>(null);
+  const askRouteRef = useRef<AskRoute | null>(null); // the walk an Ask answer draws, read by the frame loop
+  const walkRoutesRef = useRef<Record<string, WalkRoute>>({});
   const [weekday, setWeekday] = useState(START_WEEKDAY);
   const weekdayRef = useRef(START_WEEKDAY); // 0 = Monday (the day picker's index), read by the frame loop
   const [sourceData, setSourceData] = useState<CampusData | null>(null);
@@ -299,6 +307,7 @@ export default function App() {
         bikesRef.current = { data: bikeData, replay: new BikeReplay(bikeData), feed, campusOf };
       }
 
+      walkRoutesRef.current = (day as { walkRoutes?: Record<string, WalkRoute> }).walkRoutes ?? {};
       const populationBase = buildPopulation(day, snapshot, population);
       baseDayRef.current = populationBase;
       setSourceData(snapshot);
@@ -553,6 +562,7 @@ export default function App() {
           ...agentLayers(thinForZoom(inView(nearView(walking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
           ...incidentFrameLayers,
           ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
+          ...askRouteLayers(askRouteRef.current),
           ...(currentMobility && showCountsRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
@@ -755,6 +765,42 @@ export default function App() {
       : item.position;
     basemapRef.current?.flyTo(position, 16);
   };
+  // Ask tab: answers come from the same simulation, routes and published classes the map shows.
+  const meetings = useMemo(
+    () => (sourceData ? askMeetings(sourceData) : []),
+    [sourceData],
+  );
+  const askContext: AskContext | null = hud && playbackRef.current
+    ? {
+        locations: playbackRef.current.locations.filter((l) => l.kind !== 'off-campus'),
+        walkRoutes: walkRoutesRef.current,
+        meetings,
+        occupancyAt: (t) => playbackRef.current!.occupancyAt(t),
+        time: Math.floor(hud.time / 60) * 60,
+        weekday,
+        campus,
+      }
+    : null;
+  const showAsk = (show: AskShow | null) => {
+    askRouteRef.current = show?.route ?? null;
+    if (!show) return;
+    if (show.select) {
+      if (show.select.campus) setCampus(show.select.campus);
+      selectedRef.current = show.select.building;
+      setSelected(show.select.building);
+    } else {
+      selectedRef.current = null;
+      setSelected(null);
+    }
+    const pts = [...show.points, ...(show.route?.path ?? [])];
+    if (!pts.length) return;
+    const lngs = pts.map((p) => p[0]);
+    const lats = pts.map((p) => p[1]);
+    const span = Math.max(Math.max(...lngs) - Math.min(...lngs), Math.max(...lats) - Math.min(...lats));
+    const zoom = span < 0.0015 ? 17.4 : span < 0.004 ? 16.8 : span < 0.008 ? 16.1 : 15.5;
+    basemapRef.current?.flyTo([(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2], zoom);
+  };
+
   const currentCampus = campuses.find((c) => c.id === campus);
   const ranked = hud
     ? hud.occupancy.filter((o) => o.location.kind !== 'outdoor' && (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
@@ -817,6 +863,7 @@ export default function App() {
       {hud && (
         <aside className="panel side">
           <div className="tabs mobility-tabs" role="tablist" aria-label="Side panel">
+            <button role="tab" id="tab-ask" aria-selected={tab === 'ask'} aria-controls="panel-ask" onClick={() => setTab('ask')}>Ask</button>
             <button role="tab" id="tab-crowds" aria-selected={tab === 'crowds'} aria-controls="panel-crowds" onClick={() => setTab('crowds')}>
               Crowds
             </button>
@@ -835,6 +882,10 @@ export default function App() {
           {tab === 'incidents' ? (
             <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
               onStart={startIncident} onReset={resetIncident} onLocate={selectSource} />
+          ) : tab === 'ask' && askContext ? (
+            <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask">
+              <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
+            </section>
           ) : tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
               {sourceData && baseDayRef.current && (

@@ -736,3 +736,62 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .gtag--place .gtag-picon svg { width: 13px; height: 13px; }
 .gtag--place .gtag-icon svg { width: 15px; height: 15px; }
 .gtag--place .gtag-stats { font-weight: 500; }
+
+/* Ask tab */
+.ask { margin-top: 10px; }
+.ask-form { display: flex; gap: 6px; }
+.ask-form input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.ask-form input::placeholder { color: var(--muted); opacity: 0.8; }
+.ask-form input:focus-visible, .ask-form button:focus-visible, .ask-examples button:focus-visible, .ask-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.ask-form button {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #111;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ask-answer { margin-top: 12px; }
+.ask-text { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
+.ask-answer ol { list-style: none; margin: 0 0 6px; padding: 0; }
+.ask-note { margin: 6px 0; line-height: 1.4; }
+.ask-clear {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ask-examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.ask-examples button {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ask-examples button:hover { background: rgba(255, 255, 255, 0.08); }

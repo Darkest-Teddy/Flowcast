@@ -29,6 +29,14 @@ export interface CampusLocation {
   capacity: number;
 }
 
+/** Where places are, and how far apart on foot. Generated from the map's bundled routes. */
+export interface CampusGeo {
+  /** [lng, lat] of each place's entrance point on the map. Missing when the map has no position. */
+  positions: Record<string, [number, number]>;
+  /** Meters along the bundled pedestrian route, keyed "a>b" with the two ids sorted. */
+  walkMeters: Record<string, number>;
+}
+
 export type EventSource = 'calendar' | 'club' | 'habit' | 'suggested';
 
 export interface ScheduleItem {

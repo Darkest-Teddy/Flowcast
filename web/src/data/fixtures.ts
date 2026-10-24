@@ -41,6 +41,7 @@ export const locations: CampusLocation[] = [
   { id: 'sel', name: 'Science & Engineering Library', short: 'SEL', kind: 'library', capacity: 300 },
   { id: 'gsu', name: 'George Sherman Union', short: 'GSU', kind: 'dining', capacity: 600 },
   { id: 'warren-dining', name: 'Warren Towers Dining Hall', short: 'Warren Dining', kind: 'dining', capacity: 500 },
+  { id: 'fitrec', name: 'Fitness & Recreation Center', short: 'FitRec', kind: 'gym', capacity: 1200 },
   { id: 'agganis', name: 'Agganis Arena', short: 'Agganis', kind: 'venue', capacity: 6300 },
   { id: 'nickerson', name: 'Nickerson Field', short: 'Nickerson', kind: 'venue', capacity: 10000 },
 ];
@@ -77,6 +78,9 @@ export const hourlyForecasts: HourlyForecast[] = [
   { locationId: 'warren-dining', day: iso(0, 0), hours: curve([0.3, 0.2, 0.15, 0.4, 0.88, 0.7, 0.25, 0.15, 0.2, 0.55, 0.8, 0.5, 0.2, 0.1]) },
   { locationId: 'mugar', day: iso(0, 0), hours: curve([0.08, 0.15, 0.25, 0.32, 0.3, 0.38, 0.45, 0.5, 0.48, 0.52, 0.6, 0.66, 0.64, 0.4]) },
   { locationId: 'cds', day: iso(0, 0), hours: curve([0.2, 0.45, 0.55, 0.6, 0.35, 0.5, 0.58, 0.38, 0.3, 0.2, 0.15, 0.1, 0.08, 0.05]) },
+  { locationId: 'pardee', day: iso(0, 0), hours: curve([0.1, 0.2, 0.42, 0.55, 0.5, 0.62, 0.7, 0.58, 0.4, 0.3, 0.26, 0.2, 0.12, 0.06]) },
+  { locationId: 'sel', day: iso(0, 0), hours: curve([0.05, 0.12, 0.2, 0.26, 0.24, 0.3, 0.36, 0.4, 0.34, 0.3, 0.32, 0.35, 0.28, 0.15]) },
+  { locationId: 'fitrec', day: iso(0, 0), hours: curve([0.35, 0.3, 0.2, 0.18, 0.3, 0.22, 0.2, 0.32, 0.6, 0.85, 0.9, 0.7, 0.45, 0.2]) },
 ];
 
 export const suggestions: Suggestion[] = [

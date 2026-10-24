@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { config } from '../config';
 import * as fx from './fixtures';
+import { campusGeo } from './campusGeo';
 import type {
   ApplicationStatus,
   CampusEvent,
@@ -62,6 +63,8 @@ export const api = {
   getSchedule: () => later(schedule),
   getPlaceForecasts: () => later(fx.placeForecasts),
   getHourlyForecasts: () => later(fx.hourlyForecasts),
+  /** Place positions and walking distances, generated from the map's bundled routes. */
+  getCampusGeo: () => later(campusGeo),
   getSuggestions: () => later(suggestions),
   /** Confirms a suggestion: its suggested schedule item becomes part of the day. Returns what's left. */
   acceptSuggestion(id: string) {

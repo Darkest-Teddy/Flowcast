@@ -54,6 +54,11 @@ const dateTime = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: '
 
 /** "Oct 12, 2026". */
 export const formatDate = (isoString: string) => dateOnly.format(new Date(isoString));
+
+/** "180 m", "1.2 km". Rounded to 10 m: the routes aren't more precise than that. */
+export function formatMeters(meters: number): string {
+  return meters < 1000 ? `${Math.max(10, Math.round(meters / 10) * 10)} m` : `${(meters / 1000).toFixed(1)} km`;
+}
 /** "Fri, Oct 30, 6:00 PM": for times that may be weeks away. */
 export const formatDateTime = (isoString: string) => dateTime.format(new Date(isoString));
 
