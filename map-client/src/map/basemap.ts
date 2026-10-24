@@ -5,7 +5,7 @@ import type { IControl } from 'mapbox-gl';
 // prefixes don't clash).
 import 'mapbox-gl/dist/mapbox-gl.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import type { WeatherEffect } from '../weather/weather';
+import type { MapWeather } from '../weather/weather';
 
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -25,8 +25,8 @@ export interface Basemap {
   /** Live traffic needs Mapbox's traffic tiles (a token); the fallback has none. */
   supportsTraffic: boolean;
   setTrafficVisible(visible: boolean): void;
-  /** Rain, snow and fog (Mapbox v3 only; a no-op on the fallback). The screen overlay is drawn by WeatherControls. */
-  setWeather(effect: WeatherEffect): void;
+  /** Weather fog and a wet or snowy ground (Mapbox only; a no-op on the fallback). Rain and snow particles are deck.gl layers. */
+  setWeather(weather: MapWeather): void;
   flyTo(center: [number, number], zoom?: number): void;
   /** Screen pixel position of a lng/lat (ground level). */
   project(lngLat: [number, number]): [number, number];
@@ -178,6 +178,7 @@ const BOSTON_LIMITS = {
 const TRAFFIC_LAYER = 'flowcast-traffic';
 const ROAD_LABEL_MIN_ZOOM = 17.2;
 const CITY_BUILDINGS = 'flowcast-city-buildings';
+const ROOF_SNOW = 'flowcast-roof-snow';
 // Google Maps-style live traffic, kept calm: only the main roads carry a line, coloured by
 // speed. Free-flowing roads are a thin, quiet green so the eye goes to slowdowns; heavier
 // traffic is also thicker, so the overlay never relies on colour alone.
@@ -273,6 +274,8 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     // Distance haze: the tilted camera would otherwise show the whole region out to the
     // horizon. Fading out a few km away keeps the eye on campus and central Boston.
     const baseFog = { range: [0.8, 3.2] as [number, number], 'horizon-blend': 0.25 };
+    const dryGround: Record<string, string> = {}; // Standard's own ground colours, as first changed
+    const appliedGround: Record<string, string> = {};
     map.setFog(baseFog);
     // Street names stay out of the way: hidden until you zoom in close, then in a muted grey.
     map.setConfigProperty('basemap', 'colorRoadLabels', '#9AA0A8');
@@ -338,12 +341,40 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       },
       supportsTraffic: true,
       setTrafficVisible: (visible) => map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', visible ? 'visible' : 'none'),
-      setWeather: ({ rain, snow, fog }) => {
-        map.setRain(rain as import('mapbox-gl').RainSpecification | null);
-        map.setSnow(snow as import('mapbox-gl').SnowSpecification | null);
+      setWeather: ({ fog, ground }) => {
         // Weather fog merges into the distance haze and never reaches further out than it.
         const range = (fog?.range as [number, number] | undefined) ?? baseFog.range;
         map.setFog({ ...baseFog, ...fog, range: [Math.min(range[0], baseFog.range[0]), Math.min(range[1], baseFog.range[1])] });
+        // Wet or snowy ground: Standard's land and road colours, back to the style's own when dry.
+        for (const [key, value] of Object.entries(ground?.colors ?? {})) {
+          if (!(key in dryGround)) dryGround[key] = map.getConfigProperty('basemap', key) as string;
+          if (value !== appliedGround[key]) map.setConfigProperty('basemap', key, (appliedGround[key] = value));
+        }
+        for (const key of Object.keys(dryGround)) {
+          if (!ground?.colors[key] && appliedGround[key] !== dryGround[key]) map.setConfigProperty('basemap', key, (appliedGround[key] = dryGround[key]));
+        }
+        // Snow on the roofs: a thin white slab on top of every city building.
+        const roofSnow = ground?.roofSnow ?? 0;
+        if (!map.getLayer(ROOF_SNOW)) {
+          if (!roofSnow || !map.getLayer(CITY_BUILDINGS)) return;
+          map.addLayer({
+            id: ROOF_SNOW,
+            type: 'fill-extrusion',
+            source: 'flowcast-city',
+            'source-layer': 'building',
+            slot: 'middle',
+            minzoom: 13,
+            filter: map.getFilter(CITY_BUILDINGS) as never,
+            paint: {
+              'fill-extrusion-color': '#f5f8fc',
+              'fill-extrusion-base': ['get', 'height'],
+              'fill-extrusion-height': ['+', ['get', 'height'], 0.5],
+              'fill-extrusion-ambient-occlusion-intensity': 0,
+            },
+          });
+        }
+        map.setLayoutProperty(ROOF_SNOW, 'visibility', roofSnow > 0 ? 'visible' : 'none');
+        map.setPaintProperty(ROOF_SNOW, 'fill-extrusion-opacity', Math.min(0.92, roofSnow));
       },
       flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),
       project: (lngLat) => {
