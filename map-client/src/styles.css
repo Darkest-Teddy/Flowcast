@@ -243,3 +243,27 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 /* Crowds tab: one line on how the weather changes campus routines. */
 .weather-impact { margin: 10px 0 2px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); font-size: 13px; line-height: 1.35; }
 .weather-impact .muted { display: block; margin-top: 2px; }
+
+/* Performance monitor (build-time) */
+.perf {
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  min-width: 240px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.perf-fps { font-size: 22px; font-weight: 800; line-height: 1; }
+.perf-fps span { font-size: 11px; font-weight: 600; color: var(--muted); }
+.perf-fps.good { color: #4ade80; }
+.perf-fps.ok { color: #facc15; }
+.perf-fps.bad { color: #f87171; }
+.perf-graph { display: block; width: 100%; height: 24px; margin: 6px 0 4px; }
+.perf-graph line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 0.5; }
+.perf-graph polyline { fill: none; stroke: #4ade80; stroke-width: 1.2; }
+.perf dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; }
+.perf dt { color: var(--muted); }
+.perf dd { margin: 0; }
+.perf-hint { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
