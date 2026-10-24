@@ -12,6 +12,8 @@ import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } 
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { calibrateCapacities } from './sim/calibrate';
 import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
+import { riderLayers, withRiders } from './layers/riders';
+import { RiderSim } from './sim/riders';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
@@ -204,6 +206,8 @@ export default function App() {
       const playback = new Playback(calibrateCapacities(snapshot ? buildSourceDay(day, snapshot, 2) : day));
       playbackRef.current = playback;
       setRange([0, 86400]);
+      // People getting on and off trains, buses and shuttles at stops near campus.
+      const riders = transitRef.current ? new RiderSim(day, transitRef.current.data, transitRef.current.feed.tracks) : null;
       setCampuses(day.campuses ?? []);
 
       overlay = new MapboxOverlay({
@@ -230,12 +234,13 @@ export default function App() {
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
-          return `Student ${agent.id} → ${playback.locations.find((l) => l.id === agent.to)?.name}`;
+          // Riders walking to a stop are headed for a transit stop, not a building.
+          return `Student ${agent.id} → ${playback.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
         },
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, transitRef, bikesRef } });
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, transitRef, bikesRef, riders } });
       setStatus('');
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
@@ -280,6 +285,9 @@ export default function App() {
           roofHeights,
         });
         const transit = transitRef.current;
+        // One transit source per frame, shared by the transit layers and the rider sim.
+        const source = transit ? transitSourceAt(transit, t, liveRef.current) : null;
+        if (riders && source) riders.step(t, now, source);
         const showBikesNow = bikes && showBikesRef.current;
         const frameLayers = [
           ...(detailedBuildings
@@ -298,18 +306,19 @@ export default function App() {
             roofHeights,
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
-          ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+          ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
           ...(boats ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current }) : []),
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus, placer })
             : []),
-          ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+          ...agentLayers(withRiders(walking, riders, showTransitRef.current), models, t, { zoom: basemap.getZoom() }),
+          ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
         ];
         overlay!.setProps({ layers: frameLayers });
         perfRef.current = {
           walkers: walking.length,
-          vehicles: transit ? (liveRef.current ? transit.feed.positionsAt(now) : transit.schedule.positionsAt()).length : 0,
+          vehicles: source ? source.positionsAt(now).length : 0,
           layers: frameLayers.length,
         };
         frame = requestAnimationFrame(tick);
