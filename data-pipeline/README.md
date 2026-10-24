@@ -161,6 +161,7 @@ These scripts feed `map-client/` until the shared simulation core produces its o
 - `make_demo_routes.py`: placeholder plans for the map. It pulls each campus's walk network and building footprints from OpenStreetMap, routes a synthetic Wednesday for 300 students with Dijkstra, and writes `map-client/public/data/demo-day.json` (format: `map-client/README.md`, "Data contract"). Run `python3 data-pipeline/make_demo_routes.py`.
 - `campuses/*.json`: the campuses and real BU locations that script uses (`campus`, `name`, `bbox` [S, W, N, E], `locations` with `id`, `name`, `short`, `kind`, `lat`, `lon`, `capacity`, `osm`, optional `height`). Every file is loaded; files with the same `campus` id merge (bboxes union). Each campus gets its own walk network and at least 40 of the 300 agents.
 - `fetch_transit.py`: snapshots the MBTA routes and stops serving each campus into `map-client/public/data/transit.json`. The map polls live vehicles and predictions itself.
+- `fetch_bikes.py`: real Bluebikes rides at BU's docks into `map-client/public/data/bikes.json`. It downloads the month's public trip file once (`--month`, default `202609`, ~130 MB, cached in `.cache/bluebikes/`). It keeps docks within 200 m of a location in `campuses/*.json`, profiles each dock's typical weekday (`--weekday`, default Wednesday), and routes every ride on the median day (or `--replay-date`) over OSM's bike network. Dock times are real; street paths are inferred (see the map client README). It reads `campuses/*.json` but doesn't change them. Tests: `tests/test_bikes.py`.
 
 ### Map integration (offline)
 
@@ -174,4 +175,3 @@ venues remain explicitly unmapped. The map displays source facts with dates and 
 while `map-client/src/sim/sourceDay.ts` generates fictional student attendance against
 published class times. Historical library counts, registrations, residential baselines,
 and dining volumes are not treated as live occupancy.
-- `fetch_bikes.py`: real Bluebikes rides at BU's docks into `map-client/public/data/bikes.json`. It downloads the month's public trip file once (`--month`, default `202609`, ~130 MB, cached in `.cache/bluebikes/`). It keeps docks within 200 m of a location in `campuses/*.json`, profiles each dock's typical weekday (`--weekday`, default Wednesday), and routes every ride on the median day (or `--replay-date`) over OSM's bike network. Dock times are real; street paths are inferred (see the map client README). It reads `campuses/*.json` but doesn't change them. Tests: `tests/test_bikes.py`.

@@ -8,7 +8,7 @@ import { GLTFLoader } from '@loaders.gl/gltf';
 import { CubeGeometry } from '@luma.gl/engine';
 import type { Color } from '@deck.gl/core';
 import { minutesUntil, type Arrival, type TransitSource, type TransitData, type TransitRoute, type TransitStop, type Vehicle } from '../transit/mbta';
-import { BU_RED } from '../transit/buShuttle';
+import { BU_RED, shuttleInService } from '../transit/buShuttle';
 import { trackGeometry, type Track, type TrackGeometry } from '../transit/tracks';
 import { labelWidth, type LabelPlacer } from './placement';
 
@@ -16,13 +16,13 @@ const CUBE = new CubeGeometry(); // spans -1..1 on each axis; getScale gives hal
 // True scale vanishes from campus height (a train is under a pixel wide at zoom 15.5), so
 // vehicles grow as the camera pulls back: real size at street level, up to ~5x on the overview.
 // Buses are a quarter of a train's length, so they start growing a little earlier.
-type VehicleKind = 'subway' | 'bus' | 'shuttle';
+type VehicleKind = 'subway' | 'bus' | 'shuttle' | 'shuttleNight';
 
 function vehicleScale(zoom: number, kind: VehicleKind) {
   return kind !== 'subway' ? Math.min(7, Math.max(1, 2 ** (18.4 - zoom))) : Math.min(5, Math.max(1, 2 ** (17.8 - zoom)));
 }
 // Half-dimensions in metres: a two-car Green Line train (~45 m) and a 40-ft bus.
-const HALF_SIZE = { subway: [1.35, 22.5, 1.8], bus: [1.3, 6.1, 1.6], shuttle: [1.3, 6.1, 1.6] } as const;
+const HALF_SIZE = { subway: [1.35, 22.5, 1.8], bus: [1.3, 6.1, 1.6], shuttle: [1.3, 6.1, 1.6], shuttleNight: [1.3, 6.1, 1.6] } as const;
 const STATION_LABEL_HEIGHT = 38;
 
 // Real models when public/models has them (metres, Y-up, front +Z, like the Kenney
@@ -31,6 +31,7 @@ const VEHICLE_MODEL_URLS = {
   subway: '/models/mbta-green-line-train.glb',
   bus: '/models/mbta-bus.glb',
   shuttle: '/models/bu-shuttle.glb', // BU red
+  shuttleNight: '/models/bu-shuttle-night.glb', // the Night line's blue
 };
 // Same convention as agents.ts: a model facing +Z, stood upright with a 90° roll.
 const MODEL_YAW_OFFSET = 180;
@@ -61,7 +62,13 @@ export interface TransitLayerInput {
   zoom: number;
   placer: LabelPlacer;
   models: VehicleModels;
+  /** Shown time (sim seconds since midnight) and day (0 = Sunday), for BU shuttle service hours. */
+  time?: number;
+  weekday?: number;
 }
+
+// Station labels only from this zoom in: on the campus overview they crowded the building tags.
+const STATION_LABEL_MIN_ZOOM = 16.2;
 
 interface RoutePath {
   route: TransitRoute;
@@ -79,21 +86,24 @@ function subwayTracks(feed: TransitSource, routes: Map<string, TransitRoute>): T
   return geometry;
 }
 
-export function transitLayers({ data, feed, now, zoom, placer, models }: TransitLayerInput) {
-  const routes = new Map(data.routes.map((r) => [r.id, r]));
+export function transitLayers({ data, feed, now, zoom, placer, models, time, weekday }: TransitLayerInput) {
+  // BU shuttle lines appear only during their service hours (the Night line in the evening).
+  const running = (r: TransitRoute) => r.kind !== 'shuttle' || time === undefined || weekday === undefined || shuttleInService(r, time, weekday);
+  const routes = new Map(data.routes.filter(running).map((r) => [r.id, r]));
   const kindOf = (routeId: string) => routes.get(routeId)?.kind ?? 'bus';
   // Draw order, bottom to top: BU shuttle lines, MBTA buses, and the 57 last. It's the primary
   // line along Comm Ave, so nothing covers it where routes share the street.
   const lineRank = (r: TransitRoute) => (r.id === '57' ? 2 : r.kind === 'bus' ? 1 : 0);
-  const busPaths: RoutePath[] = data.routes
+  const busPaths: RoutePath[] = [...routes.values()]
     .filter((r) => r.kind !== 'subway')
     .sort((a, b) => lineRank(a) - lineRank(b))
     .flatMap((route) => route.paths.map(({ path }) => ({ route, path })));
   const tracks = subwayTracks(feed, routes);
-  const vehicles = feed.positionsAt(now);
+  const vehicles = feed.positionsAt(now).filter((v) => routes.has(v.route));
   const trains = vehicles.filter((v) => kindOf(v.route) === 'subway');
   const buses = vehicles.filter((v) => kindOf(v.route) === 'bus');
-  const shuttles = vehicles.filter((v) => kindOf(v.route) === 'shuttle');
+  const shuttles = vehicles.filter((v) => kindOf(v.route) === 'shuttle' && !routes.get(v.route)?.night);
+  const nightShuttles = vehicles.filter((v) => routes.get(v.route)?.night);
 
   const stations = data.stops.filter((s) => s.kind === 'station');
   const labelText = (s: TransitStop) => {
@@ -114,7 +124,7 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
     return `${s.short}\n${parts.length ? parts.join(' · ') : 'No predictions'}`;
   };
   const texts = new Map(stations.map((s) => [s, labelText(s)]));
-  const lifts = placer.place(stations, {
+  const lifts = placer.place(zoom >= STATION_LABEL_MIN_ZOOM ? stations : [], {
     position: (s) => s.position,
     width: (s) => labelWidth(texts.get(s)!, 12),
     height: STATION_LABEL_HEIGHT,
@@ -230,6 +240,7 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
       slot: 'top',
     }),
     vehicleLayer('transit-shuttles', 'shuttle', shuttles),
+    vehicleLayer('transit-shuttles-night', 'shuttleNight', nightShuttles),
     vehicleLayer('transit-buses', 'bus', buses),
     vehicleLayer('transit-trains', 'subway', trains),
     new TextLayer<TransitStop>({
