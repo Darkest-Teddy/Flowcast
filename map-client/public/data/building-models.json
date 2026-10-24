@@ -9,6 +9,10 @@
     42.35
    ],
    "model": "/models/buildings-charles-river.glb",
+   "lights": {
+    "dusk": "/models/buildings-charles-river-lights-dusk.glb",
+    "night": "/models/buildings-charles-river-lights-night.glb"
+   },
    "buildings": [
     {
      "osm": "relation/11268507",
@@ -17,7 +21,27 @@
       -71.10394,
       42.35049
      ],
-     "height": 15.8
+     "height": 15.6
+    },
+    {
+     "osm": "way/822626747",
+     "name": null,
+     "center": [
+      -71.10394,
+      42.35049
+     ],
+     "height": 15.6,
+     "partOf": "relation/11268507"
+    },
+    {
+     "osm": "way/29680760",
+     "name": null,
+     "center": [
+      -71.10394,
+      42.35049
+     ],
+     "height": 15.6,
+     "partOf": "relation/11268507"
     },
     {
      "osm": "relation/20512578",
@@ -26,8 +50,78 @@
       -71.104436,
       42.349383
      ],
-     "height": 69.5,
+     "height": 61.1,
      "landmark": "warren"
+    },
+    {
+     "osm": "way/485218323",
+     "name": null,
+     "center": [
+      -71.104436,
+      42.349383
+     ],
+     "height": 61.1,
+     "partOf": "relation/20512578"
+    },
+    {
+     "osm": "way/485218324",
+     "name": null,
+     "center": [
+      -71.104436,
+      42.349383
+     ],
+     "height": 61.1,
+     "partOf": "relation/20512578"
+    },
+    {
+     "osm": "way/485218325",
+     "name": null,
+     "center": [
+      -71.104436,
+      42.349383
+     ],
+     "height": 61.1,
+     "partOf": "relation/20512578"
+    },
+    {
+     "osm": "way/1501604066",
+     "name": null,
+     "center": [
+      -71.104436,
+      42.349383
+     ],
+     "height": 61.1,
+     "partOf": "relation/20512578"
+    },
+    {
+     "osm": "way/1501604070",
+     "name": null,
+     "center": [
+      -71.104436,
+      42.349383
+     ],
+     "height": 61.1,
+     "partOf": "relation/20512578"
+    },
+    {
+     "osm": "way/1501604073",
+     "name": null,
+     "center": [
+      -71.104436,
+      42.349383
+     ],
+     "height": 61.1,
+     "partOf": "relation/20512578"
+    },
+    {
+     "osm": "way/1501604074",
+     "name": null,
+     "center": [
+      -71.104436,
+      42.349383
+     ],
+     "height": 61.1,
+     "partOf": "relation/20512578"
     },
     {
      "osm": "relation/65258",
@@ -39,6 +133,26 @@
      "height": 15.8
     },
     {
+     "osm": "way/29902144",
+     "name": null,
+     "center": [
+      -71.104873,
+      42.347447
+     ],
+     "height": 15.8,
+     "partOf": "relation/65258"
+    },
+    {
+     "osm": "way/29907727",
+     "name": null,
+     "center": [
+      -71.104873,
+      42.347447
+     ],
+     "height": 15.8,
+     "partOf": "relation/65258"
+    },
+    {
      "osm": "relation/65269",
      "name": null,
      "center": [
@@ -46,6 +160,26 @@
       42.350136
      ],
      "height": 19.4
+    },
+    {
+     "osm": "way/29886922",
+     "name": null,
+     "center": [
+      -71.111675,
+      42.350136
+     ],
+     "height": 19.4,
+     "partOf": "relation/65269"
+    },
+    {
+     "osm": "way/29888158",
+     "name": null,
+     "center": [
+      -71.111675,
+      42.350136
+     ],
+     "height": 19.4,
+     "partOf": "relation/65269"
     },
     {
      "osm": "relation/9679543",
@@ -57,13 +191,73 @@
      "height": 15.6
     },
     {
+     "osm": "way/696458819",
+     "name": null,
+     "center": [
+      -71.095429,
+      42.35019
+     ],
+     "height": 15.6,
+     "partOf": "relation/9679543"
+    },
+    {
+     "osm": "way/696458817",
+     "name": null,
+     "center": [
+      -71.095429,
+      42.35019
+     ],
+     "height": 15.6,
+     "partOf": "relation/9679543"
+    },
+    {
      "osm": "relation/9679544",
      "name": null,
      "center": [
       -71.095531,
       42.350198
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458818",
+     "name": null,
+     "center": [
+      -71.095531,
+      42.350198
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679544"
+    },
+    {
+     "osm": "way/696458816",
+     "name": null,
+     "center": [
+      -71.095531,
+      42.350198
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679544"
+    },
+    {
+     "osm": "way/696458819",
+     "name": null,
+     "center": [
+      -71.095531,
+      42.350198
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679544"
+    },
+    {
+     "osm": "way/696458793",
+     "name": null,
+     "center": [
+      -71.095531,
+      42.350198
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679544"
     },
     {
      "osm": "relation/9679545",
@@ -75,6 +269,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/696458820",
+     "name": null,
+     "center": [
+      -71.095626,
+      42.350205
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679545"
+    },
+    {
+     "osm": "way/696458815",
+     "name": null,
+     "center": [
+      -71.095626,
+      42.350205
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679545"
+    },
+    {
+     "osm": "way/696458818",
+     "name": null,
+     "center": [
+      -71.095626,
+      42.350205
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679545"
+    },
+    {
+     "osm": "way/696458794",
+     "name": null,
+     "center": [
+      -71.095626,
+      42.350205
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679545"
+    },
+    {
      "osm": "relation/9679546",
      "name": null,
      "center": [
@@ -84,13 +318,93 @@
      "height": 17.7
     },
     {
+     "osm": "way/696458821",
+     "name": null,
+     "center": [
+      -71.095723,
+      42.350212
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679546"
+    },
+    {
+     "osm": "way/696458814",
+     "name": null,
+     "center": [
+      -71.095723,
+      42.350212
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679546"
+    },
+    {
+     "osm": "way/696458820",
+     "name": null,
+     "center": [
+      -71.095723,
+      42.350212
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679546"
+    },
+    {
+     "osm": "way/696458795",
+     "name": null,
+     "center": [
+      -71.095723,
+      42.350212
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679546"
+    },
+    {
      "osm": "relation/9679547",
      "name": null,
      "center": [
       -71.095814,
       42.350218
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458822",
+     "name": null,
+     "center": [
+      -71.095814,
+      42.350218
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679547"
+    },
+    {
+     "osm": "way/696458813",
+     "name": null,
+     "center": [
+      -71.095814,
+      42.350218
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679547"
+    },
+    {
+     "osm": "way/696458821",
+     "name": null,
+     "center": [
+      -71.095814,
+      42.350218
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679547"
+    },
+    {
+     "osm": "way/696458796",
+     "name": null,
+     "center": [
+      -71.095814,
+      42.350218
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679547"
     },
     {
      "osm": "relation/9679548",
@@ -99,7 +413,47 @@
       -71.095894,
       42.350224
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458823",
+     "name": null,
+     "center": [
+      -71.095894,
+      42.350224
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679548"
+    },
+    {
+     "osm": "way/696458812",
+     "name": null,
+     "center": [
+      -71.095894,
+      42.350224
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679548"
+    },
+    {
+     "osm": "way/696458822",
+     "name": null,
+     "center": [
+      -71.095894,
+      42.350224
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679548"
+    },
+    {
+     "osm": "way/696458797",
+     "name": null,
+     "center": [
+      -71.095894,
+      42.350224
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679548"
     },
     {
      "osm": "relation/9679549",
@@ -108,7 +462,47 @@
       -71.095983,
       42.35023
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458824",
+     "name": null,
+     "center": [
+      -71.095983,
+      42.35023
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679549"
+    },
+    {
+     "osm": "way/696458811",
+     "name": null,
+     "center": [
+      -71.095983,
+      42.35023
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679549"
+    },
+    {
+     "osm": "way/696458823",
+     "name": null,
+     "center": [
+      -71.095983,
+      42.35023
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679549"
+    },
+    {
+     "osm": "way/696458798",
+     "name": null,
+     "center": [
+      -71.095983,
+      42.35023
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679549"
     },
     {
      "osm": "relation/9679550",
@@ -117,7 +511,47 @@
       -71.096084,
       42.350237
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458825",
+     "name": null,
+     "center": [
+      -71.096084,
+      42.350237
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679550"
+    },
+    {
+     "osm": "way/696458810",
+     "name": null,
+     "center": [
+      -71.096084,
+      42.350237
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679550"
+    },
+    {
+     "osm": "way/696458824",
+     "name": null,
+     "center": [
+      -71.096084,
+      42.350237
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679550"
+    },
+    {
+     "osm": "way/696458799",
+     "name": null,
+     "center": [
+      -71.096084,
+      42.350237
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679550"
     },
     {
      "osm": "relation/9679551",
@@ -126,7 +560,47 @@
       -71.096186,
       42.350249
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458826",
+     "name": null,
+     "center": [
+      -71.096186,
+      42.350249
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679551"
+    },
+    {
+     "osm": "way/696458809",
+     "name": null,
+     "center": [
+      -71.096186,
+      42.350249
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679551"
+    },
+    {
+     "osm": "way/696458825",
+     "name": null,
+     "center": [
+      -71.096186,
+      42.350249
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679551"
+    },
+    {
+     "osm": "way/29944801",
+     "name": null,
+     "center": [
+      -71.096186,
+      42.350249
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679551"
     },
     {
      "osm": "relation/9679552",
@@ -135,7 +609,47 @@
       -71.096279,
       42.350249
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458827",
+     "name": null,
+     "center": [
+      -71.096279,
+      42.350249
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679552"
+    },
+    {
+     "osm": "way/696458808",
+     "name": null,
+     "center": [
+      -71.096279,
+      42.350249
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679552"
+    },
+    {
+     "osm": "way/696458826",
+     "name": null,
+     "center": [
+      -71.096279,
+      42.350249
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679552"
+    },
+    {
+     "osm": "way/696458800",
+     "name": null,
+     "center": [
+      -71.096279,
+      42.350249
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679552"
     },
     {
      "osm": "relation/9679553",
@@ -144,7 +658,47 @@
       -71.096378,
       42.350256
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458828",
+     "name": null,
+     "center": [
+      -71.096378,
+      42.350256
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679553"
+    },
+    {
+     "osm": "way/696458807",
+     "name": null,
+     "center": [
+      -71.096378,
+      42.350256
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679553"
+    },
+    {
+     "osm": "way/696458827",
+     "name": null,
+     "center": [
+      -71.096378,
+      42.350256
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679553"
+    },
+    {
+     "osm": "way/696458801",
+     "name": null,
+     "center": [
+      -71.096378,
+      42.350256
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679553"
     },
     {
      "osm": "relation/9679554",
@@ -153,7 +707,47 @@
       -71.096485,
       42.350264
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458829",
+     "name": null,
+     "center": [
+      -71.096485,
+      42.350264
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679554"
+    },
+    {
+     "osm": "way/696458806",
+     "name": null,
+     "center": [
+      -71.096485,
+      42.350264
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679554"
+    },
+    {
+     "osm": "way/696458828",
+     "name": null,
+     "center": [
+      -71.096485,
+      42.350264
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679554"
+    },
+    {
+     "osm": "way/696458802",
+     "name": null,
+     "center": [
+      -71.096485,
+      42.350264
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679554"
     },
     {
      "osm": "relation/9679555",
@@ -162,7 +756,47 @@
       -71.096574,
       42.350271
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458830",
+     "name": null,
+     "center": [
+      -71.096574,
+      42.350271
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679555"
+    },
+    {
+     "osm": "way/696458805",
+     "name": null,
+     "center": [
+      -71.096574,
+      42.350271
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679555"
+    },
+    {
+     "osm": "way/696458829",
+     "name": null,
+     "center": [
+      -71.096574,
+      42.350271
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679555"
+    },
+    {
+     "osm": "way/696458803",
+     "name": null,
+     "center": [
+      -71.096574,
+      42.350271
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679555"
     },
     {
      "osm": "relation/9679556",
@@ -171,7 +805,27 @@
       -71.096664,
       42.350277
      ],
-     "height": 14.6
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458804",
+     "name": null,
+     "center": [
+      -71.096664,
+      42.350277
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679556"
+    },
+    {
+     "osm": "way/696458830",
+     "name": null,
+     "center": [
+      -71.096664,
+      42.350277
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679556"
     },
     {
      "osm": "relation/9679557",
@@ -183,6 +837,26 @@
      "height": 15.6
     },
     {
+     "osm": "way/696458886",
+     "name": null,
+     "center": [
+      -71.09542,
+      42.349783
+     ],
+     "height": 15.6,
+     "partOf": "relation/9679557"
+    },
+    {
+     "osm": "way/29627774",
+     "name": null,
+     "center": [
+      -71.09542,
+      42.349783
+     ],
+     "height": 15.6,
+     "partOf": "relation/9679557"
+    },
+    {
      "osm": "relation/9679558",
      "name": null,
      "center": [
@@ -190,6 +864,46 @@
       42.349764
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/696458885",
+     "name": null,
+     "center": [
+      -71.095567,
+      42.349764
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679558"
+    },
+    {
+     "osm": "way/696458832",
+     "name": null,
+     "center": [
+      -71.095567,
+      42.349764
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679558"
+    },
+    {
+     "osm": "way/696458886",
+     "name": null,
+     "center": [
+      -71.095567,
+      42.349764
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679558"
+    },
+    {
+     "osm": "way/696458831",
+     "name": null,
+     "center": [
+      -71.095567,
+      42.349764
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679558"
     },
     {
      "osm": "relation/9679559",
@@ -201,13 +915,93 @@
      "height": 17.7
     },
     {
+     "osm": "way/696458884",
+     "name": null,
+     "center": [
+      -71.095657,
+      42.349763
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679559"
+    },
+    {
+     "osm": "way/696458833",
+     "name": null,
+     "center": [
+      -71.095657,
+      42.349763
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679559"
+    },
+    {
+     "osm": "way/696458885",
+     "name": null,
+     "center": [
+      -71.095657,
+      42.349763
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679559"
+    },
+    {
+     "osm": "way/696458867",
+     "name": null,
+     "center": [
+      -71.095657,
+      42.349763
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679559"
+    },
+    {
      "osm": "relation/9679560",
      "name": null,
      "center": [
       -71.095743,
       42.349769
      ],
-     "height": 14.7
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458883",
+     "name": null,
+     "center": [
+      -71.095743,
+      42.349769
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679560"
+    },
+    {
+     "osm": "way/696458834",
+     "name": null,
+     "center": [
+      -71.095743,
+      42.349769
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679560"
+    },
+    {
+     "osm": "way/696458884",
+     "name": null,
+     "center": [
+      -71.095743,
+      42.349769
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679560"
+    },
+    {
+     "osm": "way/696458866",
+     "name": null,
+     "center": [
+      -71.095743,
+      42.349769
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679560"
     },
     {
      "osm": "relation/9679561",
@@ -219,6 +1013,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/696458882",
+     "name": null,
+     "center": [
+      -71.095827,
+      42.349775
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679561"
+    },
+    {
+     "osm": "way/696458835",
+     "name": null,
+     "center": [
+      -71.095827,
+      42.349775
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679561"
+    },
+    {
+     "osm": "way/696458883",
+     "name": null,
+     "center": [
+      -71.095827,
+      42.349775
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679561"
+    },
+    {
+     "osm": "way/696458865",
+     "name": null,
+     "center": [
+      -71.095827,
+      42.349775
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679561"
+    },
+    {
      "osm": "relation/9679562",
      "name": null,
      "center": [
@@ -228,13 +1062,93 @@
      "height": 17.7
     },
     {
+     "osm": "way/696458881",
+     "name": null,
+     "center": [
+      -71.09591,
+      42.349781
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679562"
+    },
+    {
+     "osm": "way/696458836",
+     "name": null,
+     "center": [
+      -71.09591,
+      42.349781
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679562"
+    },
+    {
+     "osm": "way/696458882",
+     "name": null,
+     "center": [
+      -71.09591,
+      42.349781
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679562"
+    },
+    {
+     "osm": "way/696458864",
+     "name": null,
+     "center": [
+      -71.09591,
+      42.349781
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679562"
+    },
+    {
      "osm": "relation/9679563",
      "name": null,
      "center": [
       -71.095994,
       42.349787
      ],
-     "height": 14.7
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458880",
+     "name": null,
+     "center": [
+      -71.095994,
+      42.349787
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679563"
+    },
+    {
+     "osm": "way/696458837",
+     "name": null,
+     "center": [
+      -71.095994,
+      42.349787
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679563"
+    },
+    {
+     "osm": "way/696458881",
+     "name": null,
+     "center": [
+      -71.095994,
+      42.349787
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679563"
+    },
+    {
+     "osm": "way/696458863",
+     "name": null,
+     "center": [
+      -71.095994,
+      42.349787
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679563"
     },
     {
      "osm": "relation/9679564",
@@ -246,13 +1160,93 @@
      "height": 17.7
     },
     {
+     "osm": "way/696458879",
+     "name": null,
+     "center": [
+      -71.096076,
+      42.349793
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679564"
+    },
+    {
+     "osm": "way/696458838",
+     "name": null,
+     "center": [
+      -71.096076,
+      42.349793
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679564"
+    },
+    {
+     "osm": "way/696458880",
+     "name": null,
+     "center": [
+      -71.096076,
+      42.349793
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679564"
+    },
+    {
+     "osm": "way/696458862",
+     "name": null,
+     "center": [
+      -71.096076,
+      42.349793
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679564"
+    },
+    {
      "osm": "relation/9679565",
      "name": null,
      "center": [
       -71.09616,
       42.349799
      ],
-     "height": 14.7
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458878",
+     "name": null,
+     "center": [
+      -71.09616,
+      42.349799
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679565"
+    },
+    {
+     "osm": "way/696458839",
+     "name": null,
+     "center": [
+      -71.09616,
+      42.349799
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679565"
+    },
+    {
+     "osm": "way/696458879",
+     "name": null,
+     "center": [
+      -71.09616,
+      42.349799
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679565"
+    },
+    {
+     "osm": "way/696458861",
+     "name": null,
+     "center": [
+      -71.09616,
+      42.349799
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679565"
     },
     {
      "osm": "relation/9679566",
@@ -261,7 +1255,47 @@
       -71.096242,
       42.349805
      ],
-     "height": 12.8
+     "height": 12.2
+    },
+    {
+     "osm": "way/696458877",
+     "name": null,
+     "center": [
+      -71.096242,
+      42.349805
+     ],
+     "height": 12.2,
+     "partOf": "relation/9679566"
+    },
+    {
+     "osm": "way/696458840",
+     "name": null,
+     "center": [
+      -71.096242,
+      42.349805
+     ],
+     "height": 12.2,
+     "partOf": "relation/9679566"
+    },
+    {
+     "osm": "way/696458878",
+     "name": null,
+     "center": [
+      -71.096242,
+      42.349805
+     ],
+     "height": 12.2,
+     "partOf": "relation/9679566"
+    },
+    {
+     "osm": "way/696458860",
+     "name": null,
+     "center": [
+      -71.096242,
+      42.349805
+     ],
+     "height": 12.2,
+     "partOf": "relation/9679566"
     },
     {
      "osm": "relation/9679567",
@@ -270,7 +1304,47 @@
       -71.096326,
       42.349811
      ],
-     "height": 14.7
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458876",
+     "name": null,
+     "center": [
+      -71.096326,
+      42.349811
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679567"
+    },
+    {
+     "osm": "way/696458841",
+     "name": null,
+     "center": [
+      -71.096326,
+      42.349811
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679567"
+    },
+    {
+     "osm": "way/696458877",
+     "name": null,
+     "center": [
+      -71.096326,
+      42.349811
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679567"
+    },
+    {
+     "osm": "way/696458859",
+     "name": null,
+     "center": [
+      -71.096326,
+      42.349811
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679567"
     },
     {
      "osm": "relation/9679568",
@@ -282,6 +1356,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/696458875",
+     "name": null,
+     "center": [
+      -71.096401,
+      42.349816
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679568"
+    },
+    {
+     "osm": "way/696458842",
+     "name": null,
+     "center": [
+      -71.096401,
+      42.349816
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679568"
+    },
+    {
+     "osm": "way/696458876",
+     "name": null,
+     "center": [
+      -71.096401,
+      42.349816
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679568"
+    },
+    {
+     "osm": "way/696458858",
+     "name": null,
+     "center": [
+      -71.096401,
+      42.349816
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679568"
+    },
+    {
      "osm": "relation/9679569",
      "name": null,
      "center": [
@@ -291,13 +1405,93 @@
      "height": 17.7
     },
     {
+     "osm": "way/696458874",
+     "name": null,
+     "center": [
+      -71.096475,
+      42.349822
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679569"
+    },
+    {
+     "osm": "way/696458843",
+     "name": null,
+     "center": [
+      -71.096475,
+      42.349822
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679569"
+    },
+    {
+     "osm": "way/696458875",
+     "name": null,
+     "center": [
+      -71.096475,
+      42.349822
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679569"
+    },
+    {
+     "osm": "way/696458857",
+     "name": null,
+     "center": [
+      -71.096475,
+      42.349822
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679569"
+    },
+    {
      "osm": "relation/9679570",
      "name": null,
      "center": [
       -71.096559,
       42.349828
      ],
-     "height": 14.7
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458873",
+     "name": null,
+     "center": [
+      -71.096559,
+      42.349828
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679570"
+    },
+    {
+     "osm": "way/696458844",
+     "name": null,
+     "center": [
+      -71.096559,
+      42.349828
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679570"
+    },
+    {
+     "osm": "way/696458874",
+     "name": null,
+     "center": [
+      -71.096559,
+      42.349828
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679570"
+    },
+    {
+     "osm": "way/696458856",
+     "name": null,
+     "center": [
+      -71.096559,
+      42.349828
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679570"
     },
     {
      "osm": "relation/9679571",
@@ -306,7 +1500,47 @@
       -71.096641,
       42.349834
      ],
-     "height": 12.8
+     "height": 12.2
+    },
+    {
+     "osm": "way/696458872",
+     "name": null,
+     "center": [
+      -71.096641,
+      42.349834
+     ],
+     "height": 12.2,
+     "partOf": "relation/9679571"
+    },
+    {
+     "osm": "way/696458845",
+     "name": null,
+     "center": [
+      -71.096641,
+      42.349834
+     ],
+     "height": 12.2,
+     "partOf": "relation/9679571"
+    },
+    {
+     "osm": "way/696458873",
+     "name": null,
+     "center": [
+      -71.096641,
+      42.349834
+     ],
+     "height": 12.2,
+     "partOf": "relation/9679571"
+    },
+    {
+     "osm": "way/696458855",
+     "name": null,
+     "center": [
+      -71.096641,
+      42.349834
+     ],
+     "height": 12.2,
+     "partOf": "relation/9679571"
     },
     {
      "osm": "relation/9679572",
@@ -315,7 +1549,47 @@
       -71.096724,
       42.349839
      ],
-     "height": 14.7
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458871",
+     "name": null,
+     "center": [
+      -71.096724,
+      42.349839
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679572"
+    },
+    {
+     "osm": "way/696458846",
+     "name": null,
+     "center": [
+      -71.096724,
+      42.349839
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679572"
+    },
+    {
+     "osm": "way/696458872",
+     "name": null,
+     "center": [
+      -71.096724,
+      42.349839
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679572"
+    },
+    {
+     "osm": "way/696458854",
+     "name": null,
+     "center": [
+      -71.096724,
+      42.349839
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679572"
     },
     {
      "osm": "relation/9679573",
@@ -324,7 +1598,47 @@
       -71.096807,
       42.349845
      ],
-     "height": 14.7
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458870",
+     "name": null,
+     "center": [
+      -71.096807,
+      42.349845
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679573"
+    },
+    {
+     "osm": "way/696458847",
+     "name": null,
+     "center": [
+      -71.096807,
+      42.349845
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679573"
+    },
+    {
+     "osm": "way/696458871",
+     "name": null,
+     "center": [
+      -71.096807,
+      42.349845
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679573"
+    },
+    {
+     "osm": "way/696458853",
+     "name": null,
+     "center": [
+      -71.096807,
+      42.349845
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679573"
     },
     {
      "osm": "relation/9679574",
@@ -333,7 +1647,47 @@
       -71.096889,
       42.349851
      ],
-     "height": 14.7
+     "height": 14.1
+    },
+    {
+     "osm": "way/696458869",
+     "name": null,
+     "center": [
+      -71.096889,
+      42.349851
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679574"
+    },
+    {
+     "osm": "way/696458848",
+     "name": null,
+     "center": [
+      -71.096889,
+      42.349851
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679574"
+    },
+    {
+     "osm": "way/696458870",
+     "name": null,
+     "center": [
+      -71.096889,
+      42.349851
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679574"
+    },
+    {
+     "osm": "way/696458852",
+     "name": null,
+     "center": [
+      -71.096889,
+      42.349851
+     ],
+     "height": 14.1,
+     "partOf": "relation/9679574"
     },
     {
      "osm": "relation/9679575",
@@ -345,6 +1699,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/696458868",
+     "name": null,
+     "center": [
+      -71.096973,
+      42.349857
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679575"
+    },
+    {
+     "osm": "way/696458849",
+     "name": null,
+     "center": [
+      -71.096973,
+      42.349857
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679575"
+    },
+    {
+     "osm": "way/696458869",
+     "name": null,
+     "center": [
+      -71.096973,
+      42.349857
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679575"
+    },
+    {
+     "osm": "way/696458851",
+     "name": null,
+     "center": [
+      -71.096973,
+      42.349857
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679575"
+    },
+    {
      "osm": "relation/9679576",
      "name": null,
      "center": [
@@ -352,6 +1746,26 @@
       42.349863
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/696458850",
+     "name": null,
+     "center": [
+      -71.097057,
+      42.349863
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679576"
+    },
+    {
+     "osm": "way/696458868",
+     "name": null,
+     "center": [
+      -71.097057,
+      42.349863
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679576"
     },
     {
      "osm": "relation/9679640",
@@ -363,6 +1777,26 @@
      "height": 17.7
     },
     {
+     "osm": "way/29551465",
+     "name": null,
+     "center": [
+      -71.095114,
+      42.35017
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679640"
+    },
+    {
+     "osm": "way/696463848",
+     "name": null,
+     "center": [
+      -71.095114,
+      42.35017
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679640"
+    },
+    {
      "osm": "relation/9679644",
      "name": null,
      "center": [
@@ -370,6 +1804,46 @@
       42.350193
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/696463830",
+     "name": null,
+     "center": [
+      -71.09334,
+      42.350193
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679644"
+    },
+    {
+     "osm": "way/696463796",
+     "name": null,
+     "center": [
+      -71.09334,
+      42.350193
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679644"
+    },
+    {
+     "osm": "way/696463829",
+     "name": null,
+     "center": [
+      -71.09334,
+      42.350193
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679644"
+    },
+    {
+     "osm": "way/696463801",
+     "name": null,
+     "center": [
+      -71.09334,
+      42.350193
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679644"
     },
     {
      "osm": "relation/9679645",
@@ -381,6 +1855,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/696463831",
+     "name": null,
+     "center": [
+      -71.093434,
+      42.350189
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679645"
+    },
+    {
+     "osm": "way/696463795",
+     "name": null,
+     "center": [
+      -71.093434,
+      42.350189
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679645"
+    },
+    {
+     "osm": "way/696463830",
+     "name": null,
+     "center": [
+      -71.093434,
+      42.350189
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679645"
+    },
+    {
+     "osm": "way/696463802",
+     "name": null,
+     "center": [
+      -71.093434,
+      42.350189
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679645"
+    },
+    {
      "osm": "relation/9679646",
      "name": null,
      "center": [
@@ -388,6 +1902,46 @@
       42.350186
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/696463832",
+     "name": null,
+     "center": [
+      -71.093527,
+      42.350186
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679646"
+    },
+    {
+     "osm": "way/696463803",
+     "name": null,
+     "center": [
+      -71.093527,
+      42.350186
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679646"
+    },
+    {
+     "osm": "way/696463831",
+     "name": null,
+     "center": [
+      -71.093527,
+      42.350186
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679646"
+    },
+    {
+     "osm": "way/696463794",
+     "name": null,
+     "center": [
+      -71.093527,
+      42.350186
+     ],
+     "height": 17.7,
+     "partOf": "relation/9679646"
     },
     {
      "osm": "relation/9685864",
@@ -399,6 +1953,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017040",
+     "name": null,
+     "center": [
+      -71.099239,
+      42.350441
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685864"
+    },
+    {
+     "osm": "way/697017043",
+     "name": null,
+     "center": [
+      -71.099239,
+      42.350441
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685864"
+    },
+    {
+     "osm": "way/697017042",
+     "name": null,
+     "center": [
+      -71.099239,
+      42.350441
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685864"
+    },
+    {
+     "osm": "way/697017044",
+     "name": null,
+     "center": [
+      -71.099239,
+      42.350441
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685864"
+    },
+    {
      "osm": "relation/9685865",
      "name": null,
      "center": [
@@ -406,6 +2000,26 @@
       42.3504
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017071",
+     "name": null,
+     "center": [
+      -71.098461,
+      42.3504
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685865"
+    },
+    {
+     "osm": "way/228160353",
+     "name": null,
+     "center": [
+      -71.098461,
+      42.3504
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685865"
     },
     {
      "osm": "relation/9685866",
@@ -417,6 +2031,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017072",
+     "name": null,
+     "center": [
+      -71.098558,
+      42.350402
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685866"
+    },
+    {
+     "osm": "way/697017055",
+     "name": null,
+     "center": [
+      -71.098558,
+      42.350402
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685866"
+    },
+    {
+     "osm": "way/697017071",
+     "name": null,
+     "center": [
+      -71.098558,
+      42.350402
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685866"
+    },
+    {
+     "osm": "way/697017045",
+     "name": null,
+     "center": [
+      -71.098558,
+      42.350402
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685866"
+    },
+    {
      "osm": "relation/9685867",
      "name": "Kilachand Honors College House",
      "center": [
@@ -424,6 +2078,46 @@
       42.350409
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017073",
+     "name": null,
+     "center": [
+      -71.098655,
+      42.350409
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685867"
+    },
+    {
+     "osm": "way/697017054",
+     "name": null,
+     "center": [
+      -71.098655,
+      42.350409
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685867"
+    },
+    {
+     "osm": "way/697017072",
+     "name": null,
+     "center": [
+      -71.098655,
+      42.350409
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685867"
+    },
+    {
+     "osm": "way/697017046",
+     "name": null,
+     "center": [
+      -71.098655,
+      42.350409
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685867"
     },
     {
      "osm": "relation/9685868",
@@ -435,6 +2129,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017074",
+     "name": null,
+     "center": [
+      -71.098753,
+      42.350417
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685868"
+    },
+    {
+     "osm": "way/697017053",
+     "name": null,
+     "center": [
+      -71.098753,
+      42.350417
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685868"
+    },
+    {
+     "osm": "way/697017073",
+     "name": null,
+     "center": [
+      -71.098753,
+      42.350417
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685868"
+    },
+    {
+     "osm": "way/697017047",
+     "name": null,
+     "center": [
+      -71.098753,
+      42.350417
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685868"
+    },
+    {
      "osm": "relation/9685869",
      "name": null,
      "center": [
@@ -442,6 +2176,46 @@
       42.350435
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017075",
+     "name": null,
+     "center": [
+      -71.098868,
+      42.350435
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685869"
+    },
+    {
+     "osm": "way/697017052",
+     "name": null,
+     "center": [
+      -71.098868,
+      42.350435
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685869"
+    },
+    {
+     "osm": "way/697017074",
+     "name": null,
+     "center": [
+      -71.098868,
+      42.350435
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685869"
+    },
+    {
+     "osm": "way/697017048",
+     "name": null,
+     "center": [
+      -71.098868,
+      42.350435
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685869"
     },
     {
      "osm": "relation/9685870",
@@ -453,6 +2227,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017076",
+     "name": null,
+     "center": [
+      -71.099023,
+      42.350446
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685870"
+    },
+    {
+     "osm": "way/697017051",
+     "name": null,
+     "center": [
+      -71.099023,
+      42.350446
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685870"
+    },
+    {
+     "osm": "way/697017075",
+     "name": null,
+     "center": [
+      -71.099023,
+      42.350446
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685870"
+    },
+    {
+     "osm": "way/697017049",
+     "name": null,
+     "center": [
+      -71.099023,
+      42.350446
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685870"
+    },
+    {
      "osm": "relation/9685871",
      "name": null,
      "center": [
@@ -460,6 +2274,46 @@
       42.350448
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017041",
+     "name": null,
+     "center": [
+      -71.09914,
+      42.350448
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685871"
+    },
+    {
+     "osm": "way/697017042",
+     "name": null,
+     "center": [
+      -71.09914,
+      42.350448
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685871"
+    },
+    {
+     "osm": "way/697017050",
+     "name": null,
+     "center": [
+      -71.09914,
+      42.350448
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685871"
+    },
+    {
+     "osm": "way/697017076",
+     "name": null,
+     "center": [
+      -71.09914,
+      42.350448
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685871"
     },
     {
      "osm": "relation/9685872",
@@ -471,6 +2325,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017077",
+     "name": null,
+     "center": [
+      -71.099333,
+      42.350464
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685872"
+    },
+    {
+     "osm": "way/29513566",
+     "name": null,
+     "center": [
+      -71.099333,
+      42.350464
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685872"
+    },
+    {
+     "osm": "way/697017040",
+     "name": null,
+     "center": [
+      -71.099333,
+      42.350464
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685872"
+    },
+    {
+     "osm": "way/697017039",
+     "name": null,
+     "center": [
+      -71.099333,
+      42.350464
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685872"
+    },
+    {
      "osm": "relation/9685873",
      "name": null,
      "center": [
@@ -478,6 +2372,46 @@
       42.350472
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017078",
+     "name": null,
+     "center": [
+      -71.09943,
+      42.350472
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685873"
+    },
+    {
+     "osm": "way/697017070",
+     "name": null,
+     "center": [
+      -71.09943,
+      42.350472
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685873"
+    },
+    {
+     "osm": "way/697017077",
+     "name": null,
+     "center": [
+      -71.09943,
+      42.350472
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685873"
+    },
+    {
+     "osm": "way/697017056",
+     "name": null,
+     "center": [
+      -71.09943,
+      42.350472
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685873"
     },
     {
      "osm": "relation/9685874",
@@ -489,6 +2423,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017079",
+     "name": null,
+     "center": [
+      -71.099524,
+      42.350471
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685874"
+    },
+    {
+     "osm": "way/697017069",
+     "name": null,
+     "center": [
+      -71.099524,
+      42.350471
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685874"
+    },
+    {
+     "osm": "way/697017078",
+     "name": null,
+     "center": [
+      -71.099524,
+      42.350471
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685874"
+    },
+    {
+     "osm": "way/697017057",
+     "name": null,
+     "center": [
+      -71.099524,
+      42.350471
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685874"
+    },
+    {
      "osm": "relation/9685875",
      "name": null,
      "center": [
@@ -496,6 +2470,46 @@
       42.350468
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017080",
+     "name": null,
+     "center": [
+      -71.099606,
+      42.350468
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685875"
+    },
+    {
+     "osm": "way/697017068",
+     "name": null,
+     "center": [
+      -71.099606,
+      42.350468
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685875"
+    },
+    {
+     "osm": "way/697017079",
+     "name": null,
+     "center": [
+      -71.099606,
+      42.350468
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685875"
+    },
+    {
+     "osm": "way/697017058",
+     "name": null,
+     "center": [
+      -71.099606,
+      42.350468
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685875"
     },
     {
      "osm": "relation/9685876",
@@ -507,6 +2521,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017081",
+     "name": null,
+     "center": [
+      -71.099683,
+      42.350474
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685876"
+    },
+    {
+     "osm": "way/697017067",
+     "name": null,
+     "center": [
+      -71.099683,
+      42.350474
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685876"
+    },
+    {
+     "osm": "way/697017080",
+     "name": null,
+     "center": [
+      -71.099683,
+      42.350474
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685876"
+    },
+    {
+     "osm": "way/697017059",
+     "name": null,
+     "center": [
+      -71.099683,
+      42.350474
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685876"
+    },
+    {
      "osm": "relation/9685877",
      "name": null,
      "center": [
@@ -514,6 +2568,46 @@
       42.350495
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017082",
+     "name": null,
+     "center": [
+      -71.099767,
+      42.350495
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685877"
+    },
+    {
+     "osm": "way/697017066",
+     "name": null,
+     "center": [
+      -71.099767,
+      42.350495
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685877"
+    },
+    {
+     "osm": "way/697017081",
+     "name": null,
+     "center": [
+      -71.099767,
+      42.350495
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685877"
+    },
+    {
+     "osm": "way/697017060",
+     "name": null,
+     "center": [
+      -71.099767,
+      42.350495
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685877"
     },
     {
      "osm": "relation/9685881",
@@ -525,6 +2619,26 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017096",
+     "name": null,
+     "center": [
+      -71.098568,
+      42.349964
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685881"
+    },
+    {
+     "osm": "way/697017095",
+     "name": null,
+     "center": [
+      -71.098568,
+      42.349964
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685881"
+    },
+    {
      "osm": "relation/9685882",
      "name": null,
      "center": [
@@ -534,13 +2648,93 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017097",
+     "name": null,
+     "center": [
+      -71.098637,
+      42.349969
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685882"
+    },
+    {
+     "osm": "way/697017090",
+     "name": null,
+     "center": [
+      -71.098637,
+      42.349969
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685882"
+    },
+    {
+     "osm": "way/697017096",
+     "name": null,
+     "center": [
+      -71.098637,
+      42.349969
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685882"
+    },
+    {
+     "osm": "way/697017089",
+     "name": null,
+     "center": [
+      -71.098637,
+      42.349969
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685882"
+    },
+    {
      "osm": "relation/9685883",
      "name": null,
      "center": [
       -71.098712,
       42.349975
      ],
-     "height": 12.2
+     "height": 12.0
+    },
+    {
+     "osm": "way/697017098",
+     "name": null,
+     "center": [
+      -71.098712,
+      42.349975
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685883"
+    },
+    {
+     "osm": "way/697017091",
+     "name": null,
+     "center": [
+      -71.098712,
+      42.349975
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685883"
+    },
+    {
+     "osm": "way/697017097",
+     "name": null,
+     "center": [
+      -71.098712,
+      42.349975
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685883"
+    },
+    {
+     "osm": "way/697017088",
+     "name": null,
+     "center": [
+      -71.098712,
+      42.349975
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685883"
     },
     {
      "osm": "relation/9685884",
@@ -552,6 +2746,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017099",
+     "name": null,
+     "center": [
+      -71.098802,
+      42.349989
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685884"
+    },
+    {
+     "osm": "way/697017094",
+     "name": null,
+     "center": [
+      -71.098802,
+      42.349989
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685884"
+    },
+    {
+     "osm": "way/697017098",
+     "name": null,
+     "center": [
+      -71.098802,
+      42.349989
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685884"
+    },
+    {
+     "osm": "way/697017087",
+     "name": null,
+     "center": [
+      -71.098802,
+      42.349989
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685884"
+    },
+    {
      "osm": "relation/9685885",
      "name": null,
      "center": [
@@ -559,6 +2793,46 @@
       42.349996
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017100",
+     "name": null,
+     "center": [
+      -71.098889,
+      42.349996
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685885"
+    },
+    {
+     "osm": "way/697017093",
+     "name": null,
+     "center": [
+      -71.098889,
+      42.349996
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685885"
+    },
+    {
+     "osm": "way/697017099",
+     "name": null,
+     "center": [
+      -71.098889,
+      42.349996
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685885"
+    },
+    {
+     "osm": "way/697017086",
+     "name": null,
+     "center": [
+      -71.098889,
+      42.349996
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685885"
     },
     {
      "osm": "relation/9685886",
@@ -570,6 +2844,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017101",
+     "name": null,
+     "center": [
+      -71.098978,
+      42.350002
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685886"
+    },
+    {
+     "osm": "way/697017092",
+     "name": null,
+     "center": [
+      -71.098978,
+      42.350002
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685886"
+    },
+    {
+     "osm": "way/697017100",
+     "name": null,
+     "center": [
+      -71.098978,
+      42.350002
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685886"
+    },
+    {
+     "osm": "way/29801879",
+     "name": null,
+     "center": [
+      -71.098978,
+      42.350002
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685886"
+    },
+    {
      "osm": "relation/9685887",
      "name": null,
      "center": [
@@ -577,6 +2891,26 @@
       42.350009
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017085",
+     "name": null,
+     "center": [
+      -71.099068,
+      42.350009
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685887"
+    },
+    {
+     "osm": "way/697017101",
+     "name": null,
+     "center": [
+      -71.099068,
+      42.350009
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685887"
     },
     {
      "osm": "relation/9685888",
@@ -588,6 +2922,26 @@
      "height": 12.0
     },
     {
+     "osm": "way/697017124",
+     "name": null,
+     "center": [
+      -71.103333,
+      42.347436
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685888"
+    },
+    {
+     "osm": "way/29513076",
+     "name": null,
+     "center": [
+      -71.103333,
+      42.347436
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685888"
+    },
+    {
      "osm": "relation/9685889",
      "name": null,
      "center": [
@@ -595,6 +2949,46 @@
       42.347434
      ],
      "height": 5.0
+    },
+    {
+     "osm": "way/697017125",
+     "name": null,
+     "center": [
+      -71.10321,
+      42.347434
+     ],
+     "height": 5.0,
+     "partOf": "relation/9685889"
+    },
+    {
+     "osm": "way/697017112",
+     "name": null,
+     "center": [
+      -71.10321,
+      42.347434
+     ],
+     "height": 5.0,
+     "partOf": "relation/9685889"
+    },
+    {
+     "osm": "way/697017124",
+     "name": null,
+     "center": [
+      -71.10321,
+      42.347434
+     ],
+     "height": 5.0,
+     "partOf": "relation/9685889"
+    },
+    {
+     "osm": "way/697017113",
+     "name": null,
+     "center": [
+      -71.10321,
+      42.347434
+     ],
+     "height": 5.0,
+     "partOf": "relation/9685889"
     },
     {
      "osm": "relation/9685890",
@@ -606,6 +3000,46 @@
      "height": 12.0
     },
     {
+     "osm": "way/697017126",
+     "name": null,
+     "center": [
+      -71.103139,
+      42.347468
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685890"
+    },
+    {
+     "osm": "way/697017111",
+     "name": null,
+     "center": [
+      -71.103139,
+      42.347468
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685890"
+    },
+    {
+     "osm": "way/697017125",
+     "name": null,
+     "center": [
+      -71.103139,
+      42.347468
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685890"
+    },
+    {
+     "osm": "way/697017114",
+     "name": null,
+     "center": [
+      -71.103139,
+      42.347468
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685890"
+    },
+    {
      "osm": "relation/9685891",
      "name": null,
      "center": [
@@ -613,6 +3047,46 @@
       42.347488
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017127",
+     "name": null,
+     "center": [
+      -71.103065,
+      42.347488
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685891"
+    },
+    {
+     "osm": "way/697017110",
+     "name": null,
+     "center": [
+      -71.103065,
+      42.347488
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685891"
+    },
+    {
+     "osm": "way/697017126",
+     "name": null,
+     "center": [
+      -71.103065,
+      42.347488
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685891"
+    },
+    {
+     "osm": "way/697017115",
+     "name": null,
+     "center": [
+      -71.103065,
+      42.347488
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685891"
     },
     {
      "osm": "relation/9685892",
@@ -624,6 +3098,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017128",
+     "name": null,
+     "center": [
+      -71.102985,
+      42.34751
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685892"
+    },
+    {
+     "osm": "way/697017109",
+     "name": null,
+     "center": [
+      -71.102985,
+      42.34751
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685892"
+    },
+    {
+     "osm": "way/697017127",
+     "name": null,
+     "center": [
+      -71.102985,
+      42.34751
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685892"
+    },
+    {
+     "osm": "way/697017116",
+     "name": null,
+     "center": [
+      -71.102985,
+      42.34751
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685892"
+    },
+    {
      "osm": "relation/9685893",
      "name": null,
      "center": [
@@ -631,6 +3145,46 @@
       42.347532
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017129",
+     "name": null,
+     "center": [
+      -71.102906,
+      42.347532
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685893"
+    },
+    {
+     "osm": "way/697017108",
+     "name": null,
+     "center": [
+      -71.102906,
+      42.347532
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685893"
+    },
+    {
+     "osm": "way/697017128",
+     "name": null,
+     "center": [
+      -71.102906,
+      42.347532
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685893"
+    },
+    {
+     "osm": "way/697017117",
+     "name": null,
+     "center": [
+      -71.102906,
+      42.347532
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685893"
     },
     {
      "osm": "relation/9685894",
@@ -642,6 +3196,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017130",
+     "name": null,
+     "center": [
+      -71.102831,
+      42.347552
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685894"
+    },
+    {
+     "osm": "way/697017107",
+     "name": null,
+     "center": [
+      -71.102831,
+      42.347552
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685894"
+    },
+    {
+     "osm": "way/697017129",
+     "name": null,
+     "center": [
+      -71.102831,
+      42.347552
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685894"
+    },
+    {
+     "osm": "way/697017118",
+     "name": null,
+     "center": [
+      -71.102831,
+      42.347552
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685894"
+    },
+    {
      "osm": "relation/9685895",
      "name": null,
      "center": [
@@ -649,6 +3243,46 @@
       42.347574
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017131",
+     "name": null,
+     "center": [
+      -71.102753,
+      42.347574
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685895"
+    },
+    {
+     "osm": "way/697017106",
+     "name": null,
+     "center": [
+      -71.102753,
+      42.347574
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685895"
+    },
+    {
+     "osm": "way/697017130",
+     "name": null,
+     "center": [
+      -71.102753,
+      42.347574
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685895"
+    },
+    {
+     "osm": "way/697017119",
+     "name": null,
+     "center": [
+      -71.102753,
+      42.347574
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685895"
     },
     {
      "osm": "relation/9685896",
@@ -660,6 +3294,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017132",
+     "name": null,
+     "center": [
+      -71.10268,
+      42.347594
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685896"
+    },
+    {
+     "osm": "way/697017105",
+     "name": null,
+     "center": [
+      -71.10268,
+      42.347594
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685896"
+    },
+    {
+     "osm": "way/697017131",
+     "name": null,
+     "center": [
+      -71.10268,
+      42.347594
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685896"
+    },
+    {
+     "osm": "way/697017120",
+     "name": null,
+     "center": [
+      -71.10268,
+      42.347594
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685896"
+    },
+    {
      "osm": "relation/9685897",
      "name": null,
      "center": [
@@ -667,6 +3341,46 @@
       42.347612
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017133",
+     "name": null,
+     "center": [
+      -71.102604,
+      42.347612
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685897"
+    },
+    {
+     "osm": "way/697017123",
+     "name": null,
+     "center": [
+      -71.102604,
+      42.347612
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685897"
+    },
+    {
+     "osm": "way/697017132",
+     "name": null,
+     "center": [
+      -71.102604,
+      42.347612
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685897"
+    },
+    {
+     "osm": "way/697017121",
+     "name": null,
+     "center": [
+      -71.102604,
+      42.347612
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685897"
     },
     {
      "osm": "relation/9685898",
@@ -678,6 +3392,26 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017122",
+     "name": null,
+     "center": [
+      -71.102412,
+      42.34762
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685898"
+    },
+    {
+     "osm": "way/697017133",
+     "name": null,
+     "center": [
+      -71.102412,
+      42.34762
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685898"
+    },
+    {
      "osm": "relation/9685899",
      "name": null,
      "center": [
@@ -685,6 +3419,26 @@
       42.347414
      ],
      "height": 19.2
+    },
+    {
+     "osm": "way/697017177",
+     "name": null,
+     "center": [
+      -71.10363,
+      42.347414
+     ],
+     "height": 19.2,
+     "partOf": "relation/9685899"
+    },
+    {
+     "osm": "way/29884270",
+     "name": null,
+     "center": [
+      -71.10363,
+      42.347414
+     ],
+     "height": 19.2,
+     "partOf": "relation/9685899"
     },
     {
      "osm": "relation/9685900",
@@ -696,6 +3450,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017176",
+     "name": null,
+     "center": [
+      -71.10369,
+      42.347317
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685900"
+    },
+    {
+     "osm": "way/697017146",
+     "name": null,
+     "center": [
+      -71.10369,
+      42.347317
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685900"
+    },
+    {
+     "osm": "way/697017177",
+     "name": null,
+     "center": [
+      -71.10369,
+      42.347317
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685900"
+    },
+    {
+     "osm": "way/697017147",
+     "name": null,
+     "center": [
+      -71.10369,
+      42.347317
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685900"
+    },
+    {
      "osm": "relation/9685901",
      "name": null,
      "center": [
@@ -703,6 +3497,46 @@
       42.347294
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017175",
+     "name": null,
+     "center": [
+      -71.10377,
+      42.347294
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685901"
+    },
+    {
+     "osm": "way/697017145",
+     "name": null,
+     "center": [
+      -71.10377,
+      42.347294
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685901"
+    },
+    {
+     "osm": "way/697017176",
+     "name": null,
+     "center": [
+      -71.10377,
+      42.347294
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685901"
+    },
+    {
+     "osm": "way/697017148",
+     "name": null,
+     "center": [
+      -71.10377,
+      42.347294
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685901"
     },
     {
      "osm": "relation/9685902",
@@ -714,6 +3548,46 @@
      "height": 12.2
     },
     {
+     "osm": "way/697017174",
+     "name": null,
+     "center": [
+      -71.103849,
+      42.347272
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685902"
+    },
+    {
+     "osm": "way/697017144",
+     "name": null,
+     "center": [
+      -71.103849,
+      42.347272
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685902"
+    },
+    {
+     "osm": "way/697017175",
+     "name": null,
+     "center": [
+      -71.103849,
+      42.347272
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685902"
+    },
+    {
+     "osm": "way/697017149",
+     "name": null,
+     "center": [
+      -71.103849,
+      42.347272
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685902"
+    },
+    {
      "osm": "relation/9685903",
      "name": null,
      "center": [
@@ -721,6 +3595,46 @@
       42.347251
      ],
      "height": 12.0
+    },
+    {
+     "osm": "way/697017173",
+     "name": null,
+     "center": [
+      -71.103924,
+      42.347251
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685903"
+    },
+    {
+     "osm": "way/697017143",
+     "name": null,
+     "center": [
+      -71.103924,
+      42.347251
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685903"
+    },
+    {
+     "osm": "way/697017174",
+     "name": null,
+     "center": [
+      -71.103924,
+      42.347251
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685903"
+    },
+    {
+     "osm": "way/697017150",
+     "name": null,
+     "center": [
+      -71.103924,
+      42.347251
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685903"
     },
     {
      "osm": "relation/9685904",
@@ -732,6 +3646,46 @@
      "height": 12.0
     },
     {
+     "osm": "way/697017172",
+     "name": null,
+     "center": [
+      -71.103997,
+      42.347219
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685904"
+    },
+    {
+     "osm": "way/697017142",
+     "name": null,
+     "center": [
+      -71.103997,
+      42.347219
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685904"
+    },
+    {
+     "osm": "way/697017173",
+     "name": null,
+     "center": [
+      -71.103997,
+      42.347219
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685904"
+    },
+    {
+     "osm": "way/697017151",
+     "name": null,
+     "center": [
+      -71.103997,
+      42.347219
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685904"
+    },
+    {
      "osm": "relation/9685905",
      "name": null,
      "center": [
@@ -739,6 +3693,46 @@
       42.347196
      ],
      "height": 12.2
+    },
+    {
+     "osm": "way/697017171",
+     "name": null,
+     "center": [
+      -71.104078,
+      42.347196
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685905"
+    },
+    {
+     "osm": "way/697017141",
+     "name": null,
+     "center": [
+      -71.104078,
+      42.347196
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685905"
+    },
+    {
+     "osm": "way/697017172",
+     "name": null,
+     "center": [
+      -71.104078,
+      42.347196
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685905"
+    },
+    {
+     "osm": "way/697017152",
+     "name": null,
+     "center": [
+      -71.104078,
+      42.347196
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685905"
     },
     {
      "osm": "relation/9685906",
@@ -750,6 +3744,46 @@
      "height": 12.2
     },
     {
+     "osm": "way/697017170",
+     "name": null,
+     "center": [
+      -71.104155,
+      42.347174
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685906"
+    },
+    {
+     "osm": "way/697017140",
+     "name": null,
+     "center": [
+      -71.104155,
+      42.347174
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685906"
+    },
+    {
+     "osm": "way/697017171",
+     "name": null,
+     "center": [
+      -71.104155,
+      42.347174
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685906"
+    },
+    {
+     "osm": "way/697017153",
+     "name": null,
+     "center": [
+      -71.104155,
+      42.347174
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685906"
+    },
+    {
      "osm": "relation/9685907",
      "name": null,
      "center": [
@@ -757,6 +3791,46 @@
       42.347151
      ],
      "height": 12.2
+    },
+    {
+     "osm": "way/697017169",
+     "name": null,
+     "center": [
+      -71.104237,
+      42.347151
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685907"
+    },
+    {
+     "osm": "way/697017154",
+     "name": null,
+     "center": [
+      -71.104237,
+      42.347151
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685907"
+    },
+    {
+     "osm": "way/697017170",
+     "name": null,
+     "center": [
+      -71.104237,
+      42.347151
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685907"
+    },
+    {
+     "osm": "way/697017139",
+     "name": null,
+     "center": [
+      -71.104237,
+      42.347151
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685907"
     },
     {
      "osm": "relation/9685908",
@@ -768,6 +3842,46 @@
      "height": 12.0
     },
     {
+     "osm": "way/697017168",
+     "name": null,
+     "center": [
+      -71.104316,
+      42.347132
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685908"
+    },
+    {
+     "osm": "way/697017138",
+     "name": null,
+     "center": [
+      -71.104316,
+      42.347132
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685908"
+    },
+    {
+     "osm": "way/697017169",
+     "name": null,
+     "center": [
+      -71.104316,
+      42.347132
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685908"
+    },
+    {
+     "osm": "way/697017155",
+     "name": null,
+     "center": [
+      -71.104316,
+      42.347132
+     ],
+     "height": 12.0,
+     "partOf": "relation/9685908"
+    },
+    {
      "osm": "relation/9685909",
      "name": null,
      "center": [
@@ -775,6 +3889,46 @@
       42.34711
      ],
      "height": 12.2
+    },
+    {
+     "osm": "way/697017167",
+     "name": null,
+     "center": [
+      -71.104393,
+      42.34711
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685909"
+    },
+    {
+     "osm": "way/697017137",
+     "name": null,
+     "center": [
+      -71.104393,
+      42.34711
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685909"
+    },
+    {
+     "osm": "way/697017168",
+     "name": null,
+     "center": [
+      -71.104393,
+      42.34711
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685909"
+    },
+    {
+     "osm": "way/697017156",
+     "name": null,
+     "center": [
+      -71.104393,
+      42.34711
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685909"
     },
     {
      "osm": "relation/9685910",
@@ -786,6 +3940,46 @@
      "height": 12.2
     },
     {
+     "osm": "way/697017166",
+     "name": null,
+     "center": [
+      -71.104474,
+      42.347087
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685910"
+    },
+    {
+     "osm": "way/697017136",
+     "name": null,
+     "center": [
+      -71.104474,
+      42.347087
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685910"
+    },
+    {
+     "osm": "way/697017167",
+     "name": null,
+     "center": [
+      -71.104474,
+      42.347087
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685910"
+    },
+    {
+     "osm": "way/697017157",
+     "name": null,
+     "center": [
+      -71.104474,
+      42.347087
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685910"
+    },
+    {
      "osm": "relation/9685911",
      "name": null,
      "center": [
@@ -793,6 +3987,46 @@
       42.347065
      ],
      "height": 12.2
+    },
+    {
+     "osm": "way/697017165",
+     "name": null,
+     "center": [
+      -71.104552,
+      42.347065
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685911"
+    },
+    {
+     "osm": "way/697017135",
+     "name": null,
+     "center": [
+      -71.104552,
+      42.347065
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685911"
+    },
+    {
+     "osm": "way/697017166",
+     "name": null,
+     "center": [
+      -71.104552,
+      42.347065
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685911"
+    },
+    {
+     "osm": "way/697017158",
+     "name": null,
+     "center": [
+      -71.104552,
+      42.347065
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685911"
     },
     {
      "osm": "relation/9685912",
@@ -804,6 +4038,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017164",
+     "name": null,
+     "center": [
+      -71.104634,
+      42.347042
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685912"
+    },
+    {
+     "osm": "way/697017134",
+     "name": null,
+     "center": [
+      -71.104634,
+      42.347042
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685912"
+    },
+    {
+     "osm": "way/697017165",
+     "name": null,
+     "center": [
+      -71.104634,
+      42.347042
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685912"
+    },
+    {
+     "osm": "way/697017159",
+     "name": null,
+     "center": [
+      -71.104634,
+      42.347042
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685912"
+    },
+    {
      "osm": "relation/9685915",
      "name": null,
      "center": [
@@ -811,6 +4085,26 @@
       42.346753
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017199",
+     "name": null,
+     "center": [
+      -71.105947,
+      42.346753
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685915"
+    },
+    {
+     "osm": "way/29941601",
+     "name": null,
+     "center": [
+      -71.105947,
+      42.346753
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685915"
     },
     {
      "osm": "relation/9685916",
@@ -822,6 +4116,26 @@
      "height": 19.2
     },
     {
+     "osm": "way/697017178",
+     "name": null,
+     "center": [
+      -71.106029,
+      42.346731
+     ],
+     "height": 19.2,
+     "partOf": "relation/9685916"
+    },
+    {
+     "osm": "way/697017199",
+     "name": null,
+     "center": [
+      -71.106029,
+      42.346731
+     ],
+     "height": 19.2,
+     "partOf": "relation/9685916"
+    },
+    {
      "osm": "relation/9685927",
      "name": null,
      "center": [
@@ -829,6 +4143,46 @@
       42.34811
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017216",
+     "name": null,
+     "center": [
+      -71.107958,
+      42.34811
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685927"
+    },
+    {
+     "osm": "way/697017205",
+     "name": null,
+     "center": [
+      -71.107958,
+      42.34811
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685927"
+    },
+    {
+     "osm": "way/697017217",
+     "name": null,
+     "center": [
+      -71.107958,
+      42.34811
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685927"
+    },
+    {
+     "osm": "way/697017201",
+     "name": null,
+     "center": [
+      -71.107958,
+      42.34811
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685927"
     },
     {
      "osm": "relation/9685930",
@@ -840,6 +4194,26 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017209",
+     "name": null,
+     "center": [
+      -71.107525,
+      42.348072
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685930"
+    },
+    {
+     "osm": "way/697017214",
+     "name": null,
+     "center": [
+      -71.107525,
+      42.348072
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685930"
+    },
+    {
      "osm": "relation/9685943",
      "name": null,
      "center": [
@@ -847,6 +4221,26 @@
       42.347982
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017262",
+     "name": null,
+     "center": [
+      -71.104448,
+      42.347982
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685943"
+    },
+    {
+     "osm": "way/697017260",
+     "name": null,
+     "center": [
+      -71.104448,
+      42.347982
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685943"
     },
     {
      "osm": "relation/9685944",
@@ -858,6 +4252,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017242",
+     "name": null,
+     "center": [
+      -71.104595,
+      42.347982
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685944"
+    },
+    {
+     "osm": "way/697017262",
+     "name": null,
+     "center": [
+      -71.104595,
+      42.347982
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685944"
+    },
+    {
+     "osm": "way/697017259",
+     "name": null,
+     "center": [
+      -71.104595,
+      42.347982
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685944"
+    },
+    {
+     "osm": "way/697017263",
+     "name": null,
+     "center": [
+      -71.104595,
+      42.347982
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685944"
+    },
+    {
      "osm": "relation/9685945",
      "name": null,
      "center": [
@@ -865,6 +4299,46 @@
       42.347956
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017264",
+     "name": null,
+     "center": [
+      -71.104681,
+      42.347956
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685945"
+    },
+    {
+     "osm": "way/697017258",
+     "name": null,
+     "center": [
+      -71.104681,
+      42.347956
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685945"
+    },
+    {
+     "osm": "way/697017263",
+     "name": null,
+     "center": [
+      -71.104681,
+      42.347956
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685945"
+    },
+    {
+     "osm": "way/697017244",
+     "name": null,
+     "center": [
+      -71.104681,
+      42.347956
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685945"
     },
     {
      "osm": "relation/9685946",
@@ -876,6 +4350,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017265",
+     "name": null,
+     "center": [
+      -71.104759,
+      42.347935
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685946"
+    },
+    {
+     "osm": "way/697017257",
+     "name": null,
+     "center": [
+      -71.104759,
+      42.347935
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685946"
+    },
+    {
+     "osm": "way/697017264",
+     "name": null,
+     "center": [
+      -71.104759,
+      42.347935
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685946"
+    },
+    {
+     "osm": "way/697017245",
+     "name": null,
+     "center": [
+      -71.104759,
+      42.347935
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685946"
+    },
+    {
      "osm": "relation/9685947",
      "name": null,
      "center": [
@@ -883,6 +4397,46 @@
       42.347913
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017266",
+     "name": null,
+     "center": [
+      -71.104838,
+      42.347913
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685947"
+    },
+    {
+     "osm": "way/697017256",
+     "name": null,
+     "center": [
+      -71.104838,
+      42.347913
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685947"
+    },
+    {
+     "osm": "way/697017265",
+     "name": null,
+     "center": [
+      -71.104838,
+      42.347913
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685947"
+    },
+    {
+     "osm": "way/697017246",
+     "name": null,
+     "center": [
+      -71.104838,
+      42.347913
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685947"
     },
     {
      "osm": "relation/9685948",
@@ -894,6 +4448,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017267",
+     "name": null,
+     "center": [
+      -71.104918,
+      42.347891
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685948"
+    },
+    {
+     "osm": "way/697017255",
+     "name": null,
+     "center": [
+      -71.104918,
+      42.347891
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685948"
+    },
+    {
+     "osm": "way/697017266",
+     "name": null,
+     "center": [
+      -71.104918,
+      42.347891
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685948"
+    },
+    {
+     "osm": "way/697017247",
+     "name": null,
+     "center": [
+      -71.104918,
+      42.347891
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685948"
+    },
+    {
      "osm": "relation/9685949",
      "name": null,
      "center": [
@@ -901,6 +4495,46 @@
       42.347869
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017268",
+     "name": null,
+     "center": [
+      -71.104996,
+      42.347869
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685949"
+    },
+    {
+     "osm": "way/697017254",
+     "name": null,
+     "center": [
+      -71.104996,
+      42.347869
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685949"
+    },
+    {
+     "osm": "way/697017267",
+     "name": null,
+     "center": [
+      -71.104996,
+      42.347869
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685949"
+    },
+    {
+     "osm": "way/697017248",
+     "name": null,
+     "center": [
+      -71.104996,
+      42.347869
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685949"
     },
     {
      "osm": "relation/9685950",
@@ -912,6 +4546,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017269",
+     "name": null,
+     "center": [
+      -71.105073,
+      42.347848
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685950"
+    },
+    {
+     "osm": "way/697017253",
+     "name": null,
+     "center": [
+      -71.105073,
+      42.347848
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685950"
+    },
+    {
+     "osm": "way/697017268",
+     "name": null,
+     "center": [
+      -71.105073,
+      42.347848
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685950"
+    },
+    {
+     "osm": "way/697017249",
+     "name": null,
+     "center": [
+      -71.105073,
+      42.347848
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685950"
+    },
+    {
      "osm": "relation/9685951",
      "name": null,
      "center": [
@@ -919,6 +4593,46 @@
       42.347827
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017270",
+     "name": null,
+     "center": [
+      -71.105151,
+      42.347827
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685951"
+    },
+    {
+     "osm": "way/697017252",
+     "name": null,
+     "center": [
+      -71.105151,
+      42.347827
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685951"
+    },
+    {
+     "osm": "way/697017269",
+     "name": null,
+     "center": [
+      -71.105151,
+      42.347827
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685951"
+    },
+    {
+     "osm": "way/697017250",
+     "name": null,
+     "center": [
+      -71.105151,
+      42.347827
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685951"
     },
     {
      "osm": "relation/9685952",
@@ -930,6 +4644,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017271",
+     "name": null,
+     "center": [
+      -71.10523,
+      42.347805
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685952"
+    },
+    {
+     "osm": "way/697017251",
+     "name": null,
+     "center": [
+      -71.10523,
+      42.347805
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685952"
+    },
+    {
+     "osm": "way/697017270",
+     "name": null,
+     "center": [
+      -71.10523,
+      42.347805
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685952"
+    },
+    {
+     "osm": "way/697017243",
+     "name": null,
+     "center": [
+      -71.10523,
+      42.347805
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685952"
+    },
+    {
      "osm": "relation/9685953",
      "name": null,
      "center": [
@@ -937,6 +4691,36 @@
       42.347841
      ],
      "height": 19.2
+    },
+    {
+     "osm": "way/697017261",
+     "name": null,
+     "center": [
+      -71.105417,
+      42.347841
+     ],
+     "height": 19.2,
+     "partOf": "relation/9685953"
+    },
+    {
+     "osm": "way/697017271",
+     "name": null,
+     "center": [
+      -71.105417,
+      42.347841
+     ],
+     "height": 19.2,
+     "partOf": "relation/9685953"
+    },
+    {
+     "osm": "way/29795152",
+     "name": null,
+     "center": [
+      -71.105417,
+      42.347841
+     ],
+     "height": 19.2,
+     "partOf": "relation/9685953"
     },
     {
      "osm": "relation/9685954",
@@ -948,6 +4732,26 @@
      "height": 5.0
     },
     {
+     "osm": "way/29886690",
+     "name": null,
+     "center": [
+      -71.105917,
+      42.347658
+     ],
+     "height": 5.0,
+     "partOf": "relation/9685954"
+    },
+    {
+     "osm": "way/697017293",
+     "name": null,
+     "center": [
+      -71.105917,
+      42.347658
+     ],
+     "height": 5.0,
+     "partOf": "relation/9685954"
+    },
+    {
      "osm": "relation/9685955",
      "name": null,
      "center": [
@@ -955,6 +4759,46 @@
       42.347543
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017272",
+     "name": null,
+     "center": [
+      -71.106136,
+      42.347543
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685955"
+    },
+    {
+     "osm": "way/697017293",
+     "name": null,
+     "center": [
+      -71.106136,
+      42.347543
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685955"
+    },
+    {
+     "osm": "way/697017292",
+     "name": null,
+     "center": [
+      -71.106136,
+      42.347543
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685955"
+    },
+    {
+     "osm": "way/697017294",
+     "name": null,
+     "center": [
+      -71.106136,
+      42.347543
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685955"
     },
     {
      "osm": "relation/9685956",
@@ -966,6 +4810,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017295",
+     "name": null,
+     "center": [
+      -71.106213,
+      42.347521
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685956"
+    },
+    {
+     "osm": "way/697017291",
+     "name": null,
+     "center": [
+      -71.106213,
+      42.347521
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685956"
+    },
+    {
+     "osm": "way/697017294",
+     "name": null,
+     "center": [
+      -71.106213,
+      42.347521
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685956"
+    },
+    {
+     "osm": "way/697017273",
+     "name": null,
+     "center": [
+      -71.106213,
+      42.347521
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685956"
+    },
+    {
      "osm": "relation/9685957",
      "name": null,
      "center": [
@@ -973,6 +4857,46 @@
       42.347499
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017296",
+     "name": null,
+     "center": [
+      -71.106292,
+      42.347499
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685957"
+    },
+    {
+     "osm": "way/697017290",
+     "name": null,
+     "center": [
+      -71.106292,
+      42.347499
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685957"
+    },
+    {
+     "osm": "way/697017295",
+     "name": null,
+     "center": [
+      -71.106292,
+      42.347499
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685957"
+    },
+    {
+     "osm": "way/697017274",
+     "name": null,
+     "center": [
+      -71.106292,
+      42.347499
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685957"
     },
     {
      "osm": "relation/9685958",
@@ -984,6 +4908,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017297",
+     "name": null,
+     "center": [
+      -71.106371,
+      42.347477
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685958"
+    },
+    {
+     "osm": "way/697017289",
+     "name": null,
+     "center": [
+      -71.106371,
+      42.347477
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685958"
+    },
+    {
+     "osm": "way/697017296",
+     "name": null,
+     "center": [
+      -71.106371,
+      42.347477
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685958"
+    },
+    {
+     "osm": "way/697017275",
+     "name": null,
+     "center": [
+      -71.106371,
+      42.347477
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685958"
+    },
+    {
      "osm": "relation/9685959",
      "name": null,
      "center": [
@@ -991,6 +4955,46 @@
       42.347455
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017298",
+     "name": null,
+     "center": [
+      -71.10645,
+      42.347455
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685959"
+    },
+    {
+     "osm": "way/697017288",
+     "name": null,
+     "center": [
+      -71.10645,
+      42.347455
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685959"
+    },
+    {
+     "osm": "way/697017297",
+     "name": null,
+     "center": [
+      -71.10645,
+      42.347455
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685959"
+    },
+    {
+     "osm": "way/697017276",
+     "name": null,
+     "center": [
+      -71.10645,
+      42.347455
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685959"
     },
     {
      "osm": "relation/9685960",
@@ -1002,6 +5006,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017299",
+     "name": null,
+     "center": [
+      -71.106528,
+      42.347433
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685960"
+    },
+    {
+     "osm": "way/697017287",
+     "name": null,
+     "center": [
+      -71.106528,
+      42.347433
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685960"
+    },
+    {
+     "osm": "way/697017298",
+     "name": null,
+     "center": [
+      -71.106528,
+      42.347433
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685960"
+    },
+    {
+     "osm": "way/697017277",
+     "name": null,
+     "center": [
+      -71.106528,
+      42.347433
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685960"
+    },
+    {
      "osm": "relation/9685961",
      "name": null,
      "center": [
@@ -1009,6 +5053,46 @@
       42.34743
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017300",
+     "name": null,
+     "center": [
+      -71.106621,
+      42.34743
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685961"
+    },
+    {
+     "osm": "way/697017286",
+     "name": null,
+     "center": [
+      -71.106621,
+      42.34743
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685961"
+    },
+    {
+     "osm": "way/697017299",
+     "name": null,
+     "center": [
+      -71.106621,
+      42.34743
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685961"
+    },
+    {
+     "osm": "way/697017278",
+     "name": null,
+     "center": [
+      -71.106621,
+      42.34743
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685961"
     },
     {
      "osm": "relation/9685962",
@@ -1020,6 +5104,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017301",
+     "name": null,
+     "center": [
+      -71.106695,
+      42.34741
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685962"
+    },
+    {
+     "osm": "way/697017285",
+     "name": null,
+     "center": [
+      -71.106695,
+      42.34741
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685962"
+    },
+    {
+     "osm": "way/697017300",
+     "name": null,
+     "center": [
+      -71.106695,
+      42.34741
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685962"
+    },
+    {
+     "osm": "way/697017279",
+     "name": null,
+     "center": [
+      -71.106695,
+      42.34741
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685962"
+    },
+    {
      "osm": "relation/9685963",
      "name": null,
      "center": [
@@ -1027,6 +5151,46 @@
       42.347385
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017302",
+     "name": null,
+     "center": [
+      -71.106778,
+      42.347385
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685963"
+    },
+    {
+     "osm": "way/697017284",
+     "name": null,
+     "center": [
+      -71.106778,
+      42.347385
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685963"
+    },
+    {
+     "osm": "way/697017301",
+     "name": null,
+     "center": [
+      -71.106778,
+      42.347385
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685963"
+    },
+    {
+     "osm": "way/697017280",
+     "name": null,
+     "center": [
+      -71.106778,
+      42.347385
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685963"
     },
     {
      "osm": "relation/9685964",
@@ -1038,6 +5202,46 @@
      "height": 15.6
     },
     {
+     "osm": "way/697017281",
+     "name": null,
+     "center": [
+      -71.106851,
+      42.347369
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685964"
+    },
+    {
+     "osm": "way/697017302",
+     "name": null,
+     "center": [
+      -71.106851,
+      42.347369
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685964"
+    },
+    {
+     "osm": "way/697017283",
+     "name": null,
+     "center": [
+      -71.106851,
+      42.347369
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685964"
+    },
+    {
+     "osm": "way/697017303",
+     "name": null,
+     "center": [
+      -71.106851,
+      42.347369
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685964"
+    },
+    {
      "osm": "relation/9685965",
      "name": null,
      "center": [
@@ -1045,6 +5249,26 @@
       42.347334
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/697017282",
+     "name": null,
+     "center": [
+      -71.106974,
+      42.347334
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685965"
+    },
+    {
+     "osm": "way/697017303",
+     "name": null,
+     "center": [
+      -71.106974,
+      42.347334
+     ],
+     "height": 15.6,
+     "partOf": "relation/9685965"
     },
     {
      "osm": "relation/9685966",
@@ -1056,6 +5280,26 @@
      "height": 21.2
     },
     {
+     "osm": "way/29889653",
+     "name": null,
+     "center": [
+      -71.100482,
+      42.350562
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685966"
+    },
+    {
+     "osm": "way/697017389",
+     "name": null,
+     "center": [
+      -71.100482,
+      42.350562
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685966"
+    },
+    {
      "osm": "relation/9685967",
      "name": null,
      "center": [
@@ -1063,6 +5307,46 @@
       42.35057
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017388",
+     "name": null,
+     "center": [
+      -71.100574,
+      42.35057
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685967"
+    },
+    {
+     "osm": "way/697017359",
+     "name": null,
+     "center": [
+      -71.100574,
+      42.35057
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685967"
+    },
+    {
+     "osm": "way/697017389",
+     "name": null,
+     "center": [
+      -71.100574,
+      42.35057
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685967"
+    },
+    {
+     "osm": "way/697017304",
+     "name": null,
+     "center": [
+      -71.100574,
+      42.35057
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685967"
     },
     {
      "osm": "relation/9685968",
@@ -1074,6 +5358,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017305",
+     "name": null,
+     "center": [
+      -71.100669,
+      42.350578
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685968"
+    },
+    {
+     "osm": "way/697017388",
+     "name": null,
+     "center": [
+      -71.100669,
+      42.350578
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685968"
+    },
+    {
+     "osm": "way/697017358",
+     "name": null,
+     "center": [
+      -71.100669,
+      42.350578
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685968"
+    },
+    {
+     "osm": "way/697017387",
+     "name": null,
+     "center": [
+      -71.100669,
+      42.350578
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685968"
+    },
+    {
      "osm": "relation/9685969",
      "name": null,
      "center": [
@@ -1081,6 +5405,46 @@
       42.350564
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017386",
+     "name": null,
+     "center": [
+      -71.100761,
+      42.350564
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685969"
+    },
+    {
+     "osm": "way/697017357",
+     "name": null,
+     "center": [
+      -71.100761,
+      42.350564
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685969"
+    },
+    {
+     "osm": "way/697017387",
+     "name": null,
+     "center": [
+      -71.100761,
+      42.350564
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685969"
+    },
+    {
+     "osm": "way/697017306",
+     "name": null,
+     "center": [
+      -71.100761,
+      42.350564
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685969"
     },
     {
      "osm": "relation/9685970",
@@ -1092,6 +5456,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017385",
+     "name": null,
+     "center": [
+      -71.100845,
+      42.350571
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685970"
+    },
+    {
+     "osm": "way/697017356",
+     "name": null,
+     "center": [
+      -71.100845,
+      42.350571
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685970"
+    },
+    {
+     "osm": "way/697017386",
+     "name": null,
+     "center": [
+      -71.100845,
+      42.350571
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685970"
+    },
+    {
+     "osm": "way/697017307",
+     "name": null,
+     "center": [
+      -71.100845,
+      42.350571
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685970"
+    },
+    {
      "osm": "relation/9685971",
      "name": null,
      "center": [
@@ -1099,6 +5503,46 @@
       42.350578
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017355",
+     "name": null,
+     "center": [
+      -71.100927,
+      42.350578
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685971"
+    },
+    {
+     "osm": "way/697017385",
+     "name": null,
+     "center": [
+      -71.100927,
+      42.350578
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685971"
+    },
+    {
+     "osm": "way/697017308",
+     "name": null,
+     "center": [
+      -71.100927,
+      42.350578
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685971"
+    },
+    {
+     "osm": "way/886022263",
+     "name": null,
+     "center": [
+      -71.100927,
+      42.350578
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685971"
     },
     {
      "osm": "relation/9685973",
@@ -1110,6 +5554,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017382",
+     "name": null,
+     "center": [
+      -71.101091,
+      42.350592
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685973"
+    },
+    {
+     "osm": "way/697017353",
+     "name": null,
+     "center": [
+      -71.101091,
+      42.350592
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685973"
+    },
+    {
+     "osm": "way/886022264",
+     "name": null,
+     "center": [
+      -71.101091,
+      42.350592
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685973"
+    },
+    {
+     "osm": "way/697017310",
+     "name": null,
+     "center": [
+      -71.101091,
+      42.350592
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685973"
+    },
+    {
      "osm": "relation/9685974",
      "name": null,
      "center": [
@@ -1117,6 +5601,46 @@
       42.350599
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017381",
+     "name": null,
+     "center": [
+      -71.101174,
+      42.350599
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685974"
+    },
+    {
+     "osm": "way/697017352",
+     "name": null,
+     "center": [
+      -71.101174,
+      42.350599
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685974"
+    },
+    {
+     "osm": "way/697017382",
+     "name": null,
+     "center": [
+      -71.101174,
+      42.350599
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685974"
+    },
+    {
+     "osm": "way/697017311",
+     "name": null,
+     "center": [
+      -71.101174,
+      42.350599
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685974"
     },
     {
      "osm": "relation/9685975",
@@ -1128,6 +5652,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017351",
+     "name": null,
+     "center": [
+      -71.101257,
+      42.350606
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685975"
+    },
+    {
+     "osm": "way/697017380",
+     "name": null,
+     "center": [
+      -71.101257,
+      42.350606
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685975"
+    },
+    {
+     "osm": "way/697017312",
+     "name": null,
+     "center": [
+      -71.101257,
+      42.350606
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685975"
+    },
+    {
+     "osm": "way/697017381",
+     "name": null,
+     "center": [
+      -71.101257,
+      42.350606
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685975"
+    },
+    {
      "osm": "relation/9685976",
      "name": null,
      "center": [
@@ -1135,6 +5699,46 @@
       42.350619
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017379",
+     "name": null,
+     "center": [
+      -71.101339,
+      42.350619
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685976"
+    },
+    {
+     "osm": "way/697017350",
+     "name": null,
+     "center": [
+      -71.101339,
+      42.350619
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685976"
+    },
+    {
+     "osm": "way/697017380",
+     "name": null,
+     "center": [
+      -71.101339,
+      42.350619
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685976"
+    },
+    {
+     "osm": "way/697017313",
+     "name": null,
+     "center": [
+      -71.101339,
+      42.350619
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685976"
     },
     {
      "osm": "relation/9685977",
@@ -1146,6 +5750,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017378",
+     "name": null,
+     "center": [
+      -71.101422,
+      42.350626
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685977"
+    },
+    {
+     "osm": "way/697017349",
+     "name": null,
+     "center": [
+      -71.101422,
+      42.350626
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685977"
+    },
+    {
+     "osm": "way/697017379",
+     "name": null,
+     "center": [
+      -71.101422,
+      42.350626
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685977"
+    },
+    {
+     "osm": "way/697017314",
+     "name": null,
+     "center": [
+      -71.101422,
+      42.350626
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685977"
+    },
+    {
      "osm": "relation/9685978",
      "name": null,
      "center": [
@@ -1153,6 +5797,46 @@
       42.350632
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017377",
+     "name": null,
+     "center": [
+      -71.101503,
+      42.350632
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685978"
+    },
+    {
+     "osm": "way/697017348",
+     "name": null,
+     "center": [
+      -71.101503,
+      42.350632
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685978"
+    },
+    {
+     "osm": "way/697017378",
+     "name": null,
+     "center": [
+      -71.101503,
+      42.350632
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685978"
+    },
+    {
+     "osm": "way/697017315",
+     "name": null,
+     "center": [
+      -71.101503,
+      42.350632
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685978"
     },
     {
      "osm": "relation/9685979",
@@ -1164,6 +5848,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017376",
+     "name": null,
+     "center": [
+      -71.101584,
+      42.350639
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685979"
+    },
+    {
+     "osm": "way/697017347",
+     "name": null,
+     "center": [
+      -71.101584,
+      42.350639
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685979"
+    },
+    {
+     "osm": "way/697017377",
+     "name": null,
+     "center": [
+      -71.101584,
+      42.350639
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685979"
+    },
+    {
+     "osm": "way/697017316",
+     "name": null,
+     "center": [
+      -71.101584,
+      42.350639
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685979"
+    },
+    {
      "osm": "relation/9685980",
      "name": null,
      "center": [
@@ -1171,6 +5895,46 @@
       42.350646
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017375",
+     "name": null,
+     "center": [
+      -71.101665,
+      42.350646
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685980"
+    },
+    {
+     "osm": "way/697017346",
+     "name": null,
+     "center": [
+      -71.101665,
+      42.350646
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685980"
+    },
+    {
+     "osm": "way/697017376",
+     "name": null,
+     "center": [
+      -71.101665,
+      42.350646
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685980"
+    },
+    {
+     "osm": "way/697017317",
+     "name": null,
+     "center": [
+      -71.101665,
+      42.350646
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685980"
     },
     {
      "osm": "relation/9685981",
@@ -1182,6 +5946,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017374",
+     "name": null,
+     "center": [
+      -71.101748,
+      42.350653
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685981"
+    },
+    {
+     "osm": "way/697017345",
+     "name": null,
+     "center": [
+      -71.101748,
+      42.350653
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685981"
+    },
+    {
+     "osm": "way/697017375",
+     "name": null,
+     "center": [
+      -71.101748,
+      42.350653
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685981"
+    },
+    {
+     "osm": "way/697017318",
+     "name": null,
+     "center": [
+      -71.101748,
+      42.350653
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685981"
+    },
+    {
      "osm": "relation/9685982",
      "name": null,
      "center": [
@@ -1189,6 +5993,46 @@
       42.35066
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017373",
+     "name": null,
+     "center": [
+      -71.101834,
+      42.35066
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685982"
+    },
+    {
+     "osm": "way/697017344",
+     "name": null,
+     "center": [
+      -71.101834,
+      42.35066
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685982"
+    },
+    {
+     "osm": "way/697017374",
+     "name": null,
+     "center": [
+      -71.101834,
+      42.35066
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685982"
+    },
+    {
+     "osm": "way/697017319",
+     "name": null,
+     "center": [
+      -71.101834,
+      42.35066
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685982"
     },
     {
      "osm": "relation/9685983",
@@ -1200,6 +6044,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017372",
+     "name": null,
+     "center": [
+      -71.101919,
+      42.350667
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685983"
+    },
+    {
+     "osm": "way/697017343",
+     "name": null,
+     "center": [
+      -71.101919,
+      42.350667
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685983"
+    },
+    {
+     "osm": "way/697017373",
+     "name": null,
+     "center": [
+      -71.101919,
+      42.350667
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685983"
+    },
+    {
+     "osm": "way/697017320",
+     "name": null,
+     "center": [
+      -71.101919,
+      42.350667
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685983"
+    },
+    {
      "osm": "relation/9685984",
      "name": null,
      "center": [
@@ -1207,6 +6091,46 @@
       42.350674
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017371",
+     "name": null,
+     "center": [
+      -71.102003,
+      42.350674
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685984"
+    },
+    {
+     "osm": "way/697017342",
+     "name": null,
+     "center": [
+      -71.102003,
+      42.350674
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685984"
+    },
+    {
+     "osm": "way/697017372",
+     "name": null,
+     "center": [
+      -71.102003,
+      42.350674
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685984"
+    },
+    {
+     "osm": "way/697017360",
+     "name": null,
+     "center": [
+      -71.102003,
+      42.350674
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685984"
     },
     {
      "osm": "relation/9685985",
@@ -1218,6 +6142,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017321",
+     "name": null,
+     "center": [
+      -71.102098,
+      42.350699
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685985"
+    },
+    {
+     "osm": "way/697017371",
+     "name": null,
+     "center": [
+      -71.102098,
+      42.350699
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685985"
+    },
+    {
+     "osm": "way/697017341",
+     "name": null,
+     "center": [
+      -71.102098,
+      42.350699
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685985"
+    },
+    {
+     "osm": "way/697017370",
+     "name": null,
+     "center": [
+      -71.102098,
+      42.350699
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685985"
+    },
+    {
      "osm": "relation/9685986",
      "name": null,
      "center": [
@@ -1225,6 +6189,46 @@
       42.35069
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017369",
+     "name": null,
+     "center": [
+      -71.102198,
+      42.35069
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685986"
+    },
+    {
+     "osm": "way/697017340",
+     "name": null,
+     "center": [
+      -71.102198,
+      42.35069
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685986"
+    },
+    {
+     "osm": "way/697017370",
+     "name": null,
+     "center": [
+      -71.102198,
+      42.35069
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685986"
+    },
+    {
+     "osm": "way/697017322",
+     "name": null,
+     "center": [
+      -71.102198,
+      42.35069
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685986"
     },
     {
      "osm": "relation/9685987",
@@ -1236,6 +6240,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017368",
+     "name": null,
+     "center": [
+      -71.102282,
+      42.350697
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685987"
+    },
+    {
+     "osm": "way/697017339",
+     "name": null,
+     "center": [
+      -71.102282,
+      42.350697
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685987"
+    },
+    {
+     "osm": "way/697017369",
+     "name": null,
+     "center": [
+      -71.102282,
+      42.350697
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685987"
+    },
+    {
+     "osm": "way/697017323",
+     "name": null,
+     "center": [
+      -71.102282,
+      42.350697
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685987"
+    },
+    {
      "osm": "relation/9685988",
      "name": null,
      "center": [
@@ -1243,6 +6287,46 @@
       42.350704
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017367",
+     "name": null,
+     "center": [
+      -71.102366,
+      42.350704
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685988"
+    },
+    {
+     "osm": "way/697017338",
+     "name": null,
+     "center": [
+      -71.102366,
+      42.350704
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685988"
+    },
+    {
+     "osm": "way/697017368",
+     "name": null,
+     "center": [
+      -71.102366,
+      42.350704
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685988"
+    },
+    {
+     "osm": "way/697017324",
+     "name": null,
+     "center": [
+      -71.102366,
+      42.350704
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685988"
     },
     {
      "osm": "relation/9685989",
@@ -1254,6 +6338,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017366",
+     "name": null,
+     "center": [
+      -71.102448,
+      42.35071
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685989"
+    },
+    {
+     "osm": "way/697017337",
+     "name": null,
+     "center": [
+      -71.102448,
+      42.35071
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685989"
+    },
+    {
+     "osm": "way/697017367",
+     "name": null,
+     "center": [
+      -71.102448,
+      42.35071
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685989"
+    },
+    {
+     "osm": "way/697017325",
+     "name": null,
+     "center": [
+      -71.102448,
+      42.35071
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685989"
+    },
+    {
      "osm": "relation/9685990",
      "name": null,
      "center": [
@@ -1261,6 +6385,46 @@
       42.350717
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017365",
+     "name": null,
+     "center": [
+      -71.10253,
+      42.350717
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685990"
+    },
+    {
+     "osm": "way/697017336",
+     "name": null,
+     "center": [
+      -71.10253,
+      42.350717
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685990"
+    },
+    {
+     "osm": "way/697017366",
+     "name": null,
+     "center": [
+      -71.10253,
+      42.350717
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685990"
+    },
+    {
+     "osm": "way/697017326",
+     "name": null,
+     "center": [
+      -71.10253,
+      42.350717
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685990"
     },
     {
      "osm": "relation/9685991",
@@ -1272,6 +6436,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017364",
+     "name": null,
+     "center": [
+      -71.102614,
+      42.350724
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685991"
+    },
+    {
+     "osm": "way/697017335",
+     "name": null,
+     "center": [
+      -71.102614,
+      42.350724
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685991"
+    },
+    {
+     "osm": "way/697017365",
+     "name": null,
+     "center": [
+      -71.102614,
+      42.350724
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685991"
+    },
+    {
+     "osm": "way/697017327",
+     "name": null,
+     "center": [
+      -71.102614,
+      42.350724
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685991"
+    },
+    {
      "osm": "relation/9685992",
      "name": null,
      "center": [
@@ -1279,6 +6483,46 @@
       42.350731
      ],
      "height": 21.2
+    },
+    {
+     "osm": "way/697017363",
+     "name": null,
+     "center": [
+      -71.102696,
+      42.350731
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685992"
+    },
+    {
+     "osm": "way/697017334",
+     "name": null,
+     "center": [
+      -71.102696,
+      42.350731
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685992"
+    },
+    {
+     "osm": "way/697017364",
+     "name": null,
+     "center": [
+      -71.102696,
+      42.350731
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685992"
+    },
+    {
+     "osm": "way/697017328",
+     "name": null,
+     "center": [
+      -71.102696,
+      42.350731
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685992"
     },
     {
      "osm": "relation/9685993",
@@ -1290,6 +6534,46 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017362",
+     "name": null,
+     "center": [
+      -71.102779,
+      42.350738
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685993"
+    },
+    {
+     "osm": "way/697017333",
+     "name": null,
+     "center": [
+      -71.102779,
+      42.350738
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685993"
+    },
+    {
+     "osm": "way/697017363",
+     "name": null,
+     "center": [
+      -71.102779,
+      42.350738
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685993"
+    },
+    {
+     "osm": "way/697017329",
+     "name": null,
+     "center": [
+      -71.102779,
+      42.350738
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685993"
+    },
+    {
      "osm": "relation/9685994",
      "name": null,
      "center": [
@@ -1299,13 +6583,73 @@
      "height": 21.2
     },
     {
+     "osm": "way/697017361",
+     "name": null,
+     "center": [
+      -71.102862,
+      42.350745
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685994"
+    },
+    {
+     "osm": "way/697017332",
+     "name": null,
+     "center": [
+      -71.102862,
+      42.350745
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685994"
+    },
+    {
+     "osm": "way/697017362",
+     "name": null,
+     "center": [
+      -71.102862,
+      42.350745
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685994"
+    },
+    {
+     "osm": "way/697017330",
+     "name": null,
+     "center": [
+      -71.102862,
+      42.350745
+     ],
+     "height": 21.2,
+     "partOf": "relation/9685994"
+    },
+    {
      "osm": "relation/9685995",
      "name": "BU Catholic Center",
      "center": [
       -71.102948,
       42.350752
      ],
-     "height": 12.8
+     "height": 12.2
+    },
+    {
+     "osm": "way/697017331",
+     "name": null,
+     "center": [
+      -71.102948,
+      42.350752
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685995"
+    },
+    {
+     "osm": "way/697017361",
+     "name": null,
+     "center": [
+      -71.102948,
+      42.350752
+     ],
+     "height": 12.2,
+     "partOf": "relation/9685995"
     },
     {
      "osm": "relation/9685996",
@@ -1317,6 +6661,26 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017405",
+     "name": null,
+     "center": [
+      -71.100582,
+      42.350105
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685996"
+    },
+    {
+     "osm": "way/697017404",
+     "name": null,
+     "center": [
+      -71.100582,
+      42.350105
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685996"
+    },
+    {
      "osm": "relation/9685997",
      "name": null,
      "center": [
@@ -1324,6 +6688,46 @@
       42.350115
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017406",
+     "name": null,
+     "center": [
+      -71.100683,
+      42.350115
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685997"
+    },
+    {
+     "osm": "way/697017403",
+     "name": null,
+     "center": [
+      -71.100683,
+      42.350115
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685997"
+    },
+    {
+     "osm": "way/697017405",
+     "name": null,
+     "center": [
+      -71.100683,
+      42.350115
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685997"
+    },
+    {
+     "osm": "way/697017390",
+     "name": null,
+     "center": [
+      -71.100683,
+      42.350115
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685997"
     },
     {
      "osm": "relation/9685998",
@@ -1335,6 +6739,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017407",
+     "name": null,
+     "center": [
+      -71.100764,
+      42.350151
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685998"
+    },
+    {
+     "osm": "way/697017391",
+     "name": null,
+     "center": [
+      -71.100764,
+      42.350151
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685998"
+    },
+    {
+     "osm": "way/697017406",
+     "name": null,
+     "center": [
+      -71.100764,
+      42.350151
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685998"
+    },
+    {
+     "osm": "way/697017402",
+     "name": null,
+     "center": [
+      -71.100764,
+      42.350151
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685998"
+    },
+    {
      "osm": "relation/9685999",
      "name": null,
      "center": [
@@ -1342,6 +6786,46 @@
       42.350135
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017408",
+     "name": null,
+     "center": [
+      -71.100843,
+      42.350135
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685999"
+    },
+    {
+     "osm": "way/697017401",
+     "name": null,
+     "center": [
+      -71.100843,
+      42.350135
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685999"
+    },
+    {
+     "osm": "way/697017407",
+     "name": null,
+     "center": [
+      -71.100843,
+      42.350135
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685999"
+    },
+    {
+     "osm": "way/697017392",
+     "name": null,
+     "center": [
+      -71.100843,
+      42.350135
+     ],
+     "height": 17.7,
+     "partOf": "relation/9685999"
     },
     {
      "osm": "relation/9686000",
@@ -1353,6 +6837,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017409",
+     "name": null,
+     "center": [
+      -71.100906,
+      42.35014
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686000"
+    },
+    {
+     "osm": "way/697017400",
+     "name": null,
+     "center": [
+      -71.100906,
+      42.35014
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686000"
+    },
+    {
+     "osm": "way/697017408",
+     "name": null,
+     "center": [
+      -71.100906,
+      42.35014
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686000"
+    },
+    {
+     "osm": "way/697017393",
+     "name": null,
+     "center": [
+      -71.100906,
+      42.35014
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686000"
+    },
+    {
      "osm": "relation/9686001",
      "name": null,
      "center": [
@@ -1360,6 +6884,46 @@
       42.350145
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017394",
+     "name": null,
+     "center": [
+      -71.10098,
+      42.350145
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686001"
+    },
+    {
+     "osm": "way/697017409",
+     "name": null,
+     "center": [
+      -71.10098,
+      42.350145
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686001"
+    },
+    {
+     "osm": "way/29785837",
+     "name": null,
+     "center": [
+      -71.10098,
+      42.350145
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686001"
+    },
+    {
+     "osm": "way/697017410",
+     "name": null,
+     "center": [
+      -71.10098,
+      42.350145
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686001"
     },
     {
      "osm": "relation/9686002",
@@ -1371,6 +6935,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017411",
+     "name": null,
+     "center": [
+      -71.101046,
+      42.350171
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686002"
+    },
+    {
+     "osm": "way/697017399",
+     "name": null,
+     "center": [
+      -71.101046,
+      42.350171
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686002"
+    },
+    {
+     "osm": "way/697017410",
+     "name": null,
+     "center": [
+      -71.101046,
+      42.350171
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686002"
+    },
+    {
+     "osm": "way/697017395",
+     "name": null,
+     "center": [
+      -71.101046,
+      42.350171
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686002"
+    },
+    {
      "osm": "relation/9686003",
      "name": null,
      "center": [
@@ -1378,6 +6982,46 @@
       42.350179
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017412",
+     "name": null,
+     "center": [
+      -71.101126,
+      42.350179
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686003"
+    },
+    {
+     "osm": "way/697017398",
+     "name": null,
+     "center": [
+      -71.101126,
+      42.350179
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686003"
+    },
+    {
+     "osm": "way/697017411",
+     "name": null,
+     "center": [
+      -71.101126,
+      42.350179
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686003"
+    },
+    {
+     "osm": "way/697017396",
+     "name": null,
+     "center": [
+      -71.101126,
+      42.350179
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686003"
     },
     {
      "osm": "relation/9686004",
@@ -1389,6 +7033,26 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017397",
+     "name": null,
+     "center": [
+      -71.101211,
+      42.350188
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686004"
+    },
+    {
+     "osm": "way/697017412",
+     "name": null,
+     "center": [
+      -71.101211,
+      42.350188
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686004"
+    },
+    {
      "osm": "relation/9686005",
      "name": null,
      "center": [
@@ -1396,6 +7060,26 @@
       42.350219
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017454",
+     "name": null,
+     "center": [
+      -71.101397,
+      42.350219
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686005"
+    },
+    {
+     "osm": "way/29921588",
+     "name": null,
+     "center": [
+      -71.101397,
+      42.350219
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686005"
     },
     {
      "osm": "relation/9686006",
@@ -1407,6 +7091,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017455",
+     "name": null,
+     "center": [
+      -71.101479,
+      42.350228
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686006"
+    },
+    {
+     "osm": "way/697017413",
+     "name": null,
+     "center": [
+      -71.101479,
+      42.350228
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686006"
+    },
+    {
+     "osm": "way/697017454",
+     "name": null,
+     "center": [
+      -71.101479,
+      42.350228
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686006"
+    },
+    {
+     "osm": "way/697017453",
+     "name": null,
+     "center": [
+      -71.101479,
+      42.350228
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686006"
+    },
+    {
      "osm": "relation/9686007",
      "name": null,
      "center": [
@@ -1414,6 +7138,46 @@
       42.350236
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017456",
+     "name": null,
+     "center": [
+      -71.101562,
+      42.350236
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686007"
+    },
+    {
+     "osm": "way/697017414",
+     "name": null,
+     "center": [
+      -71.101562,
+      42.350236
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686007"
+    },
+    {
+     "osm": "way/697017455",
+     "name": null,
+     "center": [
+      -71.101562,
+      42.350236
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686007"
+    },
+    {
+     "osm": "way/697017452",
+     "name": null,
+     "center": [
+      -71.101562,
+      42.350236
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686007"
     },
     {
      "osm": "relation/9686008",
@@ -1425,6 +7189,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017457",
+     "name": null,
+     "center": [
+      -71.101645,
+      42.350244
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686008"
+    },
+    {
+     "osm": "way/697017415",
+     "name": null,
+     "center": [
+      -71.101645,
+      42.350244
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686008"
+    },
+    {
+     "osm": "way/697017456",
+     "name": null,
+     "center": [
+      -71.101645,
+      42.350244
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686008"
+    },
+    {
+     "osm": "way/697017451",
+     "name": null,
+     "center": [
+      -71.101645,
+      42.350244
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686008"
+    },
+    {
      "osm": "relation/9686009",
      "name": null,
      "center": [
@@ -1432,6 +7236,46 @@
       42.350252
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017458",
+     "name": null,
+     "center": [
+      -71.101728,
+      42.350252
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686009"
+    },
+    {
+     "osm": "way/697017416",
+     "name": null,
+     "center": [
+      -71.101728,
+      42.350252
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686009"
+    },
+    {
+     "osm": "way/697017457",
+     "name": null,
+     "center": [
+      -71.101728,
+      42.350252
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686009"
+    },
+    {
+     "osm": "way/697017450",
+     "name": null,
+     "center": [
+      -71.101728,
+      42.350252
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686009"
     },
     {
      "osm": "relation/9686010",
@@ -1443,6 +7287,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017459",
+     "name": null,
+     "center": [
+      -71.101812,
+      42.35026
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686010"
+    },
+    {
+     "osm": "way/697017417",
+     "name": null,
+     "center": [
+      -71.101812,
+      42.35026
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686010"
+    },
+    {
+     "osm": "way/697017458",
+     "name": null,
+     "center": [
+      -71.101812,
+      42.35026
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686010"
+    },
+    {
+     "osm": "way/697017449",
+     "name": null,
+     "center": [
+      -71.101812,
+      42.35026
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686010"
+    },
+    {
      "osm": "relation/9686011",
      "name": null,
      "center": [
@@ -1450,6 +7334,46 @@
       42.350268
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017460",
+     "name": null,
+     "center": [
+      -71.101896,
+      42.350268
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686011"
+    },
+    {
+     "osm": "way/697017418",
+     "name": null,
+     "center": [
+      -71.101896,
+      42.350268
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686011"
+    },
+    {
+     "osm": "way/697017459",
+     "name": null,
+     "center": [
+      -71.101896,
+      42.350268
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686011"
+    },
+    {
+     "osm": "way/697017448",
+     "name": null,
+     "center": [
+      -71.101896,
+      42.350268
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686011"
     },
     {
      "osm": "relation/9686012",
@@ -1461,6 +7385,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017461",
+     "name": null,
+     "center": [
+      -71.101978,
+      42.350276
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686012"
+    },
+    {
+     "osm": "way/697017447",
+     "name": null,
+     "center": [
+      -71.101978,
+      42.350276
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686012"
+    },
+    {
+     "osm": "way/697017460",
+     "name": null,
+     "center": [
+      -71.101978,
+      42.350276
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686012"
+    },
+    {
+     "osm": "way/697017419",
+     "name": null,
+     "center": [
+      -71.101978,
+      42.350276
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686012"
+    },
+    {
      "osm": "relation/9686013",
      "name": null,
      "center": [
@@ -1468,6 +7432,46 @@
       42.350284
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017462",
+     "name": null,
+     "center": [
+      -71.10206,
+      42.350284
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686013"
+    },
+    {
+     "osm": "way/697017446",
+     "name": null,
+     "center": [
+      -71.10206,
+      42.350284
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686013"
+    },
+    {
+     "osm": "way/697017461",
+     "name": null,
+     "center": [
+      -71.10206,
+      42.350284
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686013"
+    },
+    {
+     "osm": "way/697017420",
+     "name": null,
+     "center": [
+      -71.10206,
+      42.350284
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686013"
     },
     {
      "osm": "relation/9686014",
@@ -1479,6 +7483,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017463",
+     "name": null,
+     "center": [
+      -71.102142,
+      42.350292
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686014"
+    },
+    {
+     "osm": "way/697017421",
+     "name": null,
+     "center": [
+      -71.102142,
+      42.350292
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686014"
+    },
+    {
+     "osm": "way/697017462",
+     "name": null,
+     "center": [
+      -71.102142,
+      42.350292
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686014"
+    },
+    {
+     "osm": "way/697017445",
+     "name": null,
+     "center": [
+      -71.102142,
+      42.350292
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686014"
+    },
+    {
      "osm": "relation/9686015",
      "name": null,
      "center": [
@@ -1486,6 +7530,46 @@
       42.3503
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017464",
+     "name": null,
+     "center": [
+      -71.102226,
+      42.3503
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686015"
+    },
+    {
+     "osm": "way/697017422",
+     "name": null,
+     "center": [
+      -71.102226,
+      42.3503
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686015"
+    },
+    {
+     "osm": "way/697017463",
+     "name": null,
+     "center": [
+      -71.102226,
+      42.3503
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686015"
+    },
+    {
+     "osm": "way/697017444",
+     "name": null,
+     "center": [
+      -71.102226,
+      42.3503
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686015"
     },
     {
      "osm": "relation/9686016",
@@ -1497,6 +7581,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017465",
+     "name": null,
+     "center": [
+      -71.102309,
+      42.350308
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686016"
+    },
+    {
+     "osm": "way/697017423",
+     "name": null,
+     "center": [
+      -71.102309,
+      42.350308
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686016"
+    },
+    {
+     "osm": "way/697017464",
+     "name": null,
+     "center": [
+      -71.102309,
+      42.350308
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686016"
+    },
+    {
+     "osm": "way/697017443",
+     "name": null,
+     "center": [
+      -71.102309,
+      42.350308
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686016"
+    },
+    {
      "osm": "relation/9686017",
      "name": null,
      "center": [
@@ -1504,6 +7628,46 @@
       42.350317
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017466",
+     "name": null,
+     "center": [
+      -71.102394,
+      42.350317
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686017"
+    },
+    {
+     "osm": "way/697017442",
+     "name": null,
+     "center": [
+      -71.102394,
+      42.350317
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686017"
+    },
+    {
+     "osm": "way/697017465",
+     "name": null,
+     "center": [
+      -71.102394,
+      42.350317
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686017"
+    },
+    {
+     "osm": "way/697017424",
+     "name": null,
+     "center": [
+      -71.102394,
+      42.350317
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686017"
     },
     {
      "osm": "relation/9686018",
@@ -1515,6 +7679,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017467",
+     "name": null,
+     "center": [
+      -71.102475,
+      42.350324
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686018"
+    },
+    {
+     "osm": "way/697017441",
+     "name": null,
+     "center": [
+      -71.102475,
+      42.350324
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686018"
+    },
+    {
+     "osm": "way/697017466",
+     "name": null,
+     "center": [
+      -71.102475,
+      42.350324
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686018"
+    },
+    {
+     "osm": "way/697017425",
+     "name": null,
+     "center": [
+      -71.102475,
+      42.350324
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686018"
+    },
+    {
      "osm": "relation/9686019",
      "name": null,
      "center": [
@@ -1522,6 +7726,46 @@
       42.350319
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017470",
+     "name": null,
+     "center": [
+      -71.102558,
+      42.350319
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686019"
+    },
+    {
+     "osm": "way/697017440",
+     "name": null,
+     "center": [
+      -71.102558,
+      42.350319
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686019"
+    },
+    {
+     "osm": "way/697017467",
+     "name": null,
+     "center": [
+      -71.102558,
+      42.350319
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686019"
+    },
+    {
+     "osm": "way/697017426",
+     "name": null,
+     "center": [
+      -71.102558,
+      42.350319
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686019"
     },
     {
      "osm": "relation/9686020",
@@ -1533,6 +7777,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017469",
+     "name": null,
+     "center": [
+      -71.102644,
+      42.350328
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686020"
+    },
+    {
+     "osm": "way/697017439",
+     "name": null,
+     "center": [
+      -71.102644,
+      42.350328
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686020"
+    },
+    {
+     "osm": "way/697017470",
+     "name": null,
+     "center": [
+      -71.102644,
+      42.350328
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686020"
+    },
+    {
+     "osm": "way/697017427",
+     "name": null,
+     "center": [
+      -71.102644,
+      42.350328
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686020"
+    },
+    {
      "osm": "relation/9686021",
      "name": null,
      "center": [
@@ -1540,6 +7824,46 @@
       42.350336
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017468",
+     "name": null,
+     "center": [
+      -71.102729,
+      42.350336
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686021"
+    },
+    {
+     "osm": "way/697017438",
+     "name": null,
+     "center": [
+      -71.102729,
+      42.350336
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686021"
+    },
+    {
+     "osm": "way/697017469",
+     "name": null,
+     "center": [
+      -71.102729,
+      42.350336
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686021"
+    },
+    {
+     "osm": "way/697017428",
+     "name": null,
+     "center": [
+      -71.102729,
+      42.350336
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686021"
     },
     {
      "osm": "relation/9686022",
@@ -1551,6 +7875,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017471",
+     "name": null,
+     "center": [
+      -71.102811,
+      42.350343
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686022"
+    },
+    {
+     "osm": "way/697017437",
+     "name": null,
+     "center": [
+      -71.102811,
+      42.350343
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686022"
+    },
+    {
+     "osm": "way/697017468",
+     "name": null,
+     "center": [
+      -71.102811,
+      42.350343
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686022"
+    },
+    {
+     "osm": "way/697017429",
+     "name": null,
+     "center": [
+      -71.102811,
+      42.350343
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686022"
+    },
+    {
      "osm": "relation/9686023",
      "name": null,
      "center": [
@@ -1558,6 +7922,46 @@
       42.350352
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017472",
+     "name": null,
+     "center": [
+      -71.102893,
+      42.350352
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686023"
+    },
+    {
+     "osm": "way/697017436",
+     "name": null,
+     "center": [
+      -71.102893,
+      42.350352
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686023"
+    },
+    {
+     "osm": "way/697017471",
+     "name": null,
+     "center": [
+      -71.102893,
+      42.350352
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686023"
+    },
+    {
+     "osm": "way/697017430",
+     "name": null,
+     "center": [
+      -71.102893,
+      42.350352
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686023"
     },
     {
      "osm": "relation/9686024",
@@ -1569,6 +7973,46 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017473",
+     "name": null,
+     "center": [
+      -71.102975,
+      42.35036
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686024"
+    },
+    {
+     "osm": "way/697017435",
+     "name": null,
+     "center": [
+      -71.102975,
+      42.35036
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686024"
+    },
+    {
+     "osm": "way/697017472",
+     "name": null,
+     "center": [
+      -71.102975,
+      42.35036
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686024"
+    },
+    {
+     "osm": "way/697017431",
+     "name": null,
+     "center": [
+      -71.102975,
+      42.35036
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686024"
+    },
+    {
      "osm": "relation/9686025",
      "name": null,
      "center": [
@@ -1576,6 +8020,46 @@
       42.350367
      ],
      "height": 17.7
+    },
+    {
+     "osm": "way/697017474",
+     "name": null,
+     "center": [
+      -71.103055,
+      42.350367
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686025"
+    },
+    {
+     "osm": "way/697017434",
+     "name": null,
+     "center": [
+      -71.103055,
+      42.350367
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686025"
+    },
+    {
+     "osm": "way/697017473",
+     "name": null,
+     "center": [
+      -71.103055,
+      42.350367
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686025"
+    },
+    {
+     "osm": "way/697017432",
+     "name": null,
+     "center": [
+      -71.103055,
+      42.350367
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686025"
     },
     {
      "osm": "relation/9686026",
@@ -1587,13 +8071,53 @@
      "height": 17.7
     },
     {
+     "osm": "way/697017433",
+     "name": null,
+     "center": [
+      -71.103133,
+      42.350376
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686026"
+    },
+    {
+     "osm": "way/697017474",
+     "name": null,
+     "center": [
+      -71.103133,
+      42.350376
+     ],
+     "height": 17.7,
+     "partOf": "relation/9686026"
+    },
+    {
      "osm": "relation/9686027",
      "name": null,
      "center": [
       -71.101169,
       42.349729
      ],
-     "height": 18.6
+     "height": 15.6
+    },
+    {
+     "osm": "way/697017486",
+     "name": null,
+     "center": [
+      -71.101169,
+      42.349729
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686027"
+    },
+    {
+     "osm": "way/697017480",
+     "name": null,
+     "center": [
+      -71.101169,
+      42.349729
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686027"
     },
     {
      "osm": "relation/9686028",
@@ -1602,7 +8126,47 @@
       -71.101261,
       42.349739
      ],
-     "height": 18.6
+     "height": 15.6
+    },
+    {
+     "osm": "way/697017487",
+     "name": null,
+     "center": [
+      -71.101261,
+      42.349739
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686028"
+    },
+    {
+     "osm": "way/697017481",
+     "name": null,
+     "center": [
+      -71.101261,
+      42.349739
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686028"
+    },
+    {
+     "osm": "way/697017486",
+     "name": null,
+     "center": [
+      -71.101261,
+      42.349739
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686028"
+    },
+    {
+     "osm": "way/697017479",
+     "name": null,
+     "center": [
+      -71.101261,
+      42.349739
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686028"
     },
     {
      "osm": "relation/9686029",
@@ -1611,7 +8175,47 @@
       -71.101349,
       42.349749
      ],
-     "height": 18.6
+     "height": 15.6
+    },
+    {
+     "osm": "way/697017488",
+     "name": null,
+     "center": [
+      -71.101349,
+      42.349749
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686029"
+    },
+    {
+     "osm": "way/697017482",
+     "name": null,
+     "center": [
+      -71.101349,
+      42.349749
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686029"
+    },
+    {
+     "osm": "way/697017487",
+     "name": null,
+     "center": [
+      -71.101349,
+      42.349749
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686029"
+    },
+    {
+     "osm": "way/697017478",
+     "name": null,
+     "center": [
+      -71.101349,
+      42.349749
+     ],
+     "height": 15.6,
+     "partOf": "relation/9686029"
     },
     {
      "osm": "relation/9686030",
@@ -1620,7 +8224,47 @@
       -71.101436,
       42.34976
      ],
-     "height": 18.6
+     "height": 12.0
+    },
+    {
+     "osm": "way/697017489",
+     "name": null,
+     "center": [
+      -71.101436,
+      42.34976
+     ],
+     "height": 12.0,
+     "partOf": "relation/9686030"
+    },
+    {
+     "osm": "way/697017483",
+     "name": null,
+     "center": [
+      -71.101436,
+      42.34976
+     ],
+     "height": 12.0,
+     "partOf": "relation/9686030"
+    },
+    {
+     "osm": "way/697017488",
+     "name": null,
+     "center": [
+      -71.101436,
+      42.34976
+     ],
+     "height": 12.0,
+     "partOf": "relation/9686030"
+    },
+    {
+     "osm": "way/697017477",
+     "name": null,
+     "center": [
+      -71.101436,
+      42.34976
+     ],
+     "height": 12.0,
+     "partOf": "relation/9686030"
     },
     {
      "osm": "relation/9686031",
@@ -1629,7 +8273,47 @@
       -71.101524,
       42.34977
      ],
-     "height": 18.6
+     "height": 12.0
+    },
+    {
+     "osm": "way/697017490",
+     "name": null,
+     "center": [
+      -71.101524,
+      42.34977
+     ],
+     "height": 12.0,
+     "partOf": "relation/9686031"
+    },
+    {
+     "osm": "way/697017484",
+     "name": null,
+     "center": [
+      -71.101524,
+      42.34977
+     ],
+     "height": 12.0,
+     "partOf": "relation/9686031"
+    },
+    {
+     "osm": "way/697017489",
+     "name": null,
+     "center": [
+      -71.101524,
+      42.34977
+     ],
+     "height": 12.0,
+     "partOf": "relation/9686031"
+    },
+    {
+     "osm": "way/697017476",
+     "name": null,
+     "center": [
+      -71.101524,
+      42.34977
+     ],
+     "height": 12.0,
+     "partOf": "relation/9686031"
     },
     {
      "osm": "relation/9686032",
@@ -1638,7 +8322,47 @@
       -71.101612,
       42.34978
      ],
-     "height": 18.8
+     "height": 8.6
+    },
+    {
+     "osm": "way/697017491",
+     "name": null,
+     "center": [
+      -71.101612,
+      42.34978
+     ],
+     "height": 8.6,
+     "partOf": "relation/9686032"
+    },
+    {
+     "osm": "way/697017485",
+     "name": null,
+     "center": [
+      -71.101612,
+      42.34978
+     ],
+     "height": 8.6,
+     "partOf": "relation/9686032"
+    },
+    {
+     "osm": "way/697017490",
+     "name": null,
+     "center": [
+      -71.101612,
+      42.34978
+     ],
+     "height": 8.6,
+     "partOf": "relation/9686032"
+    },
+    {
+     "osm": "way/697017475",
+     "name": null,
+     "center": [
+      -71.101612,
+      42.34978
+     ],
+     "height": 8.6,
+     "partOf": "relation/9686032"
     },
     {
      "osm": "relation/9686033",
@@ -1647,7 +8371,27 @@
       -71.101699,
       42.34979
      ],
-     "height": 18.8
+     "height": 8.6
+    },
+    {
+     "osm": "way/277435861",
+     "name": null,
+     "center": [
+      -71.101699,
+      42.34979
+     ],
+     "height": 8.6,
+     "partOf": "relation/9686033"
+    },
+    {
+     "osm": "way/697017491",
+     "name": null,
+     "center": [
+      -71.101699,
+      42.34979
+     ],
+     "height": 8.6,
+     "partOf": "relation/9686033"
     },
     {
      "osm": "relation/9712514",
@@ -1656,7 +8400,57 @@
       -71.094105,
       42.349382
      ],
-     "height": 13.2
+     "height": 12.2
+    },
+    {
+     "osm": "way/699023906",
+     "name": null,
+     "center": [
+      -71.094105,
+      42.349382
+     ],
+     "height": 12.2,
+     "partOf": "relation/9712514"
+    },
+    {
+     "osm": "way/300849590",
+     "name": null,
+     "center": [
+      -71.094105,
+      42.349382
+     ],
+     "height": 12.2,
+     "partOf": "relation/9712514"
+    },
+    {
+     "osm": "way/699023905",
+     "name": null,
+     "center": [
+      -71.094105,
+      42.349382
+     ],
+     "height": 12.2,
+     "partOf": "relation/9712514"
+    },
+    {
+     "osm": "way/699023913",
+     "name": null,
+     "center": [
+      -71.094105,
+      42.349382
+     ],
+     "height": 12.2,
+     "partOf": "relation/9712514"
+    },
+    {
+     "osm": "way/699023907",
+     "name": null,
+     "center": [
+      -71.094105,
+      42.349382
+     ],
+     "height": 12.2,
+     "partOf": "relation/9712514"
     },
     {
      "osm": "relation/9712515",
@@ -1665,7 +8459,47 @@
       -71.094206,
       42.349365
      ],
-     "height": 13.0
+     "height": 12.0
+    },
+    {
+     "osm": "way/699023905",
+     "name": null,
+     "center": [
+      -71.094206,
+      42.349365
+     ],
+     "height": 12.0,
+     "partOf": "relation/9712515"
+    },
+    {
+     "osm": "way/699023912",
+     "name": null,
+     "center": [
+      -71.094206,
+      42.349365
+     ],
+     "height": 12.0,
+     "partOf": "relation/9712515"
+    },
+    {
+     "osm": "way/699023944",
+     "name": null,
+     "center": [
+      -71.094206,
+      42.349365
+     ],
+     "height": 12.0,
+     "partOf": "relation/9712515"
+    },
+    {
+     "osm": "way/699023935",
+     "name": null,
+     "center": [
+      -71.094206,
+      42.349365
+     ],
+     "height": 12.0,
+     "partOf": "relation/9712515"
     },
     {
      "osm": "relation/9811331",
@@ -1677,6 +8511,26 @@
      "height": 15.6
     },
     {
+     "osm": "way/705460719",
+     "name": null,
+     "center": [
+      -71.107329,
+      42.346771
+     ],
+     "height": 15.6,
+     "partOf": "relation/9811331"
+    },
+    {
+     "osm": "way/705460716",
+     "name": null,
+     "center": [
+      -71.107329,
+      42.346771
+     ],
+     "height": 15.6,
+     "partOf": "relation/9811331"
+    },
+    {
      "osm": "relation/9811332",
      "name": null,
      "center": [
@@ -1686,6 +8540,46 @@
      "height": 12.0
     },
     {
+     "osm": "way/705460717",
+     "name": null,
+     "center": [
+      -71.107355,
+      42.34691
+     ],
+     "height": 12.0,
+     "partOf": "relation/9811332"
+    },
+    {
+     "osm": "way/705460715",
+     "name": null,
+     "center": [
+      -71.107355,
+      42.34691
+     ],
+     "height": 12.0,
+     "partOf": "relation/9811332"
+    },
+    {
+     "osm": "way/705460716",
+     "name": null,
+     "center": [
+      -71.107355,
+      42.34691
+     ],
+     "height": 12.0,
+     "partOf": "relation/9811332"
+    },
+    {
+     "osm": "way/705460718",
+     "name": null,
+     "center": [
+      -71.107355,
+      42.34691
+     ],
+     "height": 12.0,
+     "partOf": "relation/9811332"
+    },
+    {
      "osm": "relation/9811333",
      "name": null,
      "center": [
@@ -1693,6 +8587,26 @@
       42.346899
      ],
      "height": 15.6
+    },
+    {
+     "osm": "way/705460717",
+     "name": null,
+     "center": [
+      -71.107554,
+      42.346899
+     ],
+     "height": 15.6,
+     "partOf": "relation/9811333"
+    },
+    {
+     "osm": "way/29636199",
+     "name": null,
+     "center": [
+      -71.107554,
+      42.346899
+     ],
+     "height": 15.6,
+     "partOf": "relation/9811333"
     },
     {
      "osm": "way/1006629898",
@@ -1737,7 +8651,7 @@
       -71.106437,
       42.35067
      ],
-     "height": 43.4,
+     "height": 39.6,
      "landmark": "chapel"
     },
     {
@@ -1756,7 +8670,7 @@
       -71.105585,
       42.350286
      ],
-     "height": 40.1,
+     "height": 22.4,
      "landmark": "cas"
     },
     {
@@ -1766,7 +8680,7 @@
       -71.104504,
       42.350234
      ],
-     "height": 16.0
+     "height": 15.8
     },
     {
      "osm": "way/1007090941",
@@ -1784,7 +8698,7 @@
       -71.117731,
       42.352212
      ],
-     "height": 27.1,
+     "height": 26.7,
      "landmark": "arena"
     },
     {
@@ -1794,7 +8708,7 @@
       -71.116531,
       42.351796
      ],
-     "height": 21.8
+     "height": 15.8
     },
     {
      "osm": "way/1026274040",
@@ -2001,7 +8915,7 @@
       -71.115619,
       42.35049
      ],
-     "height": 11.3
+     "height": 8.6
     },
     {
      "osm": "way/1189678820",
@@ -2010,7 +8924,7 @@
       -71.115261,
       42.350447
      ],
-     "height": 11.3
+     "height": 8.6
     },
     {
      "osm": "way/1189678822",
@@ -2046,7 +8960,7 @@
       -71.113767,
       42.350099
      ],
-     "height": 10.4
+     "height": 8.6
     },
     {
      "osm": "way/1235201680",
@@ -2201,7 +9115,7 @@
       -71.117807,
       42.353242
      ],
-     "height": 96.7,
+     "height": 82.1,
      "landmark": "stuvi"
     },
     {
@@ -2268,6 +9182,36 @@
      "height": 33.8
     },
     {
+     "osm": "way/814006894",
+     "name": null,
+     "center": [
+      -71.099805,
+      42.35001
+     ],
+     "height": 33.8,
+     "partOf": "way/242272535"
+    },
+    {
+     "osm": "way/814006895",
+     "name": null,
+     "center": [
+      -71.099805,
+      42.35001
+     ],
+     "height": 33.8,
+     "partOf": "way/242272535"
+    },
+    {
+     "osm": "way/814006896",
+     "name": null,
+     "center": [
+      -71.099805,
+      42.35001
+     ],
+     "height": 33.8,
+     "partOf": "way/242272535"
+    },
+    {
      "osm": "way/256604722",
      "name": "Questrom School of Business",
      "center": [
@@ -2292,8 +9236,108 @@
       -71.102972,
       42.350004
      ],
-     "height": 94.6,
+     "height": 94.0,
      "landmark": "cds"
+    },
+    {
+     "osm": "way/1323777972",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
+    },
+    {
+     "osm": "way/1323777973",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
+    },
+    {
+     "osm": "way/1323777974",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
+    },
+    {
+     "osm": "way/1323777975",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
+    },
+    {
+     "osm": "way/1323777976",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
+    },
+    {
+     "osm": "way/1323777977",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
+    },
+    {
+     "osm": "way/1323777978",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
+    },
+    {
+     "osm": "way/1323777979",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
+    },
+    {
+     "osm": "way/1323777980",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
+    },
+    {
+     "osm": "way/1323777981",
+     "name": null,
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.0,
+     "partOf": "way/277434241"
     },
     {
      "osm": "way/277435862",
@@ -2302,7 +9346,7 @@
       -71.100859,
       42.349755
      ],
-     "height": 18.8
+     "height": 15.8
     },
     {
      "osm": "way/29513001",
@@ -2338,7 +9382,7 @@
       -71.101997,
       42.349865
      ],
-     "height": 18.8
+     "height": 15.8
     },
     {
      "osm": "way/29580235",
@@ -2464,7 +9508,7 @@
       -71.098339,
       42.349972
      ],
-     "height": 18.4
+     "height": 17.7
     },
     {
      "osm": "way/29650729",
@@ -2491,16 +9535,7 @@
       -71.120632,
       42.353481
      ],
-     "height": 44.6
-    },
-    {
-     "osm": "way/29680684",
-     "name": null,
-     "center": [
-      -71.118897,
-      42.352886
-     ],
-     "height": 8.6
+     "height": 41.9
     },
     {
      "osm": "way/29680728",
@@ -2518,7 +9553,7 @@
       -71.103689,
       42.35044
      ],
-     "height": 17.9
+     "height": 17.7
     },
     {
      "osm": "way/29680807",
@@ -2536,7 +9571,7 @@
       -71.101152,
       42.348233
      ],
-     "height": 18.4
+     "height": 15.8
     },
     {
      "osm": "way/29680834",
@@ -2710,6 +9745,36 @@
      "height": 15.8
     },
     {
+     "osm": "way/1323857431",
+     "name": null,
+     "center": [
+      -71.121242,
+      42.354233
+     ],
+     "height": 15.8,
+     "partOf": "way/29887815"
+    },
+    {
+     "osm": "way/1323857432",
+     "name": null,
+     "center": [
+      -71.121242,
+      42.354233
+     ],
+     "height": 15.8,
+     "partOf": "way/29887815"
+    },
+    {
+     "osm": "way/1323857433",
+     "name": null,
+     "center": [
+      -71.121242,
+      42.354233
+     ],
+     "height": 15.8,
+     "partOf": "way/29887815"
+    },
+    {
      "osm": "way/29888004",
      "name": null,
      "center": [
@@ -2725,7 +9790,7 @@
       -71.119812,
       42.352523
      ],
-     "height": 44.6
+     "height": 41.9
     },
     {
      "osm": "way/29889824",
@@ -2734,7 +9799,7 @@
       -71.113576,
       42.350226
      ],
-     "height": 10.4
+     "height": 8.6
     },
     {
      "osm": "way/29904193",
@@ -2770,7 +9835,7 @@
       -71.115992,
       42.352391
      ],
-     "height": 67.9,
+     "height": 59.1,
      "landmark": "stuvi"
     },
     {
@@ -2873,13 +9938,33 @@
      "height": 30.2
     },
     {
+     "osm": "way/814309584",
+     "name": null,
+     "center": [
+      -71.098726,
+      42.349479
+     ],
+     "height": 30.2,
+     "partOf": "way/316156067"
+    },
+    {
+     "osm": "way/814309585",
+     "name": null,
+     "center": [
+      -71.098726,
+      42.349479
+     ],
+     "height": 30.2,
+     "partOf": "way/316156067"
+    },
+    {
      "osm": "way/316156068",
      "name": null,
      "center": [
       -71.098128,
       42.349471
      ],
-     "height": 20.8
+     "height": 15.8
     },
     {
      "osm": "way/316156069",
@@ -2906,7 +9991,7 @@
       -71.100928,
       42.348917
      ],
-     "height": 20.6
+     "height": 15.8
     },
     {
      "osm": "way/337489367",
@@ -2987,7 +10072,7 @@
       -71.107167,
       42.351077
      ],
-     "height": 63.1,
+     "height": 88.7,
      "landmark": "lawtower"
     },
     {
@@ -3006,7 +10091,7 @@
       -71.103146,
       42.350793
      ],
-     "height": 14.7
+     "height": 14.1
     },
     {
      "osm": "way/697017063",
@@ -3051,7 +10136,7 @@
       -71.120532,
       42.352918
      ],
-     "height": 44.6
+     "height": 41.9
     },
     {
      "osm": "way/813732837",
@@ -3087,7 +10172,7 @@
       -71.104157,
       42.350556
      ],
-     "height": 17.9
+     "height": 17.7
     },
     {
      "osm": "way/825285416",
@@ -3105,7 +10190,7 @@
       -71.100961,
       42.348755
      ],
-     "height": 20.6
+     "height": 12.2
     },
     {
      "osm": "way/985664753",
@@ -3114,7 +10199,7 @@
       -71.113524,
       42.350478
      ],
-     "height": 10.4
+     "height": 8.6
     }
    ]
   },
@@ -3126,6 +10211,10 @@
     42.3425
    ],
    "model": "/models/buildings-fenway.glb",
+   "lights": {
+    "dusk": "/models/buildings-fenway-lights-dusk.glb",
+    "night": "/models/buildings-fenway-lights-night.glb"
+   },
    "buildings": [
     {
      "osm": "relation/63803",
@@ -3135,6 +10224,26 @@
       42.341434
      ],
      "height": 15.8
+    },
+    {
+     "osm": "way/29586561",
+     "name": null,
+     "center": [
+      -71.106671,
+      42.341434
+     ],
+     "height": 15.8,
+     "partOf": "relation/63803"
+    },
+    {
+     "osm": "way/29591142",
+     "name": null,
+     "center": [
+      -71.106671,
+      42.341434
+     ],
+     "height": 15.8,
+     "partOf": "relation/63803"
     },
     {
      "osm": "way/1320778060",
@@ -3236,6 +10345,10 @@
     42.3355
    ],
    "model": "/models/buildings-medical.glb",
+   "lights": {
+    "dusk": "/models/buildings-medical-lights-dusk.glb",
+    "night": "/models/buildings-medical-lights-night.glb"
+   },
    "buildings": [
     {
      "osm": "way/1160558564",
@@ -3280,7 +10393,7 @@
       -71.072316,
       42.335981
      ],
-     "height": 19.3
+     "height": 15.8
     },
     {
      "osm": "way/29560627",
@@ -3298,7 +10411,7 @@
       -71.066527,
       42.340526
      ],
-     "height": 20.6
+     "height": 12.2
     },
     {
      "osm": "way/29570573",
@@ -3361,7 +10474,7 @@
       -71.070138,
       42.336364
      ],
-     "height": 24.6
+     "height": 15.8
     },
     {
      "osm": "way/29650894",
@@ -3415,7 +10528,7 @@
       -71.067233,
       42.340637
      ],
-     "height": 20.6
+     "height": 12.2
     },
     {
      "osm": "way/29947102",
@@ -3481,13 +10594,23 @@
      "height": 37.4
     },
     {
+     "osm": "way/485215042",
+     "name": null,
+     "center": [
+      -71.073533,
+      42.3341
+     ],
+     "height": 37.4,
+     "partOf": "way/484823091"
+    },
+    {
      "osm": "way/484823092",
      "name": "Yawkey",
      "center": [
       -71.074128,
       42.334436
      ],
-     "height": 20.7
+     "height": 15.8
     },
     {
      "osm": "way/484823096",
@@ -3506,6 +10629,96 @@
       42.334599
      ],
      "height": 33.8
+    },
+    {
+     "osm": "way/244558099",
+     "name": null,
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8,
+     "partOf": "way/484823097"
+    },
+    {
+     "osm": "way/244558100",
+     "name": null,
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8,
+     "partOf": "way/484823097"
+    },
+    {
+     "osm": "way/244558101",
+     "name": null,
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8,
+     "partOf": "way/484823097"
+    },
+    {
+     "osm": "way/244558103",
+     "name": null,
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8,
+     "partOf": "way/484823097"
+    },
+    {
+     "osm": "way/244558104",
+     "name": null,
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8,
+     "partOf": "way/484823097"
+    },
+    {
+     "osm": "way/244558106",
+     "name": null,
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8,
+     "partOf": "way/484823097"
+    },
+    {
+     "osm": "way/244558107",
+     "name": null,
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8,
+     "partOf": "way/484823097"
+    },
+    {
+     "osm": "way/244558110",
+     "name": null,
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8,
+     "partOf": "way/484823097"
+    },
+    {
+     "osm": "way/244558111",
+     "name": null,
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8,
+     "partOf": "way/484823097"
     },
     {
      "osm": "way/484824019",
