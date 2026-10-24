@@ -146,6 +146,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
     roofsFrom: undefined as RoofHeights | undefined,
     kindsFrom: null as CampusLocation[] | null,
     kinds: new Map<string, LocationKind>(),
+    canBeEmpty: new Set<string>(),
     projection: new TagProjection<BuildingOccupancy>(MARGIN),
   }).current;
 
@@ -184,6 +185,8 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         if (locations !== s.kindsFrom) {
           s.kindsFrom = locations;
           s.kinds = new Map(locations.map((l) => [l.name, l.kind]));
+          // Purpose-only places (the crew boathouse): nobody there outside sessions is a real zero.
+          s.canBeEmpty = new Set(locations.filter((l) => l.estimatedProfile?.purpose === 'rowing').map((l) => l.name));
         }
         const compact = camera.zoom < COMPACT_ZOOM;
         if (compact !== s.compact) {
@@ -212,7 +215,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
             tag = createTag(id, layer, () => onSelectRef.current(s.selectedId === id ? null : id));
             s.tags.set(id, tag);
           }
-          if (writeContent(tag, b, s.kinds.get(b.name) ?? null)) changed.push(tag);
+          if (writeContent(tag, b, s.kinds.get(b.name) ?? null, s.canBeEmpty.has(b.name))) changed.push(tag);
         }
         // All writes first, then all reads: one layout pass, however many tags changed.
         for (const tag of changed) tag.width = tag.pill.offsetWidth;
@@ -285,6 +288,8 @@ interface ActivityDisplayInput {
   modeled?: boolean;
   capacityBasis?: string;
   kind?: LocationKind | null;
+  /** The place really can be empty (a team-only boathouse between sessions): show a plain 0. */
+  allowZero?: boolean;
 }
 
 /** Labels refer to the modeled space and its denominator, not every use of its building. */
@@ -292,7 +297,7 @@ interface ActivityDisplayInput {
 const NEAR_ZERO_PERCENT = 5;
 const NEAR_ZERO_STUDENTS = 3;
 
-export function activityDisplay({ count, capacity, modeled, capacityBasis, kind }: ActivityDisplayInput) {
+export function activityDisplay({ count, capacity, modeled, capacityBasis, kind, allowZero = false }: ActivityDisplayInput) {
   const share = occupancyShare(count, capacity);
   const hasPercentage = modeled !== false && capacity > 0 && Number.isFinite(share)
     && capacityBasis !== 'residential_beds_plus_classroom_seats'
@@ -308,8 +313,8 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind 
   const nearZeroPct = Math.max(2, Math.min(NEAR_ZERO_PERCENT, Math.ceil((band.high / capacity) * 100)));
   const primary = modeled === false ? 'Not modeled'
     : hasPercentage
-      ? percent < NEAR_ZERO_PERCENT ? `<${nearZeroPct}%${unit}` : `${percent}%${unit}`
-      : count < NEAR_ZERO_STUDENTS ? `<${Math.max(NEAR_ZERO_STUDENTS, band.high)} students` : `${count.toLocaleString()} ${count === 1 ? 'student' : 'students'}`;
+      ? percent < NEAR_ZERO_PERCENT && !(allowZero && count === 0) ? `<${nearZeroPct}%${unit}` : `${percent}%${unit}`
+      : count < NEAR_ZERO_STUDENTS && !(allowZero && count === 0) ? `<${NEAR_ZERO_STUDENTS} students` : `${count.toLocaleString()} ${count === 1 ? 'student' : 'students'}`;
   const secondary = hasPercentage ? level.label : '';
   return {
     primary,
@@ -323,8 +328,8 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind 
 }
 
 /** Rewrites a tag's text when it has changed; returns whether it did. */
-function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null): boolean {
-  const display = activityDisplay({ ...b, kind });
+function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null, allowZero = false): boolean {
+  const display = activityDisplay({ ...b, kind, allowZero });
   const key = `${b.name}|${b.short}|${display.primary}|${display.level}|${kind}`;
   if (key === tag.key) return false;
   tag.key = key;

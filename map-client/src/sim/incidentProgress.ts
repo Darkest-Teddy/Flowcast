@@ -15,7 +15,7 @@ export function incidentProgress(run: { incident: Incident; endsAt: number; part
   const clearedAt = occupants.reduce((latest, person) => Math.max(latest, person.departAt), run.incident.start);
   const completedAt = run.participants.reduce((latest, person) => Math.max(latest, person.resumedAt), run.endsAt);
   const phase = !started ? 'Scheduled'
-    : inside > 0 ? (run.incident.kind === 'fire-drill' ? 'Evacuating' : 'Clearing building')
+    : inside > 0 ? (run.incident.kind !== 'building-closure' ? 'Evacuating' : 'Clearing building')
     : time < run.endsAt ? 'Access closed'
     : time < completedAt ? 'Resuming'
     : 'Complete';

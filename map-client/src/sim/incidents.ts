@@ -7,7 +7,8 @@ import {
 export type { IncidentAction, IncidentActivity, IncidentContext, IncidentDecision } from './incidentActivities';
 export { ACTIVITY_DECISION_ASSUMPTIONS, ACTIVITY_DECISION_LIMITATIONS } from './incidentActivities';
 
-export type IncidentKind = 'fire-drill' | 'building-closure';
+/** A fire alarm evacuates exactly like a drill; the difference is that Boston Fire responds (sim/fireResponse.ts). */
+export type IncidentKind = 'fire-drill' | 'fire-alarm' | 'building-closure';
 export interface Incident {
   id: string;
   kind: IncidentKind;
@@ -253,14 +254,14 @@ function footprintClearance(point: [number, number], polygons: [number, number][
 /** Pure transform. Drill reopening can extend beyond the requested duration for clearance and muster; closures cannot. */
 export function applyIncident(day: DayData, incident: Incident, context?: IncidentContext): IncidentResult {
   const requestedEndsAt = incident.start + incident.duration;
-  if (!incident.id?.trim() || !['fire-drill', 'building-closure'].includes(incident.kind)
+  if (!incident.id?.trim() || !['fire-drill', 'fire-alarm', 'building-closure'].includes(incident.kind)
     || !Number.isFinite(incident.start) || incident.start < 0 || !Number.isFinite(incident.duration)
     || incident.duration <= 0 || !Number.isFinite(requestedEndsAt) || requestedEndsAt > DAY)
     throw new Error('Invalid incident: id, kind, start and positive duration within one day required');
   const target = day.locations.find(location => location.id === incident.locationId);
   if (!target || target.kind === 'off-campus' || target.kind === 'outdoor' || target.id === 'off-campus')
     throw new Error('Incident target must be an existing on-campus indoor location');
-  const drill = incident.kind === 'fire-drill';
+  const drill = incident.kind === 'fire-drill' || incident.kind === 'fire-alarm';
   const blocked = new Set(day.locations.filter(location => location.id === target.id
     || target.building && location.building === target.building).map(location => location.id));
   const byAgent = timelines(day);

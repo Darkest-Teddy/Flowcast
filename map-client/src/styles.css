@@ -77,6 +77,12 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .incident-decisions ul { list-style: none; padding: 0; display: grid; gap: 16px; }
 .incident-decisions li { border-left: 2px solid var(--muted); padding-left: 10px; }
 .incident-decisions li p { margin: 6px 0; color: var(--muted); line-height: 1.5; }
+.fire-response { margin: 16px 0; }
+.fire-units { list-style: none; padding: 0; display: grid; gap: 10px; }
+.fire-units li { border-left: 2px solid #e8141e; padding-left: 10px; line-height: 1.45; }
+.fire-unit-from { color: var(--muted); }
+.incident-panel .fire-siren { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; line-height: 1.4; }
+.fire-siren input { margin-top: 2px; accent-color: var(--accent); }
 .incident-decisions summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .row {
   display: grid;

@@ -63,6 +63,10 @@ import { AskPanel, type AskShow } from './AskPanel';
 import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
 import type { WalkRoute } from './sim/playback';
+import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireModels } from './layers/fireTrucks';
+import { loadFireNetwork, planFireResponse, signalOracle, type FireNetwork } from './sim/fireResponse';
+import { registeredSignals } from './sim/signals';
+import { FireSiren } from './fireSiren';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -170,6 +174,12 @@ export default function App() {
   const baselinePlaybackRef = useRef<Playback | null>(null);
   const askRouteRef = useRef<AskRoute | null>(null); // the walk an Ask answer draws, read by the frame loop
   const walkRoutesRef = useRef<Record<string, WalkRoute>>({});
+  // Boston Fire apparatus for fire alarms: street graph and models, loaded after the map starts.
+  const fireRef = useRef<Promise<{ network: FireNetwork; models: FireModels } | null> | null>(null);
+  const fireModelsRef = useRef<FireModels>({});
+  const [responsePending, setResponsePending] = useState(false);
+  const [siren, setSiren] = useState(false);
+  const sirenRef = useRef<FireSiren | null>(null);
   const [weekday, setWeekday] = useState(START_WEEKDAY);
   const weekdayRef = useRef(START_WEEKDAY); // 0 = Monday (the day picker's index), read by the frame loop
   const [sourceData, setSourceData] = useState<CampusData | null>(null);
@@ -269,6 +279,8 @@ export default function App() {
       // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
       // Standard's own 3D buildings are off).
       basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])).concat(fields ? fieldBuildingIds(fields) : []));
+      // And by geometry: base-map buildings, labels and trees wherever our models stand.
+      fetch('/data/building-footprints.json').then((r) => (r.ok ? r.json() : null)).then((fp) => fp && basemap.hideUnderModels(fp)).catch(() => {});
       // The base map's own 3D models hidden under ours (Standard's Fenway Park), plus, once the
       // transit data is in, the Green Line trackbed (no trees on it). One clip layer for both.
       const clips = landmarkClips(detailedBuildings?.manifest);
@@ -360,6 +372,8 @@ export default function App() {
         getTooltip: ({ object }: PickingInfo) => {
           const countTooltip = mobilityTooltip(object);
           if (countTooltip) return countTooltip;
+          const fireText = fireTooltip(object);
+          if (fireText) return fireText;
           // Vehicles get a floating glass tag (TransitTags) instead of the tooltip.
           const vehicleId = object && 'receivedAt' in object ? (object as { id: string }).id : null;
           transitTagsRef.current?.hoverVehicle(vehicleId);
@@ -387,8 +401,12 @@ export default function App() {
         },
       });
       basemap.addControl(overlay);
+      // Fire response data is only needed once someone sounds a fire alarm: fetch it in the background.
+      fireRef.current = Promise.all([loadFireNetwork(), loadFireModels()])
+        .then(([network, models]) => { fireModelsRef.current = models; return { network, models }; })
+        .catch(() => null);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, transitRef, bikesRef, populationBase, quality } });
+      if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, get incident() { return incidentRunRef.current; }, transitRef, bikesRef, populationBase, quality } });
       // Lift the loading screen once the first frames are drawn and the view's tiles are in (or
       // after 4 s regardless), sweeping the camera in from a wider, turned view as it fades.
       const revealFrom = performance.now();
@@ -561,12 +579,16 @@ export default function App() {
             : []),
           ...agentLayers(thinForZoom(inView(nearView(walking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
           ...incidentFrameLayers,
+          // Fire apparatus: no layers unless a fire alarm's response is under way.
+          ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
           ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
           ...askRouteLayers(askRouteRef.current),
           ...(currentMobility && showCountsRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
+        // Siren (off unless switched on): only while apparatus run lights-and-siren and the clock runs.
+        sirenRef.current?.set(playingRef.current ? FireSiren.levelAt(nearestResponding(incidentRunRef.current?.response ?? null, basemap.getCamera().center)) : 0);
         perfRef.current = {
           walkers: walking.length,
           vehicles: source ? source.positionsAt(now).length : 0,
@@ -742,6 +764,27 @@ export default function App() {
     incidentRunRef.current = run;
     setIncidentRun(run);
     refreshIncidentHud();
+    if (kind === 'fire-alarm') dispatchFire(run, baseline.data.buildings.find((b) => b.id === run.location.building)?.polygon);
+  };
+  // Boston Fire's first alarm: planned once (routes, speeds, timeline), then drawn from sim time.
+  const dispatchFire = (run: IncidentRun, polygon: [number, number][] | undefined) => {
+    setResponsePending(true);
+    void (fireRef.current ?? Promise.resolve(null)).then((fire) => {
+      setResponsePending(false);
+      if (!fire || incidentRunRef.current?.incident.id !== run.incident.id) return;
+      const response = planFireResponse(fire.network, {
+        id: run.incident.id, start: run.incident.start, endsAt: run.endsAt, targetName: run.location.name,
+        position: run.location.position, polygon,
+      }, { signals: signalOracle(registeredSignals().approaches) });
+      const next = { ...run, response };
+      incidentRunRef.current = next;
+      setIncidentRun(next);
+    });
+  };
+  const toggleSiren = (on: boolean) => {
+    setSiren(on);
+    if (on) { sirenRef.current ??= new FireSiren(); sirenRef.current.enable(); }
+    else sirenRef.current?.disable();
   };
   const resetIncident = () => {
     if (baselinePlaybackRef.current) playbackRef.current = baselinePlaybackRef.current;
@@ -881,7 +924,8 @@ export default function App() {
           </div>
           {tab === 'incidents' ? (
             <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
-              onStart={startIncident} onReset={resetIncident} onLocate={selectSource} />
+              onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
+              siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
           ) : tab === 'ask' && askContext ? (
             <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask">
               <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
@@ -900,6 +944,7 @@ export default function App() {
                     count: o.count, capacity: o.location.capacity, share: o.share,
                     modeled: o.modeled ?? o.location.activityModeled,
                     capacityBasis: o.location.capacityBasis, kind: o.location.kind,
+                    allowZero: o.location.estimatedProfile?.purpose === 'rowing',
                   });
                   return (
                     <li key={o.location.id}>

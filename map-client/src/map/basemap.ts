@@ -8,6 +8,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import type { MapWeather } from '../weather/weather';
 import { quality, type QualitySettings } from '../perf/quality';
 import { paceMapRendering } from '../perf/pacer';
+import { buildFootprintIndex, coveredByModels, type FootprintIndex, type Ring } from './footprintCover';
 
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -22,6 +23,11 @@ export interface Basemap {
    * Warren Towers as one 56 m block, podium included) poke through our models. Mapbox only.
    */
   excludeBuildings(osmIds: number[]): void;
+  /**
+   * Hide the base map's buildings, labels and trees wherever our models stand (footprints from
+   * building-footprints.json), whatever ids the tiles use. Mapbox only.
+   */
+  hideUnderModels(footprints: { rings: [number, number][][] }[]): void;
   /** Remove the base map's own 3D models (trees) inside these polygons. Mapbox only. */
   clipModels(polygons: [number, number][][]): void;
   /** Live traffic needs Mapbox's traffic tiles (a token); the fallback has none. */
@@ -187,6 +193,9 @@ const ROAD_LABEL_MIN_ZOOM = 17.2;
 const CITY_BUILDINGS = 'flowcast-city-buildings';
 const CITY_AO = 0.35; // ambient occlusion at the city buildings' feet (Auto drops it from level 2)
 const ROOF_SNOW = 'flowcast-roof-snow';
+const MODEL_CLIP = 'flowcast-model-clip';
+// Standard's per-building labels, hidden inside our modelled buildings (hideUnderModels).
+const STANDARD_BUILDING_LABELS = ['building-number-label', 'building-entrance'];
 // Google Maps-style live traffic, kept calm: only the main roads carry a line, coloured by
 // speed. Free-flowing roads are a thin, quiet green so the eye goes to slowdowns; heavier
 // traffic is also thicker, so the overlay never relies on colour alone.
@@ -317,6 +326,37 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     updateRoadLabels();
     map.on('zoom', updateRoadLabels);
     hideStandardFootprints(map);
+    // City-building exclusions: our OSM ids, plus base-map features found under our footprints.
+    let excludedIds = new Set<number>();
+    const coveredIds = new Set<number | string>();
+    let index: FootprintIndex | null = null;
+    const cityFilter = () => ['all', ['==', ['get', 'extrude'], 'true'], ['!', ['in', ['id'], ['literal', [...excludedIds, ...coveredIds]]]]];
+    const applyCityFilter = () => {
+      for (const id of [CITY_BUILDINGS, ROOF_SNOW]) if (map.getLayer(id)) map.setFilter(id, cityFilter() as never);
+    };
+    let scanTimer = 0;
+    const scheduleScan = () => {
+      if (scanTimer) return;
+      // Coalesce tile bursts; the scan itself takes a few ms.
+      scanTimer = window.setTimeout(() => {
+        scanTimer = 0;
+        scanCovered();
+      }, 400);
+    };
+    const scanCovered = () => {
+      if (!index || !map.getSource('flowcast-city')) return;
+      let added = false;
+      for (const f of map.querySourceFeatures('flowcast-city', { sourceLayer: 'building' })) {
+        if (f.id === undefined || f.id === null || coveredIds.has(f.id) || excludedIds.has(Number(f.id))) continue;
+        const g = f.geometry;
+        const outer: Ring[] = g.type === 'Polygon' ? [g.coordinates[0] as Ring] : g.type === 'MultiPolygon' ? g.coordinates.map((p) => p[0] as Ring) : [];
+        if (outer.length && coveredByModels(index, outer)) {
+          coveredIds.add(f.id);
+          added = true;
+        }
+      }
+      if (added) applyCityFilter();
+    };
     const stopQuality = applyMapboxQuality(map);
     return {
       kind: 'mapbox',
@@ -345,9 +385,10 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         if (!map.getSource('flowcast-city')) {
           map.addSource('flowcast-city', { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' });
         }
-        const filter = ['all', ['==', ['get', 'extrude'], 'true'], ['!', ['in', ['id'], ['literal', osmIds]]]];
+        excludedIds = new Set(osmIds);
+        const filter = cityFilter();
         if (map.getLayer(CITY_BUILDINGS)) {
-          map.setFilter(CITY_BUILDINGS, filter as never);
+          applyCityFilter();
           return;
         }
         map.addLayer({
@@ -368,6 +409,45 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
             'fill-extrusion-vertical-gradient': true,
           },
         });
+      },
+      hideUnderModels: (footprints) => {
+        index = buildFootprintIndex(footprints);
+        // Labels (house numbers, building names) and trees inside our buildings: a clip layer.
+        const data = {
+          type: 'FeatureCollection' as const,
+          features: footprints.flatMap((f) => f.rings.map((ring) => ({ type: 'Feature' as const, properties: {}, geometry: { type: 'Polygon' as const, coordinates: [ring] } }))),
+        };
+        // Trees and other base-map 3D objects inside our buildings: a clip layer (it removes models;
+        // Standard's labels ignore it, so those are filtered below).
+        if (!map.getSource(MODEL_CLIP)) map.addSource(MODEL_CLIP, { type: 'geojson', data });
+        if (!map.getLayer(MODEL_CLIP)) map.addLayer({ id: MODEL_CLIP, type: 'clip', source: MODEL_CLIP, layout: { 'clip-layer-types': ['model'] } });
+        // House numbers and building labels whose point falls inside one of our footprints.
+        const area = { type: 'MultiPolygon' as const, coordinates: footprints.flatMap((f) => f.rings.map((ring) => [ring])) };
+        const original = new Map<string, unknown>();
+        const filterLabels = () => {
+          try {
+            const style = (map as unknown as { style?: { fragments?: { id: string; style: { getOwnLayer(id: string): unknown; getFilter(id: string): unknown; setFilter(id: string, f: unknown): void } }[] } }).style?.fragments?.find((f) => f.id === 'basemap')?.style;
+            if (!style) return;
+            for (const id of STANDARD_BUILDING_LABELS) {
+              if (!style.getOwnLayer(id)) continue;
+              const current = style.getFilter(id);
+              if (Array.isArray(current) && JSON.stringify(current).includes('"within"')) continue; // already ours
+              original.set(id, current);
+              const outside = ['!', ['within', area]];
+              style.setFilter(id, current ? ['all', current, outside] : outside);
+            }
+          } catch {
+            // Mapbox internals changed: leave the labels as they are.
+          }
+        };
+        filterLabels();
+        map.on('styledata', filterLabels);
+        // City buildings under our models that the id list missed: found as tiles arrive.
+        scanCovered();
+        map.on('sourcedata', (e: { sourceId?: string; isSourceLoaded?: boolean }) => {
+          if (e.sourceId === 'flowcast-city') scheduleScan();
+        });
+        map.on('moveend', scheduleScan);
       },
       supportsTraffic: true,
       setTrafficVisible: (visible) => map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', visible ? 'visible' : 'none'),
@@ -448,6 +528,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     addControl: (control) => map.addControl(control as unknown as maplibregl.IControl),
     setLightPreset: () => {},
     excludeBuildings: () => {},
+    hideUnderModels: () => {},
     clipModels: () => {},
     supportsTraffic: false,
     setTrafficVisible: () => {},
@@ -494,9 +575,10 @@ const HIDDEN_STANDARD_LAYERS = ['2d-building', '2d-building-outline'];
 function hideStandardFootprints(map: import('mapbox-gl').Map) {
   const hide = () => {
     try {
-      const fragment = (map as unknown as { style?: { fragments?: { id: string; style: { getLayer(id: string): unknown; getLayoutProperty(id: string, p: string): unknown; setLayoutProperty(id: string, p: string, v: unknown): void } }[] } }).style?.fragments?.find((f) => f.id === 'basemap');
+      // (The import's own style answers getOwnLayer; getLayer only sees the root style.)
+      const fragment = (map as unknown as { style?: { fragments?: { id: string; style: { getOwnLayer(id: string): unknown; getLayoutProperty(id: string, p: string): unknown; setLayoutProperty(id: string, p: string, v: unknown): void } }[] } }).style?.fragments?.find((f) => f.id === 'basemap');
       for (const id of HIDDEN_STANDARD_LAYERS) {
-        if (fragment?.style.getLayer(id) && fragment.style.getLayoutProperty(id, 'visibility') !== 'none') fragment.style.setLayoutProperty(id, 'visibility', 'none');
+        if (fragment?.style.getOwnLayer(id) && fragment.style.getLayoutProperty(id, 'visibility') !== 'none') fragment.style.setLayoutProperty(id, 'visibility', 'none');
       }
     } catch {
       // Mapbox internals changed: leave Standard's footprints as they are.
