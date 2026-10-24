@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
@@ -15,6 +15,7 @@ import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
 import { ScheduledTransit } from './transit/scheduled';
 import { CameraControls } from './CameraControls';
+import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
 
@@ -63,6 +64,7 @@ export default function App() {
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
   const transitRef = useRef<Transit | null>(null);
+  const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
 
   const [status, setStatus] = useState('Loading campus…');
@@ -192,28 +194,32 @@ export default function App() {
         // One placer per frame, shared by every label layer: building labels first, then stations.
         const placer = createPlacer(basemap.project);
         const transit = transitRef.current;
-        overlay!.setProps({
-          layers: [
-            ...(detailedBuildings
-              ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
-              : []),
-            ...crowdLayers({
-              // Buildings with detailed models skip the old extruded crowd box: it cut through
-              // their real shape (CDS's offset blocks) and flickered on zoom. Their tags remain.
-              footprints: plainFootprints,
-              buildings: playback.byBuilding(occupancy),
-              trips: day.trips,
-              time: t,
-              speed: speedRef.current,
-              selectedId: selectedRef.current,
-              placer,
-            }),
-            ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
-            ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
-            ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
-            ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
-          ],
-        });
+        const frameLayers = [
+          ...(detailedBuildings
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
+            : []),
+          ...crowdLayers({
+            // Buildings with detailed models skip the old extruded crowd box: it cut through
+            // their real shape (CDS's offset blocks) and flickered on zoom. Their tags remain.
+            footprints: plainFootprints,
+            buildings: playback.byBuilding(occupancy),
+            trips: day.trips,
+            time: t,
+            speed: speedRef.current,
+            selectedId: selectedRef.current,
+            placer,
+          }),
+          ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
+          ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+          ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
+          ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+        ];
+        overlay!.setProps({ layers: frameLayers });
+        perfRef.current = {
+          walkers: walking.length,
+          vehicles: transit ? (liveRef.current ? transit.feed.positionsAt(now) : transit.schedule.positionsAt()).length : 0,
+          layers: frameLayers.length,
+        };
         frame = requestAnimationFrame(tick);
       };
       frame = requestAnimationFrame(tick);
@@ -247,6 +253,8 @@ export default function App() {
     if (c.id === 'charles-river') basemapRef.current?.flyTo(INITIAL_VIEW.center, INITIAL_VIEW.zoom);
     else basemapRef.current?.flyTo(c.center, 16.4);
   };
+
+  const getPerfCounts = useCallback(() => perfRef.current, []);
 
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
@@ -319,6 +327,7 @@ export default function App() {
 
       {status && <div className="panel status" role="status">{status}</div>}
 
+      <PerfMonitor counts={getPerfCounts} />
       {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
       {mapKind && <WeatherControls basemap={basemapRef.current} light={light} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
 
