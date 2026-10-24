@@ -34,24 +34,28 @@ Example: <http://localhost:5173/?at=12:15&speed=30> shows the lunch rush.
 Mapbox GL JS (Standard) or MapLibre ──── base map, real 3D buildings
   └─ deck.gl MapboxOverlay, interleaved ── our layers share the map's depth buffer,
        │                                  so buildings hide characters behind them
-       ├─ PolygonLayer   crowd-buildings  real OSM footprints, extruded, tinted by % full
+       ├─ crowd-halo / -ping / -roofs / -edges / -rim   light, not paint: ground glow, roof rim,
+       │                                  corner edges, by % full (never hides the building models)
        ├─ TripsLayer     flow-trails      fading trails behind walkers = flows between buildings
-       ├─ ScenegraphLayer agents-*        Kenney Mini Characters, GPU-instanced, walk animation
-       └─ TextLayer      crowd-labels     "CDS · 87% · Packed" (number and word, never colour alone)
+       └─ ScenegraphLayer agents-*        Kenney Mini Characters, GPU-instanced, walk animation
+HTML overlay (BuildingTags.tsx) ─────────  "CDS · 87% · Packed" tags (number and word, never colour alone)
 ```
+
+**The crowd look.** Each tracked building gets: a soft pool of light on the ground whose reach and brightness grow with how full it is (`crowd-halo`; the fade is a tiny shader extension in `crowdGlow.ts`); a crisp neon rim with a bloom along the top of the building's model, plus a faint roof wash where the model has a flat top; hairline light edges up its sharp corners, fading out towards the street. Packed buildings breathe and send a slow ring out across the ground. The selected building's rim and edges turn white. All of it sits at the **detailed model's** height (`building-models.json`) and uses the models' depth bias, so models can't swallow it. The tags are HTML: a glass card with a kind icon, the short name, "87% · Packed" and a fill bar, on a stem standing on the roof. React renders only their container; the frame loop moves them with transforms and runs them through the same screen-space placer as the station labels (tags first).
 
 | File | What it does |
 |---|---|
 | `src/map/basemap.ts` | Creates Mapbox or MapLibre; sets the camera, lighting and URL view params |
 | `src/layers/agents.ts` | Character models, facing direction, de-synchronised walk cycles |
-| `src/layers/crowd.ts` | Building glow, trails, labels, and the shared Quiet/Moderate/Busy/Packed scale |
+| `src/layers/crowd.ts` | Building glow and trails, plus the shared Quiet/Moderate/Busy/Packed scale (`crowdLevel`, `crowdLevelStyle`) |
+| `src/BuildingTags.tsx` | The HTML building tags over the map; clicking one selects the building |
 | `src/sim/playback.ts` | Where everyone is at time *t* and how full each place is. The server takes this over later (plan Section 8.1) |
 | `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
 | `src/App.tsx` | The frame loop, dashboard panel and timeline |
 
 **Characters walking without lockstep.** A `ScenegraphLayer` plays one animation clock for every instance it draws, so with a single layer all 300 characters would stride in unison. `agents.ts` splits each of the 12 character models across 3 layers whose walk cycles start a third of a stride apart and run at slightly different speeds. Characters face their direction of travel. Anyone not walking is inside a building, which matches the interior-view plan in Section 6.7.
 
-**Accessibility.** Glow, label background and dashboard bar all come from one four-step scale in `crowd.ts`. Every label carries the percentage and a word. Label text meets 4.5:1 contrast. All controls are real buttons with ARIA labels.
+**Accessibility.** Map glow, tags and dashboard bars all come from one four-step scale in `crowd.ts`. Every tag carries the percentage and a word, and its level word keeps 4.5:1 contrast or better on the glass (5.8:1 worst case, over a white map). Tags are real buttons with ARIA labels, like every other control.
 
 ## Live MBTA and traffic
 
@@ -97,7 +101,8 @@ Trips (a path plus timestamps) are what deck.gl's TripsLayer reads natively. The
 - **MBTA headings and GPS are noisy** (stopped trains often report a stale bearing), so drawn as-is, vehicles sat off the rails at odd angles. `src/transit/tracks.ts` snaps each vehicle onto its direction's track, points it along the track and glides it along the curve between reports.
 - **Tiny vehicles vanish.** At campus zoom a real-width train is under a pixel wide, so `transit.ts` scales vehicles up as the camera pulls back.
 - **MapLibre is pinned to v5.** MapLibre 6 removed `map.transform`, which deck.gl 9.4's interleaved mode reads, and every deck layer crashes.
-- **`HeatmapLayer` and `CollisionFilterExtension` render nothing in interleaved mode.** Both need an offscreen pass. That's why the "heatmap" is tinted building footprints plus trails, and why label overlap is handled in screen space in `crowd.ts`.
+- **Anything drawn on the detailed building models needs their depth bias.** `buildings.ts` pulls the models 1200 depth units towards the camera; the crowd glow uses 1600 (`GLOW_PARAMETERS` in `crowd.ts`) and the models' own heights, or the models swallow it (CDS's model is 95 m, its footprint 68 m).
+- **`HeatmapLayer` and `CollisionFilterExtension` render nothing in interleaved mode.** Both need an offscreen pass. That's why the "heatmap" is glow around the building footprints plus trails, and why label overlap is handled in screen space (`placement.ts`).
 - **Kenney GLBs render grey unless re-packed.** They carry a no-op `KHR_texture_transform` that loaders.gl turns into a `TEXCOORD_2` luma.gl won't sample. `scripts/embed_glb_textures.py` strips it and embeds the texture. Re-run it if you add models (wheelchairs and canes are in the same pack, which would make a good accessibility feature).
 - **The map's container CSS needs two classes** (`.app .map`): in production builds the map library's own CSS loads later and sets `position: relative`.
 - **Overpass (OpenStreetMap) returns 406 without a User-Agent**, and often 502s when busy. The pipeline sends one, retries, and caches responses in `data-pipeline/.cache/`.

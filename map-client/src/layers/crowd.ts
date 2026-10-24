@@ -64,15 +64,15 @@ export function modelRoofHeights(manifest?: { campuses: { buildings: { osm: stri
 /**
  * Where the glow sits on one footprint ring: the detailed model's height where there is one
  * (CDS's model is 95 m against a 68 m footprint, CAS's 40 m against 18 m). Multi-ring buildings
- * scale each ring by the same ratio, so Warren's podium stays a podium under its towers. Never
- * below the footprint's own height, so it also clears Mapbox's plain box.
+ * scale each ring by the same ratio, so Warren's podium stays a podium under its towers. Mapbox's
+ * own boxes are off for modelled buildings, so the model is the only thing to sit on.
  */
 export function ringTop(f: BuildingFootprint, footprints: BuildingFootprint[], roofs?: RoofHeights): number {
   const model = roofs?.get(f.id);
   if (!model) return f.height;
   let tallest = 0;
   for (const g of footprints) if (g.id === f.id) tallest = Math.max(tallest, g.height);
-  return Math.max(f.height, (f.height * model) / (tallest || f.height));
+  return (f.height * model) / (tallest || f.height);
 }
 
 interface Glow {
