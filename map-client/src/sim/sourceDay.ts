@@ -14,6 +14,9 @@ const HOME_BREAK = 15 * 60;
 const OFF_CAMPUS_BREAK = 30 * 60;
 export const MODELED_OFF_CAMPUS_MEAL_SHARE = 0.35;
 const MAX_GATEWAY_WALK_METRES = 2000;
+/** Distance decay for choosing a walk-in access point near the destination (uncalibrated). */
+export const WALK_IN_DECAY_METRES = 250;
+const WALK_IN_CLUSTER_METRES = 150;
 const OPTIONAL_CAPACITY_BUCKET_SECONDS = 60;
 const SOURCE_COVERED_ESTIMATED_ACTIVITY_FACTOR = 0.15;
 const ESTIMATED_TIME_ATTEMPTS = 3;
@@ -278,7 +281,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       'Unknown room capacity uses a conservative 24-student cap; cross-listed shared occurrences share the same seat pool.',
       'Walking follows compatible bundled pedestrian routes at each student’s stable modeled speed (default 1.4 m/s).',
       'Campus gateway access walks are capped at 2 km; sections requiring longer or unavailable gateway paths are not assigned when campus gateway data exist.',
-      'Off-campus students prefer a stable modeled campus gateway, using a compatible saved gateway when the preferred path is unavailable or over 2 km; only the campus access leg is shown, not an observed commute or transit boarding. Arrival leads vary by 2–12 minutes.',
+      'Commuters who walk in choose a campus access point per destination, weighted by exp(-walk distance / 250 m) and shared across stop IDs within 150 m of each other, so they approach from the side nearest where they are going instead of crossing campus; the per-student draw is stable. Transit commuters keep their published-service stop. Only the campus access leg is shown, not an observed commute. Arrival leads vary by 2–12 minutes.',
       'Optional arrival times retain their core windows with a 25% broad-day shoulder. Monday–Thursday: breakfast 07–11, lunch 10:30–16, study 08–22, dinner 16–22, gym 06–22, and a 25% evening library session 18–22:30. Friday trims afternoon study and adds a 35% night out off campus. Saturday and Sunday use a late brunch (09–14), dinner 16:30–20:30, more daytime gym visits, a 45% Saturday outing, and a Sunday afternoon/evening study peak. These are uncalibrated behavior assumptions, not fitted occupancy percentages; published service hours still govern admission.',
       `Venue hours for dates past a venue's published dated horizon repeat that venue's published hours for the same weekday ${CARRY_FORWARD_DAYS} days earlier or later. Dates inside the published range, exact-date closures, and valid weekly schedules are never overridden.`,
       'Students have stable, uncalibrated habits: regular gym-goers (30%), breakfast eaters (45%), library users (50%), outing-goers (50%) and frequent off-campus eaters (35%) have higher daily probabilities while the rest have lower ones, keeping population means unchanged before the 100% cap. Each student also favours one home-relative dining hall, library and gym (5× venue weight) and makes 70% of visits within 20 minutes of a personal usual time.',
@@ -450,11 +453,38 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     return commute ?? undefined;
   };
   type Leg = 'in' | 'out';
-  const gateFor = (agent: Agent, leg: Leg): string | undefined => {
+  // Walk-in access points are chosen per destination with a walking-distance decay: people arriving
+  // from off the map approach from the side nearest where they are going instead of crossing campus.
+  const walkInChoices = new Map<string, { gate: string; cumulative: number }[]>();
+  const walkInChoicesFor = (campus: string, location: string) => {
+    const key = `${campus}>${location}`;
+    let choices = walkInChoices.get(key);
+    if (!choices) {
+      choices = [];
+      let total = 0;
+      const gates = [...(walkInGates.get(campus) ?? [])].sort();
+      for (const gate of gates) {
+        const route = routeFromGate(gate, location);
+        if (!route) continue;
+        // Several stop IDs at one corner are one way onto campus, not several.
+        const neighbours = gates.filter(other => straightLineMetres(gatePoint(gate), gatePoint(other)) <= WALK_IN_CLUSTER_METRES).length;
+        total += Math.exp(-route.cumulative.at(-1)! / WALK_IN_DECAY_METRES) / neighbours;
+        choices.push({ gate, cumulative: total });
+      }
+      for (const choice of choices) choice.cumulative /= total || 1;
+      walkInChoices.set(key, choices);
+    }
+    return choices;
+  };
+  const gateFor = (agent: Agent, leg: Leg, location?: string): string | undefined => {
     const commute = commuteOf(agent);
     if (commute) return leg === 'in' ? commute.inGate : commute.outGate;
-    const gates = walkInGates.get(agentCampus(agent)) ?? [];
-    return gates[Math.floor(fraction(`${agent.id}:campus-gateway`) * gates.length)];
+    const campus = agentCampus(agent);
+    const draw = fraction(`${agent.id}:campus-gateway`);
+    const choices = location && locations.has(location) ? walkInChoicesFor(campus, location) : [];
+    if (choices.length) return (choices.find(choice => draw < choice.cumulative) ?? choices.at(-1)!).gate;
+    const gates = walkInGates.get(campus) ?? [];
+    return gates[Math.floor(draw * gates.length)];
   };
   const routeFromGate = (gate: string, location: string): Route | undefined => {
     const key = `${gate}>${location}`;
@@ -473,7 +503,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
   };
   const accessCache = new Map<string, Route | undefined>();
   const accessRoute = (agent: Agent, location: string, leg: Leg): Route | undefined => {
-    const preferred = gateFor(agent, leg);
+    const preferred = gateFor(agent, leg, location);
     if (!preferred) return undefined;
     const key = `${preferred}>${location}`;
     if (accessCache.has(key)) return accessCache.get(key);

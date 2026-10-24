@@ -887,3 +887,19 @@ test('residents return to a favourite dining hall across the week',()=>{
   const mean=shares.reduce((a,b)=>a+b,0)/shares.length;
   assert.ok(mean>0.7,`mean favourite share ${mean}`);
 });
+
+test('walk-in commuters mostly enter from the access point nearest their destination',()=>{
+  const {base,data}=fixture();
+  const near={path:[[-71.1011,42.3502],base.locations.find(l=>l.id==='class').position],cumulative:[0,120]};
+  const far={path:[[-71.1100,42.3440],base.locations.find(l=>l.id==='class').position],cumulative:[0,900]};
+  base.stopRoutes={'near-gate>class':near,'far-gate>class':far};
+  for(const id of ['meal','study','gym'])data.locations[id].hours=[];
+  data.locations.class.meetings=[meeting('A',0,9*3600,10*3600,{roomCapacity:400})];
+  base.agents=Array.from({length:300},(_,i)=>({id:`walk-in-${i}`,home:'off-campus',residency:'commuter',campus:'main',model:0,attendance:'part-time'}));
+  const day=buildSourceDay(base,data,0);validate(day);
+  const arrivals=day.trips.filter(t=>t.from==='off-campus'&&t.to==='class');
+  assert.ok(arrivals.length>50);
+  const nearShare=arrivals.filter(t=>t.path[0][1]===near.path[0][1]).length/arrivals.length;
+  assert.ok(nearShare>0.9,`near-gate share ${nearShare}`);
+  assert.ok(nearShare<1,'the farther access point still sees some use');
+});
