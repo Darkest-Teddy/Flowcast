@@ -13,6 +13,12 @@ export interface Basemap {
   addControl(control: IControl): void;
   /** Only Mapbox Standard has time-of-day lighting; a no-op on the fallback. */
   setLightPreset(preset: LightPreset): void;
+  /**
+   * Draw the city's buildings ourselves, leaving out these OSM ids (buildings we render as
+   * detailed models). Mapbox Standard can't hide single buildings, and its own copies (e.g.
+   * Warren Towers as one 56 m block, podium included) poke through our models. Mapbox only.
+   */
+  excludeBuildings(osmIds: number[]): void;
   /** Remove the base map's own 3D models (trees) inside these polygons. Mapbox only. */
   clipModels(polygons: [number, number][][]): void;
   /** Live traffic needs Mapbox's traffic tiles (a token); the fallback has none. */
@@ -168,6 +174,7 @@ const BOSTON_LIMITS = {
 // well as colour, so it doesn't rely on colour alone (plan Section 10.3).
 const TRAFFIC_LAYER = 'flowcast-traffic';
 const ROAD_LABEL_MIN_ZOOM = 17.2;
+const CITY_BUILDINGS = 'flowcast-city-buildings';
 // Google Maps-style live traffic: every main road carries a continuous line coloured by speed.
 // Thickness follows the road's size; heavier traffic is also slightly thicker, so the overlay
 // never relies on colour alone.
@@ -298,6 +305,36 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         map.addSource('flowcast-clip', { type: 'geojson', data });
         map.addLayer({ id: 'flowcast-clip', type: 'clip', source: 'flowcast-clip', layout: { 'clip-layer-types': ['model'] } });
       },
+      excludeBuildings: (osmIds) => {
+        map.setConfigProperty('basemap', 'show3dBuildings', false);
+        map.setConfigProperty('basemap', 'show3dFacades', false);
+        if (!map.getSource('flowcast-city')) {
+          map.addSource('flowcast-city', { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' });
+        }
+        const filter = ['all', ['==', ['get', 'extrude'], 'true'], ['!', ['in', ['id'], ['literal', osmIds]]]];
+        if (map.getLayer(CITY_BUILDINGS)) {
+          map.setFilter(CITY_BUILDINGS, filter as never);
+          return;
+        }
+        map.addLayer({
+          id: CITY_BUILDINGS,
+          type: 'fill-extrusion',
+          source: 'flowcast-city',
+          'source-layer': 'building',
+          slot: 'middle',
+          minzoom: 13,
+          filter: filter as never,
+          paint: {
+            // Neutral stone: Standard's lights shade it, so it reads as city fabric behind BU.
+            'fill-extrusion-color': '#d6d1c8',
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-base': ['get', 'min_height'],
+            'fill-extrusion-opacity': 1,
+            'fill-extrusion-ambient-occlusion-intensity': 0.35,
+            'fill-extrusion-vertical-gradient': true,
+          },
+        });
+      },
       supportsTraffic: true,
       setTrafficVisible: (visible) => map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', visible ? 'visible' : 'none'),
       flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),
@@ -331,6 +368,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     // MapboxOverlay implements MapLibre's IControl too; the two interfaces only differ in typings.
     addControl: (control) => map.addControl(control as unknown as maplibregl.IControl),
     setLightPreset: () => {},
+    excludeBuildings: () => {},
     clipModels: () => {},
     supportsTraffic: false,
     setTrafficVisible: () => {},

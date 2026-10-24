@@ -106,6 +106,11 @@ export default function App() {
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
+      if (detailedBuildings) {
+        // Our detailed models replace Mapbox's own copies of those buildings.
+        const ids = detailedBuildings.manifest.campuses.flatMap((c) => c.buildings.map((b) => Number(b.osm.split('/')[1])));
+        basemap.excludeBuildings(ids);
+      }
 
       if (transitData) {
         // BU's own shuttles join the MBTA data: same tracks, snapping and panels.
