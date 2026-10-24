@@ -1,7 +1,7 @@
 import unittest
 import json
 from common import Source, ScrapeError
-from scrape_opening_hours import parse_dining, fitrec_section, dated_label, parse_fenway_provider, format_windows
+from scrape_opening_hours import parse_dining, fitrec_section, dated_label, parse_fenway_provider, format_windows, law_library_hours
 from bs4 import BeautifulSoup
 from datetime import date
 
@@ -21,6 +21,16 @@ class OpeningHoursTests(unittest.TestCase):
         self.assertEqual(hours[0]['windows'], [[25200,39600],[61200,79200]])
         self.assertEqual(hours[1]['windows'], [])
         self.assertEqual(hours[1]['date'], '2026-10-25')
+
+    def test_law_library_fall_hours_apply_only_to_the_stated_week(self):
+        page = Source('https://www.bu.edu/law/libraries/', b'<main><h2>Hours</h2><p>Fall Hours Monday - Friday 8am - 10pm Saturday - Sunday 9am - 9pm</p><p>We\'re here to help!</p></main>', '2026-10-24T12:00:00+00:00')
+        rows = law_library_hours(page, '2026-10-26', '2026-11-01', 'reviewed')
+        self.assertEqual([r['weekday'] for r in rows], [0, 1, 2, 3, 4, 5, 6])
+        self.assertEqual(rows[0]['windows'], [[28800, 79200]])
+        self.assertEqual(rows[6]['windows'], [[32400, 75600]])
+        self.assertTrue(all(r['validFrom'] == '2026-10-26' and r['validTo'] == '2026-11-01' and r['date'] is None for r in rows))
+        with self.assertRaises(ScrapeError):
+            law_library_hours(Source('https://www.bu.edu/law/libraries/', b'<p>Hours vary</p>', '2026-10-24T12:00:00+00:00'), '2026-10-26', '2026-11-01', 'x')
 
     def test_ambiguous_missing_and_unparsed_hours_fail_closed(self):
         self.assertEqual(parse_dining(self.source('<h1>External provider</h1>')), [])

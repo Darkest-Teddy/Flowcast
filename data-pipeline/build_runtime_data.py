@@ -63,6 +63,9 @@ def build_population(population, campuses, sources, availability=None, estimates
                     raise ValueError(f"Invalid configured capacity: {key}")
                 capacities[key] = capacity
                 bases[key] = {"basis": "configured_model_capacity", "unit": "people"}
+                if location.get("capacityNote"):
+                    # A size proxy with no published figure behind it says so.
+                    bases[key].update(confidence="low", note=location["capacityNote"])
             rooms = {}
             for meeting in sources['locations'].get(key, {}).get('meetings', []):
                 if meeting.get('calendarRestricted') or not meeting.get('roomCode'):

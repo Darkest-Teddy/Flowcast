@@ -16,8 +16,16 @@ MEDICAL = 'https://www.bumc.bu.edu/medlib/about/hours/'
 CHEQUERS = 'https://www.bumc.bu.edu/chequers/'
 SPORTS = 'https://www.bu.edu/admissions/why-bu/student-life/sports-fitness/'
 DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+LAW_LIBRARY = 'https://www.bu.edu/law/libraries/'
 DINING = {'warren-dining': ['warren'], 'west-dining': ['west'], 'marciano': ['marciano'],
-          'fenway-dining': ['fenway'], 'gsu': ['urban-table-at-the-gsu', 'panda-express', 'basho-sushi-at-the-gsu', 'the-halal-shack']}
+          'fenway-dining': ['fenway'], 'gsu': ['urban-table-at-the-gsu', 'panda-express', 'basho-sushi-at-the-gsu', 'the-halal-shack'],
+          'breadwinners': ['breadwinners'], 'saxbys': ['saxbys'], 'einstein-bagels': ['einsteins-brothers-bagels'],
+          'buick-street-market': ['buick-street-market'], 'fullers-pub': ['fullersbupub'], 'after-hours-west': ['afterhourswest']}
+# Library names on the BU Libraries hours page, by map location.
+LIBRARIES = {'mugar': 'Mugar Library', 'pardee': 'Pardee Management Library', 'sel': 'Science & Engineering Library',
+             'stone-library': 'Stone Science Library', 'theology-library': 'Theology Library',
+             'african-studies-library': 'African Studies Library', 'music-library': 'Music Library',
+             'pickering-library': 'Pickering Educational Resources Library', 'astronomy-library': 'Astronomy Library'}
 
 
 def entry(source, text, windows, **scope):
@@ -113,6 +121,21 @@ def parse_fenway_provider(source, week_start='2026-10-19'):
             qualifier='Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.',
             servicePeriods=labels))
     return hours
+
+
+def law_library_hours(source, valid_from, valid_to, qualifier):
+    """The law libraries' 'Fall Hours' (weekdays, weekend) as weekly rows for one stated week only."""
+    text = soup(source).get_text(' ', strip=True)
+    match = re.search(r'Fall Hours\s+Monday\s*-\s*Friday\s+(.+?)\s+Saturday\s*-\s*Sunday\s+(.+?)(?=\s+We|$)', text)
+    if not match:
+        raise ScrapeError('Law library fall hours missing')
+    rows = []
+    for label, times, days in [('Monday - Friday', match[1], range(5)), ('Saturday - Sunday', match[2], (5, 6))]:
+        windows = hour_windows(times)
+        if not windows:
+            raise ScrapeError(f'Law library hours unrecognized: {times}')
+        rows += [entry(source, f'{label} {times}', windows, weekday=day, validFrom=valid_from, validTo=valid_to, qualifier=qualifier) for day in days]
+    return rows
 
 
 def fitrec_section(source, section):
@@ -216,7 +239,9 @@ def collect(fetcher):
                 rows.extend(parse_hours(extra))
                 library_urls.append(target)
                 break
-        for key, name in [('mugar', 'Mugar Library'), ('pardee', 'Pardee Management Library')]:
+        for key, name in LIBRARIES.items():
+            if key not in locations:
+                continue
             hours = [{**entry(source, r['hoursText'], hour_windows(r['hoursText']), date=r['date']), 'sourceUrl': r['provenance']['url']}
                      for r in rows if r['library'] == name and r['service'] == 'General Hours']
             publish(key, hours, library_urls)
@@ -232,6 +257,13 @@ def collect(fetcher):
         if not windows:
             raise ScrapeError('Chequers time range not parsed')
         publish('bumc-chequers', [entry(source, match[0], windows, weekday=d, validFrom='2026-10-19', validTo='2026-10-25', qualifier='Published weekday schedule applied only to reference week; holiday exceptions not supplied') for d in range(5)], [CHEQUERS])
+    except ScrapeError as exc:
+        errors.append(str(exc))
+    try:
+        if 'law-library' in locations:
+            source = fetch(LAW_LIBRARY)
+            publish('law-library', law_library_hours(source, '2026-10-19', '2026-10-25',
+                'Published fall schedule applied only to reference week; holiday exceptions not supplied'), [LAW_LIBRARY])
     except ScrapeError as exc:
         errors.append(str(exc))
     try:
