@@ -15,6 +15,8 @@ import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
 import { ScheduledTransit } from './transit/scheduled';
 import { CameraControls } from './CameraControls';
+import { WeatherControls } from './WeatherControls';
+import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
@@ -81,6 +83,8 @@ export default function App() {
   const [showTraffic, setShowTraffic] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
+  const [weather, setWeather] = useState<ActiveWeather | null>(null);
+  const weatherRef = useRef<ActiveWeather | null>(null); // read by the frame loop (occupancy nudge)
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +112,11 @@ export default function App() {
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
+      if (detailedBuildings) {
+        // Our detailed models replace Mapbox's own copies of those buildings.
+        const ids = detailedBuildings.manifest.campuses.flatMap((c) => c.buildings.map((b) => Number(b.osm.split('/')[1])));
+        basemap.excludeBuildings(ids);
+      }
 
       if (transitData) {
         // BU's own shuttles join the MBTA data: same tracks, snapping and panels.
@@ -177,7 +186,7 @@ export default function App() {
         const t = timeRef.current;
         const walking = playback.walkingAt(t);
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
-          occupancy = playback.occupancyAt(t);
+          occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
           lastOccupancy = now;
           setHud({ time: t, walking: walking.length, occupancy });
         }
@@ -326,6 +335,7 @@ export default function App() {
       {status && <div className="panel status" role="status">{status}</div>}
 
       {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
+      {mapKind && <WeatherControls basemap={basemapRef.current} light={light} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
 
       {hud && (
         <aside className="panel side">
@@ -339,6 +349,7 @@ export default function App() {
           </div>
           {tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
+              {weather && <WeatherImpact weather={weather} />}
               <h2>Busiest right now</h2>
               <ol>
                 {ranked.slice(0, 8).map((o) => {
@@ -532,6 +543,20 @@ export default function App() {
         </p>
       )}
     </div>
+  );
+}
+
+/** One line on how the weather changes campus routines (plan Section 5.6), and what the map adjusts for it. */
+function WeatherImpact({ weather }: { weather: ActiveWeather }) {
+  const { note, boost } = weatherImpact(weather.condition);
+  return (
+    <p className="weather-impact">
+      <strong>Weather impact:</strong> {note}.
+      <span className="muted">
+        {weather.live ? 'Live weather' : 'Simulated weather'}
+        {boost > 0 && ` · dining and library occupancy shown +${Math.round(boost * 100)}%; walking routes unchanged`}
+      </span>
+    </p>
   );
 }
 

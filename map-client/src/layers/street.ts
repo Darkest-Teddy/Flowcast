@@ -18,7 +18,7 @@ import { offsetPath, pointAlong, snapToTracks, type Track } from '../transit/tra
 import { lampAt, secondsToChange, type Lamp } from '../sim/signals';
 import { transitTooltip } from './transit';
 
-/** Below this zoom the 3D furniture is too small to matter, so only the signal glows draw. */
+/** Below this zoom the 3D furniture is too small to matter, so none of it draws. */
 export const STREET_DETAIL_ZOOM = 16.5;
 
 export interface StreetSignal {
@@ -318,7 +318,8 @@ export function streetLayers({ street, transit, time, zoom }: StreetLayerInput) 
   const { platforms, busStops } = transit
     ? placeTransitFurniture(transit.data, transit.feed.tracks, street.signals)
     : { platforms: [], busStops: [] };
-  const glows = signalGlows(street.signals, time);
+  // Signal lamps go with the rest of the street detail: zoomed out they were just noise.
+  const glows = detail ? signalGlows(street.signals, time) : [];
   const { models } = street;
 
   const model = <T,>(id: string, name: ModelName, data: T[], getPosition: (d: T) => [number, number, number], bearingX: (d: T) => number) =>
