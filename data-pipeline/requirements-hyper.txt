@@ -1,0 +1,2 @@
+# Optional native Hyper reader for scrape_libraries.py --extract-hyper.
+tableauhyperapi==0.0.26479
