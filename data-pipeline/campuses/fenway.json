@@ -1,0 +1,107 @@
+{
+  "campus": "fenway",
+  "name": "Fenway Campus",
+  "bbox": [42.3401, -71.1117, 42.3451, -71.1028],
+  "locations": [
+    {
+      "id": "riverway-house",
+      "name": "Riverway House",
+      "short": "Riverway House",
+      "kind": "dorm",
+      "lat": 42.34249, "lon": -71.10579,
+      "capacity": 120,
+      "osm": "way/29934329",
+      "height": 10.8
+    },
+    {
+      "id": "longwood-house",
+      "name": "Longwood House",
+      "short": "Longwood House",
+      "kind": "dorm",
+      "lat": 42.34279, "lon": -71.10550,
+      "capacity": 70,
+      "osm": "way/1320778060",
+      "height": 10.8
+    },
+    {
+      "id": "pilgrim-house",
+      "name": "Pilgrim House",
+      "short": "Pilgrim House",
+      "kind": "dorm",
+      "lat": 42.34252, "lon": -71.10538,
+      "capacity": 80,
+      "osm": "way/1320778061",
+      "height": 10.8
+    },
+    {
+      "id": "fenway-center",
+      "name": "Campus Center & Student Residence",
+      "short": "Fenway Center",
+      "kind": "dorm",
+      "lat": 42.34298, "lon": -71.10521,
+      "capacity": 108,
+      "osm": "way/212128584",
+      "height": 21.6
+    },
+    {
+      "id": "fenway-dining",
+      "name": "Fenway Campus Dining Hall",
+      "short": "Fenway Dining",
+      "kind": "dining",
+      "lat": 42.34298, "lon": -71.10521,
+      "capacity": 250,
+      "osm": "way/212128584",
+      "height": 21.6
+    },
+    {
+      "id": "fenway-fitness",
+      "name": "FitRec at Fenway",
+      "short": "Fenway Fitness",
+      "kind": "gym",
+      "lat": 42.34298, "lon": -71.10521,
+      "capacity": 30,
+      "osm": "way/212128584",
+      "height": 21.6
+    },
+    {
+      "id": "peabody",
+      "name": "Peabody Hall",
+      "short": "Peabody",
+      "kind": "dorm",
+      "lat": 42.34143, "lon": -71.10668,
+      "capacity": 134,
+      "osm": "relation/63803",
+      "height": 18.0
+    },
+    {
+      "id": "fenway-classroom",
+      "name": "Fenway Classroom Building",
+      "short": "FCB",
+      "kind": "classroom",
+      "lat": 42.34269, "lon": -71.10489,
+      "capacity": 300,
+      "osm": "way/29788480",
+      "height": 10.8
+    },
+    {
+      "id": "fenway-activities",
+      "name": "Fenway Activities Building",
+      "short": "180 Riverway",
+      "kind": "classroom",
+      "lat": 42.34194, "lon": -71.10602,
+      "capacity": 400,
+      "osm": "way/29932348",
+      "height": 10.8
+    },
+    {
+      "id": "hawes",
+      "name": "Hawes Building (Wightman Mansion)",
+      "short": "Hawes",
+      "kind": "classroom",
+      "lat": 42.34378, "lon": -71.10985,
+      "capacity": 60,
+      "osm": "way/580619788",
+      "height": 10.8
+    }
+  ]
+}

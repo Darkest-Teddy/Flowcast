@@ -1,0 +1,33 @@
+{
+  "name": "flowcast-map-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^9.4.0",
+    "@deck.gl/geo-layers": "^9.4.0",
+    "@deck.gl/layers": "^9.4.0",
+    "@deck.gl/mapbox": "^9.4.0",
+    "@deck.gl/mesh-layers": "^9.4.0",
+    "@loaders.gl/core": "^4.5.4",
+    "@loaders.gl/gltf": "^4.5.4",
+    "@luma.gl/engine": "^9.4.2",
+    "mapbox-gl": "^3.33.0",
+    "maplibre-gl": "^5.24.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}
