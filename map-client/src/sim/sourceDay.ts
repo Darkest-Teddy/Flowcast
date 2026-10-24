@@ -51,6 +51,28 @@ const FREE_TIME_ACTIVITIES: readonly (readonly FreeTimeActivity[])[] = (() => {
   ];
   return [weekday, weekday, weekday, weekday, friday, saturday, sunday];
 })();
+/** Stable personal habits. A `share` of students are regulars whose probability is multiplied by
+ * `high`; everyone else gets the multiplier that keeps the population mean unchanged (before the
+ * 100% cap). Uncalibrated scenario assumptions, not observed individual behavior. */
+export const HABIT_TRAITS: Record<string, { share: number; high: number }> = {
+  breakfast: { share: 0.45, high: 1.9 },
+  gym: { share: 0.3, high: 3 },
+  library: { share: 0.5, high: 1.6 },
+  'off-campus-outing': { share: 0.5, high: 1.6 },
+  'off-campus-meal': { share: 0.35, high: 2 },
+};
+/** Weight multiplier for each student's stable favourite dining hall, library and gym. */
+export const FAVORITE_VENUE_WEIGHT = 5;
+/** Share of visits at a student's usual time, jittered by up to ±HABIT_TIME_JITTER_MINUTES. */
+export const HABITUAL_TIME_SHARE = 0.7;
+const HABIT_TIME_JITTER_MINUTES = 20;
+export const habitSlot = (activity: { kind: string; at: number }): string =>
+  activity.kind === 'dining' ? activity.at < 10 ? 'breakfast' : activity.at < 15 ? 'midday' : 'dinner' : activity.kind;
+export function habitMultiplier(agentId: string, slot: string): number {
+  const trait = HABIT_TRAITS[slot];
+  if (!trait) return 1;
+  return fraction(`${agentId}:habit:${slot}`) < trait.share ? trait.high : (1 - trait.share * trait.high) / (1 - trait.share);
+}
 export const freeTimeActivities = (weekday: number): readonly FreeTimeActivity[] => FREE_TIME_ACTIVITIES[weekday] ?? [];
 
 const HOME_PURPOSE: StayPurpose = Object.freeze({ kind: 'home', fixed: false });
@@ -167,6 +189,16 @@ export function sampleActivityStart(seed: string, activityIndex: number, weekday
   return (activity.at + fraction(`${seed}:time`) * activity.spread) * 3600;
 }
 
+/** Most visits happen near a student's usual time for that slot; the rest use a fresh daily draw. */
+export function habitualStart(agentId: string, slot: string, seed: string, activityIndex: number, weekday: number): number {
+  if (fraction(`${seed}:habitual-time`) >= HABITUAL_TIME_SHARE) return sampleActivityStart(seed, activityIndex, weekday);
+  const activity = freeTimeActivities(weekday)[activityIndex];
+  const usual = sampleActivityStart(`${agentId}:usual-time:${slot}`, activityIndex, weekday);
+  const jittered = usual + (fraction(`${seed}:habit-jitter`) * 2 - 1) * HABIT_TIME_JITTER_MINUTES * 60;
+  const earliest = Math.min(activity.shoulder[0], activity.at) * 3600, latest = Math.max(activity.shoulder[1], activity.at + activity.spread) * 3600;
+  return Math.max(earliest, Math.min(latest, jittered));
+}
+
 export function sampleMappedCourseLoad(agentId: string, degreeSlots: number, coverage: number): number {
   let mapped = 0;
   for (let slot = 0; slot < degreeSlots; slot++) if (fraction(`${agentId}:mapped-course-slot:${slot}`) < coverage) mapped++;
@@ -231,6 +263,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
       'Off-campus students prefer a stable modeled campus gateway, using a compatible saved gateway when the preferred path is unavailable or over 2 km; only the campus access leg is shown, not an observed commute or transit boarding. Arrival leads vary by 2–12 minutes.',
       'Optional arrival times retain their core windows with a 25% broad-day shoulder. Monday–Thursday: breakfast 07–11, lunch 10:30–16, study 08–22, dinner 16–22, gym 06–22, and a 25% evening library session 18–22:30. Friday trims afternoon study and adds a 35% night out off campus. Saturday and Sunday use a late brunch (09–14), dinner 16:30–20:30, more daytime gym visits, a 45% Saturday outing, and a Sunday afternoon/evening study peak. These are uncalibrated behavior assumptions, not fitted occupancy percentages; published service hours still govern admission.',
       `Venue hours for dates past a venue's published dated horizon repeat that venue's published hours for the same weekday ${CARRY_FORWARD_DAYS} days earlier or later. Dates inside the published range, exact-date closures, and valid weekly schedules are never overridden.`,
+      'Students have stable, uncalibrated habits: regular gym-goers (30%), breakfast eaters (45%), library users (50%), outing-goers (50%) and frequent off-campus eaters (35%) have higher daily probabilities while the rest have lower ones, keeping population means unchanged before the 100% cap. Each student also favours one home-relative dining hall, library and gym (5× venue weight) and makes 70% of visits within 20 minutes of a personal usual time.',
       'Resident nights out and weekend outings use physical gateway walks and off-campus stays; no destination, off-map route, or observed social behavior is asserted. Infeasible outings are skipped.',
       'Residents, including those whose homes are outside the map, may take probability-bounded modeled meal, study, and gym trips, including weekends; these are synthetic preferences, not observed attendance. Feasible home breaks and waits fill gaps.',
       'Commuter optional visits are confined to days with published classes and intervals between their first and last class; no extra campus days are assumed.',
@@ -763,6 +796,19 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     }
     return keys;
   };
+  const favorites = new Map<string, string | undefined>();
+  /** A stable home-relative favourite venue per kind, chosen with the same capacity/distance weights. */
+  const favoriteVenue = (agent: Agent, kind: string): string | undefined => {
+    const key = `${agent.id}:${kind}`;
+    if (favorites.has(key)) return favorites.get(key);
+    const campus = agent.campus ?? (locations.has(agent.home) ? campusOf(locations.get(agent.home)!) : 'charles-river');
+    const options = base.locations.filter(location => location.kind === kind && campusOf(location) === campus)
+      .map(location => ({ id: location.id, weight: Math.sqrt(Math.max(1, location.capacity)) / (300 + duration(agent.home, location.id, agent)) }))
+      .filter(option => Number.isFinite(option.weight) && option.weight > 0);
+    let choice = fraction(`${key}:favorite-venue`) * options.reduce((sum, option) => sum + option.weight, 0);
+    const favorite = options.find(option => { choice -= option.weight; return choice < 0; })?.id;
+    favorites.set(key, favorite); return favorite;
+  };
   const days = new Map<number, SourceDay>();
   return (weekday) => {
     const cached = days.get(weekday);
@@ -862,12 +908,14 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
       if (resident || fixedClasses > 1) {
         for (const [index, activity] of freeTimeActivities(weekday).entries()) {
           const seed = `${agent.id}:${weekday}:activity:${index}`;
-          if (fraction(`${seed}:attend`) >= activity.probability) continue;
-          const start = sampleActivityStart(seed, index, weekday);
+          const slot = habitSlot(activity);
+          if (fraction(`${seed}:attend`) >= Math.min(1, activity.probability * habitMultiplier(agent.id, slot))) continue;
+          const start = habitualStart(agent.id, slot, seed, index, weekday);
           const outing = activity.kind === 'off-campus-outing';
           if (outing && !resident) continue;
           const withinClassDay = (time: number) => resident || (time >= classStart && time + activity.minutes * 60 <= classEnd);
-          const offCampusMeal = activity.kind === 'dining' && fraction(`${seed}:off-campus`) < MODELED_OFF_CAMPUS_MEAL_SHARE;
+          const offCampusMeal = activity.kind === 'dining'
+            && fraction(`${seed}:off-campus`) < Math.min(1, MODELED_OFF_CAMPUS_MEAL_SHARE * habitMultiplier(agent.id, 'off-campus-meal'));
           if (offCampusMeal || outing) {
             if (!withinClassDay(start)) continue;
             const stop: WeeklyStop = { location: 'off-campus', start, end: start + activity.minutes * 60, weekday, pool: '', activity: outing ? 'off-campus-outing' : 'off-campus-meal' };
@@ -896,7 +944,8 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
             const origin = proposed[index - 1]?.location ?? agent.home;
             const destination = proposed[index + 1]?.location ?? agent.home;
             const travelTime = duration(origin, location.id, agent) + duration(location.id, destination, agent);
-            candidates.push({ stop, proposed, keys, weight: Math.sqrt(Math.max(1, location.capacity)) / (300 + travelTime) });
+            const habit = favoriteVenue(agent, activity.kind) === location.id ? FAVORITE_VENUE_WEIGHT : 1;
+            candidates.push({ stop, proposed, keys, weight: habit * Math.sqrt(Math.max(1, location.capacity)) / (300 + travelTime) });
           }
           const totalWeight = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
           let choice = fraction(`${seed}:venue`) * totalWeight;

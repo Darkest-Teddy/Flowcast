@@ -848,3 +848,42 @@ test('per-weekday dailyParticipants overrides cap estimated visits on that day o
   const count=day=>buildSourceDay(base,data,day).sourceActivities.filter(a=>a.kind==='estimated').length;
   assert.ok(count(0)>4&&count(0)<=20);assert.ok(count(5)>0&&count(5)<=4);assert.ok(count(6)<=2);
 });
+
+const { habitMultiplier, habitualStart, habitSlot, HABIT_TRAITS } = await import('../src/sim/sourceDay.ts');
+
+test('habit multipliers are stable per student and preserve the population mean',()=>{
+  for(const [slot,trait] of Object.entries(HABIT_TRAITS)){
+    const values=Array.from({length:20000},(_,i)=>habitMultiplier(`habit-${i}`,slot));
+    const mean=values.reduce((a,b)=>a+b,0)/values.length;
+    assert.ok(Math.abs(mean-1)<0.03,`${slot} mean ${mean}`);
+    assert.ok(values.every(v=>v>=0));
+    assert.ok(Math.abs(values.filter(v=>v===trait.high).length/values.length-trait.share)<0.02);
+    assert.equal(habitMultiplier('same','gym'),habitMultiplier('same','gym'));
+  }
+  assert.equal(habitMultiplier('anyone','unknown-slot'),1);
+  assert.equal(habitSlot({kind:'dining',at:8}),'breakfast');assert.equal(habitSlot({kind:'dining',at:12}),'midday');assert.equal(habitSlot({kind:'dining',at:18}),'dinner');
+});
+
+test('habitual start times cluster around a personal usual time within the activity window',()=>{
+  const starts=Array.from({length:7*40},(_,i)=>habitualStart('creature-of-habit','gym',`creature-of-habit:${i%5}:activity:4:${i}`,4,i%5));
+  const sorted=[...starts].sort((a,b)=>a-b),median=sorted[sorted.length>>1];
+  const near=starts.filter(t=>Math.abs(t-median)<=40*60).length/starts.length;
+  assert.ok(near>0.6,`share near usual time ${near}`);
+  for(const t of starts)assert.ok(t>=6*3600&&t<=22*3600);
+  const others=new Set(Array.from({length:50},(_,i)=>Math.round(habitualStart(`student-${i}`,'gym',`student-${i}:0:activity:4:0`,4,0)/600)));
+  assert.ok(others.size>10,'different students keep different usual times');
+});
+
+test('residents return to a favourite dining hall across the week',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  const second=location('meal2','dining');second.position=[-71.1,42.351];base.locations.push(second);
+  for(const loc of base.locations)if(loc.id!=='meal2'){base.walkRoutes[`${loc.id}>meal2`]={path:[loc.position,second.position],cumulative:[0,140]};base.walkRoutes[`meal2>${loc.id}`]={path:[second.position,loc.position],cumulative:[0,140]};}
+  data.locations.meal2={...data.locations.meal,id:'meal2'};
+  base.agents=Array.from({length:200},(_,i)=>({id:`fav-${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  const visits=new Map();
+  for(let weekday=0;weekday<7;weekday++){const day=buildSourceDay(base,data,weekday);validate(day);
+    for(const a of day.sourceActivities.filter(a=>a.kind==='dining')){const list=visits.get(a.agentId)??[];list.push(a.locationId);visits.set(a.agentId,list);}}
+  const shares=[...visits.values()].filter(v=>v.length>=5).map(v=>Math.max(v.filter(x=>x==='meal').length,v.filter(x=>x==='meal2').length)/v.length);
+  const mean=shares.reduce((a,b)=>a+b,0)/shares.length;
+  assert.ok(mean>0.7,`mean favourite share ${mean}`);
+});
