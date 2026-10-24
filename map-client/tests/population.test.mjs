@@ -27,6 +27,7 @@ test('published roster conserves population with separate sourced and estimated 
   assert.equal(result.locations.find(l => l.id === 'warren').capacity, 600);
   assert.equal(result.locations.find(l => l.id === 'kilachand').capacity, 198);
   assert.equal(result.agents.filter(a => a.campus === 'fenway' && a.residency === 'resident').length, 595);
+  assert.equal(result.agents.filter(a => a.campus === 'fenway' && a.academicCampus === 'charles-river').length, 595);
   assert.equal(result.agents.filter(a => a.campus === 'fenway' && a.home === 'off-campus' && a.residency === 'resident').length, 134);
   assert.equal(result.agents.filter(a => a.home === 'kilachand').length, 0);
   assert.equal(result.locations.find(l => l.id === 'kilachand').activityModeled, true);
@@ -67,15 +68,6 @@ test('campus weights count eligible weekly sections once across rows and cross-l
   assert.deepEqual(campusOfferingWeights(base,data),expected);
 });
 
-test('primary-campus model keeps undergraduate roster outside medical and is insensitive to duplicated rows', () => {
-  const result = buildPopulation(base, source, population);
-  assert.equal(result.agents.filter(a => a.studentLevel === 'undergraduate' && a.campus === 'medical').length,0);
-  const duplicated = structuredClone(source);
-  for (const location of Object.values(duplicated.locations)) location.meetings.push(...structuredClone(location.meetings));
-  assert.deepEqual(buildPopulation(base,duplicated,population).agents,result.agents);
-  assert.equal(result.agents.filter(a => a.campus === 'fenway' && a.residency === 'resident').length,595);
-});
-
 test('campus weights omit sections outside the reference week but retain boundary-day meetings', () => {
   const base = {campuses:[{id:'charles-river'}], locations:[{id:'crc',campus:'charles-river'}]};
   const meeting = (courseCode, extra) => ({courseCode, section:'A1', roomCapacity:40, calendarRestricted:false,
@@ -86,4 +78,13 @@ test('campus weights omit sections outside the reference week but retain boundar
     meeting('CAS MA 125',{validFrom:'2026-10-19',validTo:'2026-10-19'}),
   ]}}};
   assert.deepEqual(campusOfferingWeights(base,data),{'charles-river':{undergraduate:40,graduate:0}});
+});
+
+test('primary-campus model keeps undergraduate roster outside medical and is insensitive to duplicated rows', () => {
+  const result = buildPopulation(base, source, population);
+  assert.equal(result.agents.filter(a => a.studentLevel === 'undergraduate' && a.campus === 'medical').length,0);
+  const duplicated = structuredClone(source);
+  for (const location of Object.values(duplicated.locations)) location.meetings.push(...structuredClone(location.meetings));
+  assert.deepEqual(buildPopulation(base,duplicated,population).agents,result.agents);
+  assert.equal(result.agents.filter(a => a.campus === 'fenway' && a.residency === 'resident').length,595);
 });

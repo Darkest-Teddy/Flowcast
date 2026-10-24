@@ -28,6 +28,13 @@ test('bundled population and weekly schedules conserve all people and physical t
     assert.ok(day.sourceStats.modeledOffCampusMeals > 0, 'off-campus meals are represented without adding people');
     for (const activity of day.sourceActivities) {
       if (activity.kind === 'off-campus-meal') continue;
+      if (activity.kind === 'unmapped-academic') {
+        assert.equal(activity.locationId, 'off-campus');
+        assert.equal(activity.estimated, true);
+        assert.equal(activity.basis, 'modeled_unmapped_academic_time');
+        assert.equal(activity.endSec - activity.startSec, 120 * 60);
+        continue;
+      }
       if (activity.kind === 'estimated') {
         const profile = base.locations.find(location => location.id === activity.locationId)?.estimatedProfile;
         assert.ok(profile && activity.estimated && profile.confidence === 'low');

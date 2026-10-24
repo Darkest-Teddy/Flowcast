@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_INPUT = ROOT / "data-pipeline" / "output"
 DEFAULT_MAP = ROOT / "map-client" / "public" / "data" / "demo-day.json"
 DEFAULT_OUTPUT = ROOT / "map-client" / "public" / "data" / "campus-data.json"
-DATASETS = ("catalog", "events", "dining", "housing", "libraries", "signals", "opening_hours", "residential_availability")
+DATASETS = ("catalog", "events", "dining", "housing", "libraries", "signals", "opening_hours", "residential_availability", "course_component_rules")
 
 # These aliases refer to existing mapped buildings, never inferred nearby coordinates.
 BUILDING_ALIASES = {
@@ -42,6 +42,28 @@ DATE = rf"(?:\b\d{{1,2}}/\d{{1,2}}(?:/\d{{2,4}})?\b|\b\d{{4}}-\d{{2}}-\d{{2}}\b|
 
 def source_url(record):
     return record.get("provenance", {}).get("url", "")
+
+
+def reference_week(anchor, locations):
+    """Prefer the nearby Monday week with the most dated service coverage."""
+    monday = anchor - timedelta(days=anchor.weekday())
+    def coverage(start):
+        count = 0
+        for location in locations.values():
+            if location.get("hoursStatus") != "published":
+                continue
+            for offset in range(7):
+                day = start + timedelta(days=offset)
+                stamp = day.isoformat()
+                # Explicit closures are known service status, unlike a missing date.
+                if any(h.get("date") == stamp or (
+                    h.get("date") is None and h.get("weekday") == day.weekday()
+                    and h.get("validFrom", stamp) <= stamp <= h.get("validTo", stamp)
+                ) for h in location.get("hours", [])):
+                    count += 1
+        return count
+    candidates = [monday, monday + timedelta(days=7)]
+    return max(candidates, key=coverage)
 
 
 def calendar_restricted(notes):
@@ -157,8 +179,6 @@ def routable_ids(day):
         origin, destination = key.split(">", 1)
         if origin not in locations or destination not in locations:
             raise ValueError(f"Walk route references an unknown location: {key}")
-        if locations[origin].get("campus") != locations[destination].get("campus"):
-            raise ValueError(f"Walk route crosses campuses: {key}")
         if len(route.get("path", [])) < 2 or len(route["path"]) != len(route.get("cumulative", [])):
             raise ValueError(f"Invalid precomputed route: {key}")
         if any(b < a for a, b in zip(route["cumulative"], route["cumulative"][1:])):
@@ -317,7 +337,7 @@ def build_bundle(datasets, day, input_files=None):
         raise ValueError("Snapshot retrieval or generation date is required")
     collected_at = max(retrieved, key=lambda value: datetime.fromisoformat(value.replace("Z", "+00:00")))
     date = datetime.fromisoformat(collected_at.replace("Z", "+00:00")).astimezone(ZoneInfo("America/New_York")).date()
-    week_start = date - timedelta(days=date.weekday())
+    week_start = reference_week(date, locations)
     for location in locations.values():
         location["buildingCodes"] = sorted(set(location["buildingCodes"]))
         location["meetings"].sort(key=lambda m: m["id"])
@@ -325,11 +345,28 @@ def build_bundle(datasets, day, input_files=None):
         location["hours"].sort(key=lambda h: (h["date"] or "", h["text"]))
     mapped = [meeting for location in locations.values() for meeting in location["meetings"]]
     counts = catalog.get("coverage", {}).get("counts", {})
+    course_coverage = catalog_course_coverage(catalog, week_start)
+    component_rules = datasets.get("course_component_rules", {}).get("courseComponentRules", {})
+    if "hackathonCoverage" in catalog:
+        import copy
+        component_rules = copy.deepcopy(component_rules)
+        active_sections = defaultdict(set)
+        for meeting in mapped:
+            if meeting["calendarRestricted"]:
+                continue
+            if any(meeting.get("validFrom", "0001-01-01") <= (week_start + timedelta(days=i["weekday"])).isoformat()
+                   <= meeting.get("validTo", "9999-12-31") for i in meeting["intervals"]):
+                active_sections[meeting["courseCode"]].add(meeting["section"])
+        for code, rule in component_rules.items():
+            rule["mappedCoverage"] = {part["id"]: sorted(set(part["sections"]) & active_sections[code]) for part in rule["components"]}
+            rule["mappedCourse"] = bool(active_sections[code])
+            rule["hasCompleteMappedOption"] = rule["status"] == "resolved" and all(rule["mappedCoverage"].values())
     return {
         "schemaVersion": 1, "term": catalog.get("term", "FALL 2026"), "collectedAt": collected_at,
         "referenceWeekStart": week_start.isoformat(),
-        "catalogCourseCodes": catalog_course_coverage(catalog, week_start)["courseCodes"],
-        "catalogCourseCoverage": catalog_course_coverage(catalog, week_start),
+        "courseComponentRules": component_rules,
+        "catalogCourseCodes": course_coverage["courseCodes"],
+        "catalogCourseCoverage": course_coverage,
         **({"hackathonCatalogCoverage": catalog["hackathonCoverage"]} if "hackathonCoverage" in catalog else {}),
         "coverage": {"coursePages": counts.get("coursePagesParsed", len(catalog.get("courses", []))),
                      "uniqueCourses": counts.get("uniqueCourseCodes", len({m['courseCode'] for m in catalog['meetings']})),
@@ -346,6 +383,7 @@ def build_bundle(datasets, day, input_files=None):
                            "sourceUrl": source_url(history["patronCounts"][0]) if history["patronCounts"] else ""},
         "signals": sorted(global_evidence, key=lambda e: e["id"]),
         "assumptions": [
+            "The reference week is the current or next Monday week with the most published venue-day hours coverage; missing dates remain unknown, not closures.",
             "Published class times drive fictional student plans; enrollment and attendance are unknown.",
             "Published room seats only cap assigned synthetic attendance; they are not observed enrollment or headcounts.",
             "Only explicit building aliases with existing mapped routes are joined; no nearby-building guessing.",
