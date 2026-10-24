@@ -15,7 +15,7 @@ import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
-import { Playback, formatClock, loadDay, type BuildingFootprint, type BuildingOccupancy, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
+import { Playback, formatClock, loadDay, occupancyShare, type BuildingFootprint, type BuildingOccupancy, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
@@ -1014,7 +1014,7 @@ function splitSharedTags(
   const byBuilding = new Map<string, Occupancy[]>();
   for (const o of occupancy) {
     if (o.location.kind === 'off-campus') continue;
-    byBuilding.set(o.location.building, [...(byBuilding.get(o.location.building) ?? []), o]);
+    byBuilding.set(o.location.building, [...(byBuilding.get(o.location.building) ?? []), { ...o, share: occupancyShare(o.count, o.location.capacity) }]);
   }
   const out: BuildingOccupancy[] = [];
   for (const b of buildings) {

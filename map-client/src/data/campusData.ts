@@ -10,6 +10,7 @@ export interface Evidence {
 }
 
 export interface SourceMeeting {
+  buildingCode?: string;
   id: string;
   courseCode: string;
   title: string;

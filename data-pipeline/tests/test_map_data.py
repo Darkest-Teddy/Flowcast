@@ -53,6 +53,7 @@ class MapDataTests(unittest.TestCase):
             self.assertNotIn('position', location)
             for row in location['meetings']:
                 self.assertTrue(row['sourceUrl'].startswith('https://'))
+                self.assertIn(row['buildingCode'], location['buildingCodes'])
                 for interval in row['intervals']:
                     self.assertLess(interval['startSec'], interval['endSec'])
                     self.assertGreaterEqual(interval['startSec'], 0)

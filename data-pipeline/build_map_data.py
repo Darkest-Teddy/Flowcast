@@ -159,7 +159,7 @@ def build_bundle(datasets, day, input_files=None):
             raise ValueError(f"Invalid published room capacity for {row['id']}")
         meeting = {
             "id": row["id"], "courseCode": row["courseCode"], "title": row.get("courseTitle") or row["courseCode"],
-            "section": row["section"], "roomCode": row["roomCode"],
+            "section": row["section"], "buildingCode": code, "roomCode": row["roomCode"],
             "intervals": sorted(intervals, key=lambda i: i["startSec"]), "roomCapacity": capacity,
             "notes": row.get("notes"), "calendarRestricted": calendar_restricted(row.get("notes")),
             "sharedKey": None, "sourceUrl": source_url(row),

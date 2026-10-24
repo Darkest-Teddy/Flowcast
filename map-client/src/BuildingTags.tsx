@@ -14,6 +14,7 @@ import type { CameraState } from './map/basemap';
 import type { LabelPlacer, Projector } from './layers/placement';
 import { crowdLevel, crowdLevelStyle, ringTop, type RoofHeights } from './layers/crowd';
 import type { BuildingFootprint, BuildingOccupancy, CampusLocation, LocationKind } from './sim/playback';
+import { occupancyShare } from './sim/playback';
 
 const svg = (paths: string) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
@@ -300,7 +301,8 @@ interface ActivityDisplayInput {
 }
 
 /** Labels refer to the modeled space and its denominator, not every use of its building. */
-export function activityDisplay({ count, capacity, share, modeled, capacityBasis, kind }: ActivityDisplayInput) {
+export function activityDisplay({ count, capacity, modeled, capacityBasis, kind }: ActivityDisplayInput) {
+  const share = occupancyShare(count, capacity);
   const hasPercentage = modeled !== false && capacity > 0 && Number.isFinite(share)
     && capacityBasis !== 'residential_beds_plus_classroom_seats'
     && capacityBasis !== 'estimated_student_capacity';

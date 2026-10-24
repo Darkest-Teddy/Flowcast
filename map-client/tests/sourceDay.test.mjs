@@ -74,7 +74,7 @@ test('section admission requires full-week travel feasibility',()=>{
 
 test('shared cross-listed seats and unknown room fallback cap weekly membership',()=>{
   const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`cap${i}`,home:'home',model:0,campus:'main'}));
-  data.locations.class.meetings=[meeting('one',0,9*3600,10*3600,{sharedKey:'cross',roomCapacity:7}),meeting('two',0,9*3600,10*3600,{sharedKey:'cross',roomCapacity:9}),meeting('unknown',0,11*3600,12*3600,{roomCapacity:null})];
+  data.locations.class.meetings=[meeting('one',0,9*3600,10*3600,{sharedKey:'cross',roomCapacity:7}),meeting('two',0,9*3600,10*3600,{sharedKey:'cross',roomCapacity:9}),meeting('unknown',0,11*3600,12*3600,{roomCapacity:null,roomCode:'unknown-room'})];
   const day=buildSourceDay(base,data,0);
   assert.equal(day.sourceAssignments.filter(a=>a.meetingId==='one'||a.meetingId==='two').length,7);
   assert.equal(day.sourceAssignments.filter(a=>a.meetingId==='unknown').length,24);
@@ -310,6 +310,59 @@ test('compatible saved gateways replace an unavailable preferred route instead o
   for(const trip of day.trips.filter(t=>t.from==='off-campus'))assert.deepEqual(trip.path[0],gateB);
 });
 
+test('partially overlapping weekly sections share physical room seats across mapped aliases',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`room-${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  data.locations.class.meetings=[meeting('first',0,9*3600,10*3600,{buildingCode:'ONE',roomCode:'100',roomCapacity:5,intervals:[0,2].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}))})];
+  data.locations.study.meetings=[meeting('second',0,9.5*3600,10.5*3600,{buildingCode:'ONE',roomCode:'100',roomCapacity:5})];
+  const monday=buildSourceDay(base,data,0),wednesday=buildSourceDay(base,data,2);validate(monday);validate(wednesday);
+  assert.equal(monday.sourceAssignments.length,5);
+  assert.ok(monday.sourceStats.roomCapacityLimitedCandidates>0);
+  const members=day=>day.sourceAssignments.filter(a=>a.meetingId==='first').map(a=>a.agentId).sort();
+  assert.deepEqual(members(monday),members(wednesday));
+  assert.ok(monday.sourceAssignments.every(a=>a.startSec===(a.meetingId==='first'?9*3600:9.5*3600)));
+});
+
+test('unknown physical room seats use a shared 24-person fallback while distinct rooms remain independent',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`unknown-room-${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  data.locations.class.meetings=[meeting('one',0,9*3600,10*3600,{buildingCode:'ONE',roomCode:'100',roomCapacity:null}),meeting('two',0,9.5*3600,10.5*3600,{buildingCode:'ONE',roomCode:'100',roomCapacity:null}),meeting('other-room',0,9*3600,10*3600,{buildingCode:'ONE',roomCode:'101',roomCapacity:7})];
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.equal(day.sourceAssignments.filter(a=>a.meetingId!=='other-room').length,24);
+  assert.equal(day.sourceAssignments.filter(a=>a.meetingId==='other-room').length,7);
+});
+
+test('cross-listed graduate/undergraduate sections share one roster and emit eligible aliases',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:20},(_,i)=>({id:`cross-level-${i}`,home:'home',residency:'resident',campus:'main',studentLevel:i<10?'undergraduate':'graduate',model:0}));
+  const intervals=[0,2,4].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}));
+  data.locations.class.meetings=[meeting('A-graduate',0,9*3600,10*3600,{courseCode:'CAS CS 600',roomCapacity:8,sharedKey:'cross-level',intervals}),meeting('B-undergraduate',0,9*3600,10*3600,{courseCode:'CAS CS 400',roomCapacity:8,sharedKey:'cross-level',intervals})];
+  const monday=buildSourceDay(base,data,0),wednesday=buildSourceDay(base,data,2);validate(monday);validate(wednesday);
+  assert.equal(monday.sourceAssignments.length,8);
+  for(const assignment of monday.sourceAssignments){
+    const agent=base.agents.find(a=>a.id===assignment.agentId);
+    assert.equal(assignment.courseCode,agent.studentLevel==='undergraduate'?'CAS CS 400':'CAS CS 600');
+  }
+  const roster=day=>day.sourceAssignments.map(a=>`${a.agentId}:${a.courseCode}`).sort();
+  assert.deepEqual(roster(monday),roster(wednesday));
+});
+
+test('nondegree offerings remain source data without becoming degree-course enrollment',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[meeting('nondegree',0,9*3600,10*3600,{courseCode:'QST ES 090'}),meeting('exercise',0,11*3600,12*3600,{courseCode:'PDP FT 151'})];
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.equal(day.sourceAssignments.length,0);assert.equal(day.sourceStats.excludedNonDegreeSections,2);
+  assert.equal(data.locations.class.meetings.length,2);
+});
+
+test('stable school affinity concentrates feasible schedules while allowing electives',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`affinity-${i}`,home:'home',residency:'resident',campus:'main',studentLevel:'undergraduate',attendance:'full-time',model:0}));
+  data.locations.class.meetings=['CAS','ENG','QST','COM'].flatMap(school=>Array.from({length:5},(_,i)=>meeting(`${school}-${i}`,0,(9+i*2)*3600,(9+i*2)*3600+1800,{courseCode:`${school} XX ${100+i}`,roomCapacity:1000})));
+  const day=buildSourceDay(base,data,0);validate(day);
+  for(const agent of base.agents){
+    const courses=day.sourceAssignments.filter(a=>a.agentId===agent.id),schools=new Map();
+    for(const course of courses){const school=course.courseCode.split(' ')[0];schools.set(school,(schools.get(school)??0)+1);}
+    assert.ok(courses.length>=4);assert.ok(schools.size<=2);assert.ok(Math.max(...schools.values())>=courses.length-1);
+  }
+  assert.ok(day.sourceStats.affinityCourseEnrollments>0);
+});
+
 function profile(purpose='academic',extra={}) {
   return {purpose,weekdayWindows:Array.from({length:7},(_,weekday)=>({weekday,windows:[[9*3600,17*3600]]})),durationMinutes:30,attendanceProbability:1,capacity:5,dailyParticipants:20,studentLevel:'any',basis:'configured_scenario_estimate',confidence:'low',note:'Synthetic student participants; no observed attendance',proxy:'Scenario proxy',...extra};
 }
@@ -344,11 +397,34 @@ test('all configured estimated buildings receive weekly activity without adding 
   const {buildPopulation}=await import('../src/sim/population.ts');
   const read=name=>JSON.parse(readFileSync(new URL(`../public/data/${name}.json`,import.meta.url)));
   const source=read('campus-data'),base=buildPopulation(read('demo-day'),source,read('population'));
+  const {eligibleStudentLevels,countsTowardDegreeLoad}=await import('../src/sim/courseEligibility.ts');
+  const studentLevels=new Map(base.agents.map(agent=>[agent.id,agent.studentLevel]));
   const expected=base.locations.filter(l=>l.estimatedProfile).map(l=>l.id),seen=new Set();
+  const physicalRooms=new Map(),roomForMeeting=new Map();
+  for(const location of Object.values(source.locations))for(const meeting of location.meetings){
+    if(meeting.calendarRestricted)continue;
+    const key=`${meeting.buildingCode??location.buildingCodes[0]??location.id}:${meeting.roomCode.trim().toUpperCase()}`;
+    roomForMeeting.set(meeting.id,key);
+    if(!physicalRooms.has(key))physicalRooms.set(key,{known:null});
+    if(meeting.roomCapacity!==null)physicalRooms.get(key).known=Math.min(physicalRooms.get(key).known??Infinity,meeting.roomCapacity);
+  }
+
   assert.ok(expected.length>0);
   for(let weekday=0;weekday<7;weekday++) {
     const day=buildSourceDay(base,source,weekday);validate(day);
     assert.equal(day.agents.length,36977);
+    const roomEvents=new Map();
+    for(const assignment of day.sourceAssignments){
+      assert.ok(countsTowardDegreeLoad(assignment.courseCode));
+      assert.ok(eligibleStudentLevels(assignment.courseCode).includes(studentLevels.get(assignment.agentId)));
+      const room=roomForMeeting.get(assignment.meetingId),events=roomEvents.get(room)??[];
+      events.push([assignment.startSec,1],[assignment.endSec,-1]);roomEvents.set(room,events);
+    }
+    for(const[room,events]of roomEvents){
+      let present=0;const limit=physicalRooms.get(room).known??24;
+      for(const[time,delta]of events.sort((a,b)=>a[0]-b[0]||a[1]-b[1])){present+=delta;assert.ok(present<=limit,`${room} at weekday${weekday} second${time}: ${present}>${limit}`);}
+    }
+
     for(const activity of day.sourceActivities.filter(a=>a.kind==='estimated')) {
       seen.add(activity.locationId);assert.ok(activity.estimated);assert.ok(activity.basis&&activity.note);
       assert.ok(!day.sourceAssignments.some(a=>a.agentId===activity.agentId&&a.locationId===activity.locationId&&a.startSec===activity.startSec));

@@ -1,5 +1,6 @@
 import { dateForWeekday, openingHoursForDate, type CampusData } from '../data/campusData';
 import type { Agent, DayData, EstimatedActivityProfile, EstimatedHousingProfile } from './playback';
+import { countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
 
 export interface PopulationData {
   schemaVersion: 1;
@@ -27,6 +28,50 @@ function hash(key: string) {
   return (n >>> 0) / 4294967296;
 }
 
+export function campusOfferingWeights(base: DayData, source: CampusData): Record<string, { undergraduate: number; graduate: number }> {
+  const locations = new Map(base.locations.map(location => [location.id, location]));
+  const weights: Record<string, { undergraduate: number; graduate: number }> = {};
+  for (const campus of base.campuses?.map(c => c.id) ?? ['charles-river']) weights[campus] = { undergraduate: 0, graduate: 0 };
+  const parent = new Map<string, string>();
+  const rows: { key: string; campus: string; course: string; seats: number }[] = [];
+  const shared = new Map<string, string>();
+  const find = (key: string): string => {
+    const next = parent.get(key)!;
+    if (next === key) return key;
+    const root = find(next); parent.set(key, root); return root;
+  };
+  for (const location of Object.values(source.locations)) {
+    const mapped = locations.get(location.id);
+    if (!mapped) continue;
+    const campus = mapped.campus ?? 'charles-river';
+    weights[campus] ??= { undergraduate: 0, graduate: 0 };
+    for (const meeting of location.meetings) {
+      if (meeting.calendarRestricted || !countsTowardDegreeLoad(meeting.courseCode)) continue;
+      const key = `${campus}:${meeting.courseCode}:${meeting.section}`;
+      if (!parent.has(key)) parent.set(key, key);
+      if (meeting.sharedKey) {
+        const signature = `${campus}:${meeting.sharedKey}`;
+        const existing = shared.get(signature);
+        if (existing) parent.set(find(key), find(existing));
+        else shared.set(signature, key);
+      }
+      const seats = meeting.roomCapacity !== null && Number.isFinite(meeting.roomCapacity)
+        ? Math.max(0, meeting.roomCapacity) : 24;
+      rows.push({ key, campus, course: meeting.courseCode, seats });
+    }
+  }
+  const groups = new Map<string, { campus: string; seats: number; levels: Set<'undergraduate' | 'graduate'> }>();
+  for (const row of rows) {
+    const key = find(row.key);
+    const group = groups.get(key) ?? { campus: row.campus, seats: row.seats, levels: new Set() };
+    group.seats = Math.min(group.seats, row.seats);
+    for (const level of eligibleStudentLevels(row.course)) group.levels.add(level);
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) for (const level of group.levels) weights[group.campus][level] += group.seats;
+  return weights;
+}
+
 /** The institutional roster includes people outside the mapped study area. */
 export function buildPopulation(base: DayData, source: CampusData, population: PopulationData): PopulationBase {
   const cohorts = population.students.cohorts;
@@ -46,6 +91,7 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
     return { ...location, name: population.locationNames?.[location.id] ?? location.name,
       short: population.locationNames?.[location.id] ?? location.short,
       capacity: population.locationCapacities[location.id] ?? location.capacity,
+      referenceCapacity: population.locationCapacities[location.id] ?? location.capacity,
       capacityBasis: population.locationCapacityBasis?.[location.id]?.basis,
       estimatedProfile: population.locationEstimatedProfiles?.[location.id],
       estimatedHousingProfile: population.estimatedHousingProfiles?.[location.id],
@@ -54,13 +100,13 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
         || !!population.locationEstimatedProfiles?.[location.id] || !!population.estimatedHousingProfiles?.[location.id] };
   });
   const campuses = base.campuses?.map((c) => c.id) ?? ['charles-river'];
-  const weights = campuses.map((campus) => {
-    const ids = new Set(locations.filter((l) => l.campus === campus).map((l) => l.id));
-    return Math.max(1, Object.values(source.locations).filter((l) => ids.has(l.id))
-      .reduce((sum, l) => sum + l.meetings.filter((m) => !m.calendarRestricted).reduce((n, m) => n + (m.roomCapacity ?? 24), 0), 0));
-  });
-  const totalWeight = weights.reduce((a, b) => a + b, 0);
-  const campusFor = (id: string) => {
+  const offeringWeights = campusOfferingWeights(base, source);
+  const campusFor = (id: string, level: 'undergraduate' | 'graduate') => {
+    // The fact sheet lists Medical graduate/nondegree FTE, without an undergraduate category.
+    if (level === 'undergraduate' && campuses.includes('charles-river')) return 'charles-river';
+    const weights = campuses.map(campus => offeringWeights[campus]?.[level] ?? 0);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    if (!totalWeight) return campuses.includes('charles-river') ? 'charles-river' : campuses[0];
     let point = hash(`campus:${id}`) * totalWeight;
     for (let i = 0; i < campuses.length; i++) { point -= weights[i]; if (point < 0) return campuses[i]; }
     return campuses[0];
@@ -75,7 +121,7 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
   for (const cohort of cohorts) for (let i = 0; i < cohort.headcount; i++) {
     const id = `${cohort.level}:${cohort.attendance}:${i}`;
     agents.push({ id, home: 'off-campus', residency: 'commuter', studentLevel: cohort.level,
-      attendance: cohort.attendance, campus: campusFor(id), model: Math.floor(hash(`model:${id}`) * 12),
+      attendance: cohort.attendance, campus: campusFor(id, cohort.level), model: Math.floor(hash(`model:${id}`) * 12),
       walkSpeed: 1.4 });
   }
   const residents = agents.filter((a) => a.studentLevel === 'undergraduate')
@@ -121,7 +167,7 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
   return { ...base, agents, locations, trips: [], populationSummary: {
     total: agents.length, mappedResidents, residentsOutsideMap: residents.filter(a => a.home === 'off-campus').length, estimatedGraduateResidents, estimatedMappedResidents,
     commuters: agents.length - residents.length - estimatedGraduateResidents, reportingPeriod: population.students.reportingPeriod,
-    campusAllocation: 'Synthetic course-capacity allocation; campus headcounts and online enrollment are unavailable.',
+    campusAllocation: 'Undergraduate primary campus starts at Charles River, consistent with FY2026 campus FTE categories; housing assignments and the Fenway relocation plan then apply. Graduate primary campuses use eligible weekly section seat weights, counting cross-listed sections once. FTE is context, not a headcount conversion; online enrollment and actual campus headcounts remain unknown.',
   } };
 }
 

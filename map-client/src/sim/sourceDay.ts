@@ -1,4 +1,5 @@
 import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
+import { courseLevel, countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
 import type { Agent, CampusLocation, DayData, EstimatedActivityProfile, Trip } from './playback';
 
 const DAY = 86400;
@@ -11,6 +12,8 @@ const MAX_GATEWAY_WALK_METRES = 2000;
 const OPTIONAL_CAPACITY_BUCKET_SECONDS = 60;
 const SOURCE_COVERED_ESTIMATED_ACTIVITY_FACTOR = 0.15;
 const ESTIMATED_TIME_ATTEMPTS = 3;
+const COURSE_CANDIDATE_ATTEMPTS = 96;
+const AFFINITY_ATTEMPT_SHARE = 0.65;
 const ARRIVAL_LEAD = { minimum: 2 * 60, spread: 10 * 60 };
 const RESIDENT_ACTIVITIES = [
   { kind: 'dining', at: 8, spread: 2, minutes: 25, probability: 0.45 },
@@ -54,6 +57,9 @@ export interface SourceDayStats {
   composedRoutes: number;
   composedTrips: number;
   capacityLimitedCandidates: number;
+  roomCapacityLimitedCandidates: number;
+  excludedNonDegreeSections: number;
+  affinityCourseEnrollments: number;
   weeklyEnrolledStudents: number;
   weeklyEnrollments: number;
   unassignedStudents: number;
@@ -124,11 +130,15 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
   const stats: SourceDayStats = {
     eligibleMeetings: 0, assignedClasses: 0, scheduledStudents: 0, skippedCalendar: 0,
     sharedCandidatesSuppressed: 0, unroutableCandidates: 0, unroutableTrips: 0, invalidRoutes: 0,
-    composedRoutes: 0, composedTrips: 0, capacityLimitedCandidates: 0,
+    composedRoutes: 0, composedTrips: 0, capacityLimitedCandidates: 0, roomCapacityLimitedCandidates: 0, excludedNonDegreeSections: 0, affinityCourseEnrollments: 0,
     weeklyEnrolledStudents: 0, weeklyEnrollments: 0, unassignedStudents: 0, eligibleWeeklySections: 0, campusAccessTrips: 0, modeledActivities: 0, modeledOffCampusMeals: 0, unavailableActivities: 0, optionalCapacityRejected: 0, estimatedActivities: 0, estimatedLocationCounts: {},
     assumptions: [
       'Enrollment is synthetic and fixed for the whole reference week; published classes supply places, times, and seat upper bounds, not actual enrollment.',
+      'Default course eligibility follows BU’s published numeric guide: 100–399 undergraduate, 400–599 undergraduate/graduate, 600–999 graduate; MED MD and graduate-school prefixes use graduate defaults. This is not a prerequisite or individual-permission checker.',
+      'Nondegree 0xx and PDP offerings remain visible in source data but are omitted from modeled degree-course enrollment; noncredit attendance is unknown.',
+      'Each student has a stable synthetic school affinity weighted by eligible section seats. The planner prefers that school for target minus one courses, allowing cross-school electives and feasible fallback. This is a model preference, not an observed major.',
       'Modeled course loads are 1–2 for part-time students, 3–4 for full-time graduate students, and 4–5 for full-time undergraduates; only mapped, reachable, mutually feasible weekly sections are assigned. Linked lecture/lab requirements are unknown.',
+      'Concurrent published meetings share one physical building-code/room-code seat pool, including partial time overlaps. Conflicting catalog entries reduce modeled attendance rather than shifting source times or enlarging room capacity.',
       'Unknown room capacity uses a conservative 24-student cap; cross-listed shared occurrences share the same seat pool.',
       'Walking follows compatible bundled pedestrian routes at each student’s stable modeled speed (default 1.4 m/s).',
       'Campus gateway access walks are capped at 2 km; sections requiring longer or unavailable gateway paths are not assigned when campus gateway data exist.',
@@ -279,12 +289,19 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     accessCache.set(key, route); return route;
   };
   const accessDuration = (agent: Agent, location: string) => (accessRoute(agent, location)?.cumulative.at(-1) ?? (gateFor(agent) ? Infinity : 0)) / speed(agent);
-  type WeeklyStop = Stop & { weekday: number; pool: string };
-  type Section = { id: string; course: string; campus: string; stops: WeeklyStop[] };
+  type WeeklyStop = Stop & { weekday: number; pool: string; room?: string; roomSlots?: number[] };
+  type Section = { id: string; course: string; campus: string; stops: WeeklyStop[]; aliases: Section[] };
   const sections = new Map<string, Section>();
   const limits = new Map<string, number>();
   const used = new Map<string, number>();
   const occurrences = new Set<string>();
+  const rooms = new Map<string, { knownLimit?: number; boundaries: Set<number>; stops: WeeklyStop[] }>();
+  const physicalRoom = (source: CampusData['locations'][string], meeting: SourceMeeting): string => {
+    const building = meeting.buildingCode || (source.buildingCodes.length === 1 ? source.buildingCodes[0] : undefined);
+    const identity = building ? `code:${building.trim().toUpperCase()}` : `mapped:${locations.get(source.id)!.building || source.id}`;
+    return `${identity}:room:${meeting.roomCode.trim().toUpperCase() || `unresolved:${meeting.sharedKey ?? meeting.id}`}`;
+  };
+
   const dates = Array.from({ length: 7 }, (_, day) => dateForWeekday(data, day));
   const openingCache = new Map<string, [number, number][]>();
   const optionalWindows = (location: string, weekday: number): [number, number][] => {
@@ -307,12 +324,14 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     }
     return optionalWindows(stop.location, stop.weekday).some(([opens, closes]) => opens <= stop.start && stop.end <= closes);
   };
+  const excludedNonDegree = new Set<string>();
   for (const source of Object.values(data.locations).sort((a, b) => a.id.localeCompare(b.id))) {
     if (!locations.has(source.id)) continue;
     for (const meeting of [...source.meetings].sort((a, b) => a.id.localeCompare(b.id))) {
       if (meeting.calendarRestricted) { stats.skippedCalendar++; continue; }
       const id = `${meeting.courseCode}:${meeting.section}`;
-      const section = sections.get(id) ?? { id, course: meeting.courseCode, campus: campusOf(locations.get(source.id)!), stops: [] };
+      if (!countsTowardDegreeLoad(meeting.courseCode)) { excludedNonDegree.add(id); continue; }
+      const section: Section = sections.get(id) ?? { id, course: meeting.courseCode, campus: campusOf(locations.get(source.id)!), stops: [], aliases: [] };
       for (const interval of meeting.intervals) {
         const weekday = interval.weekday, start = interval.startSec - weekday * DAY, end = interval.endSec - weekday * DAY;
         if (weekday < 0 || weekday > 6 || start < 0 || start >= end || end > DAY || !Number.isFinite(start + end)) continue;
@@ -321,23 +340,49 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
         limits.set(pool, Math.min(limits.get(pool) ?? Infinity, limit));
         if (occurrences.has(pool)) stats.sharedCandidatesSuppressed++;
         occurrences.add(pool);
-        if (!section.stops.some((stop) => stop.pool === pool)) section.stops.push({ location: source.id, start, end, weekday, meeting, pool });
+        const room = physicalRoom(source, meeting);
+        const roomState = rooms.get(room) ?? { boundaries: new Set<number>(), stops: [] };
+        if (meeting.roomCapacity !== null && Number.isFinite(meeting.roomCapacity)) {
+          roomState.knownLimit = Math.min(roomState.knownLimit ?? Infinity, Math.max(0, Math.floor(meeting.roomCapacity)));
+        }
+        roomState.boundaries.add(weekday * DAY + start); roomState.boundaries.add(weekday * DAY + end);
+        if (!section.stops.some((stop) => stop.pool === pool)) {
+          const stop = { location: source.id, start, end, weekday, meeting, pool, room };
+          section.stops.push(stop); roomState.stops.push(stop);
+        }
+        rooms.set(room, roomState);
       }
       if (section.stops.length) sections.set(id, section);
     }
   }
+  // Exact boundary segments share seats across partially overlapping section patterns.
+  const roomSlotLimits: number[] = [];
+  for (const room of rooms.values()) {
+    const boundaries = [...room.boundaries].sort((a, b) => a - b);
+    const indices = new Map(boundaries.map((time, index) => [time, index]));
+    const offset = roomSlotLimits.length;
+    for (let index = 1; index < boundaries.length; index++) roomSlotLimits.push(room.knownLimit ?? 24);
+    for (const stop of room.stops) {
+      const first = indices.get(stop.weekday * DAY + stop.start)!;
+      const last = indices.get(stop.weekday * DAY + stop.end)!;
+      stop.roomSlots = Array.from({ length: last - first }, (_, index) => offset + first + index);
+    }
+  }
+  const roomAttendance = new Int32Array(roomSlotLimits.length);
   // Cross-listed aliases with identical weekly occurrences represent one section.
-  const signatures = new Set<string>();
+  const signatures = new Map<string, Section>();
   const byCampus = new Map<string, Section[]>();
   for (const section of sections.values()) {
     section.stops.sort((a, b) => a.weekday - b.weekday || a.start - b.start);
     const signature = section.stops.map((stop) => stop.pool).sort().join('|');
-    if (signatures.has(signature)) continue;
-    signatures.add(signature);
+    const canonical = signatures.get(signature);
+    if (canonical) { canonical.aliases.push(section); continue; }
+    section.aliases = [section]; signatures.set(signature, section);
     const list = byCampus.get(section.campus) ?? [];
     list.push(section); byCampus.set(section.campus, list);
   }
   stats.eligibleWeeklySections = signatures.size;
+  stats.excludedNonDegreeSections = excludedNonDegree.size;
   function feasible(stops: WeeklyStop[], agent: Agent): boolean {
     let previous: WeeklyStop | undefined;
     for (const stop of stops) {
@@ -358,37 +403,82 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     }
     return !previous || previous.end + (previous.location === agent.home ? 0 : offCampus(agent) ? accessDuration(agent, previous.location) : duration(previous.location, agent.home, agent)) <= DAY;
   }
+  const schoolOf = (course: string) => /^([A-Z]{2,5})\s/.exec(course)?.[1] ?? 'unknown';
+  const eligibleAliases = (section: Section, level: Agent['studentLevel']) => section.aliases.filter(alias =>
+    !level || eligibleStudentLevels(alias.course).includes(level));
+  const selectAlias = (section: Section, agent: Agent, school: string): Section | undefined => eligibleAliases(section, agent.studentLevel)
+    .sort((a, b) => Number(schoolOf(b.course) === school) - Number(schoolOf(a.course) === school)
+      || Number(courseLevel(b.course) === agent.studentLevel) - Number(courseLevel(a.course) === agent.studentLevel)
+      || a.id.localeCompare(b.id))[0];
+  type CandidateIndex = { all: Section[]; schools: Map<string, Section[]>; weights: [string, number][] };
+  const candidateIndices = new Map<string, CandidateIndex>();
+  const indexFor = (campus: string, level: Agent['studentLevel']): CandidateIndex => {
+    const key = `${campus}:${level ?? 'unknown'}`;
+    const cached = candidateIndices.get(key);
+    if (cached) return cached;
+    const all = (byCampus.get(campus) ?? []).filter(section => eligibleAliases(section, level).length);
+    const schools = new Map<string, Section[]>(), weights = new Map<string, number>();
+    for (const section of all) {
+      const aliases = eligibleAliases(section, level);
+      const uniqueSchools = new Set(aliases.map(alias => schoolOf(alias.course)));
+      const seats = Math.min(...section.stops.map(stop => limits.get(stop.pool)!));
+      for (const school of uniqueSchools) {
+        const list = schools.get(school) ?? []; list.push(section); schools.set(school, list);
+        weights.set(school, (weights.get(school) ?? 0) + seats / uniqueSchools.size);
+      }
+    }
+    const index = { all, schools, weights: [...weights] };
+    candidateIndices.set(key, index); return index;
+  };
   const enrollment = new Map<string, WeeklyStop[]>();
+  const fullSections = new Set<Section>();
   const order = [...base.agents].sort((a, b) => fraction(`weekly:${a.id}`) - fraction(`weekly:${b.id}`) || a.id.localeCompare(b.id));
   for (const agent of order) {
     const campus = agent.campus ?? campusOf(locations.get(agent.home)!);
-    const candidates = byCampus.get(campus) ?? [];
+    const index = indexFor(campus, agent.studentLevel);
+    let schoolChoice = fraction(`${agent.id}:academic-affinity`) * index.weights.reduce((sum, [, weight]) => sum + weight, 0);
+    const affinity = index.weights.find(([, weight]) => { schoolChoice -= weight; return schoolChoice < 0; })?.[0] ?? 'unknown';
     let stops: WeeklyStop[] = [];
     const courses = new Set<string>();
-    const profile = agent as Agent & { attendance?: string; studentLevel?: string };
-    const minimum = profile.attendance === 'part-time' ? 1 : profile.studentLevel === 'graduate' ? 3 : 4;
+    let courseCount = 0, attempts = 0;
+    const minimum = agent.attendance === 'part-time' ? 1 : agent.studentLevel === 'graduate' ? 3 : 4;
     const target = minimum + Math.floor(fraction(`${agent.id}:course-count`) * 2);
-    const tested = new Set<string>();
-    const startIndex = Math.floor(fraction(`${agent.id}:weekly-start`) * candidates.length);
-    const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a;
-    let stride = 1 + Math.floor(fraction(`${agent.id}:weekly-stride`) * Math.max(1, candidates.length - 1));
-    while (candidates.length && gcd(stride, candidates.length) !== 1) stride++;
-    for (let attempt = 0; attempt < 96 && candidates.length && courses.size < target; attempt++) {
-      const index = (startIndex + attempt * stride) % candidates.length;
-      const section = candidates[index];
-      if (section.stops.some((stop) => (used.get(stop.pool) ?? 0) >= limits.get(stop.pool)!)) {
-        candidates[index] = candidates[candidates.length - 1]; candidates.pop();
-        stats.capacityLimitedCandidates++; continue;
+    const tested = new Set<Section>();
+    const scan = (candidates: Section[], limit: number, budget: number, phase: string) => {
+      const startIndex = Math.floor(fraction(`${agent.id}:weekly-start:${phase}`) * candidates.length);
+      const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a;
+      let stride = 1 + Math.floor(fraction(`${agent.id}:weekly-stride:${phase}`) * Math.max(1, candidates.length - 1));
+      while (candidates.length && gcd(stride, candidates.length) !== 1) stride++;
+      for (let attempt = 0; attempt < budget && candidates.length && courseCount < limit; attempt++, attempts++) {
+        const position = (startIndex + attempt * stride) % candidates.length;
+        const section = candidates[position];
+        const poolFull = section.stops.some(stop => (used.get(stop.pool) ?? 0) >= limits.get(stop.pool)!);
+        const roomFull = section.stops.some(stop => stop.roomSlots!.some(slot => roomAttendance[slot] >= roomSlotLimits[slot]));
+        if (fullSections.has(section) || poolFull || roomFull) {
+          candidates[position] = candidates[candidates.length - 1]; candidates.pop(); fullSections.add(section);
+          if (poolFull) stats.capacityLimitedCandidates++;
+          else if (roomFull) stats.roomCapacityLimitedCandidates++;
+          continue;
+        }
+        if (tested.has(section)) continue;
+        tested.add(section);
+        const alias = selectAlias(section, agent, affinity)!;
+        if (courses.has(alias.course) || section.aliases.some(other => courses.has(other.course))) continue;
+        const proposed = [...stops, ...alias.stops].sort((a, b) => a.weekday - b.weekday || a.start - b.start);
+        if (!feasible(proposed, agent)) continue;
+        stops = proposed; courseCount++;
+        for (const other of section.aliases) courses.add(other.course);
+        if (schoolOf(alias.course) === affinity) stats.affinityCourseEnrollments++;
+        for (const stop of alias.stops) {
+          used.set(stop.pool, (used.get(stop.pool) ?? 0) + 1);
+          for (const slot of stop.roomSlots!) roomAttendance[slot]++;
+        }
       }
-      if (tested.has(section.id) || courses.has(section.course)) continue;
-      tested.add(section.id);
-      const proposed = [...stops, ...section.stops].sort((a, b) => a.weekday - b.weekday || a.start - b.start);
-      if (!feasible(proposed, agent)) continue;
-      stops = proposed; courses.add(section.course);
-      for (const stop of section.stops) used.set(stop.pool, (used.get(stop.pool) ?? 0) + 1);
-    }
-    if (courses.size) stats.weeklyEnrolledStudents++;
-    stats.weeklyEnrollments += courses.size;
+    };
+    scan(index.schools.get(affinity) ?? [], Math.max(0, target - 1), Math.floor(COURSE_CANDIDATE_ATTEMPTS * AFFINITY_ATTEMPT_SHARE), 'affinity');
+    scan(index.all, target, COURSE_CANDIDATE_ATTEMPTS - attempts, 'elective-fallback');
+    if (courseCount) stats.weeklyEnrolledStudents++;
+    stats.weeklyEnrollments += courseCount;
     enrollment.set(agent.id, stops);
   }
   stats.unassignedStudents = base.agents.length - stats.weeklyEnrolledStudents;

@@ -35,6 +35,8 @@ export interface EstimatedActivityProfile {
   participantRange?: [number, number];
 }
 export interface CampusLocation {
+  /** Capacity selected from the saved source/model basis, before playback. */
+  referenceCapacity?: number;
   estimatedProfile?: EstimatedActivityProfile;
   estimatedHousingProfile?: EstimatedHousingProfile;
   activityModeled?: boolean;
@@ -172,9 +174,16 @@ export class Playback {
   readonly data: DayData;
 
   constructor(data: DayData) {
+    for (const location of data.locations) {
+      if (!Number.isFinite(location.capacity) || location.capacity < 0
+        || location.referenceCapacity !== undefined && location.capacity !== location.referenceCapacity) {
+        throw new Error(`Capacity differs from its source/model basis: ${location.id}`);
+      }
+    }
     this.data = data;
     this.locations = data.locations;
     for (const agent of data.agents) {
+      if (this.agents.has(agent.id)) throw new Error(`Duplicate student: ${agent.id}`);
       this.agents.set(agent.id, agent);
       this.tripsByAgent.set(agent.id, []);
     }
@@ -241,8 +250,9 @@ export class Playback {
    */
   byBuilding(occupancy: Occupancy[]): BuildingOccupancy[] {
     const out = new Map<string, BuildingOccupancy>();
-    for (const { location, count, share, modeled = location.activityModeled !== false } of occupancy) {
+    for (const { location, count, modeled = location.activityModeled !== false } of occupancy) {
       if (location.kind === 'off-campus') continue;
+      const share = occupancyShare(count, location.capacity);
       const current = out.get(location.building);
       if (current && (Number(current.modeled !== false) > Number(modeled)
         || (current.modeled !== false) === modeled && (current.share > share || current.share === share && current.count >= count))) continue;
@@ -287,6 +297,11 @@ export class Playback {
       return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false };
     });
   }
+}
+
+export function occupancyShare(count: number, capacity: number): number {
+  if (!Number.isInteger(count) || count < 0 || !Number.isFinite(capacity) || capacity < 0) throw new Error('Invalid occupancy');
+  return capacity > 0 ? count / capacity : 0;
 }
 
 export function formatClock(seconds: number): string {
