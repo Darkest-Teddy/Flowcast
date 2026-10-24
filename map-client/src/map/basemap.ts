@@ -263,7 +263,9 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       ...BOSTON_LIMITS,
       antialias: true,
       config: {
-        basemap: { lightPreset, showPointOfInterestLabels: false, showTransitLabels: false },
+        // Standard's own 3D buildings are off from the start: we draw the city ourselves
+        // (excludeBuildings). Switching them off after load raced Mapbox's 3D tile loading.
+        basemap: { lightPreset, showPointOfInterestLabels: false, showTransitLabels: false, show3dBuildings: false, show3dFacades: false },
       },
     });
     map.setPadding(VIEW_PADDING);
@@ -307,8 +309,6 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         map.addLayer({ id: 'flowcast-clip', type: 'clip', source: 'flowcast-clip', layout: { 'clip-layer-types': ['model'] } });
       },
       excludeBuildings: (osmIds) => {
-        map.setConfigProperty('basemap', 'show3dBuildings', false);
-        map.setConfigProperty('basemap', 'show3dFacades', false);
         if (!map.getSource('flowcast-city')) {
           map.addSource('flowcast-city', { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' });
         }

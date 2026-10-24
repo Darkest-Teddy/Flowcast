@@ -35,6 +35,39 @@ export interface ShuttleVehicleReport {
 
 export const shuttleRouteId = (routeId: number) => `BU-${routeId}`;
 
+/**
+ * When each BU line runs (local time), for playback when there's no live "running" flag.
+ * Days are from bu.edu/thebus (route list). Hours are approximate: BU publishes them only in an
+ * interactive schedule tool. The Night line's 7 PM start is from TransLoc's own scheduled stop
+ * times; its end and the day lines' hours are estimates (day lines hand over to Night at 7 PM).
+ * days: 0 = Sunday ... 6 = Saturday. end may pass midnight (e.g. 26 = 2 AM next day).
+ */
+export interface ServiceWindow {
+  days: number[];
+  start: number; // hours
+  end: number; // hours, can exceed 24
+  source: string;
+}
+const WEEKDAYS = [1, 2, 3, 4, 5];
+export const SHUTTLE_SERVICE: Record<number, ServiceWindow> = {
+  1: { days: WEEKDAYS, start: 7, end: 19, source: 'days: bu.edu/thebus; hours estimated' }, // 1 BU (Charles River–Medical)
+  2: { days: WEEKDAYS, start: 7, end: 19, source: 'days: bu.edu/thebus; hours estimated' }, // Albany / E Newton
+  3: { days: WEEKDAYS, start: 7, end: 19, source: 'days: bu.edu/thebus; hours estimated' }, // Comm Ave
+  4: { days: [1, 2, 3, 4, 5, 6], start: 7, end: 19, source: 'days: bu.edu/thebus; hours estimated' }, // Fenway
+  6: { days: [0, 1, 2, 3, 4, 5, 6], start: 19, end: 26, source: 'start: TransLoc scheduled times; end estimated' }, // Night
+};
+
+/** Is a shuttle route in service at `seconds` since midnight on `weekday` (0 = Sunday)? */
+export function shuttleInService(route: TransitRoute, seconds: number, weekday: number): boolean {
+  const window = route.service;
+  if (!window) return true;
+  const hour = seconds / 3600;
+  // Today's window, or yesterday's window running past midnight.
+  if (window.days.includes(weekday) && hour >= window.start && hour < window.end) return true;
+  const yesterday = (weekday + 6) % 7;
+  return window.end > 24 && window.days.includes(yesterday) && hour + 24 < window.end;
+}
+
 function normaliseHex(value: string | null | undefined): string | null {
   const hex = value?.trim();
   return hex && /^#[0-9a-fA-F]{6}$/.test(hex) ? hex.toUpperCase() : null;
@@ -91,7 +124,9 @@ export async function loadShuttles(areas: TransitArea[]): Promise<ShuttleData> {
   const res = await fetch(`${API}/GetRoutesForMapWithScheduleWithEncodedLine`);
   if (!res.ok) throw new Error(`BU shuttle routes: ${res.status}`);
   const all: TlRoute[] = await res.json();
-  const shown = all.filter((r) => r.IsVisibleOnMap && r.IsRunning && r.EncodedPolyline);
+  // Every regular line (each one is shown only during its service hours; see shuttleInService).
+  // Seasonal lines (Thanksgiving, FitRec Snow Day) appear only while TransLoc says they're running.
+  const shown = all.filter((r) => r.IsVisibleOnMap && r.EncodedPolyline && (r.IsRunning || SHUTTLE_SERVICE[r.RouteID]));
 
   const stops = new Map<string, TransitStop>();
   const stopForRouteStop = new Map<number, string>();
@@ -119,6 +154,8 @@ export async function loadShuttles(areas: TransitArea[]): Promise<ShuttleData> {
       name: 'BU',
       longName: r.Description.trim(),
       kind: 'shuttle',
+      service: SHUTTLE_SERVICE[r.RouteID],
+      night: r.RouteID === 6,
       // The line in BU's own map colour (1 BU red, Comm Ave green, Fenway orange...); the
       // buses themselves are always BU red, as in real life.
       color: normaliseHex(r.MapLineColor) ?? BU_RED,
