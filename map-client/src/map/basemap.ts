@@ -424,10 +424,6 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     canvasContextAttributes: { antialias: quality.mode !== 'speed' },
     renderWorldCopies: false,
   });
-  // Pixel-ratio cap from the Performance setting (perf/quality.ts).
-  const stopQuality = quality.onChange((q) => {
-    if (map.getPixelRatio() !== q.pixelRatio) map.setPixelRatio(q.pixelRatio);
-  });
   map.setPadding(VIEW_PADDING);
   tameInteractions(map);
   await new Promise<void>((resolve) => map.once('load', () => resolve()));
@@ -447,32 +443,18 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       return [p.x, p.y];
     },
     getZoom: () => map.getZoom(),
-    remove: () => {
-      stopQuality();
-      map.remove();
-    },
+    remove: () => map.remove(),
     ...cameraApi(map as unknown as CameraMap, 85),
   };
 }
 
 /**
- * The Performance setting (perf/quality.ts) on Mapbox: the pixel-ratio cap, and in Speed mode
- * Standard's 3D objects (trees and the like) and footpaths off.
+ * The Performance setting (perf/quality.ts) on Mapbox: in Speed mode Standard's 3D objects (trees
+ * and the like) and footpaths off. (The pixel-ratio cap is applied once, before the map exists.)
  */
 function applyMapboxQuality(map: import('mapbox-gl').Map): () => void {
-  let pixelRatio = window.devicePixelRatio;
   const detail: Partial<Record<'show3dObjects' | 'showPedestrianRoads', boolean>> = {};
   return quality.onChange((q: QualitySettings) => {
-    // Mapbox v3 has no setPixelRatio and its resize() returns early when the container size is
-    // unchanged, so the canvas and render targets are resized directly (as resize() would).
-    if (q.pixelRatio !== pixelRatio) {
-      pixelRatio = q.pixelRatio;
-      const m = map as unknown as { _resizeCanvas(w: number, h: number): void; painter: { resize(w: number, h: number): void }; transform: { width: number; height: number } };
-      const { width, height } = m.transform;
-      m._resizeCanvas(width, height);
-      m.painter.resize(Math.ceil(width), Math.ceil(height));
-      map.triggerRepaint();
-    }
     const want = { show3dObjects: q.map3dObjects, showPedestrianRoads: q.mapPedestrianRoads };
     for (const [key, value] of Object.entries(want) as [keyof typeof want, boolean][]) {
       if (detail[key] === undefined && value) continue; // untouched until first turned off

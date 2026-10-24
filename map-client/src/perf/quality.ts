@@ -4,13 +4,14 @@
 // - Speed: a fixed low setting for weaker laptops (pixel ratio 1, fewer rain/snow particles, no lit
 //   windows, walkers only near the view, and Mapbox without shadows, trees or footpaths).
 // - Auto (default): Quality until the 1% low drops under 45 FPS, then one step down at a time
-//   towards Speed; back up a step when there's headroom again.
+//   towards Speed; back up a step when there's headroom again. (Everything but the pixel ratio,
+//   which only changes on a reload.)
 //
 // The pixel ratio is the big GPU lever: at 2x a 1920x1080 window renders 3840x2160 (with 4x MSAA)
 // every frame. Mapbox GL v3 has no pixelRatio option and reads window.devicePixelRatio live, and
 // in interleaved mode deck.gl draws into Mapbox's canvas (MapboxOverlay drops useDevicePixels),
-// so the one way to cap both is to cap window.devicePixelRatio and let Mapbox resize. CSS and
-// the HTML panels are unaffected: the browser lays out with the real ratio.
+// so the one way to cap both is to cap window.devicePixelRatio before the map is created. CSS and
+// the HTML panels are unaffected: the browser lays out with the real ratio. It's set once, at load.
 
 export type QualityMode = 'auto' | 'quality' | 'speed';
 
@@ -84,11 +85,10 @@ function emit() {
 }
 
 function apply(next: QualitySettings) {
-  const dprChanged = next.pixelRatio !== settings.pixelRatio;
+  // The pixel ratio stays what it was at load: changing it under a running map resized Mapbox's
+  // canvas but not deck.gl's view of it, so every model drew at the old scale, out of register
+  // with the streets (buildings floating). A new mode's ratio applies after a reload, like MSAA.
   settings = next;
-  dprCap = next.pixelRatio;
-  // Mapbox re-reads the ratio and resizes its canvas on a window resize.
-  if (dprChanged) window.dispatchEvent(new Event('resize'));
   for (const a of appliers) a(next);
   emit();
 }
@@ -99,6 +99,10 @@ export const quality = {
   },
   get settings() {
     return settings;
+  },
+  /** The pixel ratio actually in use (fixed at load; settings.pixelRatio is the wanted one). */
+  get pixelRatio() {
+    return dprCap;
   },
   /** For useSyncExternalStore. */
   subscribe(listener: Listener) {

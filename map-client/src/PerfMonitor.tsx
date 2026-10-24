@@ -139,10 +139,13 @@ export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
         ))}
       </div>
       <p className="perf-hint">
-        {perfSettings.pixelRatio.toFixed(2).replace(/\.?0+$/, '')}x pixels
+        {ratio(quality.pixelRatio)}x pixels
+        {mode !== 'auto' && perfSettings.pixelRatio !== quality.pixelRatio && ` (${ratio(perfSettings.pixelRatio)}x after reload)`}
         {mode === 'auto' && ` · level ${perfSettings.level}`}
         {mode === 'speed' && ' · no MSAA after reload'} · P to hide
       </p>
     </div>
   );
 }
+
+const ratio = (r: number) => r.toFixed(2).replace(/\.?0+$/, '');
