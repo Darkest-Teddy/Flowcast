@@ -47,7 +47,11 @@ export interface TransitTagsFrame {
    * MBTA + BU shuttle data and the source drawn on the map (live feed or schedule), or null when
    * hidden. `time` (sim seconds) and `weekday` (0 = Sunday) give the BU shuttles' service hours.
    */
-  transit: { data: TransitData; source: TransitSource; now: number; time: number; weekday: number } | null;
+  transit: { data: TransitData; source: TransitSource; now: number; time: number; weekday: number;
+    /** Modeled BU students aboard a vehicle, or null when the vehicle has no published trip. */
+    aboard?: (vehicleId: string) => number | null;
+    /** Modeled BU students waiting at each stop for a published departure. */
+    waiting?: Map<string, number> } | null;
   /** Bluebikes docks and their counts at the shown time, or null when hidden. */
   bikes: { stations: BikeStation[]; dockStatus: Map<string, DockEstimate> } | null;
 }
@@ -82,7 +86,11 @@ const routeBadge = (route: TransitRoute) => {
 const branchBadge = (letter: string) => `<span class="gtag-branch">${esc(letter)}</span>`;
 const routeLabel = (route: TransitRoute) => (route.kind === 'shuttle' ? 'BU Shuttle' : route.kind === 'subway' ? `Green Line ${route.name}` : `Bus ${route.name}`);
 
-function stationSpec(s: TransitStop, routes: Map<string, TransitRoute>, source: TransitSource): GlassTagSpec {
+const waitingStat = (count: number | undefined) =>
+  count ? `<span class="gtag-sep">·</span><span class="gtag-arr"><b>${count}</b>&nbsp;BU waiting</span>` : '';
+const waitingLabel = (count: number | undefined) => (count ? ` ${count} BU students waiting (modeled).` : '');
+
+function stationSpec(s: TransitStop, routes: Map<string, TransitRoute>, source: TransitSource, waiting?: number): GlassTagSpec {
   // Trains only: Kenmore is also a stop for the 57 and other buses.
   const next: Partial<Record<0 | 1, Arrival>> = {};
   for (const a of source.nextArrivals(s.id)) {
@@ -103,17 +111,18 @@ function stationSpec(s: TransitStop, routes: Map<string, TransitRoute>, source: 
         .join('<span class="gtag-sep">·</span>')
     : '<span class="gtag-dir">No predictions</span>';
   const name = esc(s.short);
+  const crowd = waitingStat(waiting);
   const html =
     `<span class="gtag-icon gtag-icon--t">${T_ROUNDEL}</span>` +
     `<span class="gtag-text"><span class="gtag-name">${name}${branches.map((b) => branchBadge(b.name)).join('')}${arriving ? PULSE : ''}</span>` +
-    `<span class="gtag-stats">${stats}</span></span>`;
+    `<span class="gtag-stats">${stats}${crowd}</span></span>`;
   const compact = `<span class="gtag-picon">${T_ROUNDEL}</span><span class="gtag-pname">${name}</span>${arriving ? PULSE : ''}`;
-  const label = `${s.short} station. ${parts.length ? parts.map((p) => `${p.dir}${p.branch ? ` ${p.branch}` : ''}: ${p.when}`).join(', ') : 'No predictions'}.`;
+  const label = `${s.short} station. ${parts.length ? parts.map((p) => `${p.dir}${p.branch ? ` ${p.branch}` : ''}: ${p.when}`).join(', ') : 'No predictions'}.${waitingLabel(waiting)}`;
   return { id: s.id, key: html + compact, html, compact, label, className: arriving ? 'is-arriving' : '' };
 }
 
 /** Soonest bus or shuttle per route at a stop; null when nothing is predicted. */
-function stopSpec(s: TransitStop, routes: Map<string, TransitRoute>, source: TransitSource): GlassTagSpec | null {
+function stopSpec(s: TransitStop, routes: Map<string, TransitRoute>, source: TransitSource, waiting?: number): GlassTagSpec | null {
   const soonest = new Map<string, Arrival>();
   for (const a of source.nextArrivals(s.id)) {
     const kind = routes.get(a.route)?.kind;
@@ -138,9 +147,9 @@ function stopSpec(s: TransitStop, routes: Map<string, TransitRoute>, source: Tra
   const html =
     `<span class="gtag-icon ${shuttleOnly ? 'gtag-icon--bu' : 'gtag-icon--bus'}">${BUS_ICON}</span>` +
     `<span class="gtag-text"><span class="gtag-name gtag-name--stop">${esc(name)}</span>` +
-    `<span class="gtag-stats">${list.map((e) => `<span class="gtag-arr">${routeBadge(e.route)}<b>${when(e.times)}</b></span>`).join('')}</span></span>`;
+    `<span class="gtag-stats">${list.map((e) => `<span class="gtag-arr">${routeBadge(e.route)}<b>${when(e.times)}</b></span>`).join('')}${waitingStat(waiting)}</span></span>`;
   const compact = list.map((e) => routeBadge(e.route)).join('') + (arriving ? PULSE : '');
-  const label = `Stop ${name}. ${list.map((e) => `${routeLabel(e.route)}: ${when(e.times)}`).join(', ')}.`;
+  const label = `Stop ${name}. ${list.map((e) => `${routeLabel(e.route)}: ${when(e.times)}`).join(', ')}.${waitingLabel(waiting)}`;
   return { id: s.id, key: html + compact, html, compact, label, className: arriving ? 'is-arriving' : '' };
 }
 
@@ -163,7 +172,7 @@ function dockSpec(s: BikeStation, e: DockEstimate): GlassTagSpec {
 
 const STATUS: Record<string, string> = { STOPPED_AT: 'Stopped', INCOMING_AT: 'Arriving', IN_TRANSIT_TO: 'Moving' };
 
-function vehicleSpec(v: Vehicle, routes: Map<string, TransitRoute>): GlassTagSpec {
+function vehicleSpec(v: Vehicle, routes: Map<string, TransitRoute>, aboard: number | null): GlassTagSpec {
   const route = routes.get(v.route);
   const title = !route ? v.route : route.kind === 'subway' ? 'Green Line' : route.kind === 'shuttle' ? 'BU Shuttle' : `Bus ${route.name}`;
   const badge = route ? (route.kind === 'subway' ? branchBadge(route.name) : routeBadge(route)) : '';
@@ -171,8 +180,9 @@ function vehicleSpec(v: Vehicle, routes: Map<string, TransitRoute>): GlassTagSpe
   const status = STATUS[v.status] ?? v.status;
   const html =
     `<span class="gtag-text"><span class="gtag-name">${badge}${esc(title)}</span>` +
-    `<span class="gtag-stats"><span class="gtag-dir">${esc(where)}</span><span class="gtag-sep">·</span><b>${esc(status)}</b></span></span>`;
-  return { id: v.id, key: html, html, compact: '', label: `${title}, ${where}, ${status}` };
+    `<span class="gtag-stats"><span class="gtag-dir">${esc(where)}</span><span class="gtag-sep">·</span><b>${esc(status)}</b>` +
+    `${aboard === null ? '' : `<span class="gtag-sep">·</span><span class="gtag-arr" title="Modeled BU students on this published trip; other riders are not modeled"><b>${aboard}</b>&nbsp;BU aboard</span>`}</span></span>`;
+  return { id: v.id, key: html, html, compact: '', label: `${title}, ${where}, ${status}${aboard === null ? '' : `, ${aboard} modeled BU students aboard`}` };
 }
 
 export function TransitTags({ ref }: { ref: Ref<TransitTagsHandle> }) {
@@ -240,7 +250,7 @@ export function TransitTags({ ref }: { ref: Ref<TransitTagsHandle> }) {
           const { data, source } = transit;
           // BU shuttle lines only during their service hours, as on the map.
           const routes = new Map(
-            data.routes.filter((r) => r.kind !== 'shuttle' || shuttleInService(r, transit.time, transit.weekday)).map((r) => [r.id, r]),
+            data.routes.filter((r) => r.kind !== 'shuttle' || (source.inService?.(r.id) ?? shuttleInService(r, transit.time, transit.weekday))).map((r) => [r.id, r]),
           );
           const stationItems: GlassTagItem[] = [];
           const stopItems: GlassTagItem[] = [];
@@ -249,9 +259,9 @@ export function TransitTags({ ref }: { ref: Ref<TransitTagsHandle> }) {
             const anchor = project(stop.position);
             if (!onScreen(anchor)) continue;
             if (stop.kind === 'station') {
-              stationItems.push({ spec: spec(stop.id, () => stationSpec(stop, routes, source)), anchor });
+              stationItems.push({ spec: spec(stop.id, () => stationSpec(stop, routes, source, transit.waiting?.get(stop.id))), anchor });
             } else {
-              const stopTag = spec<GlassTagSpec | null>(stop.id, () => stopSpec(stop, routes, source));
+              const stopTag = spec<GlassTagSpec | null>(stop.id, () => stopSpec(stop, routes, source, transit.waiting?.get(stop.id)));
               if (stopTag) stopItems.push({ spec: stopTag, anchor });
             }
           }
@@ -264,7 +274,7 @@ export function TransitTags({ ref }: { ref: Ref<TransitTagsHandle> }) {
           if (vehicle) {
             const [x, y] = project(vehicle.position);
             // Above the vehicle, clear of its model; never dropped by the placer.
-            pools.vehicle.update([{ spec: vehicleSpec(vehicle, routes), anchor: [x, y - 10] }], null, { direction: -1, gap: 26, alwaysOpen: true });
+            pools.vehicle.update([{ spec: vehicleSpec(vehicle, routes, transit.aboard?.(vehicle.id) ?? null), anchor: [x, y - 10] }], null, { direction: -1, gap: 26, alwaysOpen: true });
           } else {
             if (s.pinned) s.pinned = null; // it left the feed
             pools.vehicle.hideAll();

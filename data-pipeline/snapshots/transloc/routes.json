@@ -1,0 +1,594 @@
+{
+ "source": "https://bu.transloc.com/Services/JSONPRelay.svc/GetRoutesForMapWithScheduleWithEncodedLine",
+ "retrievedAt": "2026-10-24T20:57:00Z",
+ "routes": [
+  {
+   "RouteID": 1,
+   "Description": "1 BU (Charles River-Medical Campus)",
+   "GtfsId": "TL-1",
+   "Stops": [
+    {
+     "AddressID": 1,
+     "RouteStopID": 1,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    },
+    {
+     "AddressID": 2,
+     "RouteStopID": 2,
+     "Description": "Comm Ave @ Amory St",
+     "Latitude": 42.3507849361,
+     "Longitude": -71.1139473222
+    },
+    {
+     "AddressID": 3,
+     "RouteStopID": 3,
+     "Description": "Comm Ave @ St Mary's St",
+     "Latitude": 42.349794,
+     "Longitude": -71.106392
+    },
+    {
+     "AddressID": 4,
+     "RouteStopID": 4,
+     "Description": "Comm Ave @ Blandford St",
+     "Latitude": 42.3491031592,
+     "Longitude": -71.1002432026
+    },
+    {
+     "AddressID": 5,
+     "RouteStopID": 5,
+     "Description": "Kenmore Sq (500 Comm)",
+     "Latitude": 42.348724,
+     "Longitude": -71.095525
+    },
+    {
+     "AddressID": 6,
+     "RouteStopID": 6,
+     "Description": "Hynes T Station (to BUMC)",
+     "Latitude": 42.347956,
+     "Longitude": -71.088215
+    },
+    {
+     "AddressID": 7,
+     "RouteStopID": 7,
+     "Description": "Mass Ave T Station (to BUMC)",
+     "Latitude": 42.3415539021,
+     "Longitude": -71.08332932
+    },
+    {
+     "AddressID": 8,
+     "RouteStopID": 8,
+     "Description": "BU Medical Campus (710 Albany)",
+     "Latitude": 42.335297,
+     "Longitude": -71.070892
+    },
+    {
+     "AddressID": 9,
+     "RouteStopID": 9,
+     "Description": "Mass Ave T Station (to CRC)",
+     "Latitude": 42.341696,
+     "Longitude": -71.083129
+    },
+    {
+     "AddressID": 10,
+     "RouteStopID": 10,
+     "Description": "Hynes T Station (to CRC)",
+     "Latitude": 42.348031,
+     "Longitude": -71.087944
+    },
+    {
+     "AddressID": 11,
+     "RouteStopID": 11,
+     "Description": "Danielsen Hall",
+     "Latitude": 42.350667,
+     "Longitude": -71.090475
+    },
+    {
+     "AddressID": 12,
+     "RouteStopID": 12,
+     "Description": "610 Beacon St",
+     "Latitude": 42.349631,
+     "Longitude": -71.094372
+    },
+    {
+     "AddressID": 13,
+     "RouteStopID": 13,
+     "Description": "Comm Ave @ Silber Way",
+     "Latitude": 42.349507,
+     "Longitude": -71.100737
+    },
+    {
+     "AddressID": 14,
+     "RouteStopID": 14,
+     "Description": "Marsh Plaza",
+     "Latitude": 42.350159,
+     "Longitude": -71.106337
+    },
+    {
+     "AddressID": 15,
+     "RouteStopID": 15,
+     "Description": "Comm Ave @ Buick St",
+     "Latitude": 42.351409,
+     "Longitude": -71.11594
+    },
+    {
+     "AddressID": 1,
+     "RouteStopID": 85,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    }
+   ]
+  },
+  {
+   "RouteID": 2,
+   "Description": "Albany/E Newton Street ",
+   "GtfsId": "TL-2",
+   "Stops": [
+    {
+     "AddressID": 16,
+     "RouteStopID": 23,
+     "Description": "Student Residence (815 Albany St)",
+     "Latitude": 42.3322326936,
+     "Longitude": -71.0755212222
+    },
+    {
+     "AddressID": 17,
+     "RouteStopID": 24,
+     "Description": "720 Albany Street",
+     "Latitude": 42.3347760474,
+     "Longitude": -71.0715647404
+    },
+    {
+     "AddressID": 25,
+     "RouteStopID": 52,
+     "Description": "Talbot Green",
+     "Latitude": 42.3361252042,
+     "Longitude": -71.0714851863
+    },
+    {
+     "AddressID": 16,
+     "RouteStopID": 53,
+     "Description": "Student Residence (815 Albany St)",
+     "Latitude": 42.3322326936,
+     "Longitude": -71.0755212222
+    }
+   ]
+  },
+  {
+   "RouteID": 3,
+   "Description": "Comm Ave",
+   "GtfsId": "TL-3",
+   "Stops": [
+    {
+     "AddressID": 1,
+     "RouteStopID": 16,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    },
+    {
+     "AddressID": 2,
+     "RouteStopID": 17,
+     "Description": "Comm Ave @ Amory St",
+     "Latitude": 42.3507849361,
+     "Longitude": -71.1139473222
+    },
+    {
+     "AddressID": 3,
+     "RouteStopID": 18,
+     "Description": "Comm Ave @ St Mary's St",
+     "Latitude": 42.349794,
+     "Longitude": -71.106392
+    },
+    {
+     "AddressID": 4,
+     "RouteStopID": 19,
+     "Description": "Comm Ave @ Blandford St",
+     "Latitude": 42.3491031592,
+     "Longitude": -71.1002432026
+    },
+    {
+     "AddressID": 13,
+     "RouteStopID": 20,
+     "Description": "Comm Ave @ Silber Way",
+     "Latitude": 42.349507,
+     "Longitude": -71.100737
+    },
+    {
+     "AddressID": 14,
+     "RouteStopID": 21,
+     "Description": "Marsh Plaza",
+     "Latitude": 42.350159,
+     "Longitude": -71.106337
+    },
+    {
+     "AddressID": 15,
+     "RouteStopID": 22,
+     "Description": "Comm Ave @ Buick St",
+     "Latitude": 42.351409,
+     "Longitude": -71.11594
+    },
+    {
+     "AddressID": 1,
+     "RouteStopID": 50,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    }
+   ]
+  },
+  {
+   "RouteID": 4,
+   "Description": "Fenway",
+   "GtfsId": "TL-4",
+   "Stops": [
+    {
+     "AddressID": 1,
+     "RouteStopID": 25,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    },
+    {
+     "AddressID": 2,
+     "RouteStopID": 26,
+     "Description": "Comm Ave @ Amory St",
+     "Latitude": 42.3507849361,
+     "Longitude": -71.1139473222
+    },
+    {
+     "AddressID": 3,
+     "RouteStopID": 27,
+     "Description": "Comm Ave @ St Mary's St",
+     "Latitude": 42.349794,
+     "Longitude": -71.106392
+    },
+    {
+     "AddressID": 4,
+     "RouteStopID": 28,
+     "Description": "Comm Ave @ Blandford St",
+     "Latitude": 42.3491031592,
+     "Longitude": -71.1002432026
+    },
+    {
+     "AddressID": 18,
+     "RouteStopID": 29,
+     "Description": "Park Dr @ Fenway Stn SB",
+     "Latitude": 42.345334,
+     "Longitude": -71.104542
+    },
+    {
+     "AddressID": 19,
+     "RouteStopID": 30,
+     "Description": "Brookline Ave @ Pilgrim Rd",
+     "Latitude": 42.342339,
+     "Longitude": -71.103837
+    },
+    {
+     "AddressID": 26,
+     "RouteStopID": 55,
+     "Description": "Brookline Ave @ Short St",
+     "Latitude": 42.3405150449,
+     "Longitude": -71.1057767272
+    },
+    {
+     "AddressID": 20,
+     "RouteStopID": 31,
+     "Description": "Park Dr @ Fenway Stn NB",
+     "Latitude": 42.345249,
+     "Longitude": -71.104263
+    },
+    {
+     "AddressID": 13,
+     "RouteStopID": 32,
+     "Description": "Comm Ave @ Silber Way",
+     "Latitude": 42.349507,
+     "Longitude": -71.100737
+    },
+    {
+     "AddressID": 14,
+     "RouteStopID": 33,
+     "Description": "Marsh Plaza",
+     "Latitude": 42.350159,
+     "Longitude": -71.106337
+    },
+    {
+     "AddressID": 15,
+     "RouteStopID": 34,
+     "Description": "Comm Ave @ Buick St",
+     "Latitude": 42.351409,
+     "Longitude": -71.11594
+    },
+    {
+     "AddressID": 1,
+     "RouteStopID": 51,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    }
+   ]
+  },
+  {
+   "RouteID": 6,
+   "Description": "Night",
+   "GtfsId": "TL-6",
+   "Stops": [
+    {
+     "AddressID": 1,
+     "RouteStopID": 38,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    },
+    {
+     "AddressID": 2,
+     "RouteStopID": 39,
+     "Description": "Comm Ave @ Amory St",
+     "Latitude": 42.3507849361,
+     "Longitude": -71.1139473222
+    },
+    {
+     "AddressID": 23,
+     "RouteStopID": 40,
+     "Description": "South Campus (514 Park)",
+     "Latitude": 42.3479689452,
+     "Longitude": -71.1058331534
+    },
+    {
+     "AddressID": 19,
+     "RouteStopID": 41,
+     "Description": "Fenway Campus (255 Brookline)",
+     "Latitude": 42.342339,
+     "Longitude": -71.103837
+    },
+    {
+     "AddressID": 26,
+     "RouteStopID": 56,
+     "Description": "Brookline Ave @ Short St",
+     "Latitude": 42.3405150449,
+     "Longitude": -71.1057767272
+    },
+    {
+     "AddressID": 11,
+     "RouteStopID": 42,
+     "Description": "Danielsen Hall",
+     "Latitude": 42.350667,
+     "Longitude": -71.090475
+    },
+    {
+     "AddressID": 12,
+     "RouteStopID": 43,
+     "Description": "610 Beacon St",
+     "Latitude": 42.349631,
+     "Longitude": -71.094372
+    },
+    {
+     "AddressID": 13,
+     "RouteStopID": 44,
+     "Description": "Comm Ave @ Silber Way",
+     "Latitude": 42.349507,
+     "Longitude": -71.100737
+    },
+    {
+     "AddressID": 24,
+     "RouteStopID": 45,
+     "Description": "Comm Ave @ Granby St",
+     "Latitude": 42.349824,
+     "Longitude": -71.103805
+    },
+    {
+     "AddressID": 14,
+     "RouteStopID": 46,
+     "Description": "Marsh Plaza",
+     "Latitude": 42.350159,
+     "Longitude": -71.106337
+    },
+    {
+     "AddressID": 22,
+     "RouteStopID": 47,
+     "Description": "George Sherman Union",
+     "Latitude": 42.35056,
+     "Longitude": -71.108991
+    },
+    {
+     "AddressID": 15,
+     "RouteStopID": 49,
+     "Description": "Comm Ave @ Buick St",
+     "Latitude": 42.351409,
+     "Longitude": -71.11594
+    },
+    {
+     "AddressID": 1,
+     "RouteStopID": 54,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    }
+   ]
+  },
+  {
+   "RouteID": 8,
+   "Description": "BU - FitRec Snow Day",
+   "GtfsId": "TL-8",
+   "Stops": [
+    {
+     "AddressID": 1,
+     "RouteStopID": 71,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    },
+    {
+     "AddressID": 2,
+     "RouteStopID": 72,
+     "Description": "Comm Ave @ Amory St",
+     "Latitude": 42.3507849361,
+     "Longitude": -71.1139473222
+    },
+    {
+     "AddressID": 23,
+     "RouteStopID": 73,
+     "Description": "South Campus (514 Park)",
+     "Latitude": 42.3479689452,
+     "Longitude": -71.1058331534
+    },
+    {
+     "AddressID": 19,
+     "RouteStopID": 74,
+     "Description": "Fenway Campus (255 Brookline)",
+     "Latitude": 42.342339,
+     "Longitude": -71.103837
+    },
+    {
+     "AddressID": 26,
+     "RouteStopID": 84,
+     "Description": "Brookline Ave @ Short St",
+     "Latitude": 42.3405150449,
+     "Longitude": -71.1057767272
+    },
+    {
+     "AddressID": 11,
+     "RouteStopID": 75,
+     "Description": "Danielsen Hall",
+     "Latitude": 42.350667,
+     "Longitude": -71.090475
+    },
+    {
+     "AddressID": 12,
+     "RouteStopID": 76,
+     "Description": "610 Beacon St",
+     "Latitude": 42.349631,
+     "Longitude": -71.094372
+    },
+    {
+     "AddressID": 13,
+     "RouteStopID": 77,
+     "Description": "Comm Ave @ Silber Way",
+     "Latitude": 42.349507,
+     "Longitude": -71.100737
+    },
+    {
+     "AddressID": 24,
+     "RouteStopID": 78,
+     "Description": "Comm Ave @ Granby St",
+     "Latitude": 42.349824,
+     "Longitude": -71.103805
+    },
+    {
+     "AddressID": 14,
+     "RouteStopID": 79,
+     "Description": "Marsh Plaza",
+     "Latitude": 42.350159,
+     "Longitude": -71.106337
+    },
+    {
+     "AddressID": 22,
+     "RouteStopID": 80,
+     "Description": "George Sherman Union",
+     "Latitude": 42.35056,
+     "Longitude": -71.108991
+    },
+    {
+     "AddressID": 15,
+     "RouteStopID": 82,
+     "Description": "Comm Ave @ Buick St",
+     "Latitude": 42.351409,
+     "Longitude": -71.11594
+    },
+    {
+     "AddressID": 1,
+     "RouteStopID": 83,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    }
+   ]
+  },
+  {
+   "RouteID": 7,
+   "Description": "BU - Thanksgiving ",
+   "GtfsId": "TL-7",
+   "Stops": [
+    {
+     "AddressID": 1,
+     "RouteStopID": 57,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    },
+    {
+     "AddressID": 2,
+     "RouteStopID": 58,
+     "Description": "Comm Ave @ Amory St",
+     "Latitude": 42.3507849361,
+     "Longitude": -71.1139473222
+    },
+    {
+     "AddressID": 23,
+     "RouteStopID": 59,
+     "Description": "South Campus (514 Park)",
+     "Latitude": 42.3479689452,
+     "Longitude": -71.1058331534
+    },
+    {
+     "AddressID": 19,
+     "RouteStopID": 60,
+     "Description": "Fenway Campus (255 Brookline)",
+     "Latitude": 42.342339,
+     "Longitude": -71.103837
+    },
+    {
+     "AddressID": 26,
+     "RouteStopID": 70,
+     "Description": "Brookline Ave @ Short St",
+     "Latitude": 42.3405150449,
+     "Longitude": -71.1057767272
+    },
+    {
+     "AddressID": 11,
+     "RouteStopID": 61,
+     "Description": "Danielsen Hall",
+     "Latitude": 42.350667,
+     "Longitude": -71.090475
+    },
+    {
+     "AddressID": 12,
+     "RouteStopID": 62,
+     "Description": "610 Beacon St",
+     "Latitude": 42.349631,
+     "Longitude": -71.094372
+    },
+    {
+     "AddressID": 24,
+     "RouteStopID": 64,
+     "Description": "Comm Ave @ Granby St",
+     "Latitude": 42.349824,
+     "Longitude": -71.103805
+    },
+    {
+     "AddressID": 22,
+     "RouteStopID": 66,
+     "Description": "George Sherman Union",
+     "Latitude": 42.35056,
+     "Longitude": -71.108991
+    },
+    {
+     "AddressID": 15,
+     "RouteStopID": 68,
+     "Description": "Comm Ave @ Buick St",
+     "Latitude": 42.351409,
+     "Longitude": -71.11594
+    },
+    {
+     "AddressID": 1,
+     "RouteStopID": 69,
+     "Description": "Agganis Way",
+     "Latitude": 42.353171,
+     "Longitude": -71.118104
+    }
+   ]
+  }
+ ]
+}

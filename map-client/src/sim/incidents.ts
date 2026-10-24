@@ -1,4 +1,5 @@
 import type { CampusLocation, DayData, Stay, StayPurpose, Trip, WalkRoute } from './playback';
+import { ALIGHT_SECONDS, MAX_STOP_WAIT_SECONDS } from './transitService';
 import {
   ACTIVITY_DECISION_ASSUMPTIONS, minimumUseful, POLICY_KINDS, purposeResolver, RELOCATABLE_KINDS, VenueLedger, venueOpenFor,
   type IncidentActivity, type IncidentContext, type IncidentDecision,
@@ -66,6 +67,7 @@ export const INCIDENT_LIMITATIONS = [
   'Reaction (15–90 seconds), estimated stair descent, shared-footprint exit flow (2 persons/second), muster (60 seconds), and return flow (1 person/second) are uncalibrated assumptions. Closures reuse the same reaction, stair and exit-flow values for clearing.',
   'Closures have no assembly, muster or extension. An occupant whose saved schedule leaves the building before a round trip to the nearest saved-route location and back could finish leaves early on that saved walk (cancelled); others wait at that nearest location, whose access and capacity are not checked, and return after reopening (interrupted).',
   'Restrictions apply to building visits. Unchanged through-traffic on saved paths can cross closed footprints.',
+  'Published transit rides are retained only when the changed walking itinerary can still reach them; missed rides are removed without choosing a replacement service.',
   'Saved paths are reversible; no emergency exits, accessible egress, hazard spread, pedestrian exclusion zones or assembly capacity are modeled.',
   'Arrivals wait at origin or retrace their traveled approach. A visit that would end before they could reach it is skipped when a saved route or saved return connects; otherwise the original walk is replayed. Class end times are never shifted.',
   'Requires complete explicit daily timelines and one incident on an immutable baseline. Scenarios whose drill muster or closure clearing exceed midnight are rejected.',
@@ -695,6 +697,31 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       }
     }
   }
-  return { day: { ...day, locations: assemblyLocation ? [...day.locations, assemblyLocation] : day.locations, trips, stays },
+  // Keep only published rides still reachable after replanning. Missed services are not replaced
+  // with invented departures; unchanged journeys retain their original boarding records.
+  const changedWalks = new Map<string, Trip[]>(), changedOffMap = new Map<string, Stay[]>();
+  if (day.transitRides?.length) {
+    for (const trip of trips) if (affected.has(trip.agent) && (trip.from === 'off-campus' || trip.to === 'off-campus')) {
+      const list = changedWalks.get(trip.agent) ?? []; list.push(trip); changedWalks.set(trip.agent, list);
+    }
+    for (const item of stays) if (affected.has(item.agent) && item.location === 'off-campus') {
+      const list = changedOffMap.get(item.agent) ?? []; list.push(item); changedOffMap.set(item.agent, list);
+    }
+  }
+  const transitRides = day.transitRides?.flatMap(ride => {
+    if (!affected.has(ride.agent) || ride.time < incident.start) return [ride];
+    const walks = changedWalks.get(ride.agent) ?? [], offMap = changedOffMap.get(ride.agent) ?? [];
+    if (ride.kind === 'alight') {
+      const walk = walks.find(trip => trip.from === 'off-campus'
+        && Math.abs(trip.timestamps[0] - ride.time - ALIGHT_SECONDS) < EPS && samePoint(trip.path[0], ride.position));
+      return walk && offMap.some(item => item.start <= ride.time && item.end >= walk.timestamps[0]) ? [ride] : [];
+    }
+    const walk = walks.find(trip => trip.to === 'off-campus' && endOf(trip) <= ride.time
+      && ride.time - endOf(trip) <= MAX_STOP_WAIT_SECONDS && samePoint(trip.path.at(-1)!, ride.position)
+      && offMap.some(item => Math.abs(item.start - endOf(trip)) < EPS && item.end > ride.time));
+    return walk ? [{ ...ride, waitStart: endOf(walk) }] : [];
+  });
+  return { day: { ...day, locations: assemblyLocation ? [...day.locations, assemblyLocation] : day.locations, trips, stays,
+    ...(transitRides ? { transitRides } : {}) },
     affectedAgents: affected.size, assemblyLocation, assemblyClearanceMetres, participants, requestedEndsAt, endsAt };
 }
