@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, useResource } from '../data/api';
 import type { NotificationPrefs } from '../data/types';
-import { savedTheme, setTheme, type ThemeChoice } from '../lib/theme';
+import { savedTheme, savedTransparency, setTheme, setTransparency, type ThemeChoice } from '../lib/theme';
 import { Button, Loading, Page, PageHeader, SectionHeading, Segmented, Toggle } from '../ui';
 import styles from './Settings.module.css';
 
@@ -25,12 +25,20 @@ const notificationRows: { key: keyof NotificationPrefs; label: string; descripti
 
 export default function Settings() {
   const [theme, setThemeChoice] = useState<ThemeChoice>(savedTheme);
+  const [reduced, setReduced] = useState(savedTransparency);
+  // The device setting wins in tokens.css, so the switch shows it and can't turn it off.
+  const [systemReduced] = useState(() => window.matchMedia?.('(prefers-reduced-transparency: reduce)').matches ?? false);
   const prefs = useResource(() => api.getNotificationPrefs());
   const [error, setError] = useState<string | null>(null);
 
   function chooseTheme(choice: ThemeChoice) {
     setThemeChoice(choice);
     setTheme(choice);
+  }
+
+  function chooseTransparency(on: boolean) {
+    setReduced(on);
+    setTransparency(on);
   }
 
   async function togglePref(key: keyof NotificationPrefs, on: boolean) {
@@ -68,6 +76,17 @@ export default function Settings() {
             ]}
           />
         </div>
+        <Toggle
+          label="Reduce transparency"
+          description={
+            systemReduced
+              ? 'Your device’s Reduce transparency setting is on, so Flowcast already uses solid backgrounds.'
+              : 'Use solid backgrounds instead of see-through glass.'
+          }
+          checked={reduced || systemReduced}
+          disabled={systemReduced}
+          onChange={chooseTransparency}
+        />
       </div>
 
       <SectionHeading>Notifications</SectionHeading>
