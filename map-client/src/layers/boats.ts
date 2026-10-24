@@ -12,6 +12,8 @@ import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color } from '@deck.gl/core';
 import { BOAT_VARIANTS, DEFAULT_WIND_FROM, Fleet, type BoatState, type RiverData } from '../sim/boats';
+import { boxAround, setCullBox } from './culling';
+import { stableList } from './stable';
 
 const COLOURS = ['sailboat', 'sailboat-navy', 'sailboat-green'] as const;
 const TRIMS = ['close', 'run'] as const;
@@ -90,10 +92,15 @@ export function boatLayers({ boats, time, zoom, windFromDegrees = DEFAULT_WIND_F
   for (let variant = 0; variant < BOAT_VARIANTS; variant++) {
     for (const trim of TRIMS) {
       const key = `${variant}-${trim}`;
+      // Same boats as last frame: same array, so their colours aren't re-uploaded every frame
+      // (position, attitude and scale still are: they bob). Empty and off-screen layers skip their draws.
+      const data = stableList(`boats-${key}`, states.filter((b) => b.variant === variant && b.trim === trim), (b) => b.id);
+      setCullBox(`boats-${key}`, boxAround(data.map((b) => b.position), 10 * sizeScale, 12 * sizeScale, -2));
       layers.push(
         new ScenegraphLayer<BoatState>({
           id: `boats-${key}`,
-          data: states.filter((b) => b.variant === variant && b.trim === trim),
+          data,
+          visible: data.length > 0,
           scenegraph: boats.models[key] as never,
           _lighting: 'pbr',
           sizeScale,
