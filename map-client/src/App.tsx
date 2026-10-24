@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
@@ -8,6 +8,7 @@ import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer } from './layers/placement';
+import { cullLayers } from './layers/culling';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
 import { loadMonuments, monumentLayers } from './layers/monuments';
@@ -34,7 +35,8 @@ import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/we
 import { calibrateCapacities } from './sim/calibrate';
 import { riderLayers, withRiders } from './layers/riders';
 import { RiderSim } from './sim/riders';
-import { precipitationLayers } from './weather/precipitation';
+import { precipitationLayers, setParticleScale } from './weather/precipitation';
+import { quality } from './perf/quality';
 import {
   BikeReplay,
   BluebikesFeed,
@@ -51,6 +53,11 @@ import { ActivityChart } from './ActivityChart';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
+
+// The HUD re-renders the app twice a second; these only need to when their own props change.
+const MemoPerfMonitor = memo(PerfMonitor);
+const MemoCameraControls = memo(CameraControls);
+const MemoWeatherControls = memo(WeatherControls);
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
@@ -257,6 +264,8 @@ export default function App() {
       overlay = new MapboxOverlay({
         interleaved: new URLSearchParams(window.location.search).get('interleaved') !== '0',
         _animate: true, // keeps the walk cycles ticking between data updates
+        // Skips drawing models that are wholly off-screen (see layers/culling.ts).
+        layerFilter: cullLayers,
         // Hovering a building or a stop/dock dot expands its tag.
         onHover: ({ object }: PickingInfo) => {
           tagsRef.current?.hoverBuilding(buildingUnder(object));
@@ -314,7 +323,7 @@ export default function App() {
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, transitRef, bikesRef, populationBase } });
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, transitRef, bikesRef, populationBase, quality } });
       setStatus('');
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
@@ -326,6 +335,9 @@ export default function App() {
       const riders = transitRef.current ? new RiderSim(day, transitRef.current.data, transitRef.current.feed.tracks) : null;
       let mobilityKey = '';
       let currentMobility: MobilityView | null = null;
+      let buildings: BuildingOccupancy[] = [];
+      let buildingsFrom: Occupancy[] | null = null;
+      let buildingsPlayback: Playback | null = null;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       const tick = (now: number) => {
         const elapsed = now - last;
@@ -364,6 +376,10 @@ export default function App() {
           mobilityKey = nextMobilityKey;
           setMobilityView(currentMobility);
         }
+        // Performance setting (perf/quality.ts): Auto watches these frame times.
+        quality.frame(now);
+        const q = quality.settings;
+        setParticleScale(q.particles);
         const walking = playback.walkingAt(t);
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
@@ -377,7 +393,12 @@ export default function App() {
         }
         // One placer per frame, shared by every label layer: building tags first, then stations.
         const placer = createPlacer(basemap.project);
-        const buildings = splitSharedTags(playback.byBuilding(occupancy), occupancy, day.buildings, roofHeights);
+        // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
+        if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
+          buildings = splitSharedTags(playback.byBuilding(occupancy), occupancy, day.buildings, roofHeights);
+          buildingsFrom = occupancy;
+          buildingsPlayback = playback;
+        }
         tagsRef.current?.update({
           buildings,
           footprints: day.buildings,
@@ -414,7 +435,7 @@ export default function App() {
         });
         const frameLayers = [
           ...(detailedBuildings
-            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' })
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows })
             : []),
           ...crowdLayers({
             // Every tracked building, modelled or not: the glow is light around and on top of
@@ -437,7 +458,7 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(withRiders(walking, riders, showTransitRef.current), models, t, { zoom: basemap.getZoom() }),
+          ...agentLayers(nearView(withRiders(walking, riders, showTransitRef.current), basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
           ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
@@ -490,6 +511,10 @@ export default function App() {
   };
 
   const getPerfCounts = useCallback(() => perfRef.current, []);
+  const onWeather = useCallback((w: ActiveWeather) => {
+    weatherRef.current = w;
+    setWeather(w);
+  }, []);
 
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
@@ -574,6 +599,11 @@ export default function App() {
   const ranked = hud
     ? hud.occupancy.filter((o) => (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
     : [];
+  // The camera tour only cares which places are in the campus (it re-picks when that set changes),
+  // so it gets a new list only then, not on every HUD refresh.
+  const tourKey = ranked.map((o) => o.location.id).sort().join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const tourLocations = useMemo(() => ranked.map((o) => o.location), [tourKey]);
   // Re-read every render (the HUD re-renders twice a second), so "N min" counts down live.
   const transit = transitRef.current;
   const stations = transit?.data.stops.filter((s) => s.kind === 'station' && s.area === campus) ?? [];
@@ -620,9 +650,9 @@ export default function App() {
 
       {status && <div className="panel status" role="status">{status}</div>}
 
-      <PerfMonitor counts={getPerfCounts} />
-      {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
-      {mapKind && <WeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
+      <MemoPerfMonitor counts={getPerfCounts} />
+      {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}
+      {mapKind && <MemoWeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={onWeather} />}
 
       {hud && (
         <aside className="panel side">
@@ -974,6 +1004,18 @@ function readableOn(hex: string): string {
     return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.18 ? '#111' : '#fff';
+}
+
+/** Walkers within `radius` metres of the view centre (all of them when radius is null). */
+function nearView(walkers: WalkingAgent[], center: [number, number], radius: number | null): WalkingAgent[] {
+  if (radius === null) return walkers;
+  const kx = 111_320 * Math.cos((center[1] * Math.PI) / 180);
+  const r2 = radius * radius;
+  return walkers.filter((w) => {
+    const dx = (w.position[0] - center[0]) * kx;
+    const dy = (w.position[1] - center[1]) * 110_540;
+    return dx * dx + dy * dy <= r2;
+  });
 }
 
 /**

@@ -8,6 +8,9 @@ import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { WalkingAgent } from '../sim/playback';
+import { boxAround, setCullBox } from './culling';
+import { headingsKey, stableList } from './stable';
+import { mergeSkinnedMeshes } from './gltf-merge';
 
 export const CHARACTER_MODELS = [
   'female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f',
@@ -23,9 +26,10 @@ const YAW_OFFSET = 180;
 
 export type LoadedModels = unknown[];
 
-/** Fetch and parse every character once; each layer then builds its own GPU copy and clock. */
+/** Fetch and parse every character once; each layer then builds its own GPU copy and clock.
+ *  Body and head are merged into one primitive (one draw per layer instead of two). */
 export function loadCharacterModels(): Promise<LoadedModels> {
-  return Promise.all(CHARACTER_MODELS.map((url) => load(url, GLTFLoader)));
+  return Promise.all(CHARACTER_MODELS.map((url) => load(url, GLTFLoader).then(mergeSkinnedMeshes)));
 }
 
 export function phaseOf(id: string, phases = PHASES): number {
@@ -56,13 +60,19 @@ export interface CharacterLayerOptions extends AgentLayerOptions {
   id: string;
   clip?: CharacterClip;
   pickable?: boolean;
-  /** Keep a model/phase layer with nobody in it, but don't draw it. */
+  /** Kept for callers; empty model/phase layers are now never drawn. */
   hideEmpty?: boolean;
+}
+
+const NOBODY: WalkingAgent[] = [];
+
+function* positionsOf(agents: WalkingAgent[]) {
+  for (const a of agents) yield a.position;
 }
 
 /** Characters bucketed by model and animation phase into GPU-instanced layers, all playing one clip. */
 export function characterLayers(items: WalkingAgent[], models: LoadedModels, time: number, options: CharacterLayerOptions) {
-  const { zoom, highlightId = null, id, clip = 'walk', pickable = true, hideEmpty = false } = options;
+  const { zoom, highlightId = null, id, clip = 'walk', pickable = true } = options;
   // Idle: one layer per model (each model sways at its own offset), since every extra layer is
   // another render pass in interleaved mode.
   const phases = clip === 'walk' ? PHASES : 1;
@@ -80,10 +90,16 @@ export function characterLayers(items: WalkingAgent[], models: LoadedModels, tim
   for (let model = 0; model < models.length; model++) {
     for (let phase = 0; phase < phases; phase++) {
       const key = `${model}-${phase}`;
-      const data = buckets.get(key) ?? [];
+      const layerId = `${id}-${key}`;
+      // Same people as last frame: same array, so only positions (and headings, when one turns)
+      // are re-uploaded instead of every attribute of the model.
+      const data = stableList(layerId, buckets.get(key) ?? NOBODY, (a) => a.id);
+      // Off-screen buckets skip their draws. A character is under a model unit wide and tall, so
+      // sizeScale metres all round is ample (culling.ts adds a screen margin for sizeMinPixels).
+      setCullBox(layerId, boxAround(positionsOf(data), sizeScale, sizeScale));
       layers.push(
         new ScenegraphLayer<WalkingAgent>({
-          id: `${id}-${key}`,
+          id: layerId,
           data,
           scenegraph: models[model] as never,
           // Layers persist across frames, so these stay referentially stable and the clock
@@ -95,9 +111,11 @@ export function characterLayers(items: WalkingAgent[], models: LoadedModels, tim
           getPosition: (d) => d.position,
           getOrientation: (d) => [0, YAW_OFFSET - d.bearing, 90],
           getColor: (d) => (d.id === highlightId ? [255, 214, 10, 255] : [255, 255, 255, 255]),
-          updateTriggers: { getColor: highlightId, getPosition: time, getOrientation: time },
+          updateTriggers: { getColor: highlightId, getPosition: time, getOrientation: headingsKey(data, (a) => a.bearing) },
           pickable,
-          ...(hideEmpty ? { visible: data.length > 0 } : {}),
+          // An empty layer still costs a full model draw a frame, so it is never drawn (it stays in
+          // the list either way, so its GPU copy of the model and its animation clock persist).
+          visible: data.length > 0,
           // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
           slot: 'middle',
         }),

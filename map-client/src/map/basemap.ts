@@ -6,6 +6,7 @@ import type { IControl } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { MapWeather } from '../weather/weather';
+import { quality, type QualitySettings } from '../perf/quality';
 
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -264,7 +265,12 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       projection: 'mercator',
       ...INITIAL_VIEW,
       ...BOSTON_LIMITS,
-      antialias: true,
+      // 4x MSAA. Speed mode starts without it (it can only be chosen when the map is created).
+      antialias: quality.mode !== 'speed',
+      // Render settings that cost nothing visible: one world (the camera is held to Boston, so
+      // copies never show) and no Mapbox performance telemetry uploads.
+      renderWorldCopies: false,
+      performanceMetricsCollection: false,
       config: {
         // Standard's own 3D buildings are off from the start: we draw the city ourselves
         // (excludeBuildings). Switching them off after load raced Mapbox's 3D tile loading.
@@ -302,6 +308,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     };
     updateRoadLabels();
     map.on('zoom', updateRoadLabels);
+    const stopQuality = applyMapboxQuality(map);
     return {
       kind: 'mapbox',
       addControl: (control) => map.addControl(control),
@@ -396,7 +403,10 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         return [p.x, p.y];
       },
       getZoom: () => map.getZoom(),
-      remove: () => map.remove(),
+      remove: () => {
+        stopQuality();
+        map.remove();
+      },
       ...cameraApi(map as unknown as CameraMap, 80),
     };
   }
@@ -411,7 +421,12 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     ...INITIAL_VIEW,
     ...BOSTON_LIMITS,
     maxPitch: 85, // the default 60 is too flat for the street-level view
-    canvasContextAttributes: { antialias: true },
+    canvasContextAttributes: { antialias: quality.mode !== 'speed' },
+    renderWorldCopies: false,
+  });
+  // Pixel-ratio cap from the Performance setting (perf/quality.ts).
+  const stopQuality = quality.onChange((q) => {
+    if (map.getPixelRatio() !== q.pixelRatio) map.setPixelRatio(q.pixelRatio);
   });
   map.setPadding(VIEW_PADDING);
   tameInteractions(map);
@@ -432,7 +447,36 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       return [p.x, p.y];
     },
     getZoom: () => map.getZoom(),
-    remove: () => map.remove(),
+    remove: () => {
+      stopQuality();
+      map.remove();
+    },
     ...cameraApi(map as unknown as CameraMap, 85),
   };
+}
+
+/**
+ * The Performance setting (perf/quality.ts) on Mapbox: the pixel-ratio cap, and in Speed mode
+ * Standard's 3D objects (trees and the like) and footpaths off.
+ */
+function applyMapboxQuality(map: import('mapbox-gl').Map): () => void {
+  let pixelRatio = window.devicePixelRatio;
+  const detail: Partial<Record<'show3dObjects' | 'showPedestrianRoads', boolean>> = {};
+  return quality.onChange((q: QualitySettings) => {
+    // Mapbox v3 has no setPixelRatio and its resize() returns early when the container size is
+    // unchanged, so the canvas and render targets are resized directly (as resize() would).
+    if (q.pixelRatio !== pixelRatio) {
+      pixelRatio = q.pixelRatio;
+      const m = map as unknown as { _resizeCanvas(w: number, h: number): void; painter: { resize(w: number, h: number): void }; transform: { width: number; height: number } };
+      const { width, height } = m.transform;
+      m._resizeCanvas(width, height);
+      m.painter.resize(Math.ceil(width), Math.ceil(height));
+      map.triggerRepaint();
+    }
+    const want = { show3dObjects: q.map3dObjects, showPedestrianRoads: q.mapPedestrianRoads };
+    for (const [key, value] of Object.entries(want) as [keyof typeof want, boolean][]) {
+      if (detail[key] === undefined && value) continue; // untouched until first turned off
+      if (detail[key] !== value) map.setConfigProperty('basemap', key, (detail[key] = value));
+    }
+  });
 }

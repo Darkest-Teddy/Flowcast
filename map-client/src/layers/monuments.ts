@@ -11,6 +11,7 @@ import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color } from '@deck.gl/core';
 import { citgoLightLayers, CITGO_SCALE, type CitgoLights } from './citgo';
+import { boxAround, gltfExtent, setCullBox } from './culling';
 
 export interface Monument {
   id: string;
@@ -82,14 +83,47 @@ export function labelPosition(m: Monument): [number, number, number] {
   return [m.position[0], m.position[1], (m.altitude ?? 0) + (m.height ?? 0) + 1];
 }
 
-export function monumentLayers({ monuments, models, citgoLights }: MonumentData, { zoom, lightPreset = 'dusk', time }: MonumentLayerOptions) {
-  const citgo = monuments.find((m) => m.id === 'citgo-sign');
-  const tint = LIGHT_TINT[lightPreset];
+// Per-frame layer rebuilds must hand deck.gl the same arrays while nothing changed: a new `data`
+// array makes it regenerate and re-upload every attribute (for every primitive of every model).
+interface MonumentGroups {
+  byModel: [string, Monument[]][];
+  areas: Monument[];
+  artworks: Monument[];
+}
+const groupCache = new WeakMap<MonumentData, MonumentGroups>();
+const NO_MONUMENTS: Monument[] = [];
+
+function monumentGroups(data: MonumentData): MonumentGroups {
+  let groups = groupCache.get(data);
+  if (groups) return groups;
+  const { monuments, models } = data;
   const byModel = new Map<string, Monument[]>();
   for (const m of monuments) if (m.model && models[m.model]) byModel.set(m.model, [...(byModel.get(m.model) ?? []), m]);
+  groups = {
+    byModel: [...byModel],
+    areas: monuments.filter((m) => m.kind === 'area' && m.polygon),
+    artworks: monuments.filter((m) => m.kind === 'artwork'),
+  };
+  // Each model layer gets its real extent (turned any way), so an off-screen statue skips its draws.
+  for (const [url, list] of groups.byModel) {
+    const extent = gltfExtent(models[url]);
+    if (!extent) continue;
+    const scale = list[0].id === 'citgo-sign' ? CITGO_SCALE : 1;
+    const radius = Math.hypot(Math.max(-extent.min[0], extent.max[0]), Math.max(-extent.min[2], extent.max[2])) * scale + 2;
+    const altitudes = list.map((m) => m.altitude ?? 0);
+    const base = Math.min(...altitudes) + Math.min(0, extent.min[1] * scale) - 2;
+    const top = Math.max(...altitudes) + extent.max[1] * scale + 2;
+    setCullBox(`monument-${list[0].id}`, boxAround(list.map((m) => m.position), radius, top - base, base));
+  }
+  groupCache.set(data, groups);
+  return groups;
+}
 
-  const areas = monuments.filter((m) => m.kind === 'area' && m.polygon);
-  const artworks = monuments.filter((m) => m.kind === 'artwork');
+export function monumentLayers(data: MonumentData, { zoom, lightPreset = 'dusk', time }: MonumentLayerOptions) {
+  const { monuments, models, citgoLights } = data;
+  const citgo = monuments.find((m) => m.id === 'citgo-sign');
+  const tint = LIGHT_TINT[lightPreset];
+  const { byModel, areas, artworks } = monumentGroups(data);
 
   return [
     new PolygonLayer<Monument>({
@@ -106,13 +140,13 @@ export function monumentLayers({ monuments, models, citgoLights }: MonumentData,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
-    ...[...byModel].map(
+    ...byModel.map(
       ([url, data]) =>
         new ScenegraphLayer<Monument>({
           id: `monument-${data[0].id}`,
           data,
           scenegraph: models[url] as never,
-          // Real size (metres); the Citgo sign grows when zoomed out, matching its lights (citgo.ts).
+          // Real size (metres); the Citgo sign 1.25x, matching its lights (citgo.ts).
           sizeScale: data[0].id === 'citgo-sign' ? CITGO_SCALE : 1,
           _lighting: 'pbr',
           getPosition: (m) => [m.position[0], m.position[1], m.altitude ?? 0],
@@ -138,7 +172,7 @@ export function monumentLayers({ monuments, models, citgoLights }: MonumentData,
     // A small bronze dot marks artworks we label but don't model.
     new ScatterplotLayer<Monument>({
       id: 'monument-artwork-dots',
-      data: zoom >= LABEL_MIN_ZOOM.artwork - 0.8 ? artworks : [],
+      data: zoom >= LABEL_MIN_ZOOM.artwork - 0.8 ? artworks : NO_MONUMENTS,
       getPosition: (m) => m.position,
       getRadius: 0.9,
       radiusMinPixels: 3,

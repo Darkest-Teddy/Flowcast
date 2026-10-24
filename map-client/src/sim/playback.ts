@@ -161,12 +161,27 @@ export class Playback {
     for (const list of this.tripsByAgent.values()) list.sort((a, b) => a.timestamps[0] - b.timestamps[0]);
   }
 
+  // Computed once: the frame loop reads endTime every frame, and each read scanned all ~8,000 trips.
+  private bounds: [number, number] | null = null;
+
   get startTime(): number {
-    return this.data.trips.length ? this.data.trips.reduce((min, trip) => Math.min(min, trip.timestamps[0]), Infinity) : 0;
+    this.bounds ??= this.timeBounds();
+    return this.bounds[0];
   }
 
   get endTime(): number {
-    return this.data.trips.length ? this.data.trips.reduce((max, trip) => Math.max(max, trip.timestamps[trip.timestamps.length - 1]), -Infinity) : 86400;
+    this.bounds ??= this.timeBounds();
+    return this.bounds[1];
+  }
+
+  private timeBounds(): [number, number] {
+    let start = Infinity;
+    let end = -Infinity;
+    for (const t of this.data.trips) {
+      start = Math.min(start, t.timestamps[0]);
+      end = Math.max(end, t.timestamps[t.timestamps.length - 1]);
+    }
+    return this.data.trips.length ? [start, end] : [0, 86400];
   }
 
   /** Only trips active in this five-minute bucket need position interpolation. */

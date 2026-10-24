@@ -18,6 +18,40 @@ export function preferHighPerformanceGpu() {
   } as GetContext;
 }
 
+/**
+ * Skip redundant uniform-block calls. Mapbox and luma.gl (deck.gl) both look up and re-assign
+ * every uniform block's binding before every draw: ~2,000 getUniformBlockIndex and as many
+ * uniformBlockBinding calls a frame here, each a trip through WebGL validation and Chrome's GPU
+ * command buffer. Both results only change when a program is (re)linked, so they're cached per
+ * program and dropped on linkProgram. Rendering is unchanged.
+ */
+export function cacheUniformBlockBindings() {
+  if (typeof WebGL2RenderingContext === 'undefined') return;
+  const proto = WebGL2RenderingContext.prototype;
+  const { getUniformBlockIndex, uniformBlockBinding, linkProgram } = proto;
+  const indices = new WeakMap<WebGLProgram, Map<string, number>>();
+  const bindings = new WeakMap<WebGLProgram, Map<number, number>>();
+  proto.getUniformBlockIndex = function (this: WebGL2RenderingContext, program: WebGLProgram, name: string) {
+    let names = indices.get(program);
+    if (!names) indices.set(program, (names = new Map()));
+    let index = names.get(name);
+    if (index === undefined) names.set(name, (index = getUniformBlockIndex.call(this, program, name)));
+    return index;
+  };
+  proto.uniformBlockBinding = function (this: WebGL2RenderingContext, program: WebGLProgram, index: number, binding: number) {
+    let set = bindings.get(program);
+    if (!set) bindings.set(program, (set = new Map()));
+    if (set.get(index) === binding) return;
+    set.set(index, binding);
+    uniformBlockBinding.call(this, program, index, binding);
+  };
+  proto.linkProgram = function (this: WebGL2RenderingContext, program: WebGLProgram) {
+    indices.delete(program);
+    bindings.delete(program);
+    linkProgram.call(this, program);
+  };
+}
+
 export interface GpuInfo {
   renderer: string;
   software: boolean; // rendering on the CPU: hardware acceleration is off or unavailable

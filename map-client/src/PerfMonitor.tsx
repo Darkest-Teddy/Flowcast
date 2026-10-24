@@ -1,6 +1,7 @@
 // Build-time performance readout: FPS, frame times, memory and what's being drawn.
 // On by default for now; `P` toggles it, ?perf=0 hides it.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { quality, type QualityMode } from './perf/quality';
 import { mapGpuInfo, type GpuInfo } from './gpu';
 
 export interface PerfCounts {
@@ -79,6 +80,9 @@ export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
     return () => cancelAnimationFrame(frame);
   }, [visible, counts]);
 
+  const perfSettings = useSyncExternalStore(quality.subscribe, () => quality.settings);
+  const mode = useSyncExternalStore(quality.subscribe, () => quality.mode);
+
   if (!visible || !sample) return null;
   const level = sample.fps >= 50 ? 'good' : sample.fps >= 30 ? 'ok' : 'bad';
   const points = history.current.map((f, i) => `${i * 3},${24 - Math.min(60, f) * 0.4}`).join(' ');
@@ -126,7 +130,19 @@ export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
           </>
         )}
       </dl>
-      <p className="perf-hint">P to hide</p>
+      <div className="perf-quality" role="group" aria-label="Performance">
+        <span>Performance</span>
+        {(['auto', 'quality', 'speed'] as QualityMode[]).map((m) => (
+          <button key={m} onClick={() => quality.setMode(m)} aria-pressed={mode === m}>
+            {m === 'auto' ? 'Auto' : m === 'quality' ? 'Quality' : 'Speed'}
+          </button>
+        ))}
+      </div>
+      <p className="perf-hint">
+        {perfSettings.pixelRatio.toFixed(2).replace(/\.?0+$/, '')}x pixels
+        {mode === 'auto' && ` · level ${perfSettings.level}`}
+        {mode === 'speed' && ' · no MSAA after reload'} · P to hide
+      </p>
     </div>
   );
 }
