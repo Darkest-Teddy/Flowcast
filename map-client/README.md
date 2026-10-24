@@ -53,6 +53,9 @@ npm run dev                  # http://localhost:5173
 | `lng`, `lat`, `zoom`, `pitch`, `bearing` | `lng=-71.1058&lat=42.3501&zoom=19` | Start camera |
 | `spin` | `spin=0` | Don't start the slow camera orbit on load (it never auto-starts under prefers-reduced-motion) |
 | `interleaved` | `interleaved=0` | Draw deck.gl as a plain overlay instead of mixing into the map (debug fallback; characters will no longer hide behind buildings) |
+| `quality` | `quality=speed` | Performance setting for this load: `auto` (default), `quality` or `speed` (also on the perf panel, `P`) |
+| `msaa`, `dpr` | `msaa=1&dpr=1.5` | Force 4x MSAA on or off, or cap the pixel ratio (for perf testing) |
+| `debug` | `debug` | Expose `window.__flowcast` (overlay, basemap, playback, quality) in a production build |
 
 Example: <http://localhost:5173/?at=12:15&speed=30> shows midday class movements.
 
@@ -151,8 +154,23 @@ The **Bikes** tab replays measured dock departures and arrivals. Blue riders fol
 
 Trips (a path plus timestamps) are what deck.gl's TripsLayer reads natively. They're also far smaller than minute-by-minute positions, and the client interpolates between points. When the Simulation Lead's `simulate_week.py` exists, it should emit this shape (one file per day). The live server can then broadcast the same objects.
 
+## Performance (keep it smooth)
+
+The frame rate is set by the **number of WebGL calls per frame**, not by shader work: Chrome runs every call from Mapbox and deck.gl through one GPU-process thread at roughly 2 µs each, and the browser's own compositing shares that thread. Mapbox Standard alone makes ~10,000 calls a frame with shadows and 3D trees on. On an M4 Pro in Chrome the map went from ~11 to ~59 FPS (Auto) by cutting calls:
+
+- **Draw only what's on screen and under way.** The walker trails get the trips active near the shown time (`Playback.trailsAt`), never the whole day (36,000 trips, 2 million segments). Off-screen, empty and pick-only layers are skipped in `layers/culling.ts`.
+- **One draw per model, not one per part.** glTF parts are batched at load (`layers/gltf-materials.ts`, drawn by `MaterialScenegraphLayer`); animated bike riders swap to a still, merged copy below zoom 17 (`layers/gltf-static.ts`); walkers use one animation layer per model below zoom 16.
+- **Same arrays every frame** for moving things (`layers/stable.ts`), so deck.gl re-uploads only positions.
+- **Mapbox VAO cache** (`map/vaoCache.ts`): Mapbox rebuilt ~130 vertex arrays a frame with shadows on.
+- **No MSAA at pixel ratio ≥ 1.75**: it doubled GPU time on Retina screens, whose density already smooths edges.
+- **No `backdrop-filter` on panels**: re-blurring the moving map behind each panel every frame cost a third of the frame rate.
+- **Auto** (`perf/quality.ts`) drops shadows, then footpaths, then 3D trees when the 1% low stays under 45 FPS, never the resolution, and remembers where it settled.
+
+To measure a change, open the perf panel (`P`) or use `?debug` and the browser's Performance tab. Watch the per-frame GL call count, not just FPS.
+
 ## Pitfalls we already hit (don't re-debug these)
 
+- **luma.gl shader injection keys need the `#`**: `'vs:#main-end'`, not `'vs:main-end'`. An unknown key is ignored without a warning (batched models then lost their colours).
 - **Mapbox must use `projection: 'mercator'`.** Mapbox Standard defaults to a globe, which flips deck.gl into GlobeView. Text labels and the 3D characters then draw nothing, with no error.
 - **MBTA headings and GPS are noisy** (stopped trains often report a stale bearing), so drawn as-is, vehicles sat off the rails at odd angles. `src/transit/tracks.ts` snaps each vehicle onto its direction's track, points it along the track and glides it along the curve between reports.
 - **Tiny vehicles vanish.** At campus zoom a real-width train is under a pixel wide, so `transit.ts` scales vehicles up as the camera pulls back.
