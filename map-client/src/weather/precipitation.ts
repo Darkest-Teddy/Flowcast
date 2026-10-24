@@ -28,6 +28,12 @@ const MAX_RIPPLES = 600;
 const MAX_FLAKES = 8000;
 const POOL = Math.round(Math.max(MAX_STREAKS, MAX_FLAKES) * 2); // big screens
 
+// Share of the normal particle count (the Performance setting lowers it on slow machines).
+let particleScale = 1;
+export function setParticleScale(scale: number) {
+  particleScale = Math.max(0, Math.min(1, scale));
+}
+
 const REDUCED_MOTION = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Per-particle random numbers, fixed for the session (seeded, so the pattern is stable).
@@ -120,7 +126,7 @@ export function precipitationLayers(next: Precipitation | null | undefined, came
   };
 
   if (p.kind === 'rain') {
-    const n = Math.min(POOL, Math.round(MAX_STREAKS * (0.3 + 0.7 * p.strength) * area));
+    const n = Math.min(POOL, Math.round(MAX_STREAKS * (0.3 + 0.7 * p.strength) * area * particleScale));
     const slant = Math.min(0.5, 0.03 + p.windMph * 0.03); // tan of the angle from vertical
     const fallSeconds = 0.75;
     const src = streakSrc();
@@ -157,7 +163,7 @@ export function precipitationLayers(next: Precipitation | null | undefined, came
   }
 
   // Snow: slow, swaying, a touch of wind.
-  const n = Math.min(POOL, Math.round(MAX_FLAKES * (0.35 + 0.65 * p.strength) * area));
+  const n = Math.min(POOL, Math.round(MAX_FLAKES * (0.35 + 0.65 * p.strength) * area * particleScale));
   const slant = Math.min(0.9, 0.05 + p.windMph * 0.06);
   const fallSeconds = 11;
   const pos = flakePos();
@@ -204,7 +210,7 @@ function ripples(
   fadeIn: number,
   common: object,
 ): Layer {
-  const n = Math.min(MAX_RIPPLES * 4, Math.round(MAX_RIPPLES * (0.3 + 0.7 * p.strength) * area));
+  const n = Math.min(MAX_RIPPLES * 4, Math.round(MAX_RIPPLES * (0.3 + 0.7 * p.strength) * area * particleScale));
   const pos = ripplePos();
   const radius = rippleRadius();
   const color = rippleColorBufs[(rippleColorIndex ^= 1)];

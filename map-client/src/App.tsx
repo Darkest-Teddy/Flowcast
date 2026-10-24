@@ -32,7 +32,8 @@ import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
-import { precipitationLayers } from './weather/precipitation';
+import { precipitationLayers, setParticleScale } from './weather/precipitation';
+import { quality } from './perf/quality';
 import {
   BikeReplay,
   BluebikesFeed,
@@ -285,7 +286,7 @@ export default function App() {
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, transitRef, bikesRef, riders } });
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, transitRef, bikesRef, riders, quality } });
       setStatus('');
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
@@ -317,6 +318,10 @@ export default function App() {
             setAutoPreset(preset);
           }
         }
+        // Performance setting (perf/quality.ts): Auto watches these frame times.
+        quality.frame(now);
+        const q = quality.settings;
+        setParticleScale(q.particles);
         const walking = playback.walkingAt(t);
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
@@ -364,7 +369,7 @@ export default function App() {
         });
         const frameLayers = [
           ...(detailedBuildings
-            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' })
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows })
             : []),
           ...crowdLayers({
             // Every tracked building, modelled or not: the glow is light around and on top of
@@ -386,7 +391,7 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(withRiders(walking, riders, showTransitRef.current), models, t, { zoom: basemap.getZoom() }),
+          ...agentLayers(nearView(withRiders(walking, riders, showTransitRef.current), basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
           ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
@@ -920,6 +925,18 @@ function readableOn(hex: string): string {
     return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.18 ? '#111' : '#fff';
+}
+
+/** Walkers within `radius` metres of the view centre (all of them when radius is null). */
+function nearView(walkers: WalkingAgent[], center: [number, number], radius: number | null): WalkingAgent[] {
+  if (radius === null) return walkers;
+  const kx = 111_320 * Math.cos((center[1] * Math.PI) / 180);
+  const r2 = radius * radius;
+  return walkers.filter((w) => {
+    const dx = (w.position[0] - center[0]) * kx;
+    const dy = (w.position[1] - center[1]) * 110_540;
+    return dx * dx + dy * dy <= r2;
+  });
 }
 
 /**

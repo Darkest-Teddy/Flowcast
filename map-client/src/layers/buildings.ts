@@ -75,6 +75,8 @@ export type BuildingLight = 'dawn' | 'day' | 'dusk' | 'night';
 export interface BuildingLayerOptions {
   /** The current Mapbox light preset: tints the models when `clock` isn't given or in manual mode. */
   lightPreset?: BuildingLight;
+  /** False drops the lit-window meshes (the Performance setting's Speed level). Default true. */
+  litWindows?: boolean;
   /** Sim time, seconds since Boston midnight. Drives the window lights (and, with `auto`, the tint). */
   clock?: number;
   /** Auto lighting: tint and window brightness follow the sun's altitude at `clock`. */
@@ -242,7 +244,7 @@ export function buildingModelLayers(
       { id: c.id, key: c.id, color: tint, windowClock: null },
     ];
     // Lit windows: emissive, so untinted; skipped entirely in daylight.
-    if (strength > 0.01 && models[`${c.id}:scheduled`]) {
+    if (strength > 0.01 && models[`${c.id}:scheduled`] && options.litWindows !== false) {
       parts.push({ id: `${c.id}-lights`, key: `${c.id}:scheduled`, color: [255, 255, 255, 255], windowClock: { hour, strength } });
     }
     for (const part of parts) {

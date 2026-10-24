@@ -466,6 +466,11 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .perf dt { color: var(--muted); }
 .perf dd { margin: 0; }
 .perf-hint { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+/* Performance switch: the panel ignores the pointer, its buttons don't. */
+.perf-quality { display: flex; align-items: center; gap: 4px; margin-top: 6px; pointer-events: auto; }
+.perf-quality span { color: var(--muted); margin-right: 2px; }
+.perf-quality button { font: inherit; font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.18); background: transparent; color: inherit; cursor: pointer; }
+.perf-quality button[aria-pressed='true'] { background: #facc15; border-color: #facc15; color: #111; font-weight: 700; }
 .perf-head { display: flex; align-items: baseline; gap: 14px; }
 .perf-low { font-size: 15px; font-weight: 700; line-height: 1; }
 .perf-low span { font-size: 11px; font-weight: 600; color: var(--muted); }
