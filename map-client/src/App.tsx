@@ -31,6 +31,7 @@ import { createTransitService, mergeSchedules, type TransitService } from './sim
 import { waitingCharacters, waitingRiderLayers } from './layers/waitingRiders';
 import { SourceDataPanel } from './SourceDataPanel';
 import { AMENITY_KINDS, displayName, displayShort } from './tags/names';
+import { assignNames, type NameLists } from './sim/names';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
@@ -216,6 +217,8 @@ export default function App() {
   // Published MBTA service the students ride (null: timetable unavailable, gateways are walk-only).
   const transitServiceRef = useRef<TransitService | undefined>(undefined);
   const loadDeferredRef = useRef<((campus: string) => void) | null>(null);
+  // First names for hover text (sim/names.ts), one per student, matching the character's gender.
+  const namesRef = useRef<Map<string, string> | null>(null);
   const playbackRef = useRef<Playback | null>(null);
   // Campus events: on by default. Which date's events play is decided by eventDateFor().
   const [eventsOn, setEventsOn] = useState(START_EVENTS);
@@ -351,6 +354,10 @@ export default function App() {
 
       walkRoutesRef.current = (day as { walkRoutes?: Record<string, WalkRoute> }).walkRoutes ?? {};
       const populationBase = buildPopulation(day, snapshot, population);
+      // Names for hover text: dealt once over the whole roster (the same people every day).
+      fetch('/data/names.json').then((r) => (r.ok ? r.json() : null))
+        .then((lists: NameLists | null) => { if (lists) namesRef.current = assignNames(populationBase.agents, lists); })
+        .catch(() => {});
       baseDayRef.current = populationBase;
       setSourceData(snapshot);
       setMobilityData(mobilitySnapshot);
@@ -431,7 +438,9 @@ export default function App() {
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
           // Riders walking to a stop are headed for a transit stop, not a building.
-          return `Student ${agent.id} → ${playbackRef.current?.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
+          const where = playbackRef.current?.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short;
+          const who = namesRef.current?.get(agent.id) ?? 'Student';
+          return where ? `${who} → ${displayName(where)}` : who;
         },
       });
       basemap.addControl(overlay);
