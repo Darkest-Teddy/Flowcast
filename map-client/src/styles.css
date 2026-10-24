@@ -201,9 +201,10 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   transition: opacity 0.28s ease;
 }
 .btag.is-hidden { opacity: 0; }
-.btag.is-hidden .btag-card { pointer-events: none; }
+.btag.is-hidden .btag-card, .btag.is-hidden .btag-pill, .btag.is-hidden .btag-dot { pointer-events: none; }
 .btag.is-selected { z-index: 2; }
-.btag:has(.btag-card:hover), .btag:has(.btag-card:focus-visible) { z-index: 3; }
+/* Open (expanded): hovered, focused (keyboard), the building hovered on the map, or selected. */
+.btag:hover, .btag:focus-within, .btag.is-open { z-index: 5; }
 
 .btag-card {
   position: absolute;
@@ -227,10 +228,53 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   white-space: nowrap;
   overflow: hidden;
   cursor: pointer;
-  pointer-events: auto;
-  transition: scale 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  /* Closed until the tag opens; then it grows out of the pill. */
+  opacity: 0;
+  scale: 0.86;
+  pointer-events: none;
+  transition: opacity 0.2s ease, scale 0.22s cubic-bezier(0.2, 0.8, 0.3, 1.15), border-color 0.18s ease, box-shadow 0.18s ease;
 }
-.btag-card:hover { scale: 1.06; border-color: rgba(255, 255, 255, 0.34); }
+.btag:hover .btag-card, .btag:focus-within .btag-card, .btag.is-open .btag-card { opacity: 1; scale: 1; pointer-events: auto; }
+
+/* The compact pill: a level dot, the short name and the % (never colour alone). */
+.btag-pill {
+  position: absolute;
+  left: 0;
+  bottom: var(--stem);
+  translate: -50% 0;
+  transform-origin: 50% 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--lv), 0.45);
+  background: rgba(13, 16, 23, 0.84);
+  box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: opacity 0.16s ease, scale 0.2s ease;
+}
+.btag:hover .btag-pill, .btag:focus-within .btag-pill, .btag.is-open .btag-pill { opacity: 0; scale: 0.9; }
+.btag-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; opacity: 1; }
+.btag-pdot { position: relative; flex: none; width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--lv)); box-shadow: 0 0 6px rgba(var(--lv), 0.9); }
+.btag[data-level='packed'] .btag-pdot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgb(var(--lv));
+  animation: btag-ping 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+.btag-ppct { color: var(--lv-text); font-variant-numeric: tabular-nums; font-weight: 700; }
+.btag.is-selected .btag-pill { border-color: var(--accent); }
+.btags.is-compact .btag-pname { display: none; }
 .btag-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btag[data-level='busy'] .btag-card { border-color: rgba(var(--lv), 0.38); }
 .btag[data-level='packed'] .btag-card {
@@ -306,7 +350,9 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   border-radius: 50%;
   background: rgb(var(--lv));
   box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.75), 0 0 10px 2px rgba(var(--lv), 0.8);
+  pointer-events: auto; /* hovering the roof dot opens the tag too */
 }
+.btag-dot::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
 .btag.is-selected .btag-dot { background: var(--accent); box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.75), 0 0 12px 3px rgba(255, 214, 10, 0.8); }
 
 /* The overview: tighter, so more tags fit. */
@@ -318,7 +364,8 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 
 @media (prefers-reduced-motion: reduce) {
   .btag-pulse::after { animation: none; }
-  .btag-card, .btag-fill, .btag { transition: none; }
+  .btag-card, .btag-pill, .btag-fill, .btag { transition: none; }
+  .btag[data-level='packed'] .btag-pdot::after { animation: none; }
 }
 
 /* Side panel bars in the same language as the tags (--lv set per row). */
@@ -357,6 +404,11 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .weather-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; margin-left: 2px; }
 .weather-condition { font-size: 13px; font-weight: 600; line-height: 1.15; }
 .weather-text .live-badge, .sim-badge { font-size: 10px; padding: 1px 5px; }
+.forecast-badge { font-size: 10px; padding: 1px 5px; border-radius: 4px; background: #3a6fd8; color: #fff; font-weight: 800; letter-spacing: 0.06em; }
+.weather-hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; list-style: none; margin: 0 0 8px; padding: 0; }
+.weather-hours li { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 3px 0; border-radius: 6px; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.weather-hours li.current { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+.weather-hour { font-size: 10px; font-weight: 600; }
 .sim-badge { border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.45); color: var(--text); font-weight: 800; letter-spacing: 0.06em; }
 .weather-detail { margin: 6px 2px 8px; font-size: 12px; color: var(--muted); line-height: 1.3; }
 .weather-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
@@ -385,7 +437,7 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #d62828; box-shadow: 0 0 0 2px rgba(214, 40, 40, 0.3); }
 .weather-hint { margin: 8px 2px 0; font-size: 12px; color: var(--muted); }
 /* The fallback-map note sits where the weather card is; lift it above the card. */
-.weather ~ .note { bottom: 330px; }
+.weather ~ .note { bottom: 380px; }
 
 /* Crowds tab: one line on how the weather changes campus routines. */
 .weather-impact { margin: 10px 0 2px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); font-size: 13px; line-height: 1.35; }
@@ -459,8 +511,8 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 
 /* Transit, shuttle and Bluebikes tags (TransitTags.tsx, tags/glassTags.ts): the building tags'
    glass on a stem. .is-below hangs the card under its anchor (stations, stops, docks);
-   .is-above stands it over (a hovered vehicle). Not interactive: the map underneath keeps its
-   hover and clicks, and the side panel carries the same information for screen readers. */
+   .is-above stands it over (a hovered vehicle). Only the pill and the open card take the
+   pointer; everything else lets the map underneath keep its hover and clicks. */
 .gtags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .gtag { position: absolute; left: 0; top: 0; --stem: 12px; --accent-rgb: 0, 132, 61; will-change: transform; transition: opacity 0.28s ease; }
 .gtag.is-hidden { opacity: 0; }
@@ -584,4 +636,56 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 @media (prefers-reduced-motion: reduce) {
   .gtag-pulse::after, .gtag.is-arriving .gtag-card { animation: none; }
   .gtag { transition: none; }
+}
+
+/* Transit tags open like the building tags: a pill until hovered, focused, tapped, or their dot
+   is hovered on the map; then the card grows out of it. Vehicles (.is-solo) are always a card. */
+.gtag-pill {
+  position: absolute;
+  left: 0;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
+  background: rgba(13, 16, 23, 0.84);
+  box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  transform-origin: 50% 0;
+  transition: opacity 0.16s ease, scale 0.2s ease;
+}
+.gtag.is-below .gtag-pill { top: var(--stem); transform-origin: 50% 0; }
+.gtag.is-above .gtag-pill { bottom: var(--stem); transform-origin: 50% 100%; }
+.gtag-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gtag-picon { display: grid; place-items: center; width: 17px; height: 17px; }
+.gtag-picon svg { width: 17px; height: 17px; }
+.gtag-picon.gtag-icon--bike svg { width: 13px; height: 13px; }
+.gtag--stop .gtag-pill { padding: 2px 4px; gap: 3px; }
+.gtag--stop .gtag-pill .gtag-route { height: 16px; min-width: 22px; font-size: 10.5px; }
+.gtag--dock .gtag-pill .gtag-state { padding: 0 4px; font-size: 9.5px; }
+.gtag--dock .gtag-pill { padding-right: 6px; }
+.gtag--dock.is-empty .gtag-pill { border-color: rgba(239, 68, 68, 0.75); }
+.gtag--dock.is-full .gtag-pill { border-color: rgba(245, 166, 35, 0.75); }
+.gtag.is-arriving .gtag-pill { border-color: rgba(74, 222, 128, 0.75); }
+
+.gtag:not(.is-solo) .gtag-card { opacity: 0; scale: 0.86; pointer-events: none; transition: opacity 0.2s ease, scale 0.22s cubic-bezier(0.2, 0.8, 0.3, 1.15); }
+.gtag.is-below .gtag-card { transform-origin: 50% 0; }
+.gtag.is-above .gtag-card { transform-origin: 50% 100%; }
+.gtag:not(.is-solo):hover .gtag-card, .gtag:not(.is-solo):focus-within .gtag-card, .gtag.is-open .gtag-card { opacity: 1; scale: 1; pointer-events: auto; }
+.gtag:not(.is-solo):hover .gtag-pill, .gtag:focus-within .gtag-pill, .gtag.is-open .gtag-pill { opacity: 0; scale: 0.9; }
+.gtag:hover, .gtag:focus-within, .gtag.is-open { z-index: 5; }
+.gtag.is-hidden .gtag-pill, .gtag.is-hidden .gtag-card { pointer-events: none; }
+.gtag.is-solo .gtag-pill { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gtag-pill, .gtag:not(.is-solo) .gtag-card { transition: none; }
 }

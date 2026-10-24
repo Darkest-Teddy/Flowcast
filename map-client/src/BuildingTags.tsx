@@ -1,7 +1,8 @@
-// Glassy HTML tags floating over each tracked building: kind icon, short name, "87% · Packed"
-// (number and word, never colour alone) and a slim bar showing how full it is, on a stem that
-// stands on the roof. HTML rather than a deck.gl TextLayer for real typography, backdrop blur,
-// hover/focus states and keyboard access.
+// Glassy HTML tags floating over each tracked building, on a stem that stands on the roof. By
+// default a small pill: a level-coloured dot, the short name and the % (never colour alone).
+// Hovering the pill, its roof dot or the building itself, focusing it, tapping it, or selecting
+// the building expands it into the full card: kind icon, name, "87% · Packed" and a fill bar.
+// HTML rather than a deck.gl TextLayer for real typography, hover/focus states and keyboard access.
 //
 // React renders only the empty layer. The App's frame loop calls update() every frame, which
 // creates tags once, rewrites their text only when it changes, and moves them with a transform,
@@ -53,12 +54,18 @@ export interface BuildingTagsFrame {
 
 export interface BuildingTagsHandle {
   update(frame: BuildingTagsFrame): void;
+  /** The building under the pointer on the map (deck.gl picking), or null: expands its tag. */
+  hoverBuilding(id: string | null): void;
 }
 
 interface Tag {
   id: string;
   root: HTMLDivElement;
-  card: HTMLButtonElement;
+  /** The compact pill: the focusable button, and what the placer makes room for. */
+  pill: HTMLButtonElement;
+  pname: HTMLElement;
+  ppct: HTMLElement;
+  card: HTMLElement;
   icon: HTMLElement;
   short: HTMLElement;
   pct: HTMLElement;
@@ -72,6 +79,7 @@ interface Tag {
   stem: number;
   shown: boolean;
   selected: boolean;
+  open: boolean;
 }
 
 function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
@@ -79,19 +87,27 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
   root.className = 'btag is-hidden';
   root.innerHTML =
     '<span class="btag-dot"></span><span class="btag-stem"></span>' +
-    '<button type="button" class="btag-card">' +
+    '<button type="button" class="btag-pill" aria-expanded="false"><span class="btag-pdot"></span>' +
+    '<span class="btag-pname"></span><span class="btag-ppct"></span></button>' +
+    '<span class="btag-card" aria-hidden="true">' +
     '<span class="btag-icon"></span>' +
     '<span class="btag-text"><span class="btag-name"><span class="btag-short"></span><span class="btag-pulse"></span></span>' +
     '<span class="btag-stats"><span class="btag-pct"></span><span class="btag-word"></span></span></span>' +
     '<span class="btag-bar"><span class="btag-fill"></span></span>' +
-    '</button>';
+    '</span>';
   const q = (s: string) => root.querySelector(s) as HTMLElement;
-  const card = q('.btag-card') as HTMLButtonElement;
+  const pill = q('.btag-pill') as HTMLButtonElement;
+  const card = q('.btag-card');
+  // A click or tap on either selects the building, which also keeps its card open.
+  pill.addEventListener('click', onClick);
   card.addEventListener('click', onClick);
   layer.appendChild(root);
   return {
     id,
     root,
+    pill,
+    pname: q('.btag-pname'),
+    ppct: q('.btag-ppct'),
     card,
     icon: q('.btag-icon'),
     short: q('.btag-short'),
@@ -105,6 +121,7 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
     stem: -1,
     shown: false,
     selected: false,
+    open: false,
   };
 }
 
@@ -119,6 +136,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
     compact: null as boolean | null,
     last: 0,
     selectedId: null as string | null,
+    hoveredId: null as string | null,
     heightsFrom: null as BuildingFootprint[] | null,
     heights: new Map<string, number>(),
     roofsFrom: undefined as RoofHeights | undefined,
@@ -142,6 +160,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
   useImperativeHandle(
     ref,
     () => ({
+      hoverBuilding: (id) => void (s.hoveredId = id),
       update({ buildings, footprints, locations, selectedId, placer, project, camera, roofHeights }) {
         const layer = layerRef.current;
         const [width, height] = s.size;
@@ -165,7 +184,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         if (compact !== s.compact) {
           s.compact = compact;
           layer.classList.toggle('is-compact', compact);
-          for (const tag of s.tags.values()) tag.width = tag.card.offsetWidth;
+          for (const tag of s.tags.values()) tag.width = tag.pill.offsetWidth;
           s.tagHeight = 0;
         }
 
@@ -207,10 +226,10 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
           if (writeContent(tag, b, s.kinds.get(b.name) ?? null)) changed.push(tag);
         }
         // All writes first, then all reads: one layout pass, however many tags changed.
-        for (const tag of changed) tag.width = tag.card.offsetWidth;
+        for (const tag of changed) tag.width = tag.pill.offsetWidth;
         if (!s.tagHeight) {
           const any = s.tags.values().next().value;
-          s.tagHeight = any ? any.card.offsetHeight : 0;
+          s.tagHeight = any ? any.pill.offsetHeight : 0;
         }
         const tagHeight = s.tagHeight + SPACING;
         const lifts = placer.place(order, {
@@ -240,19 +259,26 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
           if (selected !== tag.selected) {
             tag.selected = selected;
             tag.root.classList.toggle('is-selected', selected);
-            tag.card.setAttribute('aria-pressed', String(selected));
+            tag.pill.setAttribute('aria-pressed', String(selected));
+          }
+          // Hover and focus on the tag itself open it in CSS; the map's hover and the selection here.
+          const open = selected || b.id === s.hoveredId;
+          if (open !== tag.open) {
+            tag.open = open;
+            tag.root.classList.toggle('is-open', open);
+            tag.pill.setAttribute('aria-expanded', String(open));
           }
           if (!tag.shown) {
             tag.shown = true;
             tag.root.classList.remove('is-hidden');
-            tag.card.tabIndex = 0;
+            tag.pill.tabIndex = 0;
           }
         }
         for (const tag of s.tags.values()) {
           if (tag.shown && !placed.has(tag.id)) {
             tag.shown = false;
             tag.root.classList.add('is-hidden');
-            tag.card.tabIndex = -1;
+            tag.pill.tabIndex = -1;
           }
         }
       },
@@ -276,11 +302,13 @@ function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null)
     tag.icon.title = kind ? KIND_LABEL[kind] : '';
   }
   tag.short.textContent = b.short;
+  tag.pname.textContent = b.short;
   tag.pct.textContent = `${pct}%`;
+  tag.ppct.textContent = `${pct}%`;
   tag.word.textContent = level.label;
   tag.fill.style.width = `${Math.min(100, pct)}%`;
   tag.root.dataset.level = level.key;
   for (const [k, v] of Object.entries(crowdLevelStyle(b.share))) tag.root.style.setProperty(k, v);
-  tag.card.setAttribute('aria-label', `${b.name}: ${pct}% full, ${level.label}${kind ? ` (${KIND_LABEL[kind]})` : ''}`);
+  tag.pill.setAttribute('aria-label', `${b.name}: ${pct}% full, ${level.label}${kind ? ` (${KIND_LABEL[kind]})` : ''}`);
   return true;
 }

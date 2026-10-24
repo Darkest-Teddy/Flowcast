@@ -1,20 +1,31 @@
-// Live BU weather (Open-Meteo, refreshed every 10 minutes) and simulated weather regimes.
-// Rain, snow and fog go through the base map (Mapbox v3 only); a light screen overlay (tint,
-// distance haze, lightning) is drawn here so it also works on the MapLibre fallback.
+// BU weather: the real conditions now (Open-Meteo, every 10 minutes), the hourly forecast for
+// whatever time the clock shows (every 30 minutes), and simulated weather regimes.
+// Rain and snow are deck.gl particles (src/weather/precipitation.ts, drawn by App's frame loop);
+// fog and a wet or snowy ground go through the base map (Mapbox only); a light screen overlay
+// (tint, distance haze, lightning) is drawn here so it also works on the MapLibre fallback.
 // Keyboard, while focus isn't in a form control: W cycles the weather.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Basemap, LightPreset } from './map/basemap';
 import {
+  FORECAST_REFRESH_MS,
+  GROUND_BUILD_SECONDS,
   REFRESH_MS,
   RETRY_MS,
   WEATHER_MODES,
   activeWeather,
   cachedWeather,
   compass,
+  fetchForecast,
   fetchWeather,
+  forecastHours,
+  hourLabel,
+  mapWeather,
   nextMode,
+  publishWeather,
   type ActiveWeather,
   type Condition,
+  type Forecast,
+  type WeatherEffect,
   type WeatherMode,
   type WeatherReading,
 } from './weather/weather';
@@ -22,56 +33,97 @@ import {
 interface Props {
   basemap: Basemap | null;
   light: LightPreset;
+  /** The time on the app's clock (seconds since midnight) and whether it is following real time. */
+  simTime?: number | null;
+  live?: boolean;
   onChange?: (weather: ActiveWeather) => void;
 }
 
 const clock = (iso: string | number) =>
   new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
-export function WeatherControls({ basemap, light, onChange }: Props) {
-  const [mode, setMode] = useState<WeatherMode>('live');
-  const [reading, setReading] = useState<WeatherReading | null>(() => cachedWeather()?.reading ?? null);
+/** Fetch now and every `every` ms; on failure keep the last value and retry in a minute. */
+function usePolled<T>(load: (signal: AbortSignal) => Promise<T>, every: number, initial: T | null) {
+  const [value, setValue] = useState<T | null>(initial);
   const [error, setError] = useState<string | null>(null);
-
-  // Live readings: now, then every 10 minutes; a failure keeps the last reading and retries in a minute.
   useEffect(() => {
     let timer = 0;
     let disposed = false;
     let controller: AbortController | null = null;
-    const load = async () => {
+    const run = async () => {
       controller = new AbortController();
       const timeout = window.setTimeout(() => controller?.abort(), 10_000);
       try {
-        const next = await fetchWeather(controller.signal);
+        const next = await load(controller.signal);
         if (disposed) return;
-        setReading(next);
+        setValue(next);
         setError(null);
-        timer = window.setTimeout(load, REFRESH_MS);
+        timer = window.setTimeout(run, every);
       } catch (err) {
         if (disposed) return;
         setError(err instanceof Error && err.name !== 'AbortError' ? err.message : 'timed out');
-        timer = window.setTimeout(load, RETRY_MS);
+        timer = window.setTimeout(run, RETRY_MS);
       } finally {
         window.clearTimeout(timeout);
       }
     };
-    load();
+    run();
     return () => {
       disposed = true;
       window.clearTimeout(timer);
       controller?.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  return [value, error] as const;
+}
 
-  const active = useMemo(() => activeWeather(mode, reading), [mode, reading]);
+export function WeatherControls({ basemap, light, simTime = null, live = true, onChange }: Props) {
+  const [mode, setMode] = useState<WeatherMode>('live');
+  const [reading, error] = usePolled<WeatherReading>(fetchWeather, REFRESH_MS, cachedWeather()?.reading ?? null);
+  const [forecast] = usePolled<Forecast>(fetchForecast, FORECAST_REFRESH_MS, null);
 
+  // Recomputed once a simulated minute: temperature and wind glide between forecast hours.
+  const minute = simTime == null ? null : Math.floor(simTime / 60);
+  const active = useMemo(
+    () => activeWeather(mode, reading, forecast, { live, seconds: minute == null ? null : minute * 60 }),
+    [mode, reading, forecast, live, minute],
+  );
+
+  // The effect only changes identity when it actually looks different, so the map isn't redone
+  // every minute and the ground keeps building up.
+  const effectRef = useRef<{ key: string; effect: WeatherEffect } | null>(null);
+  const effectKey = JSON.stringify(active.effect);
+  if (effectRef.current?.key !== effectKey) effectRef.current = { key: effectKey, effect: active.effect };
+  const effect = effectRef.current.effect;
+
+  // The base map gets the fog, and a ground that soaks through (rain) or slowly whitens (snow).
+  const groundRef = useRef<{ kind: string; start: number } | null>(null);
   useEffect(() => {
-    basemap?.setWeather(active.effect);
-  }, [basemap, active]);
+    if (!basemap) return;
+    if (!effect.ground) {
+      groundRef.current = null;
+      basemap.setWeather(mapWeather(effect, 0));
+      return;
+    }
+    if (groundRef.current?.kind !== effect.ground) groundRef.current = { kind: effect.ground, start: performance.now() };
+    const { start } = groundRef.current;
+    const seconds = GROUND_BUILD_SECONDS[effect.ground];
+    const step = () => basemap.setWeather(mapWeather(effect, (performance.now() - start) / 1000 / seconds));
+    step();
+    const timer = window.setInterval(() => {
+      step();
+      if (performance.now() - start > seconds * 1000) window.clearInterval(timer);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [basemap, effect]);
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  useEffect(() => onChangeRef.current?.(active), [active]);
+  useEffect(() => {
+    publishWeather(active);
+    onChangeRef.current?.(active);
+  }, [active]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -86,21 +138,28 @@ export function WeatherControls({ basemap, light, onChange }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const flashRef = useLightning(active.effect.overlay.lightning);
-  const { tint, haze, hazeTone } = active.effect.overlay;
+  const flashRef = useLightning(effect.overlay.lightning);
+  const { tint, haze, hazeTone } = effect.overlay;
   const dark = light === 'dusk' || light === 'night';
 
+  const windText = `${compass(active.wind.fromDeg)} wind ${Math.round(active.wind.mph)} mph`;
   let detail: string;
-  if (active.mode === 'live') {
-    detail = reading
-      ? `Feels ${Math.round(reading.feelsLikeF)}° · ${compass(reading.windFromDeg)} wind ${Math.round(reading.windMph)} mph · ${clock(reading.observedAt)}`
-      : error
-        ? 'Open-Meteo unreachable · retrying'
-        : 'Fetching Boston weather…';
-    if (reading && error) detail = `As of ${clock(reading.observedAt)} · offline, retrying`;
-  } else {
+  if (active.source === 'live') {
+    detail = error
+      ? `As of ${clock(reading!.observedAt)} · offline, retrying`
+      : `Feels ${Math.round(active.feelsLikeF!)}° · ${windText} · ${clock(reading!.observedAt)}`;
+  } else if (active.source === 'forecast') {
+    detail = `${active.when} · feels ${Math.round(active.feelsLikeF!)}° · ${windText}`;
+  } else if (active.source === 'simulated') {
     detail = reading ? `Actual now: ${Math.round(reading.temperatureF)}°F, ${reading.text.toLowerCase()}` : 'Not the real weather';
+  } else {
+    detail = error ? 'Open-Meteo unreachable · retrying' : 'Fetching Boston weather…';
   }
+
+  // The next hours from the time on the clock (the shown hour first).
+  const nowSeconds = live || simTime == null ? new Date().getHours() * 3600 : simTime;
+  const strip = forecast ? forecastHours(forecast, nowSeconds, 6) : [];
+  const badge = { live: 'LIVE', forecast: 'FORECAST', simulated: 'SIMULATED', none: 'NO DATA' }[active.source];
 
   return (
     <>
@@ -116,14 +175,21 @@ export function WeatherControls({ basemap, light, onChange }: Props) {
           <strong className="weather-temp">{active.temperatureF == null ? '—' : `${Math.round(active.temperatureF)}°F`}</strong>
           <span className="weather-text">
             <span className="weather-condition">{active.text}</span>
-            {active.live ? (
-              <span className="live-badge">LIVE</span>
-            ) : (
-              <span className="sim-badge">{active.mode === 'live' ? 'NO DATA' : 'SIMULATED'}</span>
-            )}
+            <span className={active.source === 'live' ? 'live-badge' : active.source === 'forecast' ? 'forecast-badge' : 'sim-badge'}>{badge}</span>
           </span>
         </div>
         <p className="weather-detail">{detail}</p>
+        {strip.length > 0 && (
+          <ol className="weather-hours" aria-label="Hourly forecast">
+            {strip.map(({ hour, reading: r }, i) => (
+              <li key={hour} className={i === 0 ? 'current' : undefined}>
+                <span className="weather-hour">{hourLabel(hour).replace(' ', '')}</span>
+                <WeatherIcon condition={r.condition} size={16} />
+                <span>{Math.round(r.temperatureF)}°</span>
+              </li>
+            ))}
+          </ol>
+        )}
         <div className="weather-modes" role="group" aria-label="Weather">
           {WEATHER_MODES.map((m) => (
             <button key={m.mode} onClick={() => setMode(m.mode)} aria-pressed={mode === m.mode} title={m.title} className={m.mode === 'live' ? 'span-2' : undefined}>
@@ -132,7 +198,7 @@ export function WeatherControls({ basemap, light, onChange }: Props) {
             </button>
           ))}
         </div>
-        <p className="weather-hint">W cycles · live data: Open-Meteo</p>
+        <p className="weather-hint">W cycles · data: Open-Meteo</p>
       </section>
     </>
   );
