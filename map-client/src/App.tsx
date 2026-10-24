@@ -7,6 +7,7 @@ import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './la
 import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
+import { daylightAt, daylightLabel } from './map/daylight';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
@@ -113,8 +114,12 @@ export default function App() {
   const [speed, setSpeed] = useState(START_SPEED);
   const [live, setLive] = useState(START_LIVE);
   const [playing, setPlaying] = useState(true);
-  const [light, setLight] = useState<LightPreset>('dusk');
-  const lightRef = useRef<LightPreset>('dusk'); // read by the frame loop (building model tint)
+  // 'auto' (default) follows the sun at the shown time: real Boston time in Clock mode.
+  const [light, setLight] = useState<LightPreset | 'auto'>('auto');
+  const [autoPreset, setAutoPreset] = useState<LightPreset>(() => daylightAt(START_AT).preset);
+  const shownLight = light === 'auto' ? autoPreset : light;
+  const lightRef = useRef<LightPreset>(shownLight); // current preset, read by the frame loop (layer tints)
+  const lightModeRef = useRef<LightPreset | 'auto'>('auto');
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes'>('crowds');
   const [weekday, setWeekday] = useState(2);
@@ -148,7 +153,7 @@ export default function App() {
 
     (async () => {
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats] = await Promise.all([
-        createBasemap(mapElement, light),
+        createBasemap(mapElement, shownLight),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
         // Transit and bikes are extras: the campus view must still start if they can't load.
@@ -262,6 +267,15 @@ export default function App() {
           if (timeRef.current > 86400) timeRef.current = 0;
         }
         const t = timeRef.current;
+        if (lightModeRef.current === 'auto') {
+          // Mapbox Standard has four presets: switch at solar thresholds (cached per sim half-minute).
+          const preset = daylightAt(t).preset;
+          if (preset !== lightRef.current) {
+            lightRef.current = preset;
+            basemap.setLightPreset(preset);
+            setAutoPreset(preset);
+          }
+        }
         const walking = playback.walkingAt(t);
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
@@ -293,7 +307,7 @@ export default function App() {
         const showBikesNow = bikes && showBikesRef.current;
         const frameLayers = [
           ...(detailedBuildings
-            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' })
             : []),
           ...crowdLayers({
             // Every tracked building, modelled or not: the glow is light around and on top of
@@ -345,8 +359,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    basemapRef.current?.setLightPreset(light);
-    lightRef.current = light;
+    lightModeRef.current = light;
+    const preset = light === 'auto' ? daylightAt(timeRef.current).preset : light;
+    basemapRef.current?.setLightPreset(preset);
+    lightRef.current = preset;
+    if (light === 'auto') setAutoPreset(preset);
   }, [light]);
 
   useEffect(() => {
@@ -444,6 +461,11 @@ export default function App() {
   return (
     <div className="app">
       <div ref={containerRef} />
+      {light === 'auto' && hud && (
+        // Auto lighting: a faint dusk veil carries the scene between Mapbox's four light presets.
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'rgb(18, 24, 52)',
+          mixBlendMode: 'multiply', opacity: daylightAt(hud.time).veil, transition: 'opacity 0.5s linear' }} />
+      )}
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
 
       <header className="panel title">
@@ -471,7 +493,7 @@ export default function App() {
 
       <PerfMonitor counts={getPerfCounts} />
       {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
-      {mapKind && <WeatherControls basemap={basemapRef.current} light={light} simTime={hud?.time} live={live} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
+      {mapKind && <WeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
 
       {hud && (
         <aside className="panel side">
@@ -755,12 +777,18 @@ export default function App() {
             ))}
           </div>
           {mapKind === 'mapbox' && (
-            <select value={light} onChange={(e) => setLight(e.target.value as LightPreset)} aria-label="Lighting">
+            <select value={light} onChange={(e) => setLight(e.target.value as LightPreset | 'auto')} aria-label="Lighting">
+              <option value="auto">Auto</option>
               <option value="dawn">Dawn</option>
               <option value="day">Day</option>
               <option value="dusk">Dusk</option>
               <option value="night">Night</option>
             </select>
+          )}
+          {mapKind === 'mapbox' && light === 'auto' && hud && (
+            <span className="light-status" style={{ fontSize: 12, opacity: 0.85, whiteSpace: 'nowrap' }} title={live ? 'Following Boston time' : 'Following the shown time'}>
+              Auto · {daylightLabel(hud.time)}
+            </span>
           )}
         </footer>
       )}
