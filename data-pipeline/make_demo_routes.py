@@ -1,9 +1,14 @@
 """Build placeholder agent trips on BU's real walkway network for the map client.
 
 Stand-in for simulate_week.py until the Simulation Lead's output exists: it pulls each campus's
-walk network from OpenStreetMap (Overpass), snaps real BU buildings to it, routes every trip
-with Dijkstra, and writes one day of trips in the format the map client renders (see
+walk network from OpenStreetMap (Overpass), joins real BU buildings to it at their doors, routes
+every trip with Dijkstra, and writes one day of trips in the format the map client renders (see
 map-client/README.md, "Data contract").
+
+Walkers keep to sidewalks and cross at crosswalks: the graph (pedestrian_network.py) makes road
+centre lines several times dearer than footways, and draws any stretch still along a road beside
+it, on the sidewalk side, rather than down the middle. A building's door is its OSM entrance, else
+the sidewalk between it and the street it's addressed on.
 
 Campuses and their locations live in data-pipeline/campuses/*.json. Every file in that folder is
 loaded; files that share a campus id merge (locations append, bboxes union). Campuses are routed
@@ -19,7 +24,6 @@ Standard library only, so it runs before anyone has set up a Python environment:
 """
 
 import hashlib
-import heapq
 import json
 import math
 import random
@@ -29,6 +33,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+import pedestrian_network
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent / "map-client" / "public" / "data" / "demo-day.json"
@@ -41,7 +47,9 @@ AGENT_COUNT = 1200
 MIN_AGENTS_PER_CAMPUS = 40  # so every campus visibly moves, however small it is
 SEED = 7
 
-WALKABLE = "footway|path|pedestrian|steps|living_street|residential|service|unclassified|tertiary|secondary|primary|crossing|corridor"
+WALKABLE = "|".join(pedestrian_network.WALKABLE)  # fetched with tags; pedestrian_network checks foot access
+DOOR_ENTRANCES = ("main", "yes", "secondary", "home", "staircase")  # OSM entrance=* walkers use
+NETWORKS = {}  # campus id -> (pedestrian graph, {location id: door node}); stop_routes() reuses them
 
 KINDS = ("dorm", "classroom", "library", "dining", "gym")
 REQUIRED_FIELDS = ("id", "name", "kind", "lat", "lon", "capacity", "osm")
@@ -241,87 +249,125 @@ def fetch_footprints(refs, height_overrides, campus_of, part_heights=None):
     return buildings, sorted(set(refs) - found)
 
 
-def fetch_walk_network(bbox):
+def fetch_walk_ways(bbox):
+    """Every way pedestrians may use in `bbox`, as {"tags", "path": [(lon, lat), ...]}. Tags are
+    fetched so the graph can tell a sidewalk from a road's centre line (pedestrian_network.py)."""
     s, w, n, e = bbox
-    elements = overpass(f'[out:json][timeout:90];way["highway"~"^({WALKABLE})$"]["foot"!="no"]({s},{w},{n},{e});(._;>;);out skel qt;')
-
-    coords = {el["id"]: (el["lat"], el["lon"]) for el in elements if el["type"] == "node"}
-    graph = {}
+    elements = overpass(f'[out:json][timeout:90];way["highway"~"^({WALKABLE})$"]({s},{w},{n},{e});(._;>;);out body qt;')
+    coords = {el["id"]: (el["lon"], el["lat"]) for el in elements if el["type"] == "node"}
+    ways = []
     for el in elements:
-        if el["type"] != "way":
-            continue
-        nodes = [nid for nid in el["nodes"] if nid in coords]
-        for a, b in zip(nodes, nodes[1:]):
-            d = haversine(*coords[a], *coords[b])
-            graph.setdefault(a, []).append((b, d))
-            graph.setdefault(b, []).append((a, d))
-    return coords, graph
+        if el["type"] == "way":
+            path = [coords[nid] for nid in el["nodes"] if nid in coords]
+            if len(path) >= 2:
+                ways.append({"tags": el.get("tags", {}), "path": path})
+    return ways
 
 
-def largest_component(graph):
-    seen, best = set(), set()
-    for start in graph:
-        if start in seen:
-            continue
-        comp, stack = {start}, [start]
-        while stack:
-            for nxt, _ in graph[stack.pop()]:
-                if nxt not in comp:
-                    comp.add(nxt)
-                    stack.append(nxt)
-        seen |= comp
-        if len(comp) > len(best):
-            best = comp
-    return best
+def network_bbox(campus):
+    """A campus's bbox grown by the stop margin: riders from a stop just outside it (St. Mary's
+    Street on Beacon St) walk the real sidewalks there, not whatever stub the bbox edge cut off."""
+    s, w, n, e = campus["bbox"]
+    m = STOP_CAMPUS_MARGIN
+    return [round(s - m, 6), round(w - m, 6), round(n + m, 6), round(e + m, 6)]
 
 
-def dijkstra(graph, source):
-    dist, prev = {source: 0.0}, {}
-    heap = [(0.0, source)]
-    while heap:
-        d, node = heapq.heappop(heap)
-        if d > dist[node]:
-            continue
-        for nxt, w in graph[node]:
-            nd = d + w
-            if nd < dist.get(nxt, math.inf):
-                dist[nxt], prev[nxt] = nd, node
-                heapq.heappush(heap, (nd, nxt))
-    return dist, prev
-
-
-def build_routes(coords, graph, locations):
-    """Shortest walk between every pair of one campus's locations."""
-    component = largest_component(graph)
+def walk_network(bbox):
+    """The connected pedestrian graph for `bbox` (its largest component)."""
+    network = pedestrian_network.Network()
+    for way in fetch_walk_ways(bbox):
+        network.add_way(way["tags"], way["path"])
+    component = network.largest_component()
     if not component:
         sys.exit("Walk network is empty; check the campus bbox")
-    snapped = {}
-    for loc in locations:
-        node = min(component, key=lambda nid: haversine(loc["lat"], loc["lon"], *coords[nid]))
-        gap = haversine(loc["lat"], loc["lon"], *coords[node])
-        if gap > SNAP_WARN_METRES:
-            warn(f"{loc['id']} is {gap:.0f} m from the walk network; is it inside its campus bbox?")
-        snapped[loc["id"]] = node
+    network.keep(component)
+    return network
 
+
+def fetch_building_doors(refs):
+    """{ref: {"street": its addr:street, "entrances": [(kind, (lon, lat))]}} for location buildings,
+    entrances being OSM entrance=* nodes on the footprint (garages and fire exits left out)."""
+    ways = ",".join(r.split("/")[1] for r in refs if r.startswith("way/"))
+    rels = ",".join(r.split("/")[1] for r in refs if r.startswith("relation/"))
+    parts = (f"way(id:{ways});" if ways else "") + (f"relation(id:{rels});" if rels else "")
+    if not parts:
+        return {}
+    buildings = overpass(f"[out:json][timeout:60];({parts});out geom;")  # fetch_footprints' query
+    entrances = overpass(f"[out:json][timeout:60];({parts})->.b;(way(r.b);way.b;)->.w;node(w.w)[entrance];out body qt;")
+    doors = {}
+    for el in buildings:
+        geometry = el.get("geometry") or [p for m in el.get("members", []) for p in m.get("geometry", [])]
+        outline = {(round(p["lon"], 6), round(p["lat"], 6)) for p in geometry}
+        found = [
+            (e["tags"]["entrance"], (e["lon"], e["lat"])) for e in entrances
+            if (round(e["lon"], 6), round(e["lat"], 6)) in outline and e["tags"]["entrance"] in DOOR_ENTRANCES
+        ]
+        doors[f"{el['type']}/{el['id']}"] = {"street": el.get("tags", {}).get("addr:street"), "entrances": found}
+    return doors
+
+
+def door_point(network, loc, building):
+    """Where a building's walkers come and go: its main OSM entrance; else the sidewalk between the
+    building and the street it's addressed on (Warren Towers' door is on Comm Ave, not the back
+    alley); else the building itself."""
+    here = (loc["lon"], loc["lat"])
+    if building and building["entrances"]:
+        kind, point = min(building["entrances"], key=lambda e: (e[0] != "main", pedestrian_network.distance(here, e[1])))
+        return point
+    street = building and building["street"]
+    if street:
+        on_street = network.nearest_edge(here, lambda info: info["road"] is not None and info["name"] == street)
+        if on_street and on_street[0] <= SNAP_WARN_METRES:
+            sidewalks = network.crossings(here, on_street[3], pedestrian_network.is_door)
+            if sidewalks:
+                return sidewalks[-1]  # the last footway before the kerb: this side's sidewalk
+    return here
+
+
+def attach_location(network, loc, building=None):
+    """Where walkers leave and reach a building: the nearest point on a footway to its door (not the
+    middle of a crosswalk, not a road's centre line), splitting that way there."""
+    point = door_point(network, loc, building)
+    for accept in (pedestrian_network.is_door, pedestrian_network.is_foot, lambda info: True):
+        found = network.attach(point, accept, SNAP_WARN_METRES)
+        if found:
+            break
+    else:
+        found = network.attach(point)
+    node, gap = found
+    if gap > SNAP_WARN_METRES:
+        warn(f"{loc['id']} is {gap:.0f} m from the walk network; is it inside its campus bbox?")
+    if not any(info["foot"] for _, _, info, _ in network.adj[node].values()):
+        warn(f"{loc['id']} joins the walk network on a road ({gap:.0f} m away); no footway near it")
+    return node
+
+
+def route_between(network, prev, src_node, dst_node):
+    """(path, cumulative metres) from src_node to dst_node, given a cheapest-path tree from src_node."""
+    node, nodes = dst_node, [dst_node]
+    while node != src_node:
+        node = prev[node]
+        nodes.append(node)
+    nodes.reverse()
+    path = network.route_geometry(nodes)  # both places at one door (a library inside a classroom) -> 2 points
+    return path, pedestrian_network.cumulative(path)
+
+
+def build_routes(network, locations, doors):
+    """Cheapest walk (sidewalks over roads, see pedestrian_network.py) between every pair of one
+    campus's locations, and each location's door node. Places in one building share its door."""
+    by_building, snapped = {}, {}
+    for loc in locations:
+        if loc["osm"] not in by_building:
+            by_building[loc["osm"]] = attach_location(network, loc, doors.get(loc["osm"]))
+        snapped[loc["id"]] = by_building[loc["osm"]]
     routes = {}
     for src_id, src_node in snapped.items():
-        dist, prev = dijkstra(graph, src_node)
+        _, prev = network.shortest(src_node)
         for dst_id, dst_node in snapped.items():
-            if dst_id == src_id:
-                continue
-            node, nodes = dst_node, [dst_node]
-            while node != src_node:
-                node = prev[node]
-                nodes.append(node)
-            nodes.reverse()
-            if len(nodes) == 1:  # both places snap to one door (e.g. a library inside a classroom building)
-                nodes.append(nodes[0])
-            path = [[round(coords[nid][1], 6), round(coords[nid][0], 6)] for nid in nodes]
-            cumulative = [0.0]
-            for a, b in zip(nodes, nodes[1:]):
-                cumulative.append(cumulative[-1] + haversine(*coords[a], *coords[b]))
-            routes[(src_id, dst_id)] = (path, cumulative)
-    return routes
+            if dst_id != src_id:
+                routes[(src_id, dst_id)] = route_between(network, prev, src_node, dst_node)
+    return routes, snapped
 
 
 CLASS_MINUTES = 50
@@ -410,12 +456,13 @@ def occupancy_timeline(agents, trips, step=300):
         yield counts
 
 
-def simulate_campus(rng, campus, agent_count, first_index):
+def simulate_campus(rng, campus, agent_count, first_index, building_doors):
     """Agents, trips, scaled locations and the walk routes used, for one campus."""
     print(f"Fetching {campus['name']} walk network from OpenStreetMap...", file=sys.stderr)
-    coords, graph = fetch_walk_network(campus["bbox"])
-    print(f"  {len(graph)} nodes", file=sys.stderr)
-    routes = build_routes(coords, graph, campus["locations"])
+    network = walk_network(network_bbox(campus))
+    print(f"  {len(network.adj)} nodes", file=sys.stderr)
+    routes, doors = build_routes(network, campus["locations"], building_doors)
+    NETWORKS[campus["id"]] = (network, doors)  # stop_routes() routes riders on the same graph
 
     by_kind = {}
     for loc in campus["locations"]:
@@ -449,7 +496,7 @@ def simulate_campus(rng, campus, agent_count, first_index):
                 # and the shared route, and the map rebuilds these.
                 "timestamps": [depart + c / speed for c in cumulative],
             })
-            used_routes[f"{here}>{dest}"] = {"path": path, "cumulative": [round(c, 1) for c in cumulative]}
+            used_routes[f"{here}>{dest}"] = {"path": path, "cumulative": cumulative}
             here, free_at = dest, max(depart + duration + 10 * 60, leave_at * 60)
 
     # Calibrate: each kind's capacity is sized so its busiest simulated moment is TARGET_PEAK
@@ -524,43 +571,33 @@ def transit_stops():
 def stop_routes(campus, stops):
     """Candidate walks from each transit stop near this campus to its locations, as
     {stop_id: [(metres, "stopId>locationId", route)]}, nearest first, route in the same compact
-    form as walkRoutes. Each path starts at the stop itself, then joins the walk network at its
-    nearest node."""
+    form as walkRoutes. Each path starts at the stop itself, then joins the walk network on its
+    nearest footway, on the graph and doors the campus's walkers use."""
     s, w, n, e = campus["bbox"]
     m = STOP_CAMPUS_MARGIN
     near = [st for st in stops if s - m <= st["position"][1] <= n + m and w - m <= st["position"][0] <= e + m]
     if not near:
         return {}
-    coords, graph = fetch_walk_network(campus["bbox"])  # cached on disk by the campus run
-    component = largest_component(graph)
-
-    def nearest_node(lat, lon):
-        return min(component, key=lambda nid: haversine(lat, lon, *coords[nid]))
-
-    loc_nodes = {loc["id"]: nearest_node(loc["lat"], loc["lon"]) for loc in campus["locations"]}
+    network, loc_nodes = NETWORKS[campus["id"]]
 
     routes = {}
     for stop in near:
         lon, lat = stop["position"]
-        start = nearest_node(lat, lon)
-        gap = haversine(lat, lon, *coords[start])
-        if gap > STOP_SNAP_MAX_METRES:
+        # Platforms in Comm Ave's median join on its crosswalks and islands, so any footway will do.
+        found = network.attach((lon, lat), pedestrian_network.is_foot, STOP_SNAP_MAX_METRES) \
+            or network.attach((lon, lat), lambda info: True, STOP_SNAP_MAX_METRES)
+        if not found:
+            gap = network.nearest_edge((lon, lat))[0]
             warn(f"stop {stop['id']} ({stop['name']}) is {gap:.0f} m from the {campus['id']} walk network; skipped")
             continue
-        dist, prev = dijkstra(graph, start)
-        reachable = sorted((dist[node], loc_id) for loc_id, node in loc_nodes.items() if node in dist)
+        start, _ = found
+        cost, prev = network.shortest(start)
+        reachable = sorted((cost[node], loc_id) for loc_id, node in loc_nodes.items() if node in cost)
         for _, loc_id in reachable[:STOP_ROUTES_PER_STOP]:
-            node, nodes = loc_nodes[loc_id], [loc_nodes[loc_id]]
-            while node != start:
-                node = prev[node]
-                nodes.append(node)
-            nodes.reverse()
-            path = [[round(lon, 6), round(lat, 6)]] + [[round(coords[nid][1], 6), round(coords[nid][0], 6)] for nid in nodes]
-            cumulative = [0.0, gap]
-            for a, b in zip(nodes, nodes[1:]):
-                cumulative.append(cumulative[-1] + haversine(*coords[a], *coords[b]))
-            route = {"path": path, "cumulative": [round(c, 1) for c in cumulative]}
-            routes.setdefault(stop["id"], []).append((cumulative[-1], f"{stop['id']}>{loc_id}", route))
+            walk, _ = route_between(network, prev, start, loc_nodes[loc_id])
+            path = [[round(lon, 6), round(lat, 6)]] + walk
+            route = {"path": path, "cumulative": pedestrian_network.cumulative(path)}
+            routes.setdefault(stop["id"], []).append((route["cumulative"][-1], f"{stop['id']}>{loc_id}", route))
     return routes
 
 
@@ -570,8 +607,9 @@ def main():
     counts = split_agents(campuses, AGENT_COUNT)
 
     agents, trips, locations, walk_routes = [], [], [], {}
+    building_doors = fetch_building_doors(sorted({loc["osm"] for c in campuses for loc in c["locations"]}))
     for campus in campuses:
-        a, t, l, r = simulate_campus(rng, campus, counts[campus["id"]], len(agents))
+        a, t, l, r = simulate_campus(rng, campus, counts[campus["id"]], len(agents), building_doors)
         agents += a
         trips += t
         locations += l
