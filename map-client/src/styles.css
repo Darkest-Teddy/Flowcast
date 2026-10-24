@@ -153,3 +153,32 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 }
 .campuses button[aria-pressed='true'] { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
 #panel-transit h3 .route-badge + .route-badge { margin-left: -2px; }
+
+/* Camera controls (CameraControls.tsx): left edge, under the title card. */
+.camera { top: 148px; left: 16px; width: 240px; padding: 10px; }
+.camera-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.camera-grid .span-2 { grid-column: span 2; }
+.camera-grid .span-3 { grid-column: span 3; }
+.camera-grid button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.camera-grid button:hover { background: rgba(255, 255, 255, 0.12); }
+.camera-grid button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.camera-grid button:disabled { opacity: 0.4; cursor: default; }
+.camera-grid button[aria-pressed='true'] { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
+.camera-grid svg { flex: none; }
+.camera-status { margin: 8px 2px 0; font-size: 12px; color: var(--muted); line-height: 1.3; }
