@@ -3,7 +3,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, modelRoofHeights, type RoofHeights } from './layers/crowd';
+import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
@@ -323,6 +323,7 @@ export default function App() {
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
+      const volumes = modelVolumes(detailedBuildings?.manifest);
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
@@ -440,6 +441,7 @@ export default function App() {
             selectedId: selectedRef.current,
             zoom: basemap.getZoom(),
             roofHeights,
+            volumes,
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
