@@ -708,18 +708,19 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       const list = changedOffMap.get(item.agent) ?? []; list.push(item); changedOffMap.set(item.agent, list);
     }
   }
-  const transitRides = day.transitRides?.flatMap(ride => {
-    if (!affected.has(ride.agent) || ride.time < incident.start) return [ride];
+  const transitRides = day.transitRides?.map(ride => {
+    if (!affected.has(ride.agent) || ride.time < incident.start || ride.cancelledAt !== undefined) return ride;
+    const cancelled = { ...ride, cancelledAt: incident.start };
     const walks = changedWalks.get(ride.agent) ?? [], offMap = changedOffMap.get(ride.agent) ?? [];
     if (ride.kind === 'alight') {
       const walk = walks.find(trip => trip.from === 'off-campus'
         && Math.abs(trip.timestamps[0] - ride.time - ALIGHT_SECONDS) < EPS && samePoint(trip.path[0], ride.position));
-      return walk && offMap.some(item => item.start <= ride.time && item.end >= walk.timestamps[0]) ? [ride] : [];
+      return walk && offMap.some(item => item.start <= ride.time && item.end >= walk.timestamps[0]) ? ride : cancelled;
     }
     const walk = walks.find(trip => trip.to === 'off-campus' && endOf(trip) <= ride.time
       && ride.time - endOf(trip) <= MAX_STOP_WAIT_SECONDS && samePoint(trip.path.at(-1)!, ride.position)
       && offMap.some(item => Math.abs(item.start - endOf(trip)) < EPS && item.end > ride.time));
-    return walk ? [{ ...ride, waitStart: endOf(walk) }] : [];
+    return walk ? { ...ride, waitStart: endOf(walk) } : cancelled;
   });
   return { day: { ...day, locations: assemblyLocation ? [...day.locations, assemblyLocation] : day.locations, trips, stays,
     ...(transitRides ? { transitRides } : {}) },

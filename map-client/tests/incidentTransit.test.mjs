@@ -24,7 +24,7 @@ function fixture() {
 
 test('an incident removes a missed departure without changing the prior ride', () => {
   const base=fixture(), saved=JSON.stringify(base), result=applyIncident(base,scenario);
-  assert.deepEqual(result.day.transitRides,[base.transitRides[0]]);
+  assert.deepEqual(result.day.transitRides.filter(ride=>ride.cancelledAt===undefined),[base.transitRides[0]]);
   const playback=new Playback(result.day);
   assert.equal(playback.studentsAboard('outbound',500),0);
   assert.deepEqual(playback.waitingAt(331),[]);
@@ -53,5 +53,8 @@ test('a diverted future approach drops its now-unmatched alighting', () => {
   base.transitRides.push({...base.transitRides[0],agent:'incoming',trip:'later',time:140});
   const result=applyIncident(base,scenario);
   assert.ok(result.participants.some(p=>p.agentId==='incoming'));
-  assert.ok(!result.day.transitRides.some(ride=>ride.agent==='incoming'));
+  assert.equal(result.day.transitRides.find(ride=>ride.agent==='incoming').cancelledAt,100);
+  const before=new Playback(base), after=new Playback(result.day);
+  assert.equal(after.studentsAboard('later',99),before.studentsAboard('later',99),'past ridership is unchanged');
+  assert.equal(after.studentsAboard('later',100),0,'the scenario invalidates the future ride');
 });

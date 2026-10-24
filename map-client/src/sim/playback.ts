@@ -119,6 +119,8 @@ export interface Stay { agent: string; location: string; start: number; end: num
  * `time` is the published arrival (alight) or departure (board); boarders wait from `waitStart`.
  */
 export interface TransitRide {
+  /** A scenario can invalidate a future ride without rewriting playback before the incident. */
+  cancelledAt?: number;
   agent: string;
   kind: 'alight' | 'board';
   trip: string; // GTFS trip id
@@ -297,7 +299,10 @@ export class Playback {
   /** Modeled students aboard a published trip at time t: those yet to step off plus those who got on. */
   studentsAboard(trip: string, t: number): number {
     let count = 0;
-    for (const ride of this.ridesByTrip.get(trip) ?? []) if (ride.kind === 'alight' ? t < ride.time : t >= ride.time) count++;
+    for (const ride of this.ridesByTrip.get(trip) ?? []) {
+      if (ride.cancelledAt !== undefined && t >= ride.cancelledAt) continue;
+      if (ride.kind === 'alight' ? t < ride.time : t >= ride.time) count++;
+    }
     return count;
   }
 
@@ -305,6 +310,7 @@ export class Playback {
   waitingAt(t: number): WaitingRider[] {
     const out: WaitingRider[] = [];
     for (const ride of this.waitingBuckets.get(Math.floor(t / 300)) ?? []) {
+      if (ride.cancelledAt !== undefined && t >= ride.cancelledAt) continue;
       if (ride.waitStart! > t || t >= ride.time) continue;
       out.push({ id: ride.agent, model: this.agents.get(ride.agent)?.model ?? 0, stop: ride.stop, route: ride.route,
         direction: ride.direction, position: ride.position, boardsAt: ride.time });
