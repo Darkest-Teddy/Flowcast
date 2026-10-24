@@ -32,3 +32,6 @@ data-pipeline/.cache/
 
 # TypeScript incremental build state
 *.tsbuildinfo
+
+# Generated public-source acquisitions (rebuild with the scraping CLIs)
+data-pipeline/output/
