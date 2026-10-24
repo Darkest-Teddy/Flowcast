@@ -1,0 +1,22 @@
+{
+  "campus": "charles-river",
+  "name": "Charles River Campus",
+  "bbox": [42.3455, -71.1225, 42.3560, -71.0925],
+  "locations": [
+    {"id": "warren", "name": "Warren Towers", "short": "Warren Towers", "kind": "dorm", "lat": 42.34933, "lon": -71.10402, "capacity": 1800, "osm": "relation/20512578", "height": 64.8},
+    {"id": "myles", "name": "Myles Standish Hall", "short": "Myles", "kind": "dorm", "lat": 42.34967, "lon": -71.09443, "capacity": 750, "osm": "way/29557600"},
+    {"id": "stuvi", "name": "Student Village", "short": "StuVi", "kind": "dorm", "lat": 42.35239, "lon": -71.11599, "capacity": 950, "osm": "way/29927783"},
+    {"id": "claflin", "name": "Claflin Hall", "short": "Claflin", "kind": "dorm", "lat": 42.35252, "lon": -71.11981, "capacity": 350, "osm": "way/29889456"},
+    {"id": "kilachand", "name": "Kilachand Hall", "short": "Kilachand", "kind": "dorm", "lat": 42.35035, "lon": -71.09700, "capacity": 550, "osm": "way/29863053"},
+    {"id": "cas", "name": "College of Arts and Sciences", "short": "CAS", "kind": "classroom", "lat": 42.35028, "lon": -71.10559, "capacity": 900, "osm": "way/1007090939"},
+    {"id": "cds", "name": "Computing & Data Sciences", "short": "CDS", "kind": "classroom", "lat": 42.35003, "lon": -71.10290, "capacity": 600, "osm": "way/277434241"},
+    {"id": "questrom", "name": "Questrom School of Business", "short": "Questrom", "kind": "classroom", "lat": 42.34961, "lon": -71.09973, "capacity": 700, "osm": "way/256604722"},
+    {"id": "photonics", "name": "Photonics Center", "short": "Photonics", "kind": "classroom", "lat": 42.34917, "lon": -71.10611, "capacity": 500, "osm": "way/29581513"},
+    {"id": "epic", "name": "Engineering Product Innovation Center", "short": "EPIC", "kind": "classroom", "lat": 42.34970, "lon": -71.10802, "capacity": 300, "osm": "way/29513001"},
+    {"id": "mugar", "name": "Mugar Memorial Library", "short": "Mugar Library", "kind": "library", "lat": 42.35100, "lon": -71.10800, "capacity": 800, "osm": "way/130209089"},
+    {"id": "pardee", "name": "Pardee Library", "short": "Pardee Library", "kind": "library", "lat": 42.34962, "lon": -71.09968, "capacity": 200, "osm": "way/256604722"},
+    {"id": "gsu", "name": "George Sherman Union", "short": "GSU", "kind": "dining", "lat": 42.35097, "lon": -71.10886, "capacity": 600, "osm": "way/130209090"},
+    {"id": "warren-dining", "name": "Warren Towers Dining Hall", "short": "Warren Dining", "kind": "dining", "lat": 42.34940, "lon": -71.10406, "capacity": 500, "osm": "relation/20512578"},
+    {"id": "agganis", "name": "Agganis Arena", "short": "Agganis Arena", "kind": "gym", "lat": 42.35222, "lon": -71.11774, "capacity": 1500, "osm": "way/102384832"}
+  ]
+}

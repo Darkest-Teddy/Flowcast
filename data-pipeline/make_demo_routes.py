@@ -1,9 +1,13 @@
 """Build placeholder agent trips on BU's real walkway network for the map client.
 
-Stand-in for simulate_week.py until the Simulation Lead's output exists: it pulls the
-walk network from OpenStreetMap (Overpass), snaps a handful of real BU buildings to it,
-routes every trip with Dijkstra, and writes one day of trips in the format the map
-client renders (see map-client/README.md, "Data contract").
+Stand-in for simulate_week.py until the Simulation Lead's output exists: it pulls each campus's
+walk network from OpenStreetMap (Overpass), snaps real BU buildings to it, routes every trip
+with Dijkstra, and writes one day of trips in the format the map client renders (see
+map-client/README.md, "Data contract").
+
+Campuses and their locations live in data-pipeline/campuses/*.json. Every file in that folder is
+loaded; files that share a campus id merge (locations append, bboxes union). Campuses are routed
+separately: each agent lives and studies on one campus and never walks between campuses.
 
 Standard library only, so it runs before anyone has set up a Python environment:
     python3 data-pipeline/make_demo_routes.py
@@ -21,66 +25,33 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-BBOX = (42.3455, -71.1225, 42.3560, -71.0925)  # south, west, north, east: central + west campus
-OUT = Path(__file__).resolve().parent.parent / "map-client" / "public" / "data" / "demo-day.json"
-CACHE = Path(__file__).resolve().parent / ".cache" / "overpass"
+HERE = Path(__file__).resolve().parent
+OUT = HERE.parent / "map-client" / "public" / "data" / "demo-day.json"
+CAMPUS_DIR = HERE / "campuses"
+CACHE = HERE / ".cache" / "overpass"
 OVERPASS = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "Flowcast-DSX-hackathon/0.1"
 
 AGENT_COUNT = 300
+MIN_AGENTS_PER_CAMPUS = 40  # so every campus visibly moves, however small it is
 SEED = 7
 
 WALKABLE = "footway|path|pedestrian|steps|living_street|residential|service|unclassified|tertiary|secondary|primary|crossing|corridor"
 
-# Real BU locations: (id, name, kind, lat, lon, real-world capacity, OSM footprint).
-# SHORT_NAMES are what students call them; the big-screen labels use these.
-# Coordinates are OSM building centers (Overpass, Oct 2026). Capacities are rough public figures
-# (beds, seats) used only for relative size. Locations inside the same building share a footprint.
-LOCATIONS = [
-    ("warren", "Warren Towers", "dorm", 42.34933, -71.10402, 1800, "relation/20512578"),
-    ("myles", "Myles Standish Hall", "dorm", 42.34967, -71.09443, 750, "way/29557600"),
-    ("stuvi", "Student Village", "dorm", 42.35239, -71.11599, 950, "way/29927783"),
-    ("claflin", "Claflin Hall", "dorm", 42.35252, -71.11981, 350, "way/29889456"),
-    ("kilachand", "Kilachand Hall", "dorm", 42.35035, -71.09700, 550, "way/29863053"),
-    ("cas", "College of Arts and Sciences", "classroom", 42.35028, -71.10559, 900, "way/1007090939"),
-    ("cds", "Computing & Data Sciences", "classroom", 42.35003, -71.10290, 600, "way/277434241"),
-    ("questrom", "Questrom School of Business", "classroom", 42.34961, -71.09973, 700, "way/256604722"),
-    ("photonics", "Photonics Center", "classroom", 42.34917, -71.10611, 500, "way/29581513"),
-    ("epic", "Engineering Product Innovation Center", "classroom", 42.34970, -71.10802, 300, "way/29513001"),
-    ("mugar", "Mugar Memorial Library", "library", 42.35100, -71.10800, 800, "way/130209089"),
-    ("pardee", "Pardee Library", "library", 42.34962, -71.09968, 200, "way/256604722"),
-    ("gsu", "George Sherman Union", "dining", 42.35097, -71.10886, 600, "way/130209090"),
-    ("warren-dining", "Warren Towers Dining Hall", "dining", 42.34940, -71.10406, 500, "relation/20512578"),
-    ("agganis", "Agganis Arena", "gym", 42.35222, -71.11774, 1500, "way/102384832"),
-]
-
-SHORT_NAMES = {
-    "warren": "Warren Towers",
-    "myles": "Myles",
-    "stuvi": "StuVi",
-    "claflin": "Claflin",
-    "kilachand": "Kilachand",
-    "cas": "CAS",
-    "cds": "CDS",
-    "questrom": "Questrom",
-    "photonics": "Photonics",
-    "epic": "EPIC",
-    "mugar": "Mugar Library",
-    "pardee": "Pardee Library",
-    "gsu": "GSU",
-    "warren-dining": "Warren Dining",
-    "agganis": "Agganis Arena",
-}
-
-# Peak share of the simulated population expected in each kind of place at once. Capacities are
-# scaled so "% full" means the same thing at 300 agents as it would for the real campus.
+KINDS = ("dorm", "classroom", "library", "dining", "gym")
+REQUIRED_FIELDS = ("id", "name", "kind", "lat", "lon", "capacity", "osm")
+# Peak share of a campus's simulated population expected in each kind of place at once. Capacities
+# are scaled per campus, so "% full" means the same thing for 40 agents as for the real campus.
 KIND_PEAK_SHARE = {"dorm": 1.1, "classroom": 0.75, "dining": 0.4, "library": 0.3, "gym": 0.15}
-# Footprints whose OSM entry has no height or level tags.
-HEIGHT_OVERRIDES = {"relation/20512578": 18 * 3.6}  # Warren Towers: 18-storey towers
 METRES_PER_LEVEL = 3.6
 DEFAULT_LEVELS = 4
+SNAP_WARN_METRES = 150  # a location this far from its campus walk network probably has a bad bbox
 
 MWF_SLOTS = [8 * 60, 9 * 60 + 5, 10 * 60 + 10, 11 * 60 + 15, 12 * 60 + 20, 13 * 60 + 25, 14 * 60 + 30, 15 * 60 + 35]
+
+
+def warn(msg):
+    print(f"  WARNING: {msg}", file=sys.stderr)
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -116,6 +87,81 @@ def overpass(query):
     return elements
 
 
+def load_campuses():
+    """Merge every campuses/*.json into a list of campuses, biggest (by total capacity) first."""
+    campuses, seen = {}, set()
+    files = [(path, json.loads(path.read_text())) for path in CAMPUS_DIR.glob("*.json")]
+    # A campus's base file (named after its id, e.g. charles-river.json) loads before its add-ons,
+    # so on a duplicate location id the base file's entry wins.
+    files.sort(key=lambda f: (f[0].stem != f[1]["campus"], f[0].name))
+    for path, data in files:
+        cid = data["campus"]
+        campus = campuses.setdefault(cid, {"id": cid, "name": None, "bbox": None, "locations": []})
+        campus["name"] = campus["name"] or data.get("name")
+        if data.get("bbox"):
+            s, w, n, e = data["bbox"]
+            if campus["bbox"]:
+                s0, w0, n0, e0 = campus["bbox"]
+                s, w, n, e = min(s, s0), min(w, w0), max(n, n0), max(e, e0)
+            campus["bbox"] = [s, w, n, e]
+        for loc in data.get("locations", []):
+            missing = [f for f in REQUIRED_FIELDS if f not in loc]
+            if missing:
+                warn(f"{path.name}: skipping {loc.get('id', '?')}, missing {', '.join(missing)}")
+                continue
+            if loc["kind"] not in KINDS:
+                warn(f"{path.name}: skipping {loc['id']}, unknown kind {loc['kind']!r}")
+                continue
+            if loc["id"] in seen:
+                warn(f"{path.name}: skipping duplicate location id {loc['id']}")
+                continue
+            seen.add(loc["id"])
+            campus["locations"].append({**loc, "short": loc.get("short") or loc["name"], "campus": cid})
+
+    out = []
+    for campus in campuses.values():
+        locs = campus["locations"]
+        if not locs:
+            warn(f"campus {campus['id']} has no locations; skipping it")
+            continue
+        if not campus["bbox"]:  # no bbox given: pad the locations' extent by ~300 m
+            lats, lons = [l["lat"] for l in locs], [l["lon"] for l in locs]
+            campus["bbox"] = [min(lats) - 0.003, min(lons) - 0.004, max(lats) + 0.003, max(lons) + 0.004]
+        campus["name"] = campus["name"] or campus["id"].replace("-", " ").title()
+        campus["total_capacity"] = sum(max(1, l["capacity"]) for l in locs)
+        out.append(campus)
+    if not out:
+        sys.exit(f"No campus locations found in {CAMPUS_DIR}")
+    out.sort(key=lambda c: -c["total_capacity"])
+    return out
+
+
+def split_agents(campuses, total):
+    """Agents per campus in proportion to total capacity, with a floor so small campuses still move."""
+    caps = {c["id"]: c["total_capacity"] for c in campuses}
+    floor = min(MIN_AGENTS_PER_CAMPUS, total // len(campuses))
+    fixed, shares = {}, {}
+    while True:
+        free = [cid for cid in caps if cid not in fixed]
+        if not free:
+            break
+        budget = total - sum(fixed.values())
+        cap_sum = sum(caps[cid] for cid in free)
+        shares = {cid: budget * caps[cid] / cap_sum for cid in free}
+        low = [cid for cid in free if shares[cid] < floor]
+        if not low:
+            break
+        for cid in low:
+            fixed[cid] = floor
+    free = [cid for cid in caps if cid not in fixed]
+    counts = {**fixed, **{cid: int(shares[cid]) for cid in free}}
+    # Largest remainder; if every campus sat on the floor, the leftovers go to the biggest ones.
+    order = sorted(free, key=lambda cid: counts[cid] - shares[cid]) or sorted(caps, key=lambda cid: -caps[cid])
+    for i in range(total - sum(counts.values())):
+        counts[order[i % len(order)]] += 1
+    return counts
+
+
 def stitch_rings(segments):
     """Join a multipolygon's outer member ways end-to-end into closed rings."""
     segments = [list(seg) for seg in segments]
@@ -138,11 +184,13 @@ def stitch_rings(segments):
     return rings
 
 
-def fetch_footprints(refs):
+def fetch_footprints(refs, height_overrides, campus_of):
+    """Footprint rings for OSM refs ("way/1", "relation/2"). Returns (buildings, unresolved refs)."""
     ways = ",".join(r.split("/")[1] for r in refs if r.startswith("way/"))
     rels = ",".join(r.split("/")[1] for r in refs if r.startswith("relation/"))
-    elements = overpass(f"[out:json][timeout:60];(way(id:{ways});relation(id:{rels}););out geom;")
-    buildings = []
+    parts = (f"way(id:{ways});" if ways else "") + (f"relation(id:{rels});" if rels else "")
+    elements = overpass(f"[out:json][timeout:60];({parts});out geom;") if parts else []
+    buildings, found = [], set()
     for el in elements:
         if el["type"] == "way":
             rings = [[[round(p["lon"], 6), round(p["lat"], 6)] for p in el["geometry"]]]
@@ -154,16 +202,20 @@ def fetch_footprints(refs):
             ]
             rings = stitch_rings(outers)
         tags = el.get("tags", {})
-        levels = float(tags.get("building:levels", DEFAULT_LEVELS))
         ref = f"{el['type']}/{el['id']}"
-        height = HEIGHT_OVERRIDES.get(ref) or float(tags.get("height", levels * METRES_PER_LEVEL))
+        found.add(ref)
+        try:
+            levels = float(tags.get("building:levels", DEFAULT_LEVELS))
+            height = height_overrides.get(ref) or float(tags.get("height", levels * METRES_PER_LEVEL))
+        except ValueError:  # e.g. height="20 m"
+            height = height_overrides.get(ref) or DEFAULT_LEVELS * METRES_PER_LEVEL
         for ring in rings:
-            buildings.append({"id": ref, "name": tags.get("name"), "polygon": ring, "height": height})
-    return buildings
+            buildings.append({"id": ref, "name": tags.get("name"), "polygon": ring, "height": height, "campus": campus_of.get(ref)})
+    return buildings, sorted(set(refs) - found)
 
 
-def fetch_walk_network():
-    s, w, n, e = BBOX
+def fetch_walk_network(bbox):
+    s, w, n, e = bbox
     elements = overpass(f'[out:json][timeout:90];way["highway"~"^({WALKABLE})$"]["foot"!="no"]({s},{w},{n},{e});(._;>;);out skel qt;')
 
     coords = {el["id"]: (el["lat"], el["lon"]) for el in elements if el["type"] == "node"}
@@ -211,11 +263,18 @@ def dijkstra(graph, source):
     return dist, prev
 
 
-def build_routes(coords, graph):
+def build_routes(coords, graph, locations):
+    """Shortest walk between every pair of one campus's locations."""
     component = largest_component(graph)
+    if not component:
+        sys.exit("Walk network is empty; check the campus bbox")
     snapped = {}
-    for loc_id, _, _, lat, lon, _, _ in LOCATIONS:
-        snapped[loc_id] = min(component, key=lambda nid: haversine(lat, lon, *coords[nid]))
+    for loc in locations:
+        node = min(component, key=lambda nid: haversine(loc["lat"], loc["lon"], *coords[nid]))
+        gap = haversine(loc["lat"], loc["lon"], *coords[node])
+        if gap > SNAP_WARN_METRES:
+            warn(f"{loc['id']} is {gap:.0f} m from the walk network; is it inside its campus bbox?")
+        snapped[loc["id"]] = node
 
     routes = {}
     for src_id, src_node in snapped.items():
@@ -228,6 +287,8 @@ def build_routes(coords, graph):
                 node = prev[node]
                 nodes.append(node)
             nodes.reverse()
+            if len(nodes) == 1:  # both places snap to one door (e.g. a library inside a classroom building)
+                nodes.append(nodes[0])
             path = [[round(coords[nid][1], 6), round(coords[nid][0], 6)] for nid in nodes]
             cumulative = [0.0]
             for a, b in zip(nodes, nodes[1:]):
@@ -239,13 +300,18 @@ def build_routes(coords, graph):
 def plan_day(rng, by_kind):
     """A rough MWF day: home -> classes (with a meal and maybe study/gym between) -> home.
 
-    Places are picked in proportion to their real capacity, so big buildings draw big crowds."""
+    Places are picked in proportion to their real capacity, so big buildings draw big crowds.
+    Kinds the campus doesn't have are skipped. With no dorm, the agent "lives" at a classroom
+    building and the day simply ends after its last stop (no trip home)."""
 
     def pick(kind):
+        if kind not in by_kind:
+            return None
         ids, weights = by_kind[kind]
         return rng.choices(ids, weights=weights)[0]
 
-    home = pick("dorm")
+    has_dorm = "dorm" in by_kind
+    home = pick("dorm") or pick("classroom") or pick(next(iter(by_kind)))
     slots = sorted(rng.sample(MWF_SLOTS, rng.randint(2, 4)))
     stops = []  # (location_id, arrive_by_minute)
     for slot in slots:
@@ -257,30 +323,31 @@ def plan_day(rng, by_kind):
     if rng.random() < 0.25:
         stops.append((pick("gym"), rng.randint(16 * 60, 20 * 60)))
     stops.append((pick("dining"), rng.randint(17 * 60 + 30, 19 * 60 + 30)))
-    stops.sort(key=lambda s: s[1])
-    stops.append((home, rng.randint(20 * 60, 22 * 60)))
+    stops = sorted((s for s in stops if s[0] is not None), key=lambda s: s[1])
+    if has_dorm:
+        stops.append((home, rng.randint(20 * 60, 22 * 60)))
     return home, stops
 
 
-def main():
-    rng = random.Random(SEED)
-    print("Fetching BU walk network from OpenStreetMap...", file=sys.stderr)
-    coords, graph = fetch_walk_network()
+def simulate_campus(rng, campus, agent_count, first_index):
+    """Agents, trips and scaled locations for one campus, routed on its own walk network."""
+    print(f"Fetching {campus['name']} walk network from OpenStreetMap...", file=sys.stderr)
+    coords, graph = fetch_walk_network(campus["bbox"])
     print(f"  {len(graph)} nodes", file=sys.stderr)
-    routes = build_routes(coords, graph)
+    routes = build_routes(coords, graph, campus["locations"])
 
     by_kind = {}
-    for loc_id, _, kind, _, _, cap, _ in LOCATIONS:
-        ids, weights = by_kind.setdefault(kind, ([], []))
-        ids.append(loc_id)
-        weights.append(cap)
+    for loc in campus["locations"]:
+        ids, weights = by_kind.setdefault(loc["kind"], ([], []))
+        ids.append(loc["id"])
+        weights.append(max(1, loc["capacity"]))
 
     agents, trips = [], []
-    for i in range(AGENT_COUNT):
+    for i in range(first_index, first_index + agent_count):
         agent_id = f"a{i:03d}"
         speed = rng.uniform(1.1, 1.5)  # metres per second
         home, stops = plan_day(rng, by_kind)
-        agents.append({"id": agent_id, "home": home, "model": rng.randrange(12)})
+        agents.append({"id": agent_id, "home": home, "model": rng.randrange(12), "campus": campus["id"]})
         here, free_at = home, 0
         for dest, arrive_by in stops:
             if dest == here:
@@ -298,18 +365,66 @@ def main():
             here, free_at = dest, depart + duration + 25 * 60
 
     locations = []
-    for loc_id, name, kind, lat, lon, cap, building in LOCATIONS:
-        kind_total = sum(by_kind[kind][1])
-        capacity = max(5, round(cap / kind_total * AGENT_COUNT * KIND_PEAK_SHARE[kind]))
-        locations.append({"id": loc_id, "name": name, "short": SHORT_NAMES[loc_id], "kind": kind, "position": [lon, lat], "capacity": capacity, "building": building})
+    for loc in campus["locations"]:
+        kind_total = sum(by_kind[loc["kind"]][1])
+        capacity = max(5, round(max(1, loc["capacity"]) / kind_total * agent_count * KIND_PEAK_SHARE[loc["kind"]]))
+        locations.append({
+            "id": loc["id"], "name": loc["name"], "short": loc["short"], "kind": loc["kind"],
+            "position": [loc["lon"], loc["lat"]], "capacity": capacity, "building": loc["osm"], "campus": campus["id"],
+        })
+    return agents, trips, locations
+
+
+def main():
+    rng = random.Random(SEED)
+    campuses = load_campuses()
+    counts = split_agents(campuses, AGENT_COUNT)
+
+    agents, trips, locations = [], [], []
+    for campus in campuses:
+        a, t, l = simulate_campus(rng, campus, counts[campus["id"]], len(agents))
+        agents += a
+        trips += t
+        locations += l
 
     print("Fetching building footprints...", file=sys.stderr)
-    buildings = fetch_footprints(sorted({loc[6] for loc in LOCATIONS}))
+    all_locs = [loc for c in campuses for loc in c["locations"]]
+    heights = {loc["osm"]: loc["height"] for loc in all_locs if loc.get("height")}
+    campus_of = {loc["osm"]: loc["campus"] for loc in all_locs}
+    buildings, unresolved = fetch_footprints(sorted(campus_of), heights, campus_of)
+    for ref in unresolved:
+        users = ", ".join(loc["id"] for loc in all_locs if loc["osm"] == ref)
+        warn(f"footprint {ref} not found in OSM (used by {users}); it won't be drawn")
+
+    campus_out = []
+    for c in campuses:
+        locs = c["locations"]
+        center = [round(sum(l["lon"] for l in locs) / len(locs), 6), round(sum(l["lat"] for l in locs) / len(locs), 6)]
+        campus_out.append({"id": c["id"], "name": c["name"], "bbox": c["bbox"], "center": center})
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"day": "Wednesday", "buildings": buildings, "locations": locations, "agents": agents, "trips": trips}
+    payload = {
+        "day": "Wednesday",
+        "campuses": campus_out,
+        "buildings": buildings,
+        "locations": locations,
+        "agents": agents,
+        "trips": trips,
+    }
     OUT.write_text(json.dumps(payload, separators=(",", ":")))
-    print(f"Wrote {len(agents)} agents, {len(trips)} trips -> {OUT}", file=sys.stderr)
+
+    agent_campus = {a["id"]: a["campus"] for a in agents}
+    print(f"{'campus':<16}{'locations':>10}{'footprints':>12}{'agents':>8}{'trips':>8}", file=sys.stderr)
+    for c in campuses:
+        cid = c["id"]
+        refs = {loc["osm"] for loc in c["locations"]}
+        resolved = f"{len(refs - set(unresolved))}/{len(refs)}"
+        n_agents = sum(campus == cid for campus in agent_campus.values())
+        n_trips = sum(agent_campus[t["agent"]] == cid for t in trips)
+        print(f"{cid:<16}{len(c['locations']):>10}{resolved:>12}{n_agents:>8}{n_trips:>8}", file=sys.stderr)
+    print(f"Wrote {len(agents)} agents, {len(trips)} trips, {len(campuses)} campuses -> {OUT}", file=sys.stderr)
+    if unresolved:
+        print(f"  {len(unresolved)} footprint(s) unresolved: {', '.join(unresolved)}", file=sys.stderr)
 
 
 if __name__ == "__main__":
