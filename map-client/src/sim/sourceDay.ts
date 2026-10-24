@@ -3,6 +3,7 @@ import type { Agent, CampusLocation, DayData, Trip } from './playback';
 
 const DAY = 86400;
 const WALK_SPEED = 1.4;
+const weeklyCache = new WeakMap<DayData, WeakMap<CampusData, (weekday: number) => SourceDay>>();
 const HOME_BREAK = 15 * 60;
 
 type Route = { path: [number, number][]; cumulative: number[] };
@@ -35,6 +36,10 @@ export interface SourceDayStats {
   composedRoutes: number;
   composedTrips: number;
   capacityLimitedCandidates: number;
+  weeklyEnrolledStudents: number;
+  weeklyEnrollments: number;
+  unassignedStudents: number;
+  eligibleWeeklySections: number;
   assumptions: string[];
 }
 
@@ -61,23 +66,34 @@ function validRoute(route: Route): boolean {
       && (index === 0 || distance >= route.cumulative[index - 1]));
 }
 
-/** Use source times for a fictional cohort; published seats never become attendance. */
+/** Cached synthetic weekly enrollment; source seats are upper bounds, never actual enrollment. */
 export function buildSourceDay(base: DayData, data: CampusData, weekday: number): SourceDay {
   if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) throw new Error('Weekday must be Monday=0 through Sunday=6');
+  let cache = weeklyCache.get(base);
+  if (!cache) { cache = new WeakMap(); weeklyCache.set(base, cache); }
+  let makeDay = cache.get(data);
+  if (!makeDay) { makeDay = buildWeek(base, data); cache.set(data, makeDay); }
+  return makeDay(weekday);
+}
+
+function buildWeek(base: DayData, data: CampusData): (weekday: number) => SourceDay {
   const locations = new Map(base.locations.map((location) => [location.id, location]));
   for (const agent of base.agents) {
-    if (!locations.has(agent.home)) throw new Error(`Student ${agent.id} has an unknown home ${agent.home}`);
+    if (agent.home !== 'off-campus' && !locations.has(agent.home)) throw new Error(`Student ${agent.id} has an unknown home ${agent.home}`);
   }
   const stats: SourceDayStats = {
     eligibleMeetings: 0, assignedClasses: 0, scheduledStudents: 0, skippedCalendar: 0,
-    sharedCandidatesSuppressed: 0, unroutableCandidates: 0, unroutableTrips: 0, invalidRoutes: 0, composedRoutes: 0, composedTrips: 0, capacityLimitedCandidates: 0,
+    sharedCandidatesSuppressed: 0, unroutableCandidates: 0, unroutableTrips: 0, invalidRoutes: 0,
+    composedRoutes: 0, composedTrips: 0, capacityLimitedCandidates: 0,
+    weeklyEnrolledStudents: 0, weeklyEnrollments: 0, unassignedStudents: 0, eligibleWeeklySections: 0,
     assumptions: [
-      'Students and attendance are synthetic; published classes supply places and fixed times, not enrollment.',
-      'Each student keeps its demo home and selects up to three feasible published classes.',
-      'Walking uses bundled pedestrian routes at an assumed 1.4 m/s; missing direct pairs may concatenate compatible existing routes.',
-      'Synthetic attendance is bounded by published room seats; an unknown room uses a conservative 24-student model limit. These limits do not establish enrollment.',
-      'Meals, study, and gym visits use illustrative preferences. Undated hours are not treated as verified opening hours.',
-      'Date-limited class notes require review and are excluded from representative-week expansion.',
+      'Enrollment is synthetic and fixed for the whole reference week; published classes supply places, times, and seat upper bounds, not actual enrollment.',
+      'Modeled course loads are 1–2 for part-time students, 3–4 for full-time graduate students, and 4–5 for full-time undergraduates; only mapped, reachable, mutually feasible weekly sections are assigned. Linked lecture/lab requirements are unknown.',
+      'Unknown room capacity uses a conservative 24-student cap; cross-listed shared occurrences share the same seat pool.',
+      'Walking follows compatible bundled pedestrian routes at each student’s stable modeled speed (default 1.4 m/s).',
+      'Off-campus students enter at their first published class and leave after their last; commute routes and durations are unknown.',
+      'Between classes students wait at the preceding location or return to their mapped home if travel and a 15-minute stay fit. No unsourced meals, gym, or library visits are added.',
+      'Date-limited class notes are excluded. Date-specific opening hours apply only on their exact reference-week date; undated hours are not authoritative.',
     ],
   };
   const routes = new Map<string, Route>();
@@ -149,154 +165,157 @@ export function buildSourceDay(base: DayData, data: CampusData, weekday: number)
     stats.composedRoutes++;
     return route;
   };
-  const duration = (from: string, to: string): number => {
+  const speed = (agent: Agent): number => {
+    const value = (agent as Agent & { walkSpeed?: number }).walkSpeed;
+    return value === undefined ? WALK_SPEED : Math.max(1.1, Math.min(1.6, Number.isFinite(value) ? value : WALK_SPEED));
+  };
+  const offCampus = (agent: Agent) => agent.home === 'off-campus' || (agent as Agent & { residency?: string }).residency === 'commuter';
+  const duration = (from: string, to: string, agent: Agent): number => {
     if (from === to) return 0;
     const route = routeBetween(from, to);
-    return route ? route.cumulative[route.cumulative.length - 1] / WALK_SPEED : Infinity;
+    return route ? route.cumulative[route.cumulative.length - 1] / speed(agent) : Infinity;
   };
-  const date = dateForWeekday(data, weekday);
-  const isOpen = (locationId: string, start: number, end: number): boolean => {
-    const hours = data.locations[locationId]?.hours.filter((entry) => entry.date === date) ?? [];
-    if (!hours.length) return true;
-    return hours.some((entry) => entry.windows.some(([opens, closes]) => opens <= start && end <= closes));
+  type WeeklyStop = Stop & { weekday: number; pool: string };
+  type Section = { id: string; course: string; campus: string; stops: WeeklyStop[] };
+  const sections = new Map<string, Section>();
+  const limits = new Map<string, number>();
+  const used = new Map<string, number>();
+  const occurrences = new Set<string>();
+  const dates = Array.from({ length: 7 }, (_, day) => dateForWeekday(data, day));
+  const isOpen = (stop: WeeklyStop) => {
+    const hours = data.locations[stop.location]?.hours.filter((entry) => entry.date === dates[stop.weekday]) ?? [];
+    return !hours.length || hours.some((entry) => entry.windows.some(([opens, closes]) => opens <= stop.start && stop.end <= closes));
   };
-
-  const allCandidates: Stop[] = [];
-  const candidateKeys = new Map<string, Stop>();
-  const orderedLocations = Object.values(data.locations).sort((a, b) => a.id.localeCompare(b.id));
-  for (const source of orderedLocations) {
+  for (const source of Object.values(data.locations).sort((a, b) => a.id.localeCompare(b.id))) {
     if (!locations.has(source.id)) continue;
     for (const meeting of [...source.meetings].sort((a, b) => a.id.localeCompare(b.id))) {
-      const intervals = meeting.intervals.filter((interval) => interval.weekday === weekday);
-      if (meeting.calendarRestricted) {
-        if (intervals.length) stats.skippedCalendar++;
-        continue;
+      if (meeting.calendarRestricted) { stats.skippedCalendar++; continue; }
+      const id = `${meeting.courseCode}:${meeting.section}`;
+      const section = sections.get(id) ?? { id, course: meeting.courseCode, campus: campusOf(locations.get(source.id)!), stops: [] };
+      for (const interval of meeting.intervals) {
+        const weekday = interval.weekday, start = interval.startSec - weekday * DAY, end = interval.endSec - weekday * DAY;
+        if (weekday < 0 || weekday > 6 || start < 0 || start >= end || end > DAY || !Number.isFinite(start + end)) continue;
+        const pool = `${meeting.sharedKey ?? meeting.id}:${weekday}:${start}:${end}`;
+        const limit = meeting.roomCapacity !== null && Number.isFinite(meeting.roomCapacity) ? Math.max(0, Math.floor(meeting.roomCapacity)) : 24;
+        limits.set(pool, Math.min(limits.get(pool) ?? Infinity, limit));
+        if (occurrences.has(pool)) stats.sharedCandidatesSuppressed++;
+        occurrences.add(pool);
+        if (!section.stops.some((stop) => stop.pool === pool)) section.stops.push({ location: source.id, start, end, weekday, meeting, pool });
       }
-      for (const interval of intervals) {
-        const start = interval.startSec - weekday * DAY, end = interval.endSec - weekday * DAY;
-        if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start >= end || end > DAY) continue;
-        const key = `${meeting.sharedKey ?? meeting.id}:${start}:${end}`;
-        if (candidateKeys.has(key)) {
-          stats.sharedCandidatesSuppressed++;
-          const existing = candidateKeys.get(key)!;
-          const limit = Number.isFinite(meeting.roomCapacity) && meeting.roomCapacity !== null ? Math.max(0, Math.floor(meeting.roomCapacity)) : 24;
-          existing.attendanceLimit = Math.min(existing.attendanceLimit!, limit);
-          continue;
-        }
-        const attendanceLimit = Number.isFinite(meeting.roomCapacity) && meeting.roomCapacity !== null ? Math.max(0, Math.floor(meeting.roomCapacity)) : 24;
-        const candidate = { location: source.id, start, end, meeting, attendanceLimit };
-        candidateKeys.set(key, candidate);
-        allCandidates.push(candidate);
-      }
+      if (section.stops.length) sections.set(id, section);
     }
   }
-  stats.eligibleMeetings = allCandidates.length;
-  const byCampus = new Map<string, Stop[]>();
-  for (const candidate of allCandidates) {
-    const campus = campusOf(locations.get(candidate.location)!);
-    const list = byCampus.get(campus) ?? [];
-    list.push(candidate);
-    byCampus.set(campus, list);
+  // Cross-listed aliases with identical weekly occurrences represent one section.
+  const signatures = new Set<string>();
+  const byCampus = new Map<string, Section[]>();
+  for (const section of sections.values()) {
+    section.stops.sort((a, b) => a.weekday - b.weekday || a.start - b.start);
+    const signature = section.stops.map((stop) => stop.pool).sort().join('|');
+    if (signatures.has(signature)) continue;
+    signatures.add(signature);
+    const list = byCampus.get(section.campus) ?? [];
+    list.push(section); byCampus.set(section.campus, list);
   }
-  const trips: Trip[] = [];
-  const assignments: SourceAssignment[] = [];
-
-  function feasible(stops: Stop[], home: string): boolean {
-    let from = home, freeAt = 0;
+  stats.eligibleWeeklySections = signatures.size;
+  function feasible(stops: WeeklyStop[], agent: Agent): boolean {
+    let previous: WeeklyStop | undefined;
     for (const stop of stops) {
-      const travel = duration(from, stop.location);
-      if (!Number.isFinite(travel)) {
-        stats.unroutableCandidates++;
-        return false;
+      if (!isOpen(stop)) return false;
+      if (!previous || previous.weekday !== stop.weekday) {
+        if (previous && !offCampus(agent) && previous.end + duration(previous.location, agent.home, agent) > DAY) return false;
+        if (!offCampus(agent) && duration(agent.home, stop.location, agent) > stop.start) { stats.unroutableCandidates++; return false; }
+      } else {
+        const walk = duration(previous.location, stop.location, agent);
+        if (!Number.isFinite(walk)) stats.unroutableCandidates++;
+        if (previous.end + walk > stop.start) return false;
       }
-      if (freeAt + travel > stop.start || !isOpen(stop.location, stop.start, stop.end)) return false;
-      from = stop.location;
-      freeAt = stop.end;
+      previous = stop;
     }
-    return freeAt + duration(from, home) <= DAY;
+    return !previous || offCampus(agent) || previous.end + duration(previous.location, agent.home, agent) <= DAY;
   }
-
-  function travel(agent: Agent, from: string, to: string, depart: number): number {
-    if (from === to) return depart;
-    const route = routeBetween(from, to);
-    if (!route) {
-      stats.unroutableTrips++;
-      return Infinity;
-    }
-    const timestamps = route.cumulative.map((distance) => depart + distance / WALK_SPEED);
-    if (depart < 0 || timestamps[timestamps.length - 1] > DAY) {
-      stats.unroutableTrips++;
-      return Infinity;
-    }
-    if (composed.has(`${from}>${to}`)) stats.composedTrips++;
-    trips.push({ agent: agent.id, from, to, path: route.path, timestamps });
-    return timestamps[timestamps.length - 1];
-  }
-
-  const attendance = new Map<Stop, number>();
-  const planningOrder = [...base.agents].sort((a, b) => fraction(`attendance:${weekday}:${a.id}`) - fraction(`attendance:${weekday}:${b.id}`) || a.id.localeCompare(b.id));
-  for (const agent of planningOrder) {
-    const home = locations.get(agent.home)!;
-    const seed = `source-day-v1:${agent.id}:${weekday}`;
-    const candidates = (byCampus.get(campusOf(home)) ?? [])
-      .map((candidate) => ({ candidate, rank: fraction(`${seed}:class:${candidate.meeting!.id}`) }))
-      .sort((a, b) => a.rank - b.rank || a.candidate.meeting!.id.localeCompare(b.candidate.meeting!.id));
-    let stops: Stop[] = [];
+  const enrollment = new Map<string, WeeklyStop[]>();
+  const order = [...base.agents].sort((a, b) => fraction(`weekly:${a.id}`) - fraction(`weekly:${b.id}`) || a.id.localeCompare(b.id));
+  for (const agent of order) {
+    const campus = agent.campus ?? campusOf(locations.get(agent.home)!);
+    const candidates = byCampus.get(campus) ?? [];
+    let stops: WeeklyStop[] = [];
     const courses = new Set<string>();
-    const classLimit = 2 + Math.floor(fraction(`${seed}:class-count`) * 2);
-    for (const { candidate } of candidates) {
-      if (courses.has(candidate.meeting!.courseCode)) continue;
-      if ((attendance.get(candidate) ?? 0) >= candidate.attendanceLimit!) { stats.capacityLimitedCandidates++; continue; }
-      const proposed = [...stops, candidate].sort((a, b) => a.start - b.start || a.location.localeCompare(b.location));
-      if (!feasible(proposed, agent.home)) continue;
-      stops = proposed;
-      courses.add(candidate.meeting!.courseCode);
-      attendance.set(candidate, (attendance.get(candidate) ?? 0) + 1);
-      if (courses.size >= classLimit) break;
-    }
-    if (stops.length) stats.scheduledStudents++;
-    for (const stop of stops) {
-      assignments.push({ agentId: agent.id, meetingId: stop.meeting!.id, courseCode: stop.meeting!.courseCode,
-        locationId: stop.location, startSec: stop.start, endSec: stop.end });
-      stats.assignedClasses++;
-    }
-
-    const optional: { name: string; kind: CampusLocation['kind']; start: number; duration: number; probability: number }[] = [
-      { name: 'lunch', kind: 'dining', start: 12 * 3600, duration: 30 * 60, probability: 1 },
-      { name: 'study', kind: 'library', start: 15 * 3600, duration: 60 * 60, probability: 0.65 },
-      { name: 'dinner', kind: 'dining', start: 18 * 3600, duration: 35 * 60, probability: 1 },
-      { name: 'gym', kind: 'gym', start: 19.5 * 3600, duration: 45 * 60, probability: 0.25 },
-    ];
-    for (const activity of optional) {
-      if (fraction(`${seed}:${activity.name}:attendance`) >= activity.probability) continue;
-      const start = activity.start + Math.floor((fraction(`${seed}:${activity.name}:time`) - 0.5) * 40 * 60);
-      const choices = base.locations.filter((location) => location.kind === activity.kind && campusOf(location) === campusOf(home))
-        .map((location) => ({ location, rank: fraction(`${seed}:${activity.name}:${location.id}`) }))
-        .sort((a, b) => a.rank - b.rank || a.location.id.localeCompare(b.location.id));
-      for (const { location } of choices) {
-        const stop: Stop = { location: location.id, start, end: start + activity.duration };
-        const proposed = [...stops, stop].sort((a, b) => a.start - b.start || a.location.localeCompare(b.location));
-        if (feasible(proposed, agent.home)) {
-          stops = proposed;
-          break;
-        }
+    const profile = agent as Agent & { attendance?: string; studentLevel?: string };
+    const minimum = profile.attendance === 'part-time' ? 1 : profile.studentLevel === 'graduate' ? 3 : 4;
+    const target = minimum + Math.floor(fraction(`${agent.id}:course-count`) * 2);
+    const tested = new Set<string>();
+    const startIndex = Math.floor(fraction(`${agent.id}:weekly-start`) * candidates.length);
+    const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a;
+    let stride = 1 + Math.floor(fraction(`${agent.id}:weekly-stride`) * Math.max(1, candidates.length - 1));
+    while (candidates.length && gcd(stride, candidates.length) !== 1) stride++;
+    for (let attempt = 0; attempt < 96 && candidates.length && courses.size < target; attempt++) {
+      const index = (startIndex + attempt * stride) % candidates.length;
+      const section = candidates[index];
+      if (section.stops.some((stop) => (used.get(stop.pool) ?? 0) >= limits.get(stop.pool)!)) {
+        candidates[index] = candidates[candidates.length - 1]; candidates.pop();
+        stats.capacityLimitedCandidates++; continue;
       }
+      if (tested.has(section.id) || courses.has(section.course)) continue;
+      tested.add(section.id);
+      const proposed = [...stops, ...section.stops].sort((a, b) => a.weekday - b.weekday || a.start - b.start);
+      if (!feasible(proposed, agent)) continue;
+      stops = proposed; courses.add(section.course);
+      for (const stop of section.stops) used.set(stop.pool, (used.get(stop.pool) ?? 0) + 1);
     }
-
-    let from = agent.home, freeAt = 0;
-    for (const stop of stops) {
-      const viaHome = duration(from, agent.home) + duration(agent.home, stop.location);
-      if (from !== agent.home && freeAt + viaHome + HOME_BREAK <= stop.start) {
-        freeAt = travel(agent, from, agent.home, freeAt);
-        from = agent.home;
-      }
-      const depart = stop.start - duration(from, stop.location);
-      const arrival = travel(agent, from, stop.location, depart);
-      if (!Number.isFinite(arrival)) break;
-      from = stop.location;
-      freeAt = stop.end;
-    }
-    if (from !== agent.home) travel(agent, from, agent.home, freeAt);
+    if (courses.size) stats.weeklyEnrolledStudents++;
+    stats.weeklyEnrollments += courses.size;
+    enrollment.set(agent.id, stops);
   }
-  return { ...base, day: WEEKDAYS[weekday], trips, sourceStats: stats, sourceAssignments: assignments };
+  stats.unassignedStudents = base.agents.length - stats.weeklyEnrolledStudents;
+  const days = new Map<number, SourceDay>();
+  return (weekday) => {
+    const cached = days.get(weekday);
+    if (cached) return cached;
+    const trips: Trip[] = [];
+    const stays: { agent: string; location: string; start: number; end: number }[] = [];
+    const assignments: SourceAssignment[] = [];
+    let composedTrips = 0, scheduledStudents = 0;
+    const stay = (agent: Agent, location: string, start: number, end: number) => {
+      if (end > start) stays.push({ agent: agent.id, location, start, end });
+    };
+    const travel = (agent: Agent, from: string, to: string, depart: number): number => {
+      if (from === to) return depart;
+      const route = routeBetween(from, to)!;
+      const timestamps = route.cumulative.map((distance) => depart + distance / speed(agent));
+      if (composed.has(`${from}>${to}`)) composedTrips++;
+      trips.push({ agent: agent.id, from, to, path: route.path, timestamps });
+      return timestamps[timestamps.length - 1];
+    };
+    for (const agent of base.agents) {
+      const stops = enrollment.get(agent.id)!.filter((stop) => stop.weekday === weekday);
+      const home = offCampus(agent) ? 'off-campus' : agent.home;
+      if (!stops.length) { stay(agent, home, 0, DAY); continue; }
+      scheduledStudents++;
+      let from = home, freeAt = 0;
+      for (const stop of stops) {
+        if (from === 'off-campus') {
+          stay(agent, from, freeAt, stop.start);
+        } else {
+          const viaHome = home === 'off-campus' ? Infinity : duration(from, home, agent) + duration(home, stop.location, agent);
+          if (from !== home && freeAt + viaHome + HOME_BREAK <= stop.start) {
+            freeAt = travel(agent, from, home, freeAt); from = home;
+          }
+          const depart = stop.start - duration(from, stop.location, agent);
+          stay(agent, from, freeAt, depart);
+          travel(agent, from, stop.location, depart);
+        }
+        stay(agent, stop.location, stop.start, stop.end);
+        assignments.push({ agentId: agent.id, meetingId: stop.meeting!.id, courseCode: stop.meeting!.courseCode,
+          locationId: stop.location, startSec: stop.start, endSec: stop.end });
+        from = stop.location; freeAt = stop.end;
+      }
+      if (home !== 'off-campus') freeAt = travel(agent, from, home, freeAt);
+      stay(agent, home, freeAt, DAY);
+    }
+    const result: SourceDay = { ...base, day: WEEKDAYS[weekday], trips, stays,
+      sourceStats: { ...stats, eligibleMeetings: [...occurrences].filter((key) => Number(key.split(':').at(-3)) === weekday).length,
+        assignedClasses: assignments.length, scheduledStudents, composedTrips }, sourceAssignments: assignments };
+    days.set(weekday, result);
+    return result;
+  };
 }

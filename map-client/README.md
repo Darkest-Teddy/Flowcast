@@ -2,11 +2,15 @@
 
 Owner: 3D Map / Frontend Lead (see `.plans/campus-digital-twin-spec.md` Section 2).
 
-The 3D campus view uses saved Fall 2026 class schedules to place a synthetic cohort of 1,200 students. The weekday selector rebuilds their trips locally over existing pedestrian routes. Building labels show simulated counts; colors use a model activity scale, not measured occupancy.
+The 3D campus view uses saved Fall 2026 class schedules and a 36,977-student roster matching BU's Fall 2025 CDS census. The roster includes full-time and part-time undergraduate and graduate cohorts. Students keep the same modeled course sections throughout the week. Building labels show simulated counts, not measured occupancy.
+
+The roster is university-wide, not a claim that 36,977 people attend the mapped campuses. Only supported residential beds create mapped homes (3,013 slots); the remaining residents and commuters stay off-map outside their modeled classes. Campus allocation uses mapped course-seat weights because campus headcounts and online enrollment are unavailable. Course loads, enrollment, attendance, and between-class locations remain assumptions. Staff and visitors are not added without a defensible allocation.
+
+Walking duration is route length in metres divided by a stable 1.4 m/s modeled speed. This is a typical adult walking assumption, not a BU measurement or accessible crossing-design speed ([FHWA research](https://www.fhwa.dot.gov/publications/research/safety/pedbike/98107/section2.cfm)). Travel must fit between weekly classes. The playback clock advances by actual elapsed wall time even when rendering slows. Capacities retain their source or configured basis; they are never enlarged to fit predicted occupancy. Independent synthetic transit riders and automatic meal, gym, and library visits are disabled.
 
 The **Data** tab exposes published class times, room seats, housing baselines, dining and library hours, events, historical library counts, and source links. The compact bundle maps 3,805 of 6,944 physical meeting records onto existing map locations; unmatched building codes are listed in the coverage panel. Date-restricted classes are excluded from the representative week. Seats and registrations never become observed attendance.
 
-`npm run prepare:data` rebuilds `public/data/campus-data.json` from the committed acquisition snapshots without network access. Production builds run this automatically. `npm test` checks scheduling, routing, and population invariants. The TypeScript simulation lives in `src/sim/sourceDay.ts`; the offline adapter is `../data-pipeline/build_map_data.py`.
+`npm run prepare:data` rebuilds campus, population, timetable, and historical mobility bundles from committed snapshots without network access. Production builds run this automatically. `npm test` checks scheduling, routing, population conservation, clock timing, and transit freshness. The TypeScript simulation lives in `src/sim/sourceDay.ts` and `src/sim/population.ts`.
 
 ## Run it
 
@@ -30,7 +34,7 @@ npm run dev                  # http://localhost:5173
 | `spin` | `spin=0` | Don't start the slow camera orbit on load (it never auto-starts under prefers-reduced-motion) |
 | `interleaved` | `interleaved=0` | Draw deck.gl as a plain overlay instead of mixing into the map (debug fallback; characters will no longer hide behind buildings) |
 
-Example: <http://localhost:5173/?at=12:15&speed=30> shows the lunch rush.
+Example: <http://localhost:5173/?at=12:15&speed=30> shows midday class movements.
 
 ## How the rendering works
 
@@ -54,11 +58,11 @@ HTML overlay (BuildingTags.tsx) ─────────  "CDS · 87% · Pack
 | `src/layers/crowd.ts` | Building glow and trails, plus the shared Quiet/Moderate/Busy/Packed scale (`crowdLevel`, `crowdLevelStyle`) |
 | `src/BuildingTags.tsx` | The HTML building tags over the map; clicking one selects the building |
 | `src/sim/playback.ts` | Where everyone is at time *t* and how full each place is. The server takes this over later (plan Section 8.1) |
-| `src/sim/riders.ts`, `src/layers/riders.ts` | People at Green Line stations and bus / shuttle stops: queues that grow with the time of day, boarding when a train or bus (live, or scheduled when playing back) stops, and riders getting off and walking to buildings along `stopRoutes`. Walking riders share the students' walk layers; people waiting get 12 idle layers |
+| `src/sim/riders.ts`, `src/layers/riders.ts` | Legacy synthetic transit-rider prototype; not activated by the population model |
 | `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
 | `src/App.tsx` | The frame loop, dashboard panel and timeline |
 
-**Characters walking without lockstep.** A `ScenegraphLayer` plays one animation clock for every instance it draws, so with a single layer all 1,200 characters would stride in unison. `agents.ts` splits each of the 12 character models across 3 layers whose walk cycles start a third of a stride apart and run at slightly different speeds. Characters face their direction of travel. Anyone not walking is inside a building, which matches the interior-view plan in Section 6.7.
+**Characters walking without lockstep.** `agents.ts` splits each of the 12 character models across 3 layers whose walk cycles start a third of a stride apart. These animation offsets do not change physical movement speed. Each student is accounted for in a mapped building, on a walking route, or off-map.
 
 **Accessibility.** Map glow, tags and dashboard bars all come from one four-step scale in `crowd.ts`. Every tag carries the percentage full and a word (never colour alone), and its level word keeps 4.5:1 contrast or better. All controls are real buttons with ARIA labels.
 
@@ -76,11 +80,11 @@ The **Transit & traffic** tab and the map show live data for whichever campus is
 - **Live data** comes from `src/transit/mbta.ts`, which polls MBTA v3 `/vehicles` every 12 s and `/predictions` every 30 s, straight from the browser (CORS is open). Vehicles glide between reports.
 - **Rate limit:** without a key the MBTA allows **20 requests/minute per IP**, and the whole venue shares one IP. One open tab uses about 7/min. If the panel says "rate limit reached", it backs off and retries automatically. For the demo, get a free key at <https://api-v3.mbta.com> and put `VITE_MBTA_API_KEY=...` in `map-client/.env.local` (gitignored); that raises the limit to 1000/min.
 - **Traffic** is Mapbox's live traffic tileset (needs the Mapbox token). Congestion is shown by line width as well as colour. Free-flowing traffic is only drawn on main roads.
-- Transit is **live (real clock)** while the crowd simulation plays its own **selected simulated weekday**. If a judge asks, say so plainly.
+- Clock mode uses live transit. Playback uses the saved official MBTA timetable for October 19–25, 2026, including stop dwell, weekday calendars, and after-midnight service. BU shuttle playback is omitted without a published machine-readable timetable. Live MBTA reports expire after 90 seconds; BU reports with an incoherent source clock expire 90 seconds after the first sighting of each timestamp, even if repeated polling succeeds.
 
 ## Real Bluebikes rides
 
-The **Bikes** tab and the blue riders are the only *measured* movement on the map so far. A rider is a blue block with a fading blue trail, and a BU dock is a white dot with a blue ring. Hover over either for details.
+The **Bikes** tab replays measured dock departures and arrivals. Blue riders follow inferred routes between those endpoints; a BU dock is a white dot with a blue ring. Hover over either for details.
 
 - **Replay:** every real Bluebikes ride on Wednesday, Sep 23, 2026 that started or ended at one of the 16 docks within 200 m of a BU building (2,367 rides), played on the same clock as the simulation. The time a bike leaves or reaches a BU dock is real. The street route is **inferred**, because rides record only their two docks. It's the most bike-friendly OSM path: lanes and paths first, one-way streets respected. Rides to docks off the map run to its edge.
 - **Typical day:** each dock's rides docked and undocked per 15 minutes, averaged over the five Wednesdays in September 2026. This is the panel's chart, and the "next hour" figure in dock tooltips.

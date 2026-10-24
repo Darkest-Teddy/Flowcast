@@ -2,7 +2,7 @@
 // The server will eventually own this (plan Section 8.1); until then the client
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
 
-export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym';
+export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'off-campus';
 
 export interface CampusLocation {
   id: string;
@@ -43,6 +43,10 @@ export interface BuildingOccupancy {
 }
 
 export interface Agent {
+  residency?: 'resident' | 'commuter';
+  studentLevel?: 'undergraduate' | 'graduate';
+  attendance?: 'full-time' | 'part-time';
+  walkSpeed?: number;
   id: string;
   home: string;
   model: number;
@@ -57,7 +61,10 @@ export interface Trip {
   timestamps: number[]; // seconds since midnight, one per path point
 }
 
+export interface Stay { agent: string; location: string; start: number; end: number }
+
 export interface DayData {
+  stays?: Stay[];
   day: string;
   campuses?: Campus[];
   buildings: BuildingFootprint[];
@@ -120,6 +127,8 @@ export class Playback {
   readonly locations: CampusLocation[];
   private readonly agents = new Map<string, Agent>();
   private readonly tripsByAgent = new Map<string, Trip[]>();
+  private readonly staysByAgent = new Map<string, Stay[]>();
+  private readonly walkingBuckets = new Map<number, Trip[]>();
 
   readonly data: DayData;
 
@@ -134,24 +143,36 @@ export class Playback {
       const list = this.tripsByAgent.get(trip.agent) ?? [];
       list.push(trip);
       this.tripsByAgent.set(trip.agent, list);
+      const start = trip.timestamps[0];
+      const end = trip.timestamps[trip.timestamps.length - 1];
+      for (let bucket = Math.floor(start / 300); bucket < Math.ceil(end / 300); bucket++) {
+        const active = this.walkingBuckets.get(bucket) ?? [];
+        active.push(trip);
+        this.walkingBuckets.set(bucket, active);
+      }
     }
+    for (const stay of data.stays ?? []) {
+      const list = this.staysByAgent.get(stay.agent) ?? [];
+      list.push(stay); this.staysByAgent.set(stay.agent, list);
+    }
+    for (const list of this.staysByAgent.values()) list.sort((a, b) => a.start - b.start);
     for (const list of this.tripsByAgent.values()) list.sort((a, b) => a.timestamps[0] - b.timestamps[0]);
   }
 
   get startTime(): number {
-    return this.data.trips.length ? Math.min(...this.data.trips.map((t) => t.timestamps[0])) : 0;
+    return this.data.trips.length ? this.data.trips.reduce((min, trip) => Math.min(min, trip.timestamps[0]), Infinity) : 0;
   }
 
   get endTime(): number {
-    return this.data.trips.length ? Math.max(...this.data.trips.map((t) => t.timestamps[t.timestamps.length - 1])) : 86400;
+    return this.data.trips.length ? this.data.trips.reduce((max, trip) => Math.max(max, trip.timestamps[trip.timestamps.length - 1]), -Infinity) : 86400;
   }
 
-  /** Agents outdoors on a walkway at time t; everyone else is inside a building. */
+  /** Only trips active in this five-minute bucket need position interpolation. */
   walkingAt(t: number): WalkingAgent[] {
     const out: WalkingAgent[] = [];
-    for (const [agentId, trips] of this.tripsByAgent) {
-      const trip = trips.find((tr) => tr.timestamps[0] <= t && t < tr.timestamps[tr.timestamps.length - 1]);
-      if (!trip) continue;
+    for (const trip of this.walkingBuckets.get(Math.floor(t / 300)) ?? []) {
+      if (trip.timestamps[0] > t || t >= trip.timestamps[trip.timestamps.length - 1]) continue;
+      const agentId = trip.agent;
       const ts = trip.timestamps;
       let i = 1;
       while (ts[i] <= t) i++;
@@ -169,6 +190,12 @@ export class Playback {
     return out;
   }
 
+  populationAt(t: number) {
+    const indoors = this.occupancyAt(t).reduce((sum, entry) => sum + entry.count, 0);
+    const walking = this.walkingAt(t).length;
+    return { total: this.data.agents.length, indoors, walking, offCampus: this.data.agents.length - indoors - walking };
+  }
+
   /**
    * Roll location occupancy up to footprints, so co-located places share one label and glow.
    * Counts include every co-located place. The color scale retains the busiest place's
@@ -177,6 +204,7 @@ export class Playback {
   byBuilding(occupancy: Occupancy[]): BuildingOccupancy[] {
     const out = new Map<string, BuildingOccupancy>();
     for (const { location, count, share } of occupancy) {
+      if (location.kind === 'off-campus') continue;
       const current = out.get(location.building);
       if (current) {
         current.count += count;
@@ -200,6 +228,16 @@ export class Playback {
   /** Head count per location at time t: each agent is at its last destination, or home before its first trip. */
   occupancyAt(t: number): Occupancy[] {
     const counts = new Map<string, number>();
+    if (this.data.stays) {
+      for (const stays of this.staysByAgent.values()) {
+        const stay = stays.find((entry) => entry.start <= t && t < entry.end);
+        if (stay && stay.location !== 'off-campus') counts.set(stay.location, (counts.get(stay.location) ?? 0) + 1);
+      }
+      return this.locations.filter((location) => location.kind !== 'off-campus').map((location) => {
+        const count = counts.get(location.id) ?? 0;
+        return { location, count, share: location.capacity > 0 ? count / location.capacity : 0 };
+      });
+    }
     for (const [agentId, trips] of this.tripsByAgent) {
       let where: string | null = this.agents.get(agentId)!.home;
       for (const trip of trips) {
@@ -210,7 +248,7 @@ export class Playback {
     }
     return this.locations.map((location) => {
       const count = counts.get(location.id) ?? 0;
-      return { location, count, share: count / location.capacity };
+      return { location, count, share: location.capacity > 0 ? count / location.capacity : 0 };
     });
   }
 }
