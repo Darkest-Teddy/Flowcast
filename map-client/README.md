@@ -195,6 +195,10 @@ The **Bikes** tab replays measured dock departures and arrivals. Blue riders fol
 
 Trips (a path plus timestamps) are what deck.gl's TripsLayer reads natively. They're also far smaller than minute-by-minute positions, and the client interpolates between points. When the Simulation Lead's `simulate_week.py` exists, it should emit this shape (one file per day). The live server can then broadcast the same objects.
 
+## Margin of error
+
+Every building figure is shown as an estimate with a 90% range (`src/sim/uncertainty.ts`): "42% ±9", or "≤3%" when the simulation has nobody there, because no building is truly empty. The band combines day-to-day variation (±1.645·√count), uncertainty in the behaviour assumptions (±15%), and people the model doesn't simulate (staff, visitors, non-students: at least 2 people or 3% of capacity, upper end only). It's display only: counts, occupancy, the crowd colours and every total stay the simulation's central numbers.
+
 ## Performance (keep it smooth)
 
 The frame rate is set by the **number of WebGL calls per frame**, not by shader work: Chrome runs every call from Mapbox and deck.gl through one GPU-process thread at roughly 2 µs each, and the browser's own compositing shares that thread. Mapbox Standard alone makes ~10,000 calls a frame with shadows and 3D trees on. On an M4 Pro in Chrome the map went from ~11 to ~59 FPS (Auto) by cutting calls:
