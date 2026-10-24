@@ -31,6 +31,18 @@ export interface BuildingModelEntry {
   /** The model's massing, where it isn't one box up to `height`: CDS's stacked pieces, Warren's
    *  towers on their podium, CAS's tower, pitched roofs and masts above the walls. */
   volumes?: BuildingVolume[];
+  /** Scenery: a building that isn't BU's, modelled so the streets around campus (Comm Ave out to
+   *  1019, Kenmore Square, Fenway Park) aren't plain grey boxes. Never glows, never gets a tag or
+   *  occupancy (modelRoofHeights / modelVolumes leave it out). */
+  context?: boolean;
+  /** [lng, lat] ring under which the base map's own 3D model of this landmark is hidden
+   *  (Mapbox Standard's Fenway Park), so it doesn't overlap ours. */
+  clip?: [number, number][];
+}
+
+/** The base map's own 3D models that our landmark models replace (see `clip`), as closed rings. */
+export function landmarkClips(manifest?: BuildingModelManifest | null): [number, number][][] {
+  return manifest?.campuses.flatMap((c) => c.buildings.flatMap((b) => (b.clip?.length ? [[...b.clip, b.clip[0]]] : []))) ?? [];
 }
 
 /** One modelled volume: its OSM footprint ring and the heights its walls run between. */
