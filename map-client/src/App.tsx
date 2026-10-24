@@ -3,7 +3,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, crowdLevel, crowdLevelStyle } from './layers/crowd';
+import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './layers/crowd';
 import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
@@ -160,6 +160,8 @@ export default function App() {
       if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, playback, transitRef } });
       setStatus('');
 
+      // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
+      const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
@@ -190,6 +192,7 @@ export default function App() {
           placer,
           project: basemap.project,
           camera: basemap.getCamera(),
+          roofHeights,
         });
         const transit = transitRef.current;
         overlay!.setProps({
@@ -205,6 +208,7 @@ export default function App() {
               speed: speedRef.current,
               selectedId: selectedRef.current,
               zoom: basemap.getZoom(),
+              roofHeights,
             }),
             ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
             ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),

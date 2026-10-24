@@ -53,10 +53,34 @@ function haloReach(share: number) {
   return 6 + 24 * Math.min(Math.max(share, 0), 1.2);
 }
 
+/** Top of each building's detailed model, by OSM id (building-models.json). */
+export type RoofHeights = ReadonlyMap<string, number>;
+
+/** Reads model heights from the building-model manifest (any object of that shape). */
+export function modelRoofHeights(manifest?: { campuses: { buildings: { osm: string; height: number }[] }[] } | null): RoofHeights {
+  return new Map(manifest?.campuses.flatMap((c) => c.buildings.map((b) => [b.osm, b.height] as const)) ?? []);
+}
+
+/**
+ * Where the glow sits on one footprint ring: the detailed model's height where there is one
+ * (CDS's model is 95 m against a 68 m footprint, CAS's 40 m against 18 m). Multi-ring buildings
+ * scale each ring by the same ratio, so Warren's podium stays a podium under its towers. Never
+ * below the footprint's own height, so it also clears Mapbox's plain box.
+ */
+export function ringTop(f: BuildingFootprint, footprints: BuildingFootprint[], roofs?: RoofHeights): number {
+  const model = roofs?.get(f.id);
+  if (!model) return f.height;
+  let tallest = 0;
+  for (const g of footprints) if (g.id === f.id) tallest = Math.max(tallest, g.height);
+  return Math.max(f.height, (f.height * model) / (tallest || f.height));
+}
+
 interface Glow {
   /** The building id, as App's click handler reads it. */
   id: string;
   geo: FootprintGeometry;
+  /** Roof height for this ring, metres (see ringTop). */
+  top: number;
   share: number;
   level: CrowdLevel;
   selected: boolean;
@@ -75,10 +99,10 @@ const ring3d = (ring: [number, number][], z: number) => ring.map(([x, y]) => [x,
 
 // The glow geometry only changes when the counts (or the selection) do, twice a second at most;
 // between those, every frame reuses the same arrays so deck.gl doesn't re-tessellate anything.
-let cached: { key: string; footprints: BuildingFootprint[]; glows: Glow[]; packed: Glow[]; edges: Edge[] } | null = null;
+let cached: { key: string; footprints: BuildingFootprint[]; glows: Glow[]; flatRoofs: Glow[]; packed: Glow[]; edges: Edge[] } | null = null;
 
-function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupancy[], selectedId: string | null) {
-  const key = `${selectedId}|${buildings.map((b) => `${b.id}:${b.count}`).join()}`;
+function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupancy[], selectedId: string | null, roofs?: RoofHeights) {
+  const key = `${selectedId}|${roofs?.size}|${buildings.map((b) => `${b.id}:${b.count}`).join()}`;
   if (cached && cached.key === key && cached.footprints === footprints) return cached;
   const shares = new Map(buildings.map((b) => [b.id, b.share]));
   const glows: Glow[] = [];
@@ -91,6 +115,7 @@ function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupanc
     glows.push({
       id: f.id,
       geo,
+      top: ringTop(f, footprints, roofs),
       share,
       level: crowdLevel(share),
       selected: f.id === selectedId,
@@ -98,9 +123,13 @@ function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupanc
     });
   }
   const edges = glows.flatMap((glow) =>
-    glow.geo.corners.map(([x, y]): Edge => ({ source: [x, y, 0], target: [x, y, glow.geo.height + ROOF_LIFT], glow })),
+    glow.geo.corners.map(([x, y]): Edge => ({ source: [x, y, 0], target: [x, y, glow.top + ROOF_LIFT], glow })),
   );
-  cached = { key, footprints, glows, packed: glows.filter((g) => g.level.key === 'packed'), edges };
+  // The roof wash only where the model's top is its roof. Where a tower, spire or pitched roof
+  // rises well above the footprint (CAS's tower, CDS's crown), a tinted plane up there would float
+  // over the real roof, so those keep just the outline cage around the whole model.
+  const flatRoofs = glows.filter((g) => g.top <= g.geo.height * 1.2 + 3);
+  cached = { key, footprints, glows, flatRoofs, packed: glows.filter((g) => g.level.key === 'packed'), edges };
   return cached;
 }
 
@@ -113,15 +142,20 @@ export interface CrowdLayerInput {
   selectedId: string | null;
   /** Map zoom: the overview gets a stronger wash so it reads as a heat map from afar. */
   zoom: number;
+  /** Detailed-model heights, when the models are drawn (modelRoofHeights). */
+  roofHeights?: RoofHeights;
 }
 
 const heightFade = new GlowFadeExtension({ mode: 'height', power: 1.4 });
 const lineFade = new GlowFadeExtension({ mode: 'line', power: 1.6 });
 // Light adds to the scene instead of covering it, and never blocks what's drawn after it.
-const GLOW_PARAMETERS = { depthWriteEnabled: false } as const;
+// The detailed models (buildings.ts) are pulled 1200 depth units towards the camera so they beat
+// Mapbox's own boxes; the glow is pulled a little further, so a rim on a model's roof line or an
+// edge just outside its walls is never swallowed by the model it outlines.
+const GLOW_PARAMETERS = { depthWriteEnabled: false, depthBias: -1, depthBiasSlopeScale: -1600 } as const;
 
-export function crowdLayers({ footprints, buildings, trips, time, speed, selectedId, zoom }: CrowdLayerInput) {
-  const { glows, packed, edges, key } = buildGlows(footprints, buildings, selectedId);
+export function crowdLayers({ footprints, buildings, trips, time, speed, selectedId, zoom, roofHeights }: CrowdLayerInput) {
+  const { glows, flatRoofs, packed, edges, key } = buildGlows(footprints, buildings, selectedId, roofHeights);
   // 1 from street level to zoom 17.5, rising to 1.9 at the zoom 15.5 overview.
   const far = Math.min(Math.max((17.5 - zoom) / 2, 0), 1);
   const roofBoost = 1 + 0.9 * far;
@@ -185,7 +219,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       data: glows,
       getPolygon: (d) => d.geo.inset,
       extruded: true,
-      getElevation: (d) => Math.max(d.geo.height - 0.5, 1),
+      getElevation: (d) => Math.max(d.top - 0.5, 1),
       getFillColor: [0, 0, 0, 0],
       pickable: true,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
@@ -194,8 +228,8 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
     // Roof: a faint wash of the level's colour, just above the roof.
     new SolidPolygonLayer<Glow>({
       id: 'crowd-roofs',
-      data: glows,
-      getPolygon: (d) => ring3d(d.geo.outline, d.geo.height + ROOF_LIFT),
+      data: flatRoofs,
+      getPolygon: (d) => ring3d(d.geo.outline, d.top + ROOF_LIFT),
       getFillColor: (d) => withAlpha(d.level.glow, Math.min(255, d.level.roof * roofBoost)),
       parameters: GLOW_PARAMETERS,
       updateTriggers: { getFillColor: [key, zoomKey] },
@@ -222,7 +256,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
     new PathLayer<Glow>({
       id: 'crowd-rim-glow',
       data: glows,
-      getPath: (d) => ring3d(d.geo.outline, d.geo.height + ROOF_LIFT),
+      getPath: (d) => ring3d(d.geo.outline, d.top + ROOF_LIFT),
       getColor: (d) => withAlpha(d.level.glow, d.selected ? 150 : 70),
       getWidth: (d) => (d.selected ? 14 : d.level.rim),
       widthUnits: 'pixels',
@@ -236,7 +270,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
     new PathLayer<Glow>({
       id: 'crowd-rim-breath',
       data: packed,
-      getPath: (d) => ring3d(d.geo.outline, d.geo.height + ROOF_LIFT),
+      getPath: (d) => ring3d(d.geo.outline, d.top + ROOF_LIFT),
       getColor: (d) => withAlpha(d.level.glow, 110),
       getWidth: 16,
       widthUnits: 'pixels',
@@ -250,7 +284,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
     new PathLayer<Glow>({
       id: 'crowd-rim',
       data: glows,
-      getPath: (d) => ring3d(d.geo.outline, d.geo.height + ROOF_LIFT),
+      getPath: (d) => ring3d(d.geo.outline, d.top + ROOF_LIFT),
       getColor: (d) => rimColor(d, d.level.key === 'quiet' ? 200 : 245),
       getWidth: (d) => (d.selected ? 3.5 : d.level.key === 'quiet' ? 1.25 : 2),
       widthUnits: 'pixels',
