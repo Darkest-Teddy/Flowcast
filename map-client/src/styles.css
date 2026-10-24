@@ -456,3 +456,132 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   .weather { bottom: 182px; left: auto; right: 8px; width: calc(50% - 12px); max-height: 112px; overflow: auto; }
   .perf { top: auto; bottom: 302px; left: 8px; transform: none; min-width: 0; max-width: calc(100% - 16px); max-height: 84px; overflow: auto; z-index: 3; pointer-events: auto; }
 }
+
+/* Transit, shuttle and Bluebikes tags (TransitTags.tsx, tags/glassTags.ts): the building tags'
+   glass on a stem. .is-below hangs the card under its anchor (stations, stops, docks);
+   .is-above stands it over (a hovered vehicle). Not interactive: the map underneath keeps its
+   hover and clicks, and the side panel carries the same information for screen readers. */
+.gtags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.gtag { position: absolute; left: 0; top: 0; --stem: 12px; --accent-rgb: 0, 132, 61; will-change: transform; transition: opacity 0.28s ease; }
+.gtag.is-hidden { opacity: 0; }
+.gtag-card {
+  position: absolute;
+  left: 0;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px 6px 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(28, 33, 45, 0.84), rgba(11, 14, 21, 0.86));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 22px -8px rgba(0, 0, 0, 0.6);
+  color: #fff;
+  white-space: nowrap;
+}
+.gtag.is-below .gtag-card { top: var(--stem); }
+.gtag.is-above .gtag-card { bottom: var(--stem); }
+.gtag-stem { position: absolute; left: -0.5px; width: 1px; height: var(--stem); }
+.gtag.is-below .gtag-stem { top: 0; background: linear-gradient(to bottom, rgba(var(--accent-rgb), 0.95), rgba(255, 255, 255, 0.5)); }
+.gtag.is-above .gtag-stem { bottom: 0; background: linear-gradient(to top, rgba(var(--accent-rgb), 0.95), rgba(255, 255, 255, 0.5)); }
+
+.gtag-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(var(--accent-rgb), 0.18);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.4);
+  color: rgb(var(--accent-rgb));
+}
+.gtag-icon svg { width: 15px; height: 15px; }
+.gtag-icon--t { background: none; box-shadow: none; }
+.gtag-icon--t svg { width: 24px; height: 24px; }
+.gtag-text { display: flex; flex-direction: column; gap: 2px; }
+.gtag-name { display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 650; line-height: 1.15; letter-spacing: 0.01em; }
+.gtag-name--stop { font-size: 12.5px; font-weight: 600; }
+.gtag-stats { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.gtag-stats b { font-weight: 700; color: #fff; }
+.gtag-arr { display: inline-flex; align-items: center; gap: 4px; }
+.gtag--stop .gtag-arr + .gtag-arr { margin-left: 4px; }
+.gtag-dir { color: #c8cdd6; font-weight: 500; }
+.gtag-sep { color: rgba(255, 255, 255, 0.45); }
+
+/* Green Line branch letter, in MBTA green (white on #00843D is 5.1:1). */
+.gtag-branch {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #00843d;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+/* Bus route badges in route colours; "BU" in BU red for shuttles. */
+.gtag-route {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+/* A train (or bus) arriving now: the card glows and a live dot pings. */
+.gtag-pulse { position: relative; width: 7px; height: 7px; margin-left: 2px; border-radius: 50%; background: #4ade80; }
+.gtag-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #4ade80;
+  animation: btag-ping 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+.gtag.is-arriving .gtag-card { border-color: rgba(74, 222, 128, 0.55); animation: gtag-arrive 1.8s ease-in-out infinite; }
+@keyframes gtag-arrive {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 22px -8px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(74, 222, 128, 0); }
+  50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 22px -8px rgba(0, 0, 0, 0.6), 0 0 18px 0 rgba(74, 222, 128, 0.45); }
+}
+
+/* Bus stops: MBTA bus yellow, or BU red when only shuttles call. */
+.gtag--stop { --accent-rgb: 255, 199, 44; }
+.gtag-icon--bu { --accent-rgb: 204, 0, 0; background: rgba(204, 0, 0, 0.25); color: #ff8a8a; }
+
+/* Bluebikes: blue; red "Empty" and amber "Full" states (the word, never colour alone). */
+.gtag--dock { --accent-rgb: 59, 130, 246; }
+.gtag-icon--bike { color: #93c5fd; }
+.gtag-state { padding: 1px 6px; border-radius: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; }
+.gtag--dock.is-empty { --accent-rgb: 239, 68, 68; }
+.gtag--dock.is-empty .gtag-card { border-color: rgba(239, 68, 68, 0.6); }
+.gtag--dock.is-empty .gtag-state { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+.gtag--dock.is-empty .gtag-icon--bike { color: #fca5a5; }
+.gtag--dock.is-full { --accent-rgb: 245, 166, 35; }
+.gtag--dock.is-full .gtag-card { border-color: rgba(245, 166, 35, 0.6); }
+.gtag--dock.is-full .gtag-state { background: rgba(245, 166, 35, 0.2); color: #fcd34d; }
+.gtag--dock.is-full .gtag-icon--bike { color: #fcd34d; }
+.gtag-est { padding: 0 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.12); color: #e5e7eb; font-size: 10.5px; font-weight: 700; }
+.gtag-ebike svg { width: 11px; height: 11px; color: #fde047; }
+
+/* A hovered or clicked vehicle. */
+.gtag--vehicle { z-index: 4; --accent-rgb: 255, 255, 255; }
+.gtag--vehicle .gtag-card { padding: 5px 10px; }
+
+.gtags.is-compact .gtag-card { gap: 6px; padding: 4px 9px 4px 4px; border-radius: 10px; }
+.gtags.is-compact .gtag-icon { width: 20px; height: 20px; border-radius: 6px; }
+.gtags.is-compact .gtag-icon--t svg { width: 19px; height: 19px; }
+.gtags.is-compact .gtag-name { font-size: 12.5px; }
+.gtags.is-compact .gtag-stats { font-size: 11px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gtag-pulse::after, .gtag.is-arriving .gtag-card { animation: none; }
+  .gtag { transition: none; }
+}

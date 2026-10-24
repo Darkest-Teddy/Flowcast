@@ -5,6 +5,7 @@ import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPr
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './layers/crowd';
 import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
+import { TransitTags, type TransitTagsHandle } from './TransitTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadMonuments, monumentLayers } from './layers/monuments';
@@ -94,6 +95,7 @@ export default function App() {
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
   const tagsRef = useRef<BuildingTagsHandle>(null);
+  const transitTagsRef = useRef<TransitTagsHandle>(null);
   const transitRef = useRef<Transit | null>(null);
   const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
@@ -208,6 +210,8 @@ export default function App() {
         _animate: true, // keeps the walk cycles ticking between data updates
         // Building footprints and labels both carry the building id; anything else clears.
         onClick: ({ object }: PickingInfo) => {
+          // A vehicle pins its tag; anything else unpins it.
+          transitTagsRef.current?.pinVehicle(object && 'receivedAt' in object ? (object as { id: string }).id : null);
           const isBuilding = object && ('polygon' in object || 'share' in object);
           const id = isBuilding ? (object as { id: string }).id : null;
           selectedRef.current = id;
@@ -215,6 +219,10 @@ export default function App() {
           if (id) setTab("data");
         },
         getTooltip: ({ object }: PickingInfo) => {
+          // Vehicles get a floating glass tag (TransitTags) instead of the tooltip.
+          const vehicleId = object && 'receivedAt' in object ? (object as { id: string }).id : null;
+          transitTagsRef.current?.hoverVehicle(vehicleId);
+          if (vehicleId) return null;
           const bikes = bikesRef.current;
           const bikeText = bikes ? bikeTooltip(object, bikes.data, bikes.feed, timeRef.current) : null;
           if (bikeText) return bikeText;
@@ -276,6 +284,15 @@ export default function App() {
         });
         const transit = transitRef.current;
         const showBikesNow = bikes && showBikesRef.current;
+        const transitSource = transit && showTransitRef.current ? transitSourceAt(transit, t, liveRef.current) : null;
+        // Then station, stop and dock tags, through the same placer.
+        transitTagsRef.current?.update({
+          placer,
+          project: basemap.project,
+          zoom: basemap.getZoom(),
+          transit: transit && transitSource ? { data: transit.data, source: transitSource, now } : null,
+          bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
+        });
         const frameLayers = [
           ...(detailedBuildings
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
@@ -293,10 +310,10 @@ export default function App() {
             roofHeights,
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
-          ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+          ...(transit && transitSource ? transitLayers({ data: transit.data, feed: transitSource, now, zoom: basemap.getZoom(), models: transit.models }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
           ...(showBikesNow
-            ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus, placer })
+            ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
           ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
         ];
@@ -426,6 +443,7 @@ export default function App() {
     <div className="app">
       <div ref={containerRef} />
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
+      <TransitTags ref={transitTagsRef} />
 
       <header className="panel title">
         <h1>Flowcast</h1>
