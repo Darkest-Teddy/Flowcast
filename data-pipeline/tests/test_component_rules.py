@@ -43,7 +43,8 @@ class ComponentRuleTests(unittest.TestCase):
             self.assertEqual(rules[course]['status'], 'resolved', course)
         self.assertEqual(len(rules['CAS MA 213']['components']), 3)
         self.assertTrue(rules['CAS CS 111']['hasCompleteMappedOption'])
+        # Their lectures meet in STO and MOR, which are now mapped teaching buildings.
         for course in ['CAS MA 123','CAS EC 101','CAS EC 102']:
-            self.assertFalse(rules[course]['hasCompleteMappedOption'], course)
-            self.assertTrue(rules[course]['components'][0]['sections'])
-            self.assertEqual(rules[course]['mappedCoverage'][rules[course]['components'][0]['id']], [])
+            self.assertTrue(rules[course]['hasCompleteMappedOption'], course)
+            primary = rules[course]['components'][0]
+            self.assertEqual(rules[course]['mappedCoverage'][primary['id']], primary['sections'])

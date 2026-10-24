@@ -390,8 +390,12 @@ test('saved Wednesday population supports every target, with full CDS and shared
       }
       assert.ok(time>=DAY,`${id}: incomplete day`);
       if(JSON.stringify(events)!==JSON.stringify(baseline.get(id)))changed++;
+      // An occupant already leaving on schedule before its exit slot is counted but keeps its day.
+      else assert.ok(result.participants.some(p=>p.agentId===id && p.decision?.reason==='scheduled departure precedes the exit slot') || !result.participants.some(p=>p.agentId===id),`${id}: affected without a change`);
     }
-    assert.equal(changed,result.affectedAgents);
+    const natural=result.participants.filter(p=>p.decision?.reason==='scheduled departure precedes the exit slot'
+      && JSON.stringify(timelines.get(p.agentId))===JSON.stringify(baseline.get(p.agentId))).length;
+    assert.equal(changed+natural,result.affectedAgents);
   }
   assert.equal(JSON.stringify(original.stays),originalStays);
   assert.equal(JSON.stringify(original.trips),originalTrips);

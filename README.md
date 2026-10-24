@@ -30,10 +30,10 @@ The data that could answer these questions is already public, but it's scattered
 
 | | |
 | --- | --- |
-| 🏫 **3 campuses, 50 places** | Charles River, Fenway and Medical, with detailed 3D building models |
+| 🏫 **3 campuses, 101 places** | Charles River, Fenway and Medical, with detailed 3D building models |
 | 👥 **36,977 simulated students** | Matching BU's Fall 2025 census by level and full/part-time status |
-| 📚 **3,805 real class meetings** | From BU's public Fall 2026 schedule, in 437 classrooms with published seat counts |
-| 🎟️ **88 real campus events** | Every public Terrier Central event; 33 at mapped places change crowding on the map |
+| 📚 **5,904 real class meetings** | From BU's public Fall 2026 schedule, in 437 classrooms with published seat counts |
+| 🎟️ **88 real campus events** | Every public Terrier Central event; 55 at mapped places change crowding on the map |
 | 🚇 **Live transit** | MBTA Green Line and buses, BU Shuttle and Bluebikes, live and from published timetables |
 | 🚒 **What-if emergencies** | Fire drills, alarms and closures: watch occupants evacuate and choose where to go next |
 | 🔍 **Honest by design** | Every number is labelled as published evidence or a model assumption, with its source |
