@@ -34,9 +34,10 @@ export async function loadBoats(url = '/data/river.json'): Promise<Boats> {
   return { fleet: new Fleet(river), models: Object.fromEntries(entries) };
 }
 
-/** True size up close; grows as the camera pulls back so the boats still read on the overview. */
+/** True size up close; grows only a little as the camera pulls back (a 4 m dinghy should stay
+ *  small next to the buildings and the BU Bridge, just not vanish). */
 export function boatScale(zoom: number) {
-  return Math.min(8, Math.max(1, 2 ** (18.6 - zoom)));
+  return Math.min(2.5, Math.max(1, 2 ** (17.2 - zoom)));
 }
 
 // deck.gl lights models more brightly than Mapbox's dusk and night presets (as in buildings.ts).
