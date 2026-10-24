@@ -528,79 +528,8 @@ def ped(start, length, label="Exclusive pedestrian phase"):
 # The Comm Ave sheets, by Synchro node. Windows are seconds from the reference phase's start of
 # green (the sheet's offset reference); ring-and-barrier lead/lag phases become overlapping
 # windows per movement. "ø" phases with no lane group are pedestrian-only intervals.
-BU_SHEETS = [
-    {
-        "name": "Commonwealth Ave & Babcock St", "node": 2, "at": [(-71.12110, 42.35190)],
-        # EBT leads with WBT; ø1 (no lane group) then runs alongside WBT.
-        "AM": (100, 48, [ph(["EB"], 0, 51, 3, 1), ph(["WB"], 0, 74, 3, 1), ph(["NB", "SB"], 74, 26, 3, 3)]),
-        "PM": (110, 66, [ph(["EB"], 0, 51, 3, 1), ph(["WB"], 0, 77, 3, 1), ph(["NB", "SB"], 77, 33, 3, 3)]),
-    },
-    {
-        "name": "Commonwealth Ave & Harry Agganis Way / Pleasant St", "node": 3,
-        "at": [(-71.11812, 42.35153), (-71.11856, 42.35166), (-71.11872, 42.35130)],
-        "AM": (100, 65, [ph(["EB", "WB"], 0, 56, 3, 2), ph(["NB", "SB"], 56, 28, 3, 3), ped(84, 16)]),
-        "PM": (110, 49, [ph(["EB", "WB"], 0, 79, 3, 2), ph(["NB", "SB"], 79, 31, 3, 3)]),
-    },
-    {
-        "name": "Commonwealth Ave & Buick St / St Paul St", "node": 4, "at": [(-71.11559, 42.35126)],
-        "AM": (100, 82, [ph(["EB"], 0, 51, 3, 1), ph(["WB"], 0, 76, 3, 1), ph(["NB", "SB"], 76, 24, 3, 1)]),
-        "PM": (110, 23, [ph(["EB"], 0, 46, 3, 1), ph(["WB"], 0, 70, 3, 1), ph(["NB", "SB"], 70, 40, 3, 1)]),
-    },
-    {
-        "name": "Commonwealth Ave & Amory St", "node": 5, "at": [(-71.11388, 42.35076)],
-        # Referenced to the Amory St (NB right) phase; ø7 is a 12 s pedestrian interval.
-        "AM": (100, 92, [ph(["NB", "SB"], 0, 27, 3, 2), ped(27, 12), ph(["EB", "WB"], 39, 61, 3, 2)]),
-        "PM": (110, 13, [ph(["NB", "SB"], 0, 27, 3, 2), ped(27, 12), ph(["EB", "WB"], 39, 71, 3, 2)]),
-    },
-    {
-        "name": "Commonwealth Ave & BU Bridge / Essex St", "node": 6, "at": [(-71.11075, 42.35069)],
-        # Barrier 2: Essex St NBT, then ø4, alongside BU Bridge SB.
-        "AM": (100, 11, [ph(["EB", "WB"], 0, 52, 3, 1), ph(["NB"], 52, 32, 3, 4), ph(["SB"], 52, 48, 3, 4)]),
-        "PM": (110, 104, [ph(["EB", "WB"], 0, 52, 3, 1), ph(["NB"], 52, 29, 3, 4), ph(["SB"], 52, 58, 3, 4)]),
-    },
-    {
-        "name": "Commonwealth Ave & Carlton St / University Rd", "node": 8, "at": [(-71.10927, 42.35015)],
-        "AM": (100, 83, [ph(["EB", "WB"], 0, 45, 4, 3), ph(["NB", "SB"], 45, 55, 4, 4)]),
-        "PM": (110, 13, [ph(["EB", "WB"], 0, 37, 4, 3), ph(["NB", "SB"], 37, 73, 4, 4)]),
-    },
-    {
-        "name": "Commonwealth Ave & St Mary's St", "node": 9, "at": [(-71.10638, 42.35015)],
-        # Phase 1 (EB + WB), ø3 (pedestrians), then phase 5: WB with its leading left.
-        "AM": (100, 60, [ph(["EB"], 0, 37, 4, 2), ped(37, 23), ph(["WB"], 60, 77, 4, 2)]),
-        "PM": (110, 23, [ph(["EB"], 0, 39, 4, 2), ped(39, 23), ph(["WB"], 62, 87, 4, 2)]),
-    },
-    {
-        "name": "Commonwealth Ave & Cummington Mall", "node": 10, "at": [(-71.10513, 42.34970)],
-        # Phase 1 (EB + WB), Cummington NB, then the EB lead (with U-turns) into phase 1.
-        "AM": (100, 13, [ph(["WB"], 0, 46, 4, 2), ph(["NB", "SB"], 46, 27, 4, 3), ph(["EB"], 73, 73, 4, 2)]),
-        "PM": (110, 101, [ph(["WB"], 0, 68, 4, 2), ph(["NB", "SB"], 68, 21, 4, 3), ph(["EB"], 89, 89, 4, 2)]),
-    },
-    {
-        "name": "Commonwealth Ave & Granby St", "node": 11, "at": [(-71.10344, 42.34977)],
-        "AM": (100, 54, [ph(["EB", "WB"], 0, 71, 4, 2), ph(["NB", "SB"], 71, 29, 4, 3)]),
-        "PM": (110, 68, [ph(["EB", "WB"], 0, 74, 4, 2), ph(["NB", "SB"], 74, 36, 4, 3)]),
-    },
-    {
-        "name": "Commonwealth Ave & Silber Way / Blandford St", "node": 12, "at": [(-71.10042, 42.34940)],
-        "AM": (100, 98, [ph(["EB", "WB"], 0, 64, 4, 2), ph(["NB", "SB"], 64, 36, 4, 3)]),
-        "PM": (110, 18, [ph(["EB", "WB"], 0, 73, 4, 2), ph(["NB", "SB"], 73, 37, 4, 3)]),
-    },
-    {
-        "name": "Kenmore Square (Commonwealth Ave & Beacon St)", "node": 13, "at": [(-71.09488, 42.34917)],
-        # Phase 2 (Comm Ave EB, SB rights), phase 3 (NB rights, SW lefts and through), phase 1
-        # (NE rights, SW through).
-        "AM": (100, 28, [ph(["EB"], 0, 28, 4, 5), ph(["SB"], 0, 28, 4, 5), ph(["NB"], 28, 42, 3, 1),
-                         ph(["SW", "WB"], 28, 72, 3, 1), ph(["NE"], 70, 30, 4, 4)]),
-        "PM": (110, 81, [ph(["EB"], 0, 36, 4, 5), ph(["SB"], 0, 36, 4, 5), ph(["NB"], 36, 41, 3, 1),
-                         ph(["SW", "WB"], 36, 74, 3, 1), ph(["NE"], 77, 33, 4, 4)]),
-    },
-    {
-        "name": "Mountfort St & St Mary's St", "node": 45, "at": [(-71.10677, 42.34860)],
-        # Split phasing: St Mary's (NB + SB, reference), ø2 (pedestrians), Mountfort WB, EB.
-        "AM": (100, 95, [ph(["NB", "SB"], 0, 35, 3, 1), ped(35, 20), ph(["WB"], 55, 29, 3, 1), ph(["EB"], 84, 16, 3, 1)]),
-        "PM": (110, 74, [ph(["NB", "SB"], 0, 37, 3, 1), ped(37, 20), ph(["WB"], 57, 37, 3, 1), ph(["EB"], 94, 16, 3, 1)]),
-    },
-]
+BU_PLAN_DATA = json.loads((HERE / "inputs" / "bu-signal-plans.json").read_text())
+BU_SHEETS = BU_PLAN_DATA["intersections"]
 
 # Audubon Circle: BTD's proposed AM plan (concurrent walks, LPI on the Park Dr south
 # crosswalk). The slides give the four intervals but not every movement; the 6 s one is held
@@ -773,6 +702,10 @@ def timings(signals):
                 if audubon and not sheet:
                     offset = round(offsets[gid][period] % cycle, 1)
                 plan = {"name": period, "from": start, "to": end, "cycle": cycle, "offset": offset, "splits": with_axes(splits, sigs)}
+                plan["basis"] = "published" if sheet and period in ("AM peak", "PM peak") else "reused" if sheet else "proposed"
+                if sheet:
+                    plan["sourceUrl"] = f"{BU_TMP_URL}#page={sheet['sourcePages'][key]}"
+                    plan["sourceDate"] = BU_PLAN_DATA["reportDate"]
                 if sheet and period not in ("AM peak", "PM peak"):
                     plan["note"] = f"AM plan reused: no {period.lower()} plan published"
                 if audubon and not sheet and period != "AM peak":
@@ -808,20 +741,20 @@ def timings(signals):
             day = period != "Night"  # pedestrian recall 7AM-11PM covers every plan but overnight
             cycle, splits = default_splits(sigs, cycle, LPI if day else 0.0)
             plans.append({"name": period, "from": start, "to": end, "cycle": cycle, "offset": round(offsets[gid][period] % cycle, 1),
-                          "splits": splits, "source": source, "sourceUrl": url})
+                          "splits": splits, "source": source, "sourceUrl": url,
+                          "basis": "estimated"})
         # The intersection's source is what its busiest plans rest on.
         peak = plans[0]
         out.append({
             "group": gid,
             "name": intersection_name(sigs),
-            "source": peak.pop("source"),
-            "sourceUrl": peak.pop("sourceUrl"),
+            "source": peak["source"],
+            "sourceUrl": peak["sourceUrl"],
             "published": "cycle" if (comm_ave or cycle_only) else "none",
             "plans": plans,
         })
         for p in plans[1:]:
-            p.pop("sourceUrl")
-            src = p.pop("source")
+            src = p["source"]
             if src != out[-1]["source"]:
                 p["note"] = "default: none published for this period"
     return out
@@ -841,7 +774,29 @@ TIMING_SOURCES = [
 ]
 
 
+def refresh_published_timings(data):
+    """Refresh published inputs without refetching OSM or changing estimated geometry/plans."""
+    groups = {}
+    for signal in data["signals"]:
+        groups.setdefault(signal["group"], []).append(signal)
+    covered = {gid for gid, sigs in groups.items() if any(near(sigs, sheet["at"]) for sheet in BU_SHEETS)}
+    replacements = {item["group"]: item for item in timings([s for s in data["signals"] if s["group"] in covered])}
+    data["intersections"] = [replacements.get(item["group"], item) for item in data["intersections"]]
+    for item in data["intersections"]:
+        for plan in item["plans"]:
+            plan.setdefault("basis", "proposed" if item.get("sourceUrl") == FLK_URL else "estimated")
+            if plan["basis"] == "estimated" and plan.get("note") == "default: none published for this period":
+                plan.setdefault("source", "estimated off-peak plan")
+                plan.setdefault("sourceUrl", BTD_POLICY_URL)
+    return data
+
+
 def main():
+    if sys.argv[1:] == ["--timings-only"]:
+        data = refresh_published_timings(json.loads(OUT.read_text()))
+        OUT.write_text(json.dumps(data, separators=(",", ":")))
+        print(f"Updated published timing plans in {OUT}")
+        return
     campuses = load_campus_bboxes()
     signals = []
     seen = set()
