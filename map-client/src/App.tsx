@@ -126,7 +126,8 @@ export default function App() {
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [campus, setCampus] = useState('charles-river');
   const [showTransit, setShowTransit] = useState(true);
-  const [showTraffic, setShowTraffic] = useState(true);
+  // Car traffic is off by default: most students walk, bike or take the T. Still available in the Transit tab.
+  const [showTraffic, setShowTraffic] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
   const [weather, setWeather] = useState<ActiveWeather | null>(null);
