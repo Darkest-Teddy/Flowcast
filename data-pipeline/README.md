@@ -11,6 +11,9 @@ Runs ahead of time, not live. Produces the files `/server` loads at startup.
 - Agent movement simulator → the precomputed full-week position timeline (Section 5.1–5.2)
 - Crowd-prediction ML model (Section 5.3)
 
+## Runs today
+- `make_demo_routes.py`: placeholder for `simulate_week.py`. It pulls BU's walk network and building footprints from OpenStreetMap, routes a synthetic Wednesday for 300 students with Dijkstra, and writes `map-client/public/data/demo-day.json` (format: see `map-client/README.md`, "Data contract"). It uses only the standard library: `python3 data-pipeline/make_demo_routes.py`.
+
 ## Planned entry points (not yet built)
 - `extract_campus.py` — pulls buildings + walkway graph from OSM
 - `scrape_catalog.py` — pulls public course meeting times

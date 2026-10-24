@@ -26,3 +26,9 @@ build/
 # Logs
 *.log
 npm-debug.log*
+
+# Cached Overpass/OSM responses
+data-pipeline/.cache/
+
+# TypeScript incremental build state
+*.tsbuildinfo

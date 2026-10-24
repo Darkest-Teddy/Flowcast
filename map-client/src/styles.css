@@ -1,0 +1,85 @@
+:root {
+  --panel: rgba(17, 20, 28, 0.86);
+  --text: #f4f5f7;
+  --muted: #b7bcc8;
+  --accent: #ffd60a;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: var(--text);
+}
+
+* { box-sizing: border-box; }
+html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background: #0b0d12; }
+/* Two classes so it beats .maplibregl-map / .mapboxgl-map (position: relative), whose CSS loads later. */
+.app .map { position: absolute; inset: 0; }
+
+.panel {
+  position: absolute;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.title { top: 16px; left: 16px; padding: 12px 18px; }
+.title h1 { margin: 0; font-size: 22px; letter-spacing: 0.02em; }
+.title p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+
+.status { top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 16px 24px; font-size: 16px; }
+
+.busiest { top: 16px; right: 16px; width: 320px; padding: 14px 16px; }
+.busiest h2 { margin: 0 0 8px; font-size: 15px; color: var(--muted); font-weight: 600; }
+.busiest ol { list-style: none; margin: 0; padding: 0; }
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'name value' 'bar bar';
+  gap: 4px 8px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.row:hover, .row:focus-visible { background: rgba(255, 255, 255, 0.06); outline: none; }
+.row.selected { border-color: var(--accent); }
+.row .name { grid-area: name; font-size: 14px; }
+.row .value { grid-area: value; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.row .bar { grid-area: bar; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.row .bar span { display: block; height: 100%; border-radius: 3px; }
+
+.timeline {
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  width: min(880px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+}
+.timeline input[type='range'] { flex: 1; accent-color: var(--accent); min-height: 32px; }
+.clock { min-width: 84px; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.timeline button, .timeline select {
+  min-height: 36px;
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.timeline button[aria-pressed='true'] { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
+.speeds { display: flex; gap: 4px; }
+
+.note { left: 16px; bottom: 90px; margin: 0; padding: 8px 12px; font-size: 12px; color: var(--muted); }
+.note code { color: var(--text); }
+
+.deck-tooltip { font-family: inherit !important; border-radius: 6px; }
