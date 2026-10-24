@@ -1,0 +1,15 @@
+{
+  "campus": "medical",
+  "name": "Medical Campus",
+  "bbox": [42.3305, -71.0790, 42.3395, -71.0665],
+  "locations": [
+    {"id": "bumc-residence", "name": "Medical Student Residence", "short": "815 Albany", "kind": "dorm", "lat": 42.33232, "lon": -71.07554, "capacity": 208, "osm": "way/495926483"},
+    {"id": "bumc-instructional", "name": "Chobanian & Avedisian School of Medicine Instructional Building", "short": "Instructional Bldg", "kind": "classroom", "lat": 42.33640, "lon": -71.07237, "capacity": 700, "osm": "way/1160558564"},
+    {"id": "bumc-sph", "name": "School of Public Health (Talbot Building)", "short": "SPH", "kind": "classroom", "lat": 42.33548, "lon": -71.07145, "capacity": 500, "osm": "way/484823090"},
+    {"id": "bumc-dental", "name": "Henry M. Goldman School of Dental Medicine", "short": "Dental School", "kind": "classroom", "lat": 42.33637, "lon": -71.07014, "capacity": 400, "osm": "way/29650892"},
+    {"id": "bumc-cabr", "name": "Center for Advanced Biomedical Research", "short": "CABR", "kind": "classroom", "lat": 42.33549, "lon": -71.07021, "capacity": 200, "osm": "way/29650907"},
+    {"id": "bumc-conte", "name": "Silvio O. Conte Medical Research Center", "short": "Conte Center", "kind": "classroom", "lat": 42.33616, "lon": -71.07319, "capacity": 150, "osm": "way/29650894"},
+    {"id": "bumc-library", "name": "Alumni Medical Library", "short": "Med Library", "kind": "library", "lat": 42.33640, "lon": -71.07237, "capacity": 250, "osm": "way/1160558564"},
+    {"id": "bumc-chequers", "name": "Chequers Cafe", "short": "Chequers", "kind": "dining", "lat": 42.33640, "lon": -71.07237, "capacity": 120, "osm": "way/1160558564"}
+  ]
+}

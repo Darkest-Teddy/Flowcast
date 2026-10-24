@@ -57,10 +57,12 @@ Mapbox GL JS (Standard) or MapLibre ──── base map, real 3D buildings
 ```jsonc
 {
   "day": "Wednesday",
-  "buildings": [{ "id": "way/277434241", "name": "…", "polygon": [[lng, lat], …], "height": 68.4 }],
+  "campuses":  [{ "id": "charles-river", "name": "Charles River Campus",
+                  "bbox": [south, west, north, east], "center": [lng, lat] }],  // agents never walk between campuses
+  "buildings": [{ "id": "way/277434241", "name": "…", "polygon": [[lng, lat], …], "height": 68.4, "campus": "charles-river" }],
   "locations": [{ "id": "cds", "name": "Computing & Data Sciences", "short": "CDS", "kind": "classroom",
-                  "position": [lng, lat], "capacity": 33, "building": "way/277434241" }],
-  "agents":    [{ "id": "a000", "home": "warren", "model": 0 }],     // model = Kenney character 0–11
+                  "position": [lng, lat], "capacity": 33, "building": "way/277434241", "campus": "charles-river" }],
+  "agents":    [{ "id": "a000", "home": "warren", "model": 0, "campus": "charles-river" }], // model = Kenney character 0–11
   "trips":     [{ "agent": "a000", "from": "warren", "to": "cds",
                   "path": [[lng, lat], …], "timestamps": [32400.0, …] }] // seconds since midnight, one per point
 }

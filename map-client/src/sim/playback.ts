@@ -12,6 +12,15 @@ export interface CampusLocation {
   position: [number, number];
   capacity: number;
   building: string; // OSM footprint id; several locations can share one (a dorm and its dining hall)
+  campus?: string; // Campus.id
+}
+
+/** One BU campus. Agents live and walk within a single campus; campuses are kilometres apart. */
+export interface Campus {
+  id: string; // "charles-river", "medical", "fenway"
+  name: string;
+  bbox: [number, number, number, number]; // south, west, north, east
+  center: [number, number]; // [lng, lat], mean of the campus's locations
 }
 
 /** One ring of a building footprint. Multi-part buildings appear once per ring. */
@@ -20,6 +29,7 @@ export interface BuildingFootprint {
   name: string | null;
   polygon: [number, number][];
   height: number;
+  campus?: string;
 }
 
 export interface BuildingOccupancy {
@@ -36,6 +46,7 @@ export interface Agent {
   id: string;
   home: string;
   model: number;
+  campus?: string;
 }
 
 export interface Trip {
@@ -48,6 +59,7 @@ export interface Trip {
 
 export interface DayData {
   day: string;
+  campuses?: Campus[];
   buildings: BuildingFootprint[];
   locations: CampusLocation[];
   agents: Agent[];
