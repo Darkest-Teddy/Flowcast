@@ -31,9 +31,9 @@
 .tag {
   display: inline-flex;
   align-items: center;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: var(--radius-xs);
+  height: 20px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-capsule);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   white-space: nowrap;
@@ -54,7 +54,7 @@
 .meter {
   width: 72px;
   height: 6px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-capsule);
   background: var(--color-surface-sunken);
   overflow: hidden;
 }

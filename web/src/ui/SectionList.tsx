@@ -32,7 +32,7 @@ export function SectionList({
       ) : (
         <div className={styles.head}>{heading}</div>
       )}
-      {hasRows ? <div>{children}</div> : empty && <div className={styles.empty}>{empty}</div>}
+      {hasRows ? <div className={styles.rows}>{children}</div> : empty && <div className={styles.empty}>{empty}</div>}
     </section>
   );
 }

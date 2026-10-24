@@ -17,8 +17,8 @@
   height: var(--control-height);
   padding: 0 var(--space-2);
   border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  border-radius: calc(var(--radius-card) / 2);
+  background: var(--glass-fill-strong);
   font-size: var(--text-md);
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -38,7 +38,9 @@
   color: var(--color-bad);
 }
 
+/* Floats over the panels as they scroll under it, so it's the opaque glass. */
 .bar {
+  composes: glass-strong from global;
   position: sticky;
   bottom: var(--space-4);
   z-index: 4;
@@ -48,11 +50,8 @@
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-4);
   margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-overlay);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-5);
+  border-radius: var(--radius-card);
 }
 
 .barText {

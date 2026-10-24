@@ -16,12 +16,27 @@ body {
   margin: 0;
   background: var(--color-canvas);
   color: var(--color-ink);
+  /* Everything in the dashboard sits on glass or on the canvas gradient, where the plain tertiary
+     grey drops under 4.5:1 in light mode. The glass variant keeps it (and is the same in dark). */
+  --color-ink-tertiary: var(--glass-ink-tertiary);
   font-family: var(--font-text);
   font-size: var(--text-md);
   line-height: var(--leading-normal);
   letter-spacing: var(--tracking-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* The canvas gradient sits on its own fixed layer rather than on body with background-attachment:
+   fixed, which iOS ignores (the gradient would then repeat down long pages with a seam). Pages
+   paint nothing opaque over it, so glass surfaces always blur the gradient. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--canvas-gradient);
+  pointer-events: none;
 }
 
 h1,
@@ -72,6 +87,27 @@ textarea {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/*
+ * Liquid glass, shared by every glass surface. CSS modules pull these in with
+ * `composes: glass from global;` (or glass-strong for big panels and anything floating over
+ * content). They live in a layer so a module's own rules always win over them, whatever order the
+ * stylesheets load in. Reduced transparency needs nothing here: tokens.css makes the fill solid
+ * and the blur 0.
+ */
+@layer glass {
+  .glass,
+  .glass-strong {
+    background: var(--glass-fill);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
+  }
+
+  .glass-strong {
+    background: var(--glass-fill-strong);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

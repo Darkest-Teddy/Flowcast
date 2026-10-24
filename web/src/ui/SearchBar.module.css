@@ -1,17 +1,15 @@
+/* A glass capsule. The focus ring sits outside the glass edge so it shows on any backdrop. */
 .bar {
+  composes: glass-strong from global;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 0 0 4px var(--color-surface-sunken);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-5);
+  border-radius: var(--radius-capsule);
 }
 
 .bar:focus-within {
-  border-color: var(--color-accent);
-  box-shadow: var(--shadow-field-focus);
+  box-shadow: var(--glass-inner-shadow), var(--shadow-field-focus), var(--glass-shadow);
 }
 
 .icon {
@@ -45,13 +43,16 @@
   font-size: var(--text-xs);
   color: var(--color-ink-tertiary);
   border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   padding: 1px 5px;
 }
 
+/* Two lines on phones: a capsule would pinch the second line, so it becomes a rounded card. */
 @media (max-width: 640px) {
   .bar {
     flex-wrap: wrap;
+    padding-left: var(--space-4);
+    border-radius: var(--radius-card);
   }
 
   .input {

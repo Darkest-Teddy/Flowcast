@@ -1,5 +1,9 @@
+/* A glass card: the header, then rows inset from the rounded edge. */
 .section {
+  composes: glass from global;
   min-width: 0;
+  padding: var(--space-4) var(--space-5) var(--space-2);
+  border-radius: var(--radius-card);
 }
 
 .head {
@@ -8,6 +12,7 @@
   gap: var(--space-2);
   padding: 0 0 var(--space-2);
   border-bottom: 1px solid var(--color-hairline);
+  font-weight: var(--weight-medium);
   color: var(--color-ink-secondary);
   font-size: var(--text-sm);
   text-decoration: none;
@@ -21,8 +26,8 @@ a.head:hover {
 .count {
   font-size: var(--text-xs);
   border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-xs);
-  padding: 0 5px;
+  border-radius: var(--radius-capsule);
+  padding: 0 6px;
   line-height: 16px;
 }
 
@@ -44,14 +49,18 @@ a.head:hover {
   font-size: var(--text-md);
 }
 
+/* No hairline under the last row (pages' own rows too): the card's edge ends the list. */
+.rows > :last-child {
+  border-bottom: 0;
+}
+
 .link {
   text-decoration: none;
 }
 
 .link:hover {
   text-decoration: none;
-  background: linear-gradient(var(--color-surface-hover), var(--color-surface-hover)) no-repeat;
-  background-size: 100% 100%;
+  background: var(--color-surface-hover);
 }
 
 .leading {
