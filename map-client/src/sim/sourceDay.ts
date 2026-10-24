@@ -120,7 +120,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
       'Off-campus students use a stable modeled campus gateway on saved transit-stop walking geometry; only the campus access leg is shown, not an observed commute or transit boarding. Arrival leads vary by 2–12 minutes.',
       'Mapped residents may take probability-bounded modeled meal, study, and gym trips, including weekends; these are synthetic preferences, not observed attendance. Feasible home breaks and waits fill gaps.',
       'Off-campus students may leave via their gateway during a gap that permits access walks and at least 30 minutes off-campus; campus waiting remains modeled when a departure does not fit.',
-      'Optional visits require published exact-date or valid weekly opening hours; exact-date closures override weekly schedules. Missing or undated hours do not imply availability. Published classes retain their own source times.',
+      'Optional visits use published hours for the exact date (closures override), else the same weekday from the nearest published week, else typical hours for the venue kind. Undated hours do not imply availability. Published classes retain their own source times.',
       'Open, reachable optional venues are selected with modeled capacity/distance weights, not observed preferences; unavailable venues receive no overflow traffic.',
       `A modeled ${Math.round(MODELED_OFF_CAMPUS_MEAL_SHARE * 100)}% share of attempted resident meals (an uncalibrated model parameter) uses physical gateway walks and off-campus stays; no restaurant, off-map route, or observed meal behavior is asserted. Infeasible meals are skipped.`,
       'Date-limited class notes are excluded. Undated opening-hour snapshots are not authoritative.',
@@ -257,10 +257,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     const key = `${location}:${weekday}`;
     const cached = openingCache.get(key);
     if (cached) return cached;
-    const date = dates[weekday];
-    const hours = data.locations[location]?.hours ?? [];
-    const selected = openingHoursForDate(hours, date, weekday);
-    const windows = selected.flatMap(entry => entry.windows);
+    const windows = venueWindows(data, location, locations.get(location)?.kind, weekday);
     openingCache.set(key, windows); return windows;
   };
   const isOpen = (stop: WeeklyStop) => !!stop.meeting || stop.location === 'off-campus'
@@ -461,4 +458,59 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     days.set(weekday, result);
     return result;
   };
+}
+
+/**
+ * Typical opening hours (seconds since midnight) for places with no published schedule, by kind.
+ * Weekday = 0 Monday ... 6 Sunday. BU dining halls serve roughly 7 AM-9 PM on weekdays and from
+ * brunch at weekends; libraries 8 AM-midnight; FitRec-style gyms 6 AM-11 PM. Assumptions, labelled.
+ */
+function typicalWindows(kind: string | undefined, weekday: number): [number, number][] {
+  const h = (hour: number) => hour * 3600;
+  const weekend = weekday >= 5;
+  switch (kind) {
+    case 'dining':
+      return weekend ? [[h(10), h(20)]] : [[h(7), h(21)]];
+    case 'library':
+      return weekend ? [[h(10), h(22)]] : [[h(8), h(24)]];
+    case 'gym':
+      return weekend ? [[h(8), h(22)]] : [[h(6), h(23)]];
+    default:
+      return [];
+  }
+}
+
+/** Monday-first weekday (0 = Monday) of an ISO date, as a calendar date (no timezone shift). */
+function isoWeekday(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number);
+  return (new Date(y, m - 1, d).getDay() + 6) % 7;
+}
+
+/** The nearest dated entry on the same weekday, within four weeks of `date`. */
+function sameWeekdayWindows(hours: { date: string | null; windows: [number, number][] }[], date: string, weekday: number): [number, number][] {
+  const target = Date.parse(`${date}T12:00:00Z`);
+  let best: { gap: number; windows: [number, number][] } | null = null;
+  for (const entry of hours) {
+    if (!entry.date || isoWeekday(entry.date) !== weekday) continue;
+    const gap = Math.abs(Date.parse(`${entry.date}T12:00:00Z`) - target);
+    if (gap <= 28 * 86400000 && (!best || gap < best.gap)) best = { gap, windows: entry.windows };
+  }
+  return best?.windows ?? [];
+}
+
+/**
+ * When a venue is open on a reference-week day (seconds since midnight), for optional visits.
+ * 1. Published hours for that exact date (a dated closure means closed).
+ * 2. Otherwise the same weekday's published hours from the nearest dated week: dining menus were
+ *    scraped for Oct 24-30 while the reference week is Oct 19-25.
+ * 3. A venue with no published hours at all gets typical hours for its kind.
+ * Restricted venues are handled by the caller.
+ */
+export function venueWindows(data: CampusData, location: string, kind: string | undefined, weekday: number): [number, number][] {
+  const date = dateForWeekday(data, weekday);
+  const hours = data.locations[location]?.hours ?? [];
+  const selected = openingHoursForDate(hours, date, weekday);
+  if (selected.length) return selected.flatMap((entry) => entry.windows);
+  if (hours.length) return sameWeekdayWindows(hours, date, weekday);
+  return typicalWindows(kind, weekday);
 }
