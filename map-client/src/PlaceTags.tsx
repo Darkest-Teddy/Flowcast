@@ -1,5 +1,5 @@
 // Name tags for BU's places, in the same glass as the building and transit tags: monuments (Free
-// at Last, Rhett Bench, the Golden Greek), landmarks (the Citgo sign, the Braves Field ticket
+// at Last, Rhett Bench, the Golden Greek, the BU Seal), landmarks (the Citgo sign, the Braves Field ticket
 // office), public art, the named open spaces (BU Beach, Marsh Plaza) and the playing fields.
 // A compact pill (kind icon and name) until it opens on hover or focus of the pill, hover of the
 // place itself on the map (invisible pick targets, placeHitLayers below), or a tap. Then the

@@ -1,5 +1,5 @@
 // BU's monuments and landmarks: real-scale 3D models (Free at Last, the Rhett bench, the Citgo
-// sign, the Harry Agganis statue), a dot for other public art, and the named open spaces (BU
+// sign, the Harry Agganis statue, the BU seal set into Marsh Plaza), a dot for other public art, and the named open spaces (BU
 // Beach, Marsh Plaza) as faint outlines. Their name tags are HTML, in PlaceTags.tsx.
 //
 // Data: public/data/monuments.json (positions and sources, mostly OpenStreetMap; see each entry's
