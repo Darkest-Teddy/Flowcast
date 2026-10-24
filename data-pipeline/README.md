@@ -12,6 +12,8 @@ The normalized public datasets in [`output/`](output/) are committed. Use them d
 - [`output/manifest.json`](output/manifest.json): checksums and collection status for all six categories.
 - [`output/campus-wide/coverage.json`](output/campus-wide/coverage.json): per-school coverage and explicit schedule/capacity gaps.
 - The other category JSON files contain the saved events, dining, library, housing, and supplemental-signal records.
+- [`output/opening_hours.json`](output/opening_hours.json) audits all 13 mapped dining, library, and recreation venues. `scrape_opening_hours.py` extracts dated dining hours, library general hours, FitRec seasonal weekly schedules and closures, and the official Fenway provider's embedded schedule. It records restricted event/team facilities separately. The map uses these audited records instead of undated dining snapshots and mixed departmental hours.
+- [`output/residential_availability.json`](output/residential_availability.json) records dated residential availability separately from nominal complex totals. `scrape_residential_availability.py` verifies reopened Warren Tower A's 600 spaces and Tower B's relocation from BU publications; Tower C remains outside the verified subtotal. The runtime labels this partial allocation explicitly.
 
 Additional saved inputs for population scale and traffic:
 
@@ -179,7 +181,7 @@ These scripts feed `map-client/` until the shared simulation core produces its o
 
 ### Map integration (offline)
 
-`python3 data-pipeline/build_map_data.py` transforms the six committed snapshots into
+`python3 data-pipeline/build_map_data.py` transforms the six category snapshots, opening-hours audit, and dated residential availability into
 `map-client/public/data/campus-data.json`. It reads local files only and records input
 SHA-256 hashes. Rebuild this bundle after deliberately refreshing source datasets;
 opening the map does not scrape BU again.

@@ -1,0 +1,1680 @@
+{
+  "schemaVersion": 1,
+  "dataset": "opening_hours",
+  "generatedAt": "2026-10-24T17:44:47.685874+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "collectedAt": "2026-10-24T17:44:47.683076+00:00",
+  "locations": [
+    {
+      "locationId": "mugar",
+      "status": "published",
+      "hours": [
+        {
+          "date": "2026-10-18",
+          "windows": [
+            [
+              36000,
+              93600
+            ]
+          ],
+          "text": "10:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-19",
+          "windows": [
+            [
+              25200,
+              93600
+            ]
+          ],
+          "text": "7:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-20",
+          "windows": [
+            [
+              25200,
+              93600
+            ]
+          ],
+          "text": "7:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-21",
+          "windows": [
+            [
+              25200,
+              93600
+            ]
+          ],
+          "text": "7:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-22",
+          "windows": [
+            [
+              25200,
+              93600
+            ]
+          ],
+          "text": "7:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-23",
+          "windows": [
+            [
+              25200,
+              82800
+            ]
+          ],
+          "text": "7:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-24",
+          "windows": [
+            [
+              36000,
+              82800
+            ]
+          ],
+          "text": "10:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-25",
+          "windows": [
+            [
+              36000,
+              93600
+            ]
+          ],
+          "text": "10:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-26",
+          "windows": [
+            [
+              25200,
+              93600
+            ]
+          ],
+          "text": "7:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-27",
+          "windows": [
+            [
+              25200,
+              93600
+            ]
+          ],
+          "text": "7:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-28",
+          "windows": [
+            [
+              25200,
+              93600
+            ]
+          ],
+          "text": "7:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-29",
+          "windows": [
+            [
+              25200,
+              93600
+            ]
+          ],
+          "text": "7:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-30",
+          "windows": [
+            [
+              25200,
+              82800
+            ]
+          ],
+          "text": "7:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [
+            [
+              36000,
+              82800
+            ]
+          ],
+          "text": "10:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bu.edu/library/visit-study/hours/",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+      ]
+    },
+    {
+      "locationId": "pardee",
+      "status": "published",
+      "hours": [
+        {
+          "date": "2026-10-18",
+          "windows": [
+            [
+              36000,
+              82800
+            ]
+          ],
+          "text": "10:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-19",
+          "windows": [
+            [
+              32400,
+              82800
+            ]
+          ],
+          "text": "9:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-20",
+          "windows": [
+            [
+              32400,
+              82800
+            ]
+          ],
+          "text": "9:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-21",
+          "windows": [
+            [
+              32400,
+              82800
+            ]
+          ],
+          "text": "9:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-22",
+          "windows": [
+            [
+              32400,
+              82800
+            ]
+          ],
+          "text": "9:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-23",
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ],
+          "text": "9:00am – 5:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-24",
+          "windows": [
+            [
+              36000,
+              64800
+            ]
+          ],
+          "text": "10:00am – 6:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-25",
+          "windows": [
+            [
+              36000,
+              82800
+            ]
+          ],
+          "text": "10:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-26",
+          "windows": [
+            [
+              32400,
+              82800
+            ]
+          ],
+          "text": "9:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-27",
+          "windows": [
+            [
+              32400,
+              82800
+            ]
+          ],
+          "text": "9:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-28",
+          "windows": [
+            [
+              32400,
+              82800
+            ]
+          ],
+          "text": "9:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-29",
+          "windows": [
+            [
+              32400,
+              82800
+            ]
+          ],
+          "text": "9:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-30",
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ],
+          "text": "9:00am – 5:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [
+            [
+              36000,
+              64800
+            ]
+          ],
+          "text": "10:00am – 6:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+          "qualifier": null
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bu.edu/library/visit-study/hours/",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+      ]
+    },
+    {
+      "locationId": "gsu",
+      "status": "published",
+      "hours": [
+        {
+          "date": "2026-10-24",
+          "windows": [
+            [
+              41400,
+              68400
+            ]
+          ],
+          "text": "11:30–19:00",
+          "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+          "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+            "https://www.bu.edu/dining/location/the-halal-shack/"
+          ]
+        },
+        {
+          "date": "2026-10-25",
+          "windows": [
+            [
+              41400,
+              68400
+            ]
+          ],
+          "text": "11:30–19:00",
+          "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+          "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+            "https://www.bu.edu/dining/location/the-halal-shack/"
+          ]
+        },
+        {
+          "date": "2026-10-26",
+          "windows": [
+            [
+              39600,
+              82800
+            ]
+          ],
+          "text": "11:00–23:00",
+          "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+          "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+            "https://www.bu.edu/dining/location/the-halal-shack/"
+          ]
+        },
+        {
+          "date": "2026-10-27",
+          "windows": [
+            [
+              39600,
+              82800
+            ]
+          ],
+          "text": "11:00–23:00",
+          "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+          "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+            "https://www.bu.edu/dining/location/the-halal-shack/"
+          ]
+        },
+        {
+          "date": "2026-10-28",
+          "windows": [
+            [
+              39600,
+              82800
+            ]
+          ],
+          "text": "11:00–23:00",
+          "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+          "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+            "https://www.bu.edu/dining/location/the-halal-shack/"
+          ]
+        },
+        {
+          "date": "2026-10-29",
+          "windows": [
+            [
+              39600,
+              82800
+            ]
+          ],
+          "text": "11:00–23:00",
+          "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+          "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+            "https://www.bu.edu/dining/location/the-halal-shack/"
+          ]
+        },
+        {
+          "date": "2026-10-30",
+          "windows": [
+            [
+              39600,
+              68400
+            ]
+          ],
+          "text": "11:00–19:00",
+          "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+          "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+            "https://www.bu.edu/dining/location/the-halal-shack/"
+          ]
+        }
+      ],
+      "reason": "Meal-vendor coverage only; no whole-hall capacity inference",
+      "sources": [
+        "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+        "https://www.bu.edu/dining/location/panda-express/",
+        "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+        "https://www.bu.edu/dining/location/the-halal-shack/"
+      ]
+    },
+    {
+      "locationId": "warren-dining",
+      "status": "published",
+      "hours": [
+        {
+          "date": "2026-10-24",
+          "windows": [
+            [
+              32400,
+              75600
+            ]
+          ],
+          "text": "Breakfast 9:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/warren/",
+          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/warren/"
+          ]
+        },
+        {
+          "date": "2026-10-25",
+          "windows": [
+            [
+              36000,
+              75600
+            ]
+          ],
+          "text": "Brunch 10:00 AM - 4:00 PM Dinner 4:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/warren/",
+          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/warren/"
+          ]
+        },
+        {
+          "date": "2026-10-26",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/warren/",
+          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/warren/"
+          ]
+        },
+        {
+          "date": "2026-10-27",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/warren/",
+          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/warren/"
+          ]
+        },
+        {
+          "date": "2026-10-28",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/warren/",
+          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/warren/"
+          ]
+        },
+        {
+          "date": "2026-10-29",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/warren/",
+          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/warren/"
+          ]
+        },
+        {
+          "date": "2026-10-30",
+          "windows": [
+            [
+              25200,
+              75600
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/warren/",
+          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/warren/"
+          ]
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bu.edu/dining/location/warren/"
+      ]
+    },
+    {
+      "locationId": "agganis",
+      "status": "restricted",
+      "hours": [],
+      "reason": "Event arena; no published general recreation access",
+      "sources": [
+        "https://www.bu.edu/admissions/why-bu/student-life/sports-fitness/"
+      ]
+    },
+    {
+      "locationId": "fitrec",
+      "status": "published",
+      "hours": [
+        {
+          "date": null,
+          "windows": [
+            [
+              28800,
+              79200
+            ]
+          ],
+          "text": "Sunday 8 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 6,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              21600,
+              82800
+            ]
+          ],
+          "text": "Monday 6 AM – 11 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 0,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              21600,
+              82800
+            ]
+          ],
+          "text": "Tuesday 6 AM – 11 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 1,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              21600,
+              82800
+            ]
+          ],
+          "text": "Wednesday 6 AM – 11 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 2,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              21600,
+              82800
+            ]
+          ],
+          "text": "Thursday 6 AM – 11 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 3,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              21600,
+              79200
+            ]
+          ],
+          "text": "Friday 6 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 4,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              28800,
+              79200
+            ]
+          ],
+          "text": "Saturday 8 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 5,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": "2026-10-12",
+          "windows": [
+            [
+              28800,
+              79200
+            ]
+          ],
+          "text": "Monday, October 12 8 AM – 10 PM Open With Adjusted Hours - All Facilities",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": "2026-11-26",
+          "windows": [],
+          "text": "Thursday, November 26 Closed",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": "2026-11-27",
+          "windows": [],
+          "text": "Friday, November 27 Closed",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        },
+        {
+          "date": "2026-11-28",
+          "windows": [],
+          "text": "Saturday, November 28 Closed",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "validFrom": "2026-09-02",
+          "validTo": "2026-12-10"
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bu.edu/fitrec/visit-us/hours/"
+      ]
+    },
+    {
+      "locationId": "dewolfe",
+      "status": "restricted",
+      "hours": [],
+      "reason": "Crew-team boathouse; no published general recreation access",
+      "sources": [
+        "https://www.bu.edu/admissions/why-bu/student-life/sports-fitness/"
+      ]
+    },
+    {
+      "locationId": "west-dining",
+      "status": "published",
+      "hours": [
+        {
+          "date": "2026-10-24",
+          "windows": [
+            [
+              32400,
+              75600
+            ]
+          ],
+          "text": "Breakfast 9:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/west/",
+          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/west/"
+          ]
+        },
+        {
+          "date": "2026-10-25",
+          "windows": [
+            [
+              36000,
+              75600
+            ]
+          ],
+          "text": "Brunch 10:00 AM - 4:00 PM Dinner 4:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/west/",
+          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/west/"
+          ]
+        },
+        {
+          "date": "2026-10-26",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/west/",
+          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/west/"
+          ]
+        },
+        {
+          "date": "2026-10-27",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/west/",
+          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/west/"
+          ]
+        },
+        {
+          "date": "2026-10-28",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/west/",
+          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/west/"
+          ]
+        },
+        {
+          "date": "2026-10-29",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/west/",
+          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/west/"
+          ]
+        },
+        {
+          "date": "2026-10-30",
+          "windows": [
+            [
+              25200,
+              75600
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/west/",
+          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/west/"
+          ]
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bu.edu/dining/location/west/"
+      ]
+    },
+    {
+      "locationId": "marciano",
+      "status": "published",
+      "hours": [
+        {
+          "date": "2026-10-24",
+          "windows": [
+            [
+              32400,
+              75600
+            ]
+          ],
+          "text": "Breakfast 9:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
+          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/marciano/"
+          ]
+        },
+        {
+          "date": "2026-10-25",
+          "windows": [
+            [
+              36000,
+              75600
+            ]
+          ],
+          "text": "Brunch 10:00 AM - 4:00 PM Dinner 4:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
+          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/marciano/"
+          ]
+        },
+        {
+          "date": "2026-10-26",
+          "windows": [
+            [
+              25200,
+              75600
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
+          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/marciano/"
+          ]
+        },
+        {
+          "date": "2026-10-27",
+          "windows": [
+            [
+              25200,
+              75600
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
+          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/marciano/"
+          ]
+        },
+        {
+          "date": "2026-10-28",
+          "windows": [
+            [
+              25200,
+              75600
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
+          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/marciano/"
+          ]
+        },
+        {
+          "date": "2026-10-29",
+          "windows": [
+            [
+              25200,
+              75600
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
+          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/marciano/"
+          ]
+        },
+        {
+          "date": "2026-10-30",
+          "windows": [
+            [
+              25200,
+              75600
+            ]
+          ],
+          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
+          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/marciano/"
+          ]
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bu.edu/dining/location/marciano/"
+      ]
+    },
+    {
+      "locationId": "bumc-library",
+      "status": "published",
+      "hours": [
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Regular schedule applied only to reference week; published holiday closures must be resolved before extending",
+          "weekday": 0,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Regular schedule applied only to reference week; published holiday closures must be resolved before extending",
+          "weekday": 1,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Regular schedule applied only to reference week; published holiday closures must be resolved before extending",
+          "weekday": 2,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Regular schedule applied only to reference week; published holiday closures must be resolved before extending",
+          "weekday": 3,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Regular schedule applied only to reference week; published holiday closures must be resolved before extending",
+          "weekday": 4,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              36000,
+              64800
+            ]
+          ],
+          "text": "Saturday – Sunday 10 a.m.-6 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Regular schedule applied only to reference week; published holiday closures must be resolved before extending",
+          "weekday": 5,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              36000,
+              64800
+            ]
+          ],
+          "text": "Saturday – Sunday 10 a.m.-6 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Regular schedule applied only to reference week; published holiday closures must be resolved before extending",
+          "weekday": 6,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bumc.bu.edu/medlib/about/hours/"
+      ]
+    },
+    {
+      "locationId": "bumc-chequers",
+      "status": "published",
+      "hours": [
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published weekday schedule applied only to reference week; holiday exceptions not supplied",
+          "weekday": 0,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published weekday schedule applied only to reference week; holiday exceptions not supplied",
+          "weekday": 1,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published weekday schedule applied only to reference week; holiday exceptions not supplied",
+          "weekday": 2,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published weekday schedule applied only to reference week; holiday exceptions not supplied",
+          "weekday": 3,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published weekday schedule applied only to reference week; holiday exceptions not supplied",
+          "weekday": 4,
+          "validFrom": "2026-10-19",
+          "validTo": "2026-10-25"
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bumc.bu.edu/chequers/"
+      ]
+    },
+    {
+      "locationId": "fenway-dining",
+      "status": "published",
+      "hours": [
+        {
+          "date": "2026-10-19",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–20:00, 20:00–22:00",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) ",
+            "Dinner",
+            "Light Dinner (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) "
+          ],
+          "serviceSourceUrls": [
+            "https://bufenway.sodexomyway.com:443/en-us/locations/"
+          ]
+        },
+        {
+          "date": "2026-10-20",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–20:00, 20:00–22:00",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) ",
+            "Dinner",
+            "Light Dinner (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) "
+          ],
+          "serviceSourceUrls": [
+            "https://bufenway.sodexomyway.com:443/en-us/locations/"
+          ]
+        },
+        {
+          "date": "2026-10-21",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–20:00, 20:00–22:00",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) ",
+            "Dinner",
+            "Light Dinner (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) "
+          ],
+          "serviceSourceUrls": [
+            "https://bufenway.sodexomyway.com:443/en-us/locations/"
+          ]
+        },
+        {
+          "date": "2026-10-22",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–20:00, 20:00–22:00",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) ",
+            "Dinner",
+            "Light Dinner (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) "
+          ],
+          "serviceSourceUrls": [
+            "https://bufenway.sodexomyway.com:443/en-us/locations/"
+          ]
+        },
+        {
+          "date": "2026-10-23",
+          "windows": [
+            [
+              25200,
+              70200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–19:30",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss)",
+            "Dinner"
+          ],
+          "serviceSourceUrls": [
+            "https://bufenway.sodexomyway.com:443/en-us/locations/"
+          ]
+        },
+        {
+          "date": "2026-10-24",
+          "windows": [
+            [
+              36000,
+              70200
+            ]
+          ],
+          "text": "10:00–13:00, 13:00–16:30, 16:30–19:30",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Brunch",
+            "Light Lunch (Open Stations: Sizzle, Showcase, Spoonful, Mix & Bliss) ",
+            "Dinner"
+          ],
+          "serviceSourceUrls": [
+            "https://bufenway.sodexomyway.com:443/en-us/locations/"
+          ]
+        },
+        {
+          "date": "2026-10-25",
+          "windows": [
+            [
+              36000,
+              70200
+            ]
+          ],
+          "text": "10:00–13:00, 13:00–16:30, 16:30–19:30",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Brunch",
+            "Light Lunch (Open Stations: Sizzle, Showcase, Spoonful, Mix & Bliss) ",
+            "Dinner"
+          ],
+          "serviceSourceUrls": [
+            "https://bufenway.sodexomyway.com:443/en-us/locations/"
+          ]
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bu.edu/dining/location/fenway/"
+      ]
+    },
+    {
+      "locationId": "fenway-fitness",
+      "status": "published",
+      "hours": [
+        {
+          "date": null,
+          "windows": [
+            [
+              28800,
+              79200
+            ]
+          ],
+          "text": "Sunday 8 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 6,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Monday 7 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 0,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Tuesday 7 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 1,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Wednesday 7 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 2,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Thursday 7 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 3,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "Friday 7 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 4,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              28800,
+              79200
+            ]
+          ],
+          "text": "Saturday 8 AM – 10 PM",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "weekday": 5,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": "2026-10-12",
+          "windows": [
+            [
+              28800,
+              79200
+            ]
+          ],
+          "text": "Monday, October 12 8 AM – 10 PM Open With Adjusted Hours - All Facilities",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": "2026-11-26",
+          "windows": [],
+          "text": "Thursday, November 26 Closed",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": "2026-11-27",
+          "windows": [],
+          "text": "Friday, November 27 Closed",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        },
+        {
+          "date": "2026-11-28",
+          "windows": [],
+          "text": "Saturday, November 28 Closed",
+          "sourceUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+          "qualifier": null,
+          "validFrom": "2026-08-24",
+          "validTo": "2026-12-18"
+        }
+      ],
+      "reason": null,
+      "sources": [
+        "https://www.bu.edu/fitrec/visit-us/hours/"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://www.bu.edu/dining/location/warren/",
+      "requestedUrl": "https://www.bu.edu/dining/location/warren/",
+      "retrievedAt": "2026-10-24T17:39:13.722292+00:00",
+      "sha256": "5bfd0be5d784cba8492f3f668593e61cf72c1bfc904e65d9e653968d095611fc",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/6519c8af051d28473fbc5f13f1b75f1de1c69de41a94659e5b2c9adf14579086.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/dining/location/west/",
+      "requestedUrl": "https://www.bu.edu/dining/location/west/",
+      "retrievedAt": "2026-10-24T17:39:19.653651+00:00",
+      "sha256": "cbb4445cfde6b1f72645c5f05b80a14aabd251c08a2430d7abf2028421d4336c",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/a1edf8cf1cbe116c97beba44754d118944771df542de153d150d2059cad5aea1.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/dining/location/marciano/",
+      "requestedUrl": "https://www.bu.edu/dining/location/marciano/",
+      "retrievedAt": "2026-10-24T17:39:29.034905+00:00",
+      "sha256": "8083144f09ffa92585b4497f932fe16beb0bd37b8ce64e151b8314e4e0e1c6e7",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/93d27f08646630561acbe2c38b10d5dd2968df9c26bdf57cdbde6c0fc9436dec.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+      "requestedUrl": "https://www.bu.edu/dining/location/fenway/",
+      "retrievedAt": "2026-10-24T17:40:23.409808+00:00",
+      "sha256": "731ae8ce519ba25aab1817a5da9c5cbb5a0e1e00fe21c1ef38af259a3ebe559c",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/5460f31b472c15a098c18e23de9b655995365884db8bd9a10f4c5534ced8f0f0.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+      "requestedUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+      "retrievedAt": "2026-10-24T17:40:24.164938+00:00",
+      "sha256": "67334ed12f29a30502fcd069db5c1958af0cf87b71131e0dbf11c0315c4d83eb",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/c0699b30117449c0f419f291e4fa705bd146c653d424f8b41703ad1db55cd4e8.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/dining/location/panda-express/",
+      "requestedUrl": "https://www.bu.edu/dining/location/panda-express/",
+      "retrievedAt": "2026-10-24T17:41:49.581366+00:00",
+      "sha256": "0fc2264ce33788c72f43b82c25f3271474f73c0ab322b782b9da2a233e632cf1",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/8bee85e165219e4196eea093bd00a53d06c52cfde6a398e64d8b58b16c27b801.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+      "requestedUrl": "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+      "retrievedAt": "2026-10-24T17:41:50.445053+00:00",
+      "sha256": "cbcebfcdf1b9c6c5566a7d65ce94247f523a0094f2dacc5dafa802abf964b6d5",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/2c3800965b7dc56b7a038c7e3d1f8649d93353a83606b26943e4e6ac474a0bbd.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/dining/location/the-halal-shack/",
+      "requestedUrl": "https://www.bu.edu/dining/location/the-halal-shack/",
+      "retrievedAt": "2026-10-24T17:41:51.357441+00:00",
+      "sha256": "833cdcaeb3151f08e0ac9b208a4de83fba7ee8b0b0d89859c590773d3f127fd9",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/3406b22185906acebe32153292e5cc3d53444b47b27394a43ffb37b9c6f8deae.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/fitrec/visit-us/hours/",
+      "requestedUrl": "https://www.bu.edu/fitrec/visit-us/hours/",
+      "retrievedAt": "2026-10-24T17:39:32.412127+00:00",
+      "sha256": "7dbeb51dd3c516fdd0a446ef91a087d2caa853123ac77b8e1a55e9f43800adef",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/e48a1d17824d2914f9d993584ad553d2ac80aa97d931f164dd06a4329e694a50.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/library/visit-study/hours/",
+      "requestedUrl": "https://www.bu.edu/library/visit-study/hours/",
+      "retrievedAt": "2026-10-24T15:04:16.340035+00:00",
+      "sha256": "7472cf805125916e6cfee6c44566d0d3091d38592c6174ee3f968a8ada1b0f1c",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/cad7cd96216c0a24d0a606936fb636e96dce676213df9441317d0a40d3aa6329.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+      "requestedUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+      "retrievedAt": "2026-10-24T17:44:40.402310+00:00",
+      "sha256": "d09c165475f496f2fc91c7582c3af626da1238bdee40dc75e953b02f7807517b",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/5b03b82cfdd91018e4ae9b1494c48a7509cbe6e05a3eac4584fb2d173d470bdd.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bumc.bu.edu/chequers/",
+      "requestedUrl": "https://www.bumc.bu.edu/chequers/",
+      "retrievedAt": "2026-10-24T17:40:24.720722+00:00",
+      "sha256": "9015406b603742014aece8bc0053010f016e3546e74fc5bd1001f3d27bc11e1e",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/7704c1b302c8bee2e858715aa3ba7c099a30bff0f98cdbb78e9e6befb23ef796.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+      "requestedUrl": "https://www.bumc.bu.edu/medlib/about/hours/",
+      "retrievedAt": "2026-10-24T17:40:25.142755+00:00",
+      "sha256": "084d0ac28b755d2f60d486c03ebdbbb48652f8016998639fc6447fe8bc3b727f",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/7284d338ec7bfbb24f9fdfcdc3576b5e2529bed7f8c613b45bf03b23be85e4ac.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/admissions/why-bu/student-life/sports-fitness/",
+      "requestedUrl": "https://www.bu.edu/admissions/why-bu/student-life/sports-fitness/",
+      "retrievedAt": "2026-10-24T17:40:25.520738+00:00",
+      "sha256": "2c348c7adb9bf55ddf5b43ca21f46cfb04e9114b59754fdebfef08d59788d5a7",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/8dfa59c819badf2d6db8ec9081be73650f8eea17e8e88c8c71d3e7a2762b60ac.body",
+      "cacheUsed": true
+    }
+  ],
+  "coverage": {
+    "published": 11,
+    "unknown": 0,
+    "restricted": 2
+  },
+  "errors": []
+}

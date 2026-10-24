@@ -30,7 +30,7 @@ function fixture() {
   }
   const base={stopRoutes:{'gate>class':walkRoutes['home>class']},day:'Wednesday',locations,buildings:[],agents:Array.from({length:10},(_,i)=>({id:`a${i}`,home:'home',model:i%12,campus:'main'})),walkRoutes,trips:[]};
   const data={schemaVersion:1,term:'FALL 2026',collectedAt:'2026-10-24',referenceWeekStart:'2026-10-19',coverage:{},locations:{},events:[],libraryHistory:{},signals:[],assumptions:[],inputFiles:[]};
-  for (const loc of locations) data.locations[loc.id]={id:loc.id,buildingCodes:[],meetings:[],evidence:[],hours:[]};
+  for (const loc of locations) data.locations[loc.id]={id:loc.id,buildingCodes:[],meetings:[],evidence:[],hours:['dining','library','gym'].includes(loc.kind)?Array.from({length:7},(_,weekday)=>({date:null,weekday,windows:[[7*3600,23*3600]],text:'Published weekly schedule',sourceUrl:'source',qualifier:null})):[]};
   data.locations.class.meetings=[meeting('A'),meeting('B',0,11*3600,12*3600),meeting('C',2,10*3600,11*3600)];
   return {base,data};
 }
@@ -119,7 +119,7 @@ test('network composition retains original endpoints; absent routes and date clo
   assert.ok(day.trips.some(t=>t.from==='home'&&t.to==='class'&&t.path.length===3));
   const blocked=fixture();blocked.data.locations.class.hours=[{date:'2026-10-21',windows:[],text:'Closed',sourceUrl:'source',qualifier:null}];
   blocked.data.locations.class.meetings=[meeting('MW',0,9*3600,10*3600,{intervals:[0,2].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}))})];
-  assert.equal(buildSourceDay(blocked.base,blocked.data,0).sourceAssignments.length,0);
+  assert.ok(buildSourceDay(blocked.base,blocked.data,0).sourceAssignments.length>0,'published class times remain authoritative despite public building closure');
   const unreachable=fixture();unreachable.base.walkRoutes={};assert.equal(buildSourceDay(unreachable.base,unreachable.data,0).trips.length,0);
 });
 
@@ -143,10 +143,10 @@ test('part-time and full-time undergraduate/graduate course loads respect modele
   }
 });
 
-test('weekend resident trips are deterministic, probability-bounded and respect exact-date/assumed dining windows',()=>{
+test('weekend resident trips are deterministic, probability-bounded and respect exact-date/weekly dining windows',()=>{
   const {base,data}=fixture();data.locations.class.meetings=[];
   base.agents=Array.from({length:100},(_,i)=>({id:`weekend${i}`,home:'home',residency:'resident',campus:'main',model:0}));
-  data.locations.meal.hours=[{date:null,windows:[[11*3600,21*3600]],text:'Saved service window',sourceUrl:'source',qualifier:'undated'}];
+  data.locations.meal.hours=[{date:null,weekday:5,windows:[[11*3600,21*3600]],text:'Published Saturday service window',sourceUrl:'source',qualifier:null}];
   data.locations.study.hours=[{date:'2026-10-24',windows:[],text:'Closed',sourceUrl:'source',qualifier:null}];
   const day=buildSourceDay(base,data,5);validate(day);
   assert.equal(day.sourceAssignments.length,0);assert.ok(day.sourceStats.modeledActivities>0);
@@ -157,6 +157,64 @@ test('weekend resident trips are deterministic, probability-bounded and respect 
   const playback=new Playback(day);
   assert.ok(Array.from({length:840},(_,i)=>playback.walkingAt(8*3600+i*60).length).some(n=>n>0));
   assert.equal(buildSourceDay(base,data,5),day);
+});
+
+test('unknown and merely undated venue hours never permit optional gym, study or dining visits',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  base.agents=Array.from({length:100},(_,i)=>({id:`unknown${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  data.locations.meal.hours=[{date:null,windows:[[0,86400]],text:'Undated',sourceUrl:'source',qualifier:null}];
+  data.locations.study.hours=[];data.locations.gym.hours=[];
+  const day=buildSourceDay(base,data,5);validate(day);
+  assert.ok(!day.stays.some(s=>['meal','study','gym'].includes(s.location)));
+  assert.ok(day.sourceStats.modeledOffCampusMeals>0);
+  assert.ok(day.trips.every(t=>t.from==='off-campus'||t.to==='off-campus'));
+});
+
+test('exact-date closures override valid weekly openings and expired weekly schedules stay unavailable',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  base.agents=Array.from({length:100},(_,i)=>({id:`closed${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  data.locations.meal.hours=[{date:null,weekday:5,windows:[[0,86400]],text:'Weekly open',sourceUrl:'source',qualifier:null},{date:'2026-10-24',windows:[],text:'Closed',sourceUrl:'source',qualifier:null}];
+  data.locations.study.hours=[{date:null,weekday:5,validTo:'2026-10-23',windows:[[0,86400]],text:'Expired',sourceUrl:'source',qualifier:null}];
+  data.locations.gym.hours=[{date:null,weekday:5,validFrom:'2026-10-25',windows:[[0,86400]],text:'Future',sourceUrl:'source',qualifier:null}];
+  const day=buildSourceDay(base,data,5);validate(day);
+  assert.ok(!day.stays.some(s=>['meal','study','gym'].includes(s.location)));
+});
+
+test('modeled off-campus meals conserve population, walk both gateway directions and preserve class membership',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`outside${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.ok(day.sourceStats.modeledOffCampusMeals>0);
+  for(const agent of base.agents) {
+    const offStays=day.stays.filter(s=>s.agent===agent.id&&s.location==='off-campus');
+    for(const stay of offStays) {
+      assert.ok(day.trips.some(t=>t.agent===agent.id&&t.to==='off-campus'&&t.timestamps.at(-1)<=stay.start+1e-7));
+      assert.ok(day.trips.some(t=>t.agent===agent.id&&t.from==='off-campus'&&t.timestamps[0]>=stay.end));
+    }
+  }
+  const playback=new Playback(day);
+  for(let hour=0;hour<24;hour++) { const n=playback.populationAt(hour*3600);assert.equal(n.indoors+n.walking+n.offCampus,100);assert.ok(n.offCampus>=0); }
+  assert.ok(day.sourceAssignments.length>0);
+});
+
+test('residents return home after off-campus meals during long gaps and optional arrivals never precede planned opening',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  base.agents=Array.from({length:200},(_,i)=>({id:`return${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  const day=buildSourceDay(base,data,5);validate(day);
+  let checkedReturns=0;
+  for(const activity of day.sourceActivities.filter(a=>a.kind==='off-campus-meal')) {
+    const later=day.sourceActivities.filter(a=>a.agentId===activity.agentId&&a.startSec>activity.endSec).sort((a,b)=>a.startSec-b.startSec)[0];
+    if(!later||later.startSec-activity.endSec>3600) {
+      const homeReturn=day.trips.find(t=>t.agent===activity.agentId&&t.from==='off-campus'&&t.to==='home'&&Math.abs(t.timestamps[0]-activity.endSec)<1e-7);
+      assert.ok(homeReturn,'long gap returns resident home immediately after meal');checkedReturns++;
+    }
+  }
+  assert.ok(checkedReturns>0);
+  for(const activity of day.sourceActivities.filter(a=>a.locationId!=='off-campus')) {
+    for(const trip of day.trips.filter(t=>t.agent===activity.agentId&&t.from==='off-campus'&&t.to===activity.locationId)) {
+      if(trip.timestamps.at(-1)<=activity.startSec&&trip.timestamps.at(-1)>activity.startSec-720)
+        assert.ok(Math.abs(trip.timestamps.at(-1)-activity.startSec)<1e-7,'optional gateway arrival has no class lead');
+    }
+  }
 });
 
 test('saved source bundle scales to 36977 weekly students and conserves complete day timelines',()=>{
