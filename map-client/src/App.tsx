@@ -133,6 +133,7 @@ export default function App() {
   const shownLight = light === 'auto' ? autoPreset : light;
   const lightRef = useRef<LightPreset>(shownLight); // current preset, read by the frame loop (layer tints)
   const lightModeRef = useRef<LightPreset | 'auto'>('auto');
+  const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes' | 'traffic'>('crowds');
   const [weekday, setWeekday] = useState(START_WEEKDAY);
@@ -347,8 +348,10 @@ export default function App() {
         const playback = playbackRef.current!;
         const t = timeRef.current;
         if (lightModeRef.current === 'auto') {
-          // Mapbox Standard has four presets: switch at solar thresholds (cached per sim half-minute).
-          const preset = daylightAt(t).preset;
+          // Mapbox Standard has four presets: pick one by the sun (cached per sim half-minute) and set
+          // the veil in the same frame, so the switch itself doesn't flash.
+          const { preset, veil } = daylightAt(t);
+          if (veilRef.current) veilRef.current.style.opacity = String(veil);
           if (preset !== lightRef.current) {
             lightRef.current = preset;
             basemap.setLightPreset(preset);
@@ -586,9 +589,9 @@ export default function App() {
     <div className="app">
       <div ref={containerRef} />
       {light === 'auto' && hud && (
-        // Auto lighting: a faint dusk veil carries the scene between Mapbox's four light presets.
-        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'rgb(18, 24, 52)',
-          mixBlendMode: 'multiply', opacity: daylightAt(hud.time).veil, transition: 'opacity 0.5s linear' }} />
+        // Auto lighting: a blue multiply veil darkens the chosen preset to the sun's brightness (set per frame).
+        <div ref={veilRef} aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'rgb(18, 24, 52)',
+          mixBlendMode: 'multiply', opacity: daylightAt(hud.time).veil }} />
       )}
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
       <TransitTags ref={transitTagsRef} />

@@ -2,8 +2,8 @@
 //
 // Auto lighting follows the sim clock (seconds since Boston midnight): real time in Clock mode,
 // the shown time when scrubbing or fast-forwarding. Mapbox Standard only has four light presets,
-// so we switch them at solar thresholds (civil twilight) and cross-fade everything we draw
-// ourselves (model tint, window lights) continuously by the sun's altitude.
+// so we pick one by the sun's altitude, bridge the brightness jumps between them with a screen
+// veil, and cross-fade everything we draw ourselves (model tint, window lights) continuously.
 import type { LightPreset } from './basemap';
 
 const LAT = 42.3505;
@@ -87,14 +87,23 @@ export interface Daylight {
   windows: number;
   /** Multiplier for our own models, matching how dark Mapbox's scene is. */
   tint: [number, number, number, number];
-  /** Opacity of a faint blue screen veil that bridges the jumps between Mapbox's presets. */
+  /** Opacity of the blue multiply veil that darkens the chosen preset down to the target brightness. */
   veil: number;
 }
 
-// Rough darkness of each Mapbox Standard preset, and the continuous darkness we want.
-const PRESET_DARKNESS: Record<LightPreset, number> = { day: 0, dawn: 0.35, dusk: 0.35, night: 0.7 };
-function darkness(alt: number): number {
-  return Math.min(0.7, Math.max(0, ((10 - alt) / 22) * 0.7));
+// How bright each Mapbox Standard preset renders (mean screen luminance 0..255 over the campus
+// view, measured with screenshots). Dawn is nearly as bright as day, so switching night -> dawn
+// at nautical twilight looked like night -> day; instead we follow a smooth target brightness,
+// use the darkest preset that is at least that bright, and darken it the rest of the way with
+// the veil.
+const PRESET_LUMA: Record<LightPreset, number> = { night: 63.5, dusk: 77.5, dawn: 176.9, day: 187 };
+/** Luminance of the veil colour rgb(18, 24, 52) relative to white, for multiply blending. */
+const VEIL_LUMA = 0.097;
+
+/** Target screen brightness for a sun altitude: night below -12 deg, full day by +4 deg. */
+function targetLuma(alt: number): number {
+  const x = Math.min(1, Math.max(0, (alt + 12) / 16));
+  return PRESET_LUMA.night + (PRESET_LUMA.day - PRESET_LUMA.night) * x * x * (3 - 2 * x);
 }
 
 const KEYS: [number, [number, number, number]][] = [
@@ -130,12 +139,15 @@ export function daylightAt(seconds: number): Daylight {
   const midnight = bostonMidnightUtc();
   const altitude = solarAltitude(midnight + seconds * 1000);
   const morning = seconds < sun.noon;
-  // Presets switch where the continuous darkness reaches the next preset's, so the veil below
-  // can carry the scene smoothly up to each switch: day above -1 deg (just after sunset), twilight
-  // down to -12 deg (nautical twilight), night below.
-  const preset: LightPreset = altitude > -1 ? 'day' : altitude > -12 ? (morning ? 'dawn' : 'dusk') : 'night';
+  const target = targetLuma(altitude);
+  const preset: LightPreset =
+    target <= PRESET_LUMA.night ? 'night'
+      : target <= PRESET_LUMA.dusk ? 'dusk'
+        : altitude < 2 && morning ? 'dawn'
+          : 'day';
+  // Multiply veil at opacity o scales brightness by 1 - o * (1 - VEIL_LUMA).
+  const veil = Math.max(0, Math.min(0.85, (1 - target / PRESET_LUMA[preset]) / (1 - VEIL_LUMA)));
   const w = Math.min(1, Math.max(0, (5 - altitude) / 11));
-  const veil = Math.max(0, darkness(altitude) - PRESET_DARKNESS[preset]) * 0.55;
   lastKey = key;
   lastValue = { preset, altitude, windows: w * w * (3 - 2 * w), tint: tintAt(altitude), veil };
   return lastValue;
@@ -151,8 +163,8 @@ export function clockLabel(seconds: number): string {
 /** Short status for the lighting control, e.g. "Dusk · sunset 5:53 PM". */
 export function daylightLabel(seconds: number): string {
   const sun = bostonSunTimes();
-  const { preset } = daylightAt(seconds);
-  const name = preset[0].toUpperCase() + preset.slice(1);
+  const { altitude } = daylightAt(seconds);
+  const name = altitude > -0.833 ? 'Day' : altitude > -12 ? (seconds < sun.noon ? 'Dawn' : 'Dusk') : 'Night';
   const next = seconds < sun.noon ? `sunrise ${clockLabel(sun.sunrise)}` : `sunset ${clockLabel(sun.sunset)}`;
   return `${name} · ${next}`;
 }
