@@ -4,6 +4,10 @@
 // at their real footprints; the stands, goals, scoreboards, netting and floodlight poles are
 // real-scale GLBs. The floodlights come on at dusk and night.
 //
+// Fenway Park's light towers are part of the building models (make_building_models.py); its
+// manifest entry's `floodlights` adds their lamps to the glow here, and lights its field, while
+// the towers' own lit-window schedule has them on.
+//
 // Data: public/data/fields.json (data-pipeline/fetch_fields.py: OpenStreetMap outlines, plus
 // positions measured on satellite imagery; see its `sources`). Models:
 // scripts/make_field_models.py. Each field's props are ONE merged GLB in the field's own frame
@@ -14,7 +18,7 @@ import { mergeMaterialPrimitives } from './gltf-materials';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color, Layer } from '@deck.gl/core';
-import { lowPitchDepthBias } from './buildings';
+import { lowPitchDepthBias, windowHour, type Floodlights } from './buildings';
 
 type LngLat = [number, number];
 type RGB = [number, number, number];
@@ -76,6 +80,8 @@ export interface Field {
 
 export interface FieldData {
   fields: Field[];
+  /** Floodlit landmarks from the building models' manifest (Fenway Park). */
+  floodlit: Floodlights[];
   /** Parsed GLBs, keyed by URL. */
   models: Record<string, unknown>;
 }
@@ -92,10 +98,13 @@ export async function loadFields(url = '/data/fields.json', buildingsUrl = '/dat
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Could not load ${url}: ${res.status}`);
   const { fields } = (await res.json()) as { fields: Field[] };
+  const manifest = await fetch(buildingsUrl)
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+  const floodlit: Floodlights[] = (manifest?.campuses ?? []).flatMap((c: { buildings: { floodlights?: Floodlights }[] }) =>
+    c.buildings.flatMap((b) => (b.floodlights ? [b.floodlights] : [])),
+  );
   if (fields.some((f) => f.followBuilding)) {
-    const manifest = await fetch(buildingsUrl)
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null);
     const buildings = new Map<string, { height: number; deck?: number }>(
       (manifest?.campuses ?? []).flatMap((c: { buildings: { osm: string; height: number; deck?: number }[] }) => c.buildings.map((b) => [b.osm, b])),
     );
@@ -111,7 +120,7 @@ export async function loadFields(url = '/data/fields.json', buildingsUrl = '/dat
   }
   const urls = [...new Set(fields.flatMap((f) => [f.props, ...f.towers.flatMap((t) => [t.model, t.litModel])]))];
   const loaded = await Promise.all(urls.map(async (u) => [u, await load(u, GLTFLoader).then((model) => mergeMaterialPrimitives(model, { materialAttributes: true })).catch(() => null)] as const));
-  return { fields, models: Object.fromEntries(loaded.filter(([, m]) => m)) };
+  return { fields, floodlit, models: Object.fromEntries(loaded.filter(([, m]) => m)) };
 }
 
 /** Numeric OSM ids of the buildings the fields layer models, for basemap.excludeBuildings(). */
@@ -125,6 +134,10 @@ export interface FieldLayerOptions {
   zoom: number;
   /** Mapbox Standard's lightPreset: the floodlights are on at dusk and night. */
   lightPreset?: FieldLight;
+  /** Sim time, seconds since Boston midnight, and auto lighting, as for the building models:
+   *  Fenway's floodlights keep the hours of its towers' lit lamps. */
+  clock?: number;
+  auto?: boolean;
 }
 
 /** The goals, stands and poles are a few pixels across below this zoom: skip them. Turf stays. */
@@ -154,6 +167,26 @@ const GLOW = [
   { id: 'halo', radius: 2.2, alpha: 80, minPixels: 3 },
   { id: 'core', radius: 0.9, alpha: 255, minPixels: 1.5 },
 ];
+// Fenway's lit field: the floodlights multiply the turf's brightness (dst * (1 + src)) under
+// the night tint, so it reads as lit grass and dirt rather than a grey wash.
+const FLOODLIT_FIELD: Record<FieldLight, Color> = {
+  day: [0, 0, 0, 255],
+  dawn: [0, 0, 0, 255],
+  dusk: [110, 104, 82, 255],
+  night: [230, 216, 170, 255],
+};
+const BRIGHTEN = {
+  depthWriteEnabled: false,
+  blend: true,
+  blendColorOperation: 'add',
+  blendColorSrcFactor: 'dst',
+  blendColorDstFactor: 'one',
+  blendAlphaOperation: 'add',
+  blendAlphaSrcFactor: 'zero',
+  blendAlphaDstFactor: 'one',
+} as const;
+/** Height of the lit-field layer over Fenway's turf: above the chalk and bases (0.64 m). */
+const FLOODLIT_Z = 0.75;
 // Light adds to what's behind it.
 const ADDITIVE = {
   depthWriteEnabled: false,
@@ -190,14 +223,23 @@ interface FieldGeometry {
   lines: Line3D[];
   paint: Paint3D[];
 }
-
-// Flat geometry with each field's altitude baked in, built once per FieldData.
-const cache = new WeakMap<FieldData, { fields: FieldGeometry[]; towers: TowerInstance[] }>();
+/** A lamp bank's glow: where, and how big against a field floodlight's. */
+interface Glow {
+  position: [number, number, number];
+  scale: number;
+}
+// Flat geometry with each field's altitude baked in, built once per FieldData. `floodlit`: the
+// fields the floodlit landmarks light; `glow`: the fields' lamps alone, and with the landmarks'
+// (while their towers are lit too).
+const cache = new WeakMap<
+  FieldData,
+  { fields: FieldGeometry[]; towers: TowerInstance[]; floodlit: Surface3D[]; glow: { fields: Glow[]; all: Glow[] } }
+>();
 
 function geometry(data: FieldData) {
   let g = cache.get(data);
   if (g) return g;
-  g = { fields: [], towers: [] };
+  g = { fields: [], towers: [], floodlit: [], glow: { fields: [], all: [] } };
   for (const f of data.fields) {
     // A few cm proud of the ground (or roof deck) so nothing z-fights; lines and paint on top.
     const lift = f.followBuilding ? 0.1 : 0.05;
@@ -211,6 +253,11 @@ function geometry(data: FieldData) {
     });
     for (const t of f.towers) g.towers.push({ tower: t, altitude: f.altitude });
   }
+  g.glow.fields = g.towers.map(({ tower: t, altitude }) => ({ position: at(t.glow, altitude + t.lampHeight), scale: t.height > 25 ? 1.3 : 1 }));
+  g.floodlit = data.floodlit.map((light) => ({ polygon: [light.field.map((p) => at(p, FLOODLIT_Z))], color: [0, 0, 0] as RGB }));
+  // Fenway's banks (some 8 x 4 m) at the fields' size: the bloom about covers a bank, so a bank
+  // seen from behind doesn't sit in a wide grey disc.
+  g.glow.all = [...g.glow.fields, ...data.floodlit.flatMap((light) => light.lamps.map(([lng, lat, z]): Glow => ({ position: [lng, lat, z], scale: 1 })))];
   cache.set(data, g);
   return g;
 }
@@ -273,14 +320,18 @@ interface FieldCache {
   towers: Map<boolean, Map<string, TowerInstance[]>>;
 }
 const fieldCache = new WeakMap<FieldData, FieldCache>();
-const NO_TOWERS: TowerInstance[] = [];
+const NO_GLOW: Glow[] = [];
+const NO_SURFACES: Surface3D[] = [];
 
-export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk' }: FieldLayerOptions) {
+export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk', clock, auto = false }: FieldLayerOptions) {
   let cache = fieldCache.get(data);
   if (!cache) fieldCache.set(data, (cache = { single: new Map(data.fields.map((f) => [f, [f]])), towers: new Map() }));
   const { fields, models } = data;
   const g = geometry(data);
   const on = lit(lightPreset);
+  // Fenway's towers: lit on their schedule, read at the same hour as the lit-window mesh.
+  const hour = windowHour(clock, lightPreset, auto);
+  const floodlit = on && data.floodlit.some((light) => hour >= light.on && hour < light.off);
   const detail = zoom >= DETAIL_ZOOM;
   const tint = MODEL_TINT[lightPreset];
   const [tr, tg, tb] = TURF_TINT[lightPreset];
@@ -397,17 +448,32 @@ export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk' }: Fie
           slot: 'middle',
         }),
     ),
+    // Fenway's field under its floodlights: one layer for all floodlit landmarks (Fenway is the
+    // only one), lit while any of them is.
+    new FootprintPolygonLayer({
+      id: 'field-floodlit',
+      data: floodlit ? g.floodlit : NO_SURFACES,
+      getPolygon: (s) => s.polygon,
+      getFillColor: FLOODLIT_FIELD[lightPreset],
+      filled: true,
+      material: false,
+      parameters: BRIGHTEN,
+      pickable: false,
+      updateTriggers: { getFillColor: lightPreset },
+      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+      slot: 'middle',
+    }),
     // Floodlight glow: three additive discs per lamp bank (a wide faint bloom, a halo, a hot core),
     // so it reads as light rather than a grey disc. None writes depth, so they never cut into
     // each other; they keep a pixel minimum so the lit fields still sparkle on the overview,
     // where the poles themselves are hidden.
     ...GLOW.map(
       ({ id, radius, alpha, minPixels }) =>
-        new ScatterplotLayer<TowerInstance>({
+        new ScatterplotLayer<Glow>({
           id: `field-light-${id}`,
-          data: on ? g.towers : NO_TOWERS,
-          getPosition: (t) => at(t.tower.glow, t.altitude + t.tower.lampHeight),
-          getRadius: (t) => radius * (t.tower.height > 25 ? 1.3 : 1),
+          data: !on ? NO_GLOW : floodlit ? g.glow.all : g.glow.fields,
+          getPosition: (l) => l.position,
+          getRadius: (l) => radius * l.scale,
           radiusUnits: 'meters',
           radiusMinPixels: minPixels,
           getFillColor: [...LAMP, alpha * (lightPreset === 'night' ? 1 : 0.75)],

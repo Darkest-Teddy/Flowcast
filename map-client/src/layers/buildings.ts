@@ -38,6 +38,19 @@ export interface BuildingModelEntry {
   /** [lng, lat] ring under which the base map's own 3D model of this landmark is hidden
    *  (Mapbox Standard's Fenway Park), so it doesn't overlap ours. */
   clip?: [number, number][];
+  /** A landmark's floodlights (Fenway Park's light towers): drawn in the lit-window mesh; this
+   *  is for the fields layer's glow and the lit field (fields.ts). */
+  floodlights?: Floodlights;
+}
+
+export interface Floodlights {
+  /** When they burn, hours on the lit-window schedules' 12..36 axis (see windowHour). */
+  on: number;
+  off: number;
+  /** [lng, lat, metres up] of each lamp bank's centre. */
+  lamps: [number, number, number][];
+  /** [lng, lat] ring of the playing field they light. */
+  field: [number, number][];
 }
 
 /** The base map's own 3D models that our landmark models replace (see `clip`), as closed rings. */
@@ -275,6 +288,18 @@ function scheduleHour(seconds: number): number {
   return h < 12 ? h + 24 : h;
 }
 
+/**
+ * The hour (12..36 axis) the lit-window schedules are read at: the sim clock, except that a
+ * manual dusk or night preset at a daytime clock shows a typical evening instead.
+ */
+export function windowHour(clock: number | undefined, lightPreset: BuildingLight, auto: boolean): number {
+  const hour = scheduleHour(clock ?? 21 * 3600);
+  if (!(auto && clock !== undefined) && WINDOW_STRENGTH[lightPreset] > 0 && hour >= 12 && hour < 17.5) {
+    return lightPreset === 'night' ? 21.5 : 19;
+  }
+  return hour;
+}
+
 export function buildingModelLayers(
   manifest: BuildingModelManifest,
   models: BuildingModels,
@@ -283,14 +308,11 @@ export function buildingModelLayers(
   const { lightPreset = 'dusk', clock, auto = false, campuses, visible = true, opacity = 1, depthBias = 0 } = options;
   let tint = LIGHT_TINT[lightPreset];
   let strength = WINDOW_STRENGTH[lightPreset];
-  let hour = scheduleHour(clock ?? 21 * 3600);
+  const hour = windowHour(clock, lightPreset, auto);
   if (auto && clock !== undefined) {
     const d = daylightAt(clock);
     tint = d.tint;
     strength = d.windows;
-  } else if (strength > 0 && hour >= 12 && hour < 17.5) {
-    // A manual dusk/night preset at a daytime clock: show a typical evening instead.
-    hour = lightPreset === 'night' ? 21.5 : 19;
   }
   const layers: BuildingModelLayer[] = [];
   for (const c of manifest.campuses) {
