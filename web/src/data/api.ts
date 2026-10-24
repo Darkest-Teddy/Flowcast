@@ -2,12 +2,16 @@
 // when /server exists, each function becomes a fetch to the same-named endpoint.
 
 import { useCallback, useEffect, useState } from 'react';
+import { config } from '../config';
 import * as fx from './fixtures';
 import type {
   ApplicationStatus,
+  CampusEvent,
   CampusLocation,
   ClubApplication,
   DataSource,
+  EventImpactData,
+  EventMapStatus,
   Session,
   SimulationSettings,
   StatRange,
@@ -18,6 +22,24 @@ import type { AdminSettings } from './types';
 const LATENCY_MS = 150;
 const later = <T,>(value: T): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(structuredClone(value)), LATENCY_MS));
+
+/** The simulation's event bundle, built by map-client/scripts/build-event-impact.mjs and served with the map's data. */
+interface EventBundle extends EventImpactData {
+  events: { id: string; name: string; start: string; end: string | null; organizer: string | null; locationId: string | null;
+    locationName: string | null; roomCode: string | null; sourceUrl: string; status: EventMapStatus }[];
+}
+let eventBundle: Promise<EventBundle> | null = null;
+function loadEventBundle(): Promise<EventBundle> {
+  eventBundle ??= fetch(config.eventImpactUrl).then(async (response) => {
+    if (!response.ok) throw new Error(`Campus events are unavailable right now (${response.status}).`);
+    const bundle = (await response.json()) as EventBundle & { schemaVersion?: number };
+    if (bundle.schemaVersion !== 1 || !Array.isArray(bundle.events)) throw new Error('Campus events data has an unsupported format.');
+    return bundle;
+  });
+  // A failed load can be retried by the page's "Try again".
+  eventBundle.catch(() => { eventBundle = null; });
+  return eventBundle;
+}
 
 // Mutable copies, so changes made in the UI stick for the session.
 let simulation = structuredClone(fx.simulationSettings);
@@ -51,7 +73,25 @@ export const api = {
     return later(suggestions);
   },
   getWeekStats: (range: StatRange = '7d') => later(range === '30d' ? fx.monthStats : fx.weekStats),
-  getCampusEvents: () => later(fx.campusEvents),
+  /** Public Terrier Central events from the saved scrape, with whether each one can change map crowding. */
+  getCampusEvents: (): Promise<CampusEvent[]> =>
+    loadEventBundle().then((bundle) =>
+      bundle.events.map((e) => ({
+        id: e.id,
+        title: e.name,
+        locationId: e.locationId,
+        venue: e.locationName,
+        start: e.start,
+        end: e.end,
+        organizer: e.organizer,
+        clubId: null,
+        source: 'terrier-central' as const,
+        sourceUrl: e.sourceUrl,
+        mapStatus: e.status,
+      })),
+    ),
+  /** Simulated hourly crowding per place, without events and with each date's events. */
+  getEventImpact: (): Promise<EventImpactData> => loadEventBundle().then((bundle) => structuredClone(bundle)),
   getClubs: () => later(clubs),
   setFollowing(clubId: string, following: boolean) {
     clubs = clubs.map((c) => (c.id === clubId ? { ...c, following } : c));

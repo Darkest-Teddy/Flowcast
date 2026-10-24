@@ -1,0 +1,105 @@
+.chart {
+  margin: 0;
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  height: calc(var(--space-16) * 2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.bar {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+
+.during::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--space-1) * -1 - 1px);
+  height: var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--color-accent);
+}
+
+.baseline,
+.events {
+  position: absolute;
+  bottom: 0;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+
+/* Grey reference bar sits behind and slightly wider than the coloured one, so both stay visible. */
+.baseline {
+  left: 0;
+  right: 0;
+  background: var(--color-hairline);
+}
+
+.events {
+  left: 25%;
+  right: 25%;
+}
+
+.axis {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.axis span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-ink-secondary);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.legend i {
+  display: block;
+  width: var(--space-3);
+  height: var(--space-2);
+  border-radius: var(--radius-xs);
+}
+
+.keyBaseline {
+  background: var(--color-hairline);
+}
+
+.keyEvents {
+  background: var(--crowd-busy);
+}
+
+.legend .keyDuring {
+  height: var(--space-1);
+  background: var(--color-accent);
+}
+
+.axis {
+  margin-top: var(--space-2);
+}

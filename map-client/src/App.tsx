@@ -24,7 +24,9 @@ import { PublishedTransit, loadPublishedSchedule } from './transit/publishedSche
 import { buildPopulation, loadPopulation, type PopulationBase } from './sim/population';
 import { advanceTime } from './sim/clock';
 import { dateForWeekday, loadCampusData, WEEKDAYS, type CampusData } from './data/campusData';
-import { buildSourceDay } from './sim/sourceDay';
+import { buildSourceDay, type SourceDay } from './sim/sourceDay';
+import { weekdayOf } from './sim/gatherings';
+import { EventsPanel } from './EventsPanel';
 import { SourceDataPanel } from './SourceDataPanel';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
@@ -59,9 +61,13 @@ const MemoWeatherControls = memo(WeatherControls);
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
+/** ?date=2026-11-18 plays that date's campus events on its weekday (projected onto the representative week). */
+const URL_DATE = /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : null;
+/** ?events=0 starts with campus events off, showing the no-event baseline. */
+const START_EVENTS = params.get('events') !== '0';
 // Live by default: the simulated day follows the real clock at 1x, so walkers, trains and buses
-// all move at their true relative speeds. ?at= or ?speed= start in playback mode instead.
-const START_LIVE = !params.has('at') && !params.has('speed');
+// all move at their true relative speeds. ?at=, ?speed= or ?date= start in playback mode instead.
+const START_LIVE = !params.has('at') && !params.has('speed') && !URL_DATE;
 
 const BOSTON_CLOCK = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
@@ -81,7 +87,10 @@ function startTimeFromUrl(): number {
 
 const BOSTON_WEEKDAY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
 function wallClockWeekday(): number { return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(BOSTON_WEEKDAY.format(new Date())); }
-const START_WEEKDAY = START_LIVE ? wallClockWeekday() : 2;
+const START_WEEKDAY = START_LIVE ? wallClockWeekday() : URL_DATE ? weekdayOf(URL_DATE) : 2;
+const BOSTON_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
+/** Today's calendar date in Boston, "2026-10-24". */
+function wallClockDate(): string { return BOSTON_DATE.format(new Date()); }
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
 const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
@@ -147,6 +156,28 @@ export default function App() {
   const [scheduleError, setScheduleError] = useState('');
   const baseDayRef = useRef<PopulationBase | null>(null);
   const playbackRef = useRef<Playback | null>(null);
+  // Campus events: on by default. Which date's events play is decided by eventDateFor().
+  const [eventsOn, setEventsOn] = useState(START_EVENTS);
+  const eventsOnRef = useRef(START_EVENTS);
+  const pinnedDateRef = useRef<string | null>(URL_DATE);
+  const [simDay, setSimDay] = useState<SourceDay | null>(null);
+  /**
+   * The Boston date whose events run on this weekday: a date picked in the URL or panel when it
+   * falls on this weekday, today's date in Clock mode, else that weekday of the representative week.
+   */
+  const eventDateFor = (data: CampusData, day: number): string | null => {
+    if (!eventsOnRef.current) return null;
+    const pinned = pinnedDateRef.current;
+    if (pinned && weekdayOf(pinned) === day) return pinned;
+    if (liveRef.current && wallClockWeekday() === day) return wallClockDate();
+    return dateForWeekday(data, day);
+  };
+  /** Build (or fetch from cache) one simulated day with its campus events, and make it current. */
+  const playDay = (base: PopulationBase, data: CampusData, day: number): Playback => {
+    const built = buildSourceDay(base, data, day, { eventDate: eventDateFor(data, day) });
+    setSimDay(built);
+    return new Playback(built);
+  };
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [campus, setCampus] = useState('charles-river');
   const campusRef = useRef('charles-river');
@@ -246,7 +277,7 @@ export default function App() {
       baseDayRef.current = populationBase;
       setSourceData(snapshot);
       setMobilityData(mobilitySnapshot);
-      const playback = new Playback(buildSourceDay(populationBase, snapshot, weekdayRef.current));
+      const playback = playDay(populationBase, snapshot, weekdayRef.current);
       playbackRef.current = playback;
       setRange([0, 86400]);
       setCampuses(day.campuses ?? []);
@@ -362,7 +393,7 @@ export default function App() {
         if (nextDay !== weekdayRef.current) {
           weekdayRef.current = nextDay;
           setWeekday(nextDay);
-          playbackRef.current = new Playback(buildSourceDay(populationBase, snapshot, nextDay));
+          playbackRef.current = playDay(populationBase, snapshot, nextDay);
           lastOccupancy = 0;
         }
         const playback = playbackRef.current!;
@@ -541,6 +572,13 @@ export default function App() {
     setSpeed(1);
     playingRef.current = true;
     setPlaying(true);
+    // Clock mode shows today's events, not a date picked earlier.
+    pinnedDateRef.current = null;
+    if (baseDayRef.current && sourceData) {
+      weekdayRef.current = wallClockWeekday();
+      setWeekday(weekdayRef.current);
+      playbackRef.current = playDay(baseDayRef.current, sourceData, weekdayRef.current);
+    }
   };
   const changeSpeed = (s: number) => {
     leaveLive();
@@ -569,7 +607,7 @@ export default function App() {
   const changeDay = (value: number) => {
     if (!baseDayRef.current || !sourceData) return;
     leaveLive();
-    playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value));
+    playbackRef.current = playDay(baseDayRef.current, sourceData, value);
     setWeekday(value);
     weekdayRef.current = value;
     setHud((prev) => ({
@@ -578,6 +616,19 @@ export default function App() {
       occupancy: playbackRef.current!.occupancyAt(timeRef.current),
       riding: prev?.riding ?? new Map(),
     }));
+  };
+  /** Turn campus events on or off for the shown day. */
+  const toggleEvents = (on: boolean) => {
+    eventsOnRef.current = on;
+    setEventsOn(on);
+    changeDay(weekdayRef.current);
+  };
+  /** Play a specific date's events: switches to that date's weekday. */
+  const pickEventDate = (date: string) => {
+    pinnedDateRef.current = date;
+    eventsOnRef.current = true;
+    setEventsOn(true);
+    changeDay(weekdayOf(date));
   };
   const selectSource = (location: CampusLocation) => {
     setCampus(location.campus ?? 'charles-river');
@@ -677,6 +728,10 @@ export default function App() {
           </div>
           {tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
+              {sourceData && baseDayRef.current && (
+                <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
+                  onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource} />
+              )}
 
               <h2>Campus activity</h2>
               <ol>

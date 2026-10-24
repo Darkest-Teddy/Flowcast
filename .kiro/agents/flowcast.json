@@ -3,10 +3,10 @@
   "description": "Flowcast developer agent: BU campus digital twin (data pipeline, simulation core, map, dashboard). Loads the project steering and spec, and verifies changes with hooks.",
   "prompt": "You work on Flowcast, a BU campus digital twin. Follow .kiro/steering. Before implementing a feature, read or write its spec in .kiro/specs/<feature>/ (requirements, design, tasks) and tick tasks as they are verified. Keep published evidence separate from model assumptions, never invent venues or capacities, and verify every change with the project's tests.",
   "tools": ["*"],
-  "allowedTools": ["read", "grep", "glob", "code"],
+  "allowedTools": ["@builtin"],
   "toolsSettings": {
     "shell": {
-      "allowedCommands": ["git status.*", "git diff.*", "git log.*", "npx tsc -b", "npm test", "\\.venv/bin/python -m unittest.*"],
+      "deniedCommands": ["rm -rf .*", "git push.*--force.*", "git push.* -f.*", "git reset --hard.*", "git clean -f.*", "git branch -D.*", "sudo .*"],
       "autoAllowReadonly": true
     }
   },

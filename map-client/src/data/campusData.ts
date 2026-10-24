@@ -67,6 +67,10 @@ export interface SourceEvent {
   end: string | null;
   locationId: string | null;
   locationName: string | null;
+  /** Room named in the venue ("CAS B36"), and its published seat count when the classroom directory lists it. */
+  roomCode?: string | null;
+  roomCapacity?: number | null;
+  organizer?: string | null;
   registrationCount: number | null;
   sourceUrl: string;
 }

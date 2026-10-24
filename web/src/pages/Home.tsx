@@ -20,6 +20,7 @@ import {
   type SearchMode,
 } from '../ui';
 import { isUpcoming } from './student/days';
+import { eventVenue } from './student/events';
 import { SearchResults } from './student/SearchResults';
 import styles from './Home.module.css';
 
@@ -205,7 +206,7 @@ export default function Home() {
               title={
                 <>
                   {e.title}
-                  <span className={styles.where}>{place(e.locationId)}</span>
+                  <span className={styles.where}>{eventVenue(e)}</span>
                 </>
               }
               detail={isToday(e.start) ? `Today ${formatTime(e.start)}` : formatDayTime(e.start)}

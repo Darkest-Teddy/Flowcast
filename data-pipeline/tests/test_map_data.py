@@ -137,14 +137,25 @@ class MapDataTests(unittest.TestCase):
         self.assertTrue(dining)
         self.assertTrue(all(row['date'] is not None or isinstance(row.get('weekday'), int) for row in dining))
 
-    def test_hidden_and_conflicting_event_locations_stay_unmapped(self):
+    def test_event_venues_resolve_by_name_before_default_address(self):
         events = {row['name']: row for row in self.bundle['events']}
-        self.assertEqual(events['Bunkasai']['locationId'], 'gsu')
-        self.assertIsNone(events['ISGC Fall Movie Night']['locationId'])
-        self.assertIsNone(events['October Town Hall']['locationId'])
+        self.assertEqual(events['Light Festival']['locationId'], 'gsu')
+        # Organizers' default address (775 Commonwealth Ave) must not veto the named room.
+        self.assertEqual(events['ISGC Fall Movie Night']['locationId'], 'cas')
+        self.assertEqual(events['October Town Hall']['locationId'], 'photonics')
         self.assertIsNone(events['BU Film Society Weekly Meeting']['locationId'])
-        self.assertEqual(self.bundle['coverage']['mappedEvents'], 4)
-        self.assertIsNone(event_location({'locationStatus':'hidden','locationName':'GSU'}, self.bundle['locations'], []))
+        self.assertTrue(all(row['organizer'] is None or isinstance(row['organizer'], str) for row in self.bundle['events']))
+        self.assertEqual(self.bundle['coverage']['mappedEvents'], sum(row['locationId'] is not None for row in self.bundle['events']))
+        locations = self.bundle['locations']
+        gsu = [('775commonwealthave', 'gsu'), ('925commonwealthave', 'agganis')]
+        resolve = lambda **record: event_location({'locationStatus': 'unresolved', **record}, locations, gsu)
+        self.assertEqual(resolve(locationName='Student Theater at Agganis Arena', locationAddress='775 Commonwealth Ave'), 'agganis')
+        self.assertEqual(resolve(locationName='925 Commonwealth Avenue', locationAddress='775 Commonwealth Ave'), 'agganis')
+        self.assertEqual(resolve(locationName='Backcourts', locationAddress='775 Commonwealth Ave'), 'gsu')
+        # Unmapped buildings and ambiguous names stay off the map rather than borrowing a neighbour.
+        self.assertIsNone(resolve(locationName='Howard Thurman Center, Room 207', locationAddress='808 Commonwealth Avenue'))
+        self.assertIsNone(resolve(locationName='CAS or GSU, Agganis Arena lobby', locationAddress=None))
+        self.assertIsNone(event_location({'locationStatus':'hidden','locationName':'GSU'}, locations, []))
 
     def test_routes_allow_precomputed_cross_campus_and_reject_unknown_destinations(self):
         day = {'locations':[{'id':'a','campus':'one'},{'id':'b','campus':'two'}],

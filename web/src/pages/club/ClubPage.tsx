@@ -4,6 +4,7 @@ import { api, locationName, useResource } from '../../data/api';
 import { formatDate, formatDateTime, formatRelative } from '../../lib/format';
 import { Button, EmptyState, ListRow, Loading, Page, PageHeader, SectionList, Tag } from '../../ui';
 import styles from './ClubPage.module.css';
+import { eventVenue } from '../student/events';
 
 export default function ClubPage() {
   const { session } = useSession();
@@ -103,7 +104,7 @@ export default function ClubPage() {
               title={
                 <span className={styles.event}>
                   <span>{e.title}</span>
-                  <span className={styles.place}>{locationName(locations.data, e.locationId, false)}</span>
+                  <span className={styles.place}>{eventVenue(e)}</span>
                 </span>
               }
               detail={formatDateTime(e.start)}
