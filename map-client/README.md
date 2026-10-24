@@ -61,8 +61,9 @@ HTML overlays (BuildingTags.tsx, TransitTags.tsx)  glass tags for buildings, sta
 | Bus / BU shuttle stop (zoom 17+, on screen, with predictions) | Route badges in route colours ("BU" red) | The stop and the next arrival per route |
 | Bluebikes dock (zoom 16+) | Bikes, plus EMPTY / FULL | Bikes, empty docks, e-bikes, "Est." at playback times |
 | Vehicle (hover or click) | (none) | Route, direction, status |
+| Place (`PlaceTags.tsx`): monument, landmark, public art, open space, field (same zooms as before: landmarks 15.8, fields 16, areas 16.5, monuments 16.8, minor art 17.8) | Kind icon and name | Name and subtitle: artist and year, or what a field is for and its seats |
 
-Placement order through the one placer is building tags, stations, stops, docks, then the monument labels.
+Places open on hover of the model, outline or field itself too, through invisible pick targets (`placeHitLayers`). Placement order through the one placer is building tags, stations, stops, docks, then places.
 
 | File | What it does |
 |---|---|
@@ -71,6 +72,7 @@ Placement order through the one placer is building tags, stations, stops, docks,
 | `src/layers/crowd.ts` | Building glow and trails, plus the shared Quiet/Moderate/Busy/Packed scale (`crowdLevel`, `crowdLevelStyle`) |
 | `src/BuildingTags.tsx` | The HTML building tags over the map; clicking one selects the building |
 | `src/TransitTags.tsx`, `src/tags/glassTags.ts` | HTML tags for stations, bus and shuttle stops, Bluebikes docks and the hovered vehicle |
+| `src/PlaceTags.tsx` | HTML tags for monuments, landmarks, public art, open spaces and fields |
 | `src/sim/playback.ts` | Where everyone is at time *t* and how full each place is. The server takes this over later (plan Section 8.1) |
 | `src/sim/riders.ts`, `src/layers/riders.ts` | Riders waiting at stops, boarding and alighting |
 | `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
