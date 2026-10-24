@@ -138,13 +138,14 @@ function cameraApi(map: CameraMap, maxPitch: number) {
   };
 }
 
-// From over the Charles looking south, so the whole Comm Ave strip (Kenmore to West Campus) fits.
+// From behind Kenmore looking west up Comm Ave: the Citgo sign's lit face up front, the whole campus
+// strip along the Charles behind it, Fenway Park to the left.
 // Any field can be overridden from the URL, e.g. ?lng=-71.105&lat=42.350&zoom=18&pitch=70&bearing=-60
 const DEFAULT_VIEW = {
-  center: [-71.1106, 42.3498] as [number, number],
-  zoom: 15.5,
+  center: [-71.1018, 42.3477] as [number, number],
+  zoom: 15.6,
   pitch: 58,
-  bearing: 192,
+  bearing: 250,
 };
 
 // Keeps the campus centred in the area the dashboard panel doesn't cover.

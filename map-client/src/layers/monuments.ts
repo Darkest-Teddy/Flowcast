@@ -10,7 +10,7 @@ import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color } from '@deck.gl/core';
-import { citgoLightLayers, citgoScale, type CitgoLights } from './citgo';
+import { citgoLightLayers, CITGO_SCALE, type CitgoLights } from './citgo';
 
 export interface Monument {
   id: string;
@@ -113,7 +113,7 @@ export function monumentLayers({ monuments, models, citgoLights }: MonumentData,
           data,
           scenegraph: models[url] as never,
           // Real size (metres); the Citgo sign grows when zoomed out, matching its lights (citgo.ts).
-          sizeScale: data[0].id === 'citgo-sign' ? Math.round(citgoScale(zoom) * 8) / 8 : 1,
+          sizeScale: data[0].id === 'citgo-sign' ? CITGO_SCALE : 1,
           _lighting: 'pbr',
           getPosition: (m) => [m.position[0], m.position[1], m.altitude ?? 0],
           // Model front is +Z; the 90° roll stands it up, and 180 - bearing turns +Z to the bearing.

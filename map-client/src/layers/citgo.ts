@@ -169,14 +169,9 @@ const COLOURS: Record<Group, Color> = {
 };
 const WIDTHS: Record<Group, number> = { border: 0.28, row: 0.13, left: 0.22, bottom: 0.22, right: 0.22, letter: 0.55 };
 
-/**
- * How much bigger the sign is drawn as the camera pulls back: true size up close, up to 3.5x on the
- * campus overview, so the trimark and CITGO stay readable instead of shrinking to a glowing dot.
- * The monument layer scales the sign's model by the same factor.
- */
-export function citgoScale(zoom: number): number {
-  return Math.min(3.5, Math.max(1, 2 ** (17.6 - zoom)));
-}
+/** The sign is drawn 25% larger than life at every zoom so it reads from the campus; the monument
+ * layer scales its model by the same factor. */
+export const CITGO_SCALE = 1.25;
 
 function placer({ position, bearing, altitude }: CitgoPlacement, scale = 1) {
   const rad = Math.PI / 180;
@@ -253,12 +248,11 @@ const ADDITIVE_ON_SURFACE = { ...ADDITIVE, depthBias: -1, depthBiasSlopeScale: -
 
 const scaleAlpha = (c: Color, a: number): Color => [c[0], c[1], c[2], Math.round(Math.min(255, Math.max(0, a)))];
 
-export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { time, lightPreset, zoom, now }: CitgoLightOptions) {
+export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { time, lightPreset, now }: CitgoLightOptions) {
   const schedule = citgoSchedule(time, lightPreset);
   const power = powerLevel(schedule.on, now);
   if (power <= 0.01) return [];
-  // Quantised so zooming doesn't rebuild the geometry every frame.
-  const scale = Math.round(citgoScale(zoom) * 8) / 8;
+  const scale = CITGO_SCALE;
   const { tubes, at } = tubesFor(lights, sign, scale);
   const anim = animationState(now);
   const rows = lights.rows.length;
@@ -268,8 +262,7 @@ export function citgoLightLayers(lights: CitgoLights, sign: CitgoPlacement, { ti
     : t.group === 'border' ? !anim.flashOff
     : t.group === 'row' ? anim.row(t.index, rows)
     : anim.triangle(t.index, tris);
-  // The sign itself is drawn bigger when zoomed out (citgoScale), so the lit trimark and letters
-  // carry it; the bloom is just a soft, steady halo, not a stand-in blob.
+  // The lit trimark and letters carry the sign; the bloom is just a soft, steady halo.
   const dark = schedule.darkness;
   const key = `${anim.key}|${power.toFixed(2)}|${dark.toFixed(2)}|${scale}`;
 
