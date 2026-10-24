@@ -78,13 +78,14 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       getTimestamps: (d) => d.timestamps,
       getColor: [255, 214, 10],
       currentTime: time,
-      // Trails cover a few real seconds of motion whatever the playback speed.
-      trailLength: Math.max(90, speed * 5),
+      // A short, faint wake behind each walker (about 3 real seconds at any playback speed):
+      // enough to hint at flow without streaking along the streets.
+      trailLength: Math.min(600, Math.max(20, speed * 3)),
       fadeTrail: true,
-      widthMinPixels: 3,
+      widthMinPixels: 2,
       capRounded: true,
       jointRounded: true,
-      opacity: 0.75,
+      opacity: 0.35,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),

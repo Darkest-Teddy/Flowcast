@@ -165,11 +165,12 @@ const BOSTON_LIMITS = {
 // Mapbox's live traffic tiles (refreshed every few minutes). Congestion is shown by width as
 // well as colour, so it doesn't rely on colour alone (plan Section 10.3).
 const TRAFFIC_LAYER = 'flowcast-traffic';
+// Only congestion is drawn: free-flowing roads stay clean, so the overlay reads as "where it's
+// jammed" at a glance. Width steps up with severity, so it doesn't rely on colour alone.
 export const TRAFFIC_LEVELS = [
-  { key: 'low', label: 'Moving', color: '#2e9d5b', width: 1.5 },
-  { key: 'moderate', label: 'Slow', color: '#f2b705', width: 2.5 },
-  { key: 'heavy', label: 'Heavy', color: '#e8590c', width: 3.5 },
-  { key: 'severe', label: 'Stopped', color: '#b0122b', width: 4.5 },
+  { key: 'moderate', label: 'Slow', color: '#f2b705', width: 1 },
+  { key: 'heavy', label: 'Heavy', color: '#e8590c', width: 1.3 },
+  { key: 'severe', label: 'Stopped', color: '#c0172f', width: 1.6 },
 ] as const;
 
 function addTrafficLayer(map: import('mapbox-gl').Map) {
@@ -182,23 +183,32 @@ function addTrafficLayer(map: import('mapbox-gl').Map) {
     source: 'mapbox-traffic',
     'source-layer': 'traffic',
     slot: 'middle',
-    // Free-flowing traffic only on main roads; any congestion everywhere. Otherwise every side
-    // street is outlined green and the map turns to noise.
-    filter: [
-      'any',
-      ['!=', ['get', 'congestion'], 'low'],
-      ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false],
-    ],
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    filter: ['match', ['get', 'congestion'], TRAFFIC_LEVELS.map((l) => l.key), true, false],
+    // One solid line along the road: butt caps and full opacity, so the many short segments in
+    // the traffic tiles don't bead into dots where they overlap.
+    layout: { 'line-cap': 'butt', 'line-join': 'round' },
     paint: {
       'line-color': byLevel((l) => l.color, '#888888') as never,
-      // Grows with zoom; heavier traffic is always drawn thicker.
-      'line-width': ['interpolate', ['linear'], ['zoom'], 13, byLevel((l) => l.width * 0.6, 1), 18, byLevel((l) => l.width * 2.5, 3)] as never,
-      // Each direction is its own feature; nudge them apart so both show.
-      'line-offset': ['interpolate', ['linear'], ['zoom'], 13, 1, 18, 5] as never,
-      'line-opacity': 0.9,
+      'line-width': ['interpolate', ['linear'], ['zoom'], 13, byLevel((l) => 2 * l.width, 2), 18, byLevel((l) => 6 * l.width, 6)] as never,
+      'line-opacity': 1,
     },
   });
+}
+
+/**
+ * Calmer map handling for a demo screen: a flick only glides a short way and stops fast, the
+ * scroll wheel zooms gently, and double-click zoom is off (it fired when clicking buildings).
+ * Both Mapbox and MapLibre share these handler APIs.
+ */
+function tameInteractions(map: {
+  dragPan: { enable(options?: { linearity?: number; maxSpeed?: number; deceleration?: number }): void };
+  scrollZoom: { setWheelZoomRate(rate: number): void; setZoomRate(rate: number): void };
+  doubleClickZoom: { disable(): void };
+}) {
+  map.dragPan.enable({ linearity: 0.2, maxSpeed: 500, deceleration: 4500 });
+  map.scrollZoom.setWheelZoomRate(1 / 900); // default 1/450
+  map.scrollZoom.setZoomRate(1 / 200); // trackpad; default 1/100
+  map.doubleClickZoom.disable();
 }
 
 export async function createBasemap(container: HTMLElement, lightPreset: LightPreset): Promise<Basemap> {
@@ -221,6 +231,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       },
     });
     map.setPadding(VIEW_PADDING);
+    tameInteractions(map);
     await new Promise<void>((resolve) => map.once('style.load', () => resolve()));
     addTrafficLayer(map);
     return {
@@ -253,6 +264,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     canvasContextAttributes: { antialias: true },
   });
   map.setPadding(VIEW_PADDING);
+  tameInteractions(map);
   await new Promise<void>((resolve) => map.once('load', () => resolve()));
   return {
     kind: 'maplibre',
