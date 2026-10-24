@@ -3,22 +3,49 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, crowdLevel } from './layers/crowd';
+import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './layers/crowd';
+import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
+import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { createPlacer } from './layers/placement';
 import { cullLayers } from './layers/culling';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
+import { daylightAt, daylightLabel } from './map/daylight';
 import { loadMonuments, monumentLayers } from './layers/monuments';
+import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
+import { calibrateCapacities } from './sim/calibrate';
+import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
+import { riderLayers, withRiders } from './layers/riders';
+import { RiderSim } from './sim/riders';
 import { Playback, formatClock, loadDay, type BuildingOccupancy, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
 import { ScheduledTransit } from './transit/scheduled';
+import { dateForWeekday, loadCampusData, WEEKDAYS, type CampusData } from './data/campusData';
+import { buildSourceDay } from './sim/sourceDay';
+import { SourceDataPanel } from './SourceDataPanel';
+import type { DayData, CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
+import { activeWindFromDegrees } from './weather/weather';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
+import { precipitationLayers } from './weather/precipitation';
+import {
+  BikeReplay,
+  BluebikesFeed,
+  activityCurve,
+  estimateDock,
+  formatDate,
+  loadBikes,
+  type BikeData,
+  type BikeTrip,
+  type DockEstimate,
+} from './bikes/bluebikes';
+import { bikeLayers, bikeTooltip } from './layers/bikes';
+import { ActivityChart } from './ActivityChart';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -31,10 +58,13 @@ const params = new URLSearchParams(window.location.search);
 // all move at their true relative speeds. ?at= or ?speed= start in playback mode instead.
 const START_LIVE = !params.has('at') && !params.has('speed');
 
-/** Seconds since local midnight, right now. */
+const BOSTON_CLOCK = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+
+/** Seconds since midnight in Boston. */
 function wallClockSeconds(): number {
-  const d = new Date();
-  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000;
+  const now = new Date();
+  const parts = BOSTON_CLOCK.format(now).split(':').map(Number);
+  return parts[0] * 3600 + parts[1] * 60 + parts[2] + now.getMilliseconds() / 1000;
 }
 
 /** ?at=9:00 (24h clock) starts playback there; default is the run-up to the 9:05 class change. */
@@ -52,6 +82,8 @@ interface Hud {
   time: number;
   walking: number;
   occupancy: Occupancy[];
+  /** Bluebikes riders on the map, by the campus of the BU dock they left or are heading to. */
+  riding: Map<string, number>;
 }
 
 interface Transit {
@@ -59,6 +91,13 @@ interface Transit {
   feed: MbtaFeed; // live MBTA + BU feeds (Live mode)
   schedule: ScheduledTransit; // scheduled service on the sim clock (playback / fast-forward)
   models: VehicleModels;
+}
+
+interface Bikes {
+  data: BikeData;
+  replay: BikeReplay;
+  feed: BluebikesFeed;
+  campusOf: (trip: BikeTrip) => string;
 }
 
 export default function App() {
@@ -69,9 +108,13 @@ export default function App() {
   const playingRef = useRef(true);
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
+  const tagsRef = useRef<BuildingTagsHandle>(null);
+  const transitTagsRef = useRef<TransitTagsHandle>(null);
   const transitRef = useRef<Transit | null>(null);
   const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
+  const bikesRef = useRef<Bikes | null>(null);
+  const showBikesRef = useRef(true);
 
   const [status, setStatus] = useState('Loading campus…');
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
@@ -80,18 +123,32 @@ export default function App() {
   const [speed, setSpeed] = useState(START_SPEED);
   const [live, setLive] = useState(START_LIVE);
   const [playing, setPlaying] = useState(true);
-  const [light, setLight] = useState<LightPreset>('dusk');
-  const lightRef = useRef<LightPreset>('dusk'); // read by the frame loop (building model tint)
+  // 'auto' (default) follows the sun at the shown time: real Boston time in Clock mode.
+  const [light, setLight] = useState<LightPreset | 'auto'>('auto');
+  const [autoPreset, setAutoPreset] = useState<LightPreset>(() => daylightAt(START_AT).preset);
+  const shownLight = light === 'auto' ? autoPreset : light;
+  const lightRef = useRef<LightPreset>(shownLight); // current preset, read by the frame loop (layer tints)
+  const lightModeRef = useRef<LightPreset | 'auto'>('auto');
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'crowds' | 'transit'>('crowds');
+  const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes'>('crowds');
+  const [weekday, setWeekday] = useState(2);
+  const weekdayRef = useRef(2); // 0 = Monday (the day picker's index), read by the frame loop
+  const [sourceData, setSourceData] = useState<CampusData | null>(null);
+  const [sourceError, setSourceError] = useState('');
+  const baseDayRef = useRef<DayData | null>(null);
+  const playbackRef = useRef<Playback | null>(null);
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [campus, setCampus] = useState('charles-river');
   const [showTransit, setShowTransit] = useState(true);
-  const [showTraffic, setShowTraffic] = useState(true);
+  // Car traffic is off by default: most students walk, bike or take the T. Still available in the Transit tab.
+  const [showTraffic, setShowTraffic] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
   const [weather, setWeather] = useState<ActiveWeather | null>(null);
   const weatherRef = useRef<ActiveWeather | null>(null); // read by the frame loop (occupancy nudge)
+  const [showBikes, setShowBikes] = useState(true);
+  const [bikeFeedError, setBikeFeedError] = useState<string | null>(null);
+  const [bikeFeedUpdatedAt, setBikeFeedUpdatedAt] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,27 +162,29 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, monuments] = await Promise.all([
-        createBasemap(mapElement, light),
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, fields] = await Promise.all([
+        createBasemap(mapElement, shownLight),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
-        // Transit is an extra: the campus view must still start if it can't load.
+        // Transit and bikes are extras: the campus view must still start if they can't load.
         loadTransit('/data/transit.json').catch(() => null),
         loadVehicleModels().catch(() => ({})),
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
         loadBuildings().catch(() => null),
         loadStreet().catch(() => null),
+        loadCampusData().catch(() => { setSourceError("Could not load campus data. Showing the demo."); return null; }),
         loadMonuments().catch(() => null),
+        loadBikes('/data/bikes.json').catch(() => null),
+        loadBoats().catch(() => null), // sailboats on the Charles (river polygon + models)
+        loadFields().catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
-      const plainFootprints = day.buildings.filter((f) => !modelled.has(f.id));
-      if (detailedBuildings) {
-        // Our detailed models replace Mapbox's own copies of those buildings.
-        basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])));
-      }
+      // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
+      // Standard's own 3D buildings are off).
+      basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])).concat(fields ? fieldBuildingIds(fields) : []));
 
       if (transitData) {
         // BU's own shuttles join the MBTA data: same tracks, snapping and panels.
@@ -148,89 +207,193 @@ export default function App() {
         basemap.clipModels(trackCorridors(feed.tracks.filter((t) => t.route.startsWith('Green-')), 3.2));
       }
 
-      const playback = new Playback(day);
-      setRange([playback.startTime, playback.endTime]);
+      if (bikeData) {
+        const feed = new BluebikesFeed(bikeData.stations, (state) => {
+          setBikeFeedError(state.error);
+          setBikeFeedUpdatedAt(state.updatedAt);
+        });
+        feed.start();
+        const dockCampus = new Map(bikeData.stations.map((s) => [s.id, s.campus]));
+        // Every replayed ride has at least one BU dock; it belongs to that dock's campus.
+        const campusOf = (trip: BikeTrip) => dockCampus.get(trip.from ?? '') ?? dockCampus.get(trip.to ?? '') ?? 'charles-river';
+        bikesRef.current = { data: bikeData, replay: new BikeReplay(bikeData), feed, campusOf };
+      }
+
+      baseDayRef.current = day;
+      setSourceData(snapshot);
+      const playback = new Playback(calibrateCapacities(snapshot ? buildSourceDay(day, snapshot, 2) : day));
+      playbackRef.current = playback;
+      setRange([0, 86400]);
+      // People getting on and off trains, buses and shuttles at stops near campus.
+      const riders = transitRef.current ? new RiderSim(day, transitRef.current.data, transitRef.current.feed.tracks) : null;
       setCampuses(day.campuses ?? []);
 
+      // What a map pointer is over, for the tags that expand on hover (and on tap, for touch).
+      const buildingUnder = (object: unknown) =>
+        object && typeof object === 'object' && ('polygon' in object || 'share' in object) ? (object as unknown as { id: string }).id : null;
+      const markerUnder = (object: unknown): TagMarker =>
+        !object || typeof object !== 'object' ? null
+        : 'platforms' in object ? { kind: 'stop', id: (object as unknown as { id: string }).id }
+        : 'gbfsId' in object ? { kind: 'dock', id: (object as unknown as { id: string }).id }
+        : null;
       overlay = new MapboxOverlay({
         interleaved: new URLSearchParams(window.location.search).get('interleaved') !== '0',
         _animate: true, // keeps the walk cycles ticking between data updates
         // Skips drawing models that are wholly off-screen (see layers/culling.ts).
         layerFilter: cullLayers,
+        // Hovering a building or a stop/dock dot expands its tag.
+        onHover: ({ object }: PickingInfo) => {
+          tagsRef.current?.hoverBuilding(buildingUnder(object));
+          transitTagsRef.current?.hoverMarker(markerUnder(object));
+        },
         // Building footprints and labels both carry the building id; anything else clears.
         onClick: ({ object }: PickingInfo) => {
+          // A vehicle pins its tag; anything else unpins it.
+          transitTagsRef.current?.pinVehicle(object && 'receivedAt' in object ? (object as { id: string }).id : null);
+          // Touch has no hover: a tap opens the stop's or dock's tag (a tapped building's tag opens
+          // because it's selected).
+          transitTagsRef.current?.hoverMarker(markerUnder(object));
           const isBuilding = object && ('polygon' in object || 'share' in object);
           const id = isBuilding ? (object as { id: string }).id : null;
           selectedRef.current = id;
           setSelected(id);
+          if (id) setTab("data");
         },
         getTooltip: ({ object }: PickingInfo) => {
+          // Vehicles get a floating glass tag (TransitTags) instead of the tooltip.
+          const vehicleId = object && 'receivedAt' in object ? (object as { id: string }).id : null;
+          transitTagsRef.current?.hoverVehicle(vehicleId);
+          if (vehicleId) return null;
+          // Stops and docks with a tag expand it instead of showing a tooltip.
+          const marker = markerUnder(object);
+          if (marker && transitTagsRef.current?.hasTag(marker)) return null;
+          const bikes = bikesRef.current;
+          const bikeText = bikes ? bikeTooltip(object, bikes.data, bikes.feed, timeRef.current) : null;
+          if (bikeText) return bikeText;
           const transit = transitRef.current;
           const streetText = streetTooltip(object, transit);
           if (streetText) return streetText;
+          const boatText = boatTooltip(object);
+          if (boatText) return boatText;
           const text = transit ? transitTooltip(object, transit.data, liveRef.current ? transit.feed : transit.schedule) : null;
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
-          return `Student ${agent.id} → ${playback.locations.find((l) => l.id === agent.to)?.name}`;
+          // Riders walking to a stop are headed for a transit stop, not a building.
+          return `Student ${agent.id} → ${playback.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
         },
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, playback, transitRef } });
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, transitRef, bikesRef, riders } });
       setStatus('');
 
+      // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
+      const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
-      // Rolled up per building only when occupancy is refreshed (not every frame), and kept as the
-      // same array while nothing changed, so the crowd layers don't re-upload their attributes.
-      let buildings = playback.byBuilding(occupancy);
+      let buildings: BuildingOccupancy[] = [];
+      let buildingsFrom: Occupancy[] | null = null;
+      let buildingsPlayback: Playback | null = null;
+      let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       const tick = (now: number) => {
+        const playback = playbackRef.current!;
         const dt = Math.min(now - last, 100) / 1000;
         last = now;
         if (liveRef.current) {
           timeRef.current = wallClockSeconds();
         } else if (playingRef.current) {
           timeRef.current += dt * speedRef.current;
-          if (timeRef.current > playback.endTime) timeRef.current = playback.startTime;
+          if (timeRef.current > 86400) timeRef.current = 0;
         }
         const t = timeRef.current;
+        if (lightModeRef.current === 'auto') {
+          // Mapbox Standard has four presets: switch at solar thresholds (cached per sim half-minute).
+          const preset = daylightAt(t).preset;
+          if (preset !== lightRef.current) {
+            lightRef.current = preset;
+            basemap.setLightPreset(preset);
+            setAutoPreset(preset);
+          }
+        }
         const walking = playback.walkingAt(t);
+        const bikes = bikesRef.current;
+        const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
           occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
-          const next = playback.byBuilding(occupancy);
-          if (!sameBuildings(next, buildings)) buildings = next;
           lastOccupancy = now;
-          setHud({ time: t, walking: walking.length, occupancy });
+          if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
+          const ridingByCampus = new Map<string, number>();
+          for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
+          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus });
         }
-        // One placer per frame, shared by every label layer: building labels first, then stations.
+        // One placer per frame, shared by every label layer: building tags first, then stations.
         const placer = createPlacer(basemap.project);
+        // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
+        if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
+          buildings = playback.byBuilding(occupancy);
+          buildingsFrom = occupancy;
+          buildingsPlayback = playback;
+        }
+        tagsRef.current?.update({
+          buildings,
+          footprints: day.buildings,
+          locations: day.locations,
+          selectedId: selectedRef.current,
+          placer,
+          project: basemap.project,
+          camera: basemap.getCamera(),
+          roofHeights,
+        });
         const transit = transitRef.current;
+        // One transit source per frame, shared by the transit layers and the rider sim.
+        const source = transit ? transitSourceAt(transit, t, liveRef.current) : null;
+        if (riders && source) riders.step(t, now, source);
+        const showBikesNow = bikes && showBikesRef.current;
+        // Shown time and day (0 = Sunday), for BU shuttle service hours.
+        const serviceTime = liveRef.current ? wallClockSeconds() : t;
+        const serviceDay = liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7;
+        // Then station, stop and dock tags, through the same placer.
+        transitTagsRef.current?.update({
+          placer,
+          project: basemap.project,
+          zoom: basemap.getZoom(),
+          transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay } : null,
+          bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
+        });
         const frameLayers = [
           ...(detailedBuildings
-            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' })
             : []),
           ...crowdLayers({
-            // Buildings with detailed models skip the old extruded crowd box: it cut through
-            // their real shape (CDS's offset blocks) and flickered on zoom. Their tags remain.
-            footprints: plainFootprints,
+            // Every tracked building, modelled or not: the glow is light around and on top of
+            // the model (at its real height), never a box over it.
+            footprints: day.buildings,
             buildings,
-            trips: day.trips,
+            trips: playback.data.trips,
             time: t,
             speed: speedRef.current,
             selectedId: selectedRef.current,
-            placer,
+            zoom: basemap.getZoom(),
+            roofHeights,
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
-          ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+          ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
-          ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+          ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
+          ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
+          ...(showBikesNow
+            ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
+            : []),
+          ...agentLayers(withRiders(walking, riders, showTransitRef.current), models, t, { zoom: basemap.getZoom() }),
+          ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
+          ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
         perfRef.current = {
           walkers: walking.length,
-          vehicles: transit ? (liveRef.current ? transit.feed.positionsAt(now) : transit.schedule.positionsAt()).length : 0,
+          vehicles: source ? source.positionsAt(now).length : 0,
           layers: frameLayers.length,
         };
         frame = requestAnimationFrame(tick);
@@ -243,6 +406,8 @@ export default function App() {
       cancelAnimationFrame(frame);
       transitRef.current?.feed.stop();
       transitRef.current = null;
+      bikesRef.current?.feed.stop();
+      bikesRef.current = null;
       basemapRef.current?.remove();
       basemapRef.current = null;
       mapElement.remove();
@@ -252,8 +417,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    basemapRef.current?.setLightPreset(light);
-    lightRef.current = light;
+    lightModeRef.current = light;
+    const preset = light === 'auto' ? daylightAt(timeRef.current).preset : light;
+    basemapRef.current?.setLightPreset(preset);
+    lightRef.current = preset;
+    if (light === 'auto') setAutoPreset(preset);
   }, [light]);
 
   useEffect(() => {
@@ -276,6 +444,11 @@ export default function App() {
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
     setShowTransit(showTransitRef.current);
+  };
+
+  const toggleBikes = () => {
+    showBikesRef.current = !showBikesRef.current;
+    setShowBikes(showBikesRef.current);
   };
 
   const leaveLive = () => {
@@ -304,12 +477,34 @@ export default function App() {
     leaveLive();
     timeRef.current = t;
   };
+  const selectBuilding = (id: string | null) => {
+    selectedRef.current = id;
+    setSelected(id);
+  };
   const select = (o: Occupancy) => {
     selectedRef.current = o.location.building;
     setSelected(o.location.building);
     basemapRef.current?.flyTo(o.location.position);
   };
 
+  const changeDay = (value: number) => {
+    if (!baseDayRef.current || !sourceData) return;
+    playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(baseDayRef.current, sourceData, value)));
+    setWeekday(value);
+    weekdayRef.current = value;
+    setHud((prev) => ({
+      time: timeRef.current,
+      walking: playbackRef.current!.walkingAt(timeRef.current).length,
+      occupancy: playbackRef.current!.occupancyAt(timeRef.current),
+      riding: prev?.riding ?? new Map(),
+    }));
+  };
+  const selectSource = (location: CampusLocation) => {
+    setCampus(location.campus ?? 'charles-river');
+    selectedRef.current = location.building;
+    setSelected(location.building);
+    basemapRef.current?.flyTo(location.position);
+  };
   const currentCampus = campuses.find((c) => c.id === campus);
   const ranked = hud
     ? hud.occupancy.filter((o) => (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
@@ -326,16 +521,31 @@ export default function App() {
   const source: TransitSource | null = transit ? (live ? transit.feed : transit.schedule) : null;
   const busArrivals = transit && source ? nextBuses(transit.data, source, campus) : [];
   const shuttleArrivals = transit && source ? nextBuses(transit.data, source, campus, 'shuttle') : [];
+  const bikes = bikesRef.current;
+  const docks = bikes?.data.stations.filter((s) => s.campus === campus) ?? [];
+  const ridingHere = hud?.riding.get(campus) ?? 0;
 
   return (
     <div className="app">
       <div ref={containerRef} />
+      {light === 'auto' && hud && (
+        // Auto lighting: a faint dusk veil carries the scene between Mapbox's four light presets.
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'rgb(18, 24, 52)',
+          mixBlendMode: 'multiply', opacity: daylightAt(hud.time).veil, transition: 'opacity 0.5s linear' }} />
+      )}
+      <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
+      <TransitTags ref={transitTagsRef} />
 
       <header className="panel title">
         <h1>Flowcast</h1>
         <p>
-          {currentCampus?.name ?? 'BU'} · Wednesday {hud ? `· ${hud.walking} students walking` : ''}
+          {currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]} {hud ? `· ${hud.walking} walking` : ''}
+          {bikes && showBikes && hud ? ` · ${ridingHere} on Bluebikes` : ''}
         </p>
+        <p className="model-note">{sourceData ? 'Campus simulation · Fall 2026' : 'Campus simulation · Demo'}</p>
+        {sourceData && <p className="model-note">{dateForWeekday(sourceData, weekday)} · Boston time</p>}
+        {sourceError && <p role="alert">{sourceError}</p>}
+        {sourceData && <label className="day-picker">Simulation day <select aria-label="Simulation day" value={weekday} onChange={(event) => changeDay(Number(event.target.value))}>{WEEKDAYS.map((name, index) => <option key={name} value={index}>{name}</option>)}</select></label>}
         {campuses.length > 1 && (
           <div className="campuses" role="group" aria-label="Campus">
             {campuses.map((c) => (
@@ -351,7 +561,7 @@ export default function App() {
 
       <MemoPerfMonitor counts={getPerfCounts} />
       {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}
-      {mapKind && <MemoWeatherControls basemap={basemapRef.current} light={light} onChange={onWeather} />}
+      {mapKind && <MemoWeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={onWeather} />}
 
       {hud && (
         <aside className="panel side">
@@ -359,14 +569,20 @@ export default function App() {
             <button role="tab" id="tab-crowds" aria-selected={tab === 'crowds'} aria-controls="panel-crowds" onClick={() => setTab('crowds')}>
               Crowds
             </button>
+            <button role="tab" id="tab-data" aria-selected={tab === 'data'} aria-controls="panel-data" onClick={() => setTab('data')}>Data</button>
             <button role="tab" id="tab-transit" aria-selected={tab === 'transit'} aria-controls="panel-transit" onClick={() => setTab('transit')}>
               Transit &amp; traffic
             </button>
+            {bikes && (
+              <button role="tab" id="tab-bikes" aria-selected={tab === 'bikes'} aria-controls="panel-bikes" onClick={() => setTab('bikes')}>
+                Bikes
+              </button>
+            )}
           </div>
           {tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
               {weather && <WeatherImpact weather={weather} />}
-              <h2>Busiest right now</h2>
+              <h2>Campus activity</h2>
               <ol>
                 {ranked.slice(0, 8).map((o) => {
                   const level = crowdLevel(o.share);
@@ -376,19 +592,106 @@ export default function App() {
                         className={o.location.building === selected ? 'row selected' : 'row'}
                         onClick={() => select(o)}
                         aria-pressed={o.location.building === selected}
+                        style={crowdLevelStyle(o.share)}
                       >
                         <span className="name">{o.location.name}</span>
                         <span className="bar" aria-hidden="true">
-                          <span style={{ width: `${Math.min(100, o.share * 100)}%`, background: `rgb(${level.glow.slice(0, 3).join(',')})` }} />
+                          <span style={{ width: `${Math.min(100, o.share * 100)}%` }} />
                         </span>
                         <span className="value">
-                          {Math.round(o.share * 100)}% · {level.label}
+                          <b>{Math.round(o.share * 100)}%</b> · {level.label}
                         </span>
                       </button>
                     </li>
                   );
                 })}
               </ol>
+            </section>
+          ) : tab === 'bikes' && bikes ? (
+            <section id="panel-bikes" role="tabpanel" aria-labelledby="tab-bikes">
+              <div className="toggles" role="group" aria-label="Map layers">
+                <button onClick={toggleBikes} aria-pressed={showBikes}>
+                  Bluebikes
+                </button>
+              </div>
+              <h2>
+                Real Bluebikes rides <span className="muted">· {formatDate(bikes.data.replayDate)}</span>
+              </h2>
+              <p className="bike-summary">
+                <strong>{ridingHere}</strong> riding to or from {currentCampus?.name.replace(' Campus', '') ?? 'BU'} docks now ·{' '}
+                {bikes.replay.trips.filter((t) => bikes.campusOf(t) === campus).length.toLocaleString()} rides that day
+              </p>
+              {docks.length > 0 && (
+                <>
+                  <h3>Typical {bikes.data.weekday} at these docks</h3>
+                  <ActivityChart
+                    values={activityCurve(docks, bikes.data.binSeconds)}
+                    binSeconds={bikes.data.binSeconds}
+                    time={hud.time}
+                    unit="rides/h"
+                    label={`Rides docked and undocked per hour at ${currentCampus?.name ?? 'BU'} Bluebikes docks on a typical ${bikes.data.weekday}`}
+                  />
+                  <p className="muted">
+                    Docked + undocked per hour, averaged over {bikes.data.profileDates.length} {bikes.data.weekday}s in{' '}
+                    {new Date(`${bikes.data.month}-15T12:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' })}
+                  </p>
+                  <h3>
+                    {live ? 'Live docks' : `Docks at ${hud ? formatClock(hud.time) : ''} (estimated)`}{' '}
+                    <span className="muted">
+                      {bikeFeedError ??
+                        (bikeFeedUpdatedAt ? `· updated ${new Date(bikeFeedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
+                    </span>
+                  </h3>
+                  <table className="arrivals">
+                    <thead>
+                      <tr>
+                        <th scope="col">Dock</th>
+                        <th scope="col">Bikes</th>
+                        <th scope="col">Empty</th>
+                        <th scope="col" title="Estimated bikes in 1 hour">+1 h</th>
+                        <th scope="col" title="Estimated bikes in 3 hours">+3 h</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {docks.map((s) => {
+                        // "Now" is the shown time: the live count in Live mode, else an estimate.
+                        const shown = hud ? (live ? wallClockSeconds() : hud.time) : wallClockSeconds();
+                        const at = (offset: number) => estimateDock(s, bikes.feed.status(s), bikes.data.binSeconds, wallClockSeconds(), shown + offset);
+                        const nowEst = at(0);
+                        const mark = (e: DockEstimate) => (e.estimated ? '≈' : '');
+                        return (
+                          <tr key={s.id}>
+                            <th scope="row">{s.short}</th>
+                            <td>
+                              {mark(nowEst)}
+                              {nowEst.bikes}
+                              {nowEst.ebikes > 0 && <span className="muted"> ({nowEst.ebikes}⚡)</span>}
+                            </td>
+                            <td>
+                              {mark(nowEst)}
+                              {nowEst.docks}
+                            </td>
+                            <td>≈{at(3600).bikes}</td>
+                            <td>≈{at(3 * 3600).bikes}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <p className="muted source">
+                    ≈ estimated: today's live count plus a typical {bikes.data.weekday}'s arrivals and departures at each dock. Bluebikes'
+                    rebalancing vans aren't modelled. ⚡ = e-bikes.
+                  </p>
+                </>
+              )}
+              <p className="muted source">
+                Bluebikes System Data and live feed. Docks within {bikes.data.stationRadiusMetres} m of a BU building. Ride times at BU docks are real;
+                street routes are inferred.
+              </p>
+            </section>
+          ) : tab === 'data' ? (
+            <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
+              {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
             </section>
           ) : (
             <section id="panel-transit" role="tabpanel" aria-labelledby="tab-transit">
@@ -409,7 +712,7 @@ export default function App() {
                     <span className="muted">
                       {live
                         ? (feedError ?? (feedUpdatedAt ? `· updated ${new Date(feedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…'))
-                        : '· simulated on the playback clock; press Live for real-time'}
+                        : '· playback timetable'}
                     </span>
                   </h2>
                   {stations.length > 0 && (
@@ -519,7 +822,7 @@ export default function App() {
           </button>
           <output className="clock" aria-live="off">
             {formatClock(hud.time)}
-            {live && <span className="live-badge">LIVE</span>}
+            {live && <span className="live-badge">CLOCK</span>}
           </output>
           <input
             type="range"
@@ -532,8 +835,8 @@ export default function App() {
             aria-valuetext={formatClock(hud.time)}
           />
           <div className="speeds" role="group" aria-label="Playback speed">
-            <button onClick={goLive} aria-pressed={live} title="Follow the real clock: everything moves at true speed">
-              Live
+            <button onClick={goLive} aria-pressed={live} title="Follow Boston time and live transit">
+              Clock
             </button>
             {SPEEDS.map((s) => (
               <button key={s} onClick={() => changeSpeed(s)} aria-pressed={!live && speed === s}>
@@ -542,34 +845,25 @@ export default function App() {
             ))}
           </div>
           {mapKind === 'mapbox' && (
-            <select value={light} onChange={(e) => setLight(e.target.value as LightPreset)} aria-label="Lighting">
+            <select value={light} onChange={(e) => setLight(e.target.value as LightPreset | 'auto')} aria-label="Lighting">
+              <option value="auto">Auto</option>
               <option value="dawn">Dawn</option>
               <option value="day">Day</option>
               <option value="dusk">Dusk</option>
               <option value="night">Night</option>
             </select>
           )}
+          {mapKind === 'mapbox' && light === 'auto' && hud && (
+            <span className="light-status" style={{ fontSize: 12, opacity: 0.85, whiteSpace: 'nowrap' }} title={live ? 'Following Boston time' : 'Following the shown time'}>
+              Auto · {daylightLabel(hud.time)}
+            </span>
+          )}
         </footer>
       )}
 
-      {mapKind === 'maplibre' && (
-        <p className="panel note">
-          Fallback map (no Mapbox token). Set <code>VITE_MAPBOX_TOKEN</code> for textured, lit buildings.
-        </p>
-      )}
+
     </div>
   );
-}
-
-/** Same buildings, counts and shares (so the same labels and glow) as last time. */
-function sameBuildings(a: BuildingOccupancy[], b: BuildingOccupancy[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const x = a[i];
-    const y = b[i];
-    if (x.id !== y.id || x.count !== y.count || x.share !== y.share || x.name !== y.name || x.short !== y.short || x.position !== y.position) return false;
-  }
-  return true;
 }
 
 /** One line on how the weather changes campus routines (plan Section 5.6), and what the map adjusts for it. */
@@ -579,8 +873,8 @@ function WeatherImpact({ weather }: { weather: ActiveWeather }) {
     <p className="weather-impact">
       <strong>Weather impact:</strong> {note}.
       <span className="muted">
-        {weather.live ? 'Live weather' : 'Simulated weather'}
-        {boost > 0 && ` · dining and library occupancy shown +${Math.round(boost * 100)}%; walking routes unchanged`}
+        {weather.sourceLabel}
+        {boost > 0 && ` · dining and library activity +${Math.round(boost * 100)}%`}
       </span>
     </p>
   );
@@ -636,4 +930,25 @@ function transitSourceAt(transit: Transit, t: number, live: boolean): TransitSou
   if (live) return transit.feed;
   transit.schedule.setTime(t);
   return transit.schedule;
+}
+
+/** Bikes and empty docks at every BU dock at `target` (sim seconds): live if that's now, else estimated. */
+function dockStatusAt({ data, feed }: Bikes, target: number): Map<string, DockEstimate> {
+  const now = wallClockSeconds();
+  return new Map(data.stations.map((s) => [s.id, estimateDock(s, feed.status(s), data.binSeconds, now, target)]));
+}
+
+// Sailboats tack against the shown weather's wind, rounded to 15° so a slowly veering wind doesn't
+// re-plan every boat's course on every reading. Westerly until the first weather arrives.
+function boatWind(): number | undefined {
+  const from = activeWindFromDegrees();
+  return from === null ? undefined : Math.round(from / 15) * 15;
+}
+
+// Nobody's out sailing in the rain, snow, fog or a storm, or after dark (the Night lighting preset).
+// Sailing hours (9:00-19:30) are handled by the boat sim itself.
+const NO_SAILING = new Set(['drizzle', 'rain', 'heavy-rain', 'snow', 'fog', 'thunderstorm']);
+function sailingWeather(weather: ActiveWeather | null, light: LightPreset): boolean {
+  if (light === 'night') return false;
+  return !weather || !NO_SAILING.has(weather.condition);
 }

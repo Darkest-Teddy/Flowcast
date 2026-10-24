@@ -1,17 +1,22 @@
-// Detailed 3D models of BU's buildings, drawn over Mapbox's plain extrusions.
+// Detailed 3D models of BU's buildings.
 //
 // data-pipeline/make_building_models.py turns every BU footprint in OpenStreetMap into a
-// procedurally detailed model (window rows, cornices, mansards, hand-tuned landmarks such as CDS,
-// Marsh Chapel and Warren Towers) and merges each campus into ONE GLB, so the whole of BU costs
-// three ScenegraphLayer instances and a handful of draw calls.
+// procedurally detailed model (per-building facades from reference photos, cornices, mansards,
+// fins, hand-tuned landmarks such as CDS, Marsh Chapel and Warren Towers) and merges each campus
+// into ONE GLB, so the whole of BU costs three ScenegraphLayer instances and a handful of draw
+// calls. A second GLB per campus holds every window that can light up after dark; each window
+// carries its own on/off times (in TEXCOORD_0), and a clock uniform switches them in the shader,
+// so lights come on through dusk, peak in the evening and go off through the small hours as the
+// sim clock moves, at no per-frame CPU cost.
 //
 // Model frame: metres, +x east, +y up, +z south (glTF convention), relative to the campus origin.
-// The walls sit ~0.3 m outside each OSM footprint and the roofs ~0.5 m above Mapbox's own
-// extrusion height, so the models cover Mapbox's grey boxes instead of z-fighting with them.
+// Every OSM id in the manifest (buildings, their building:part pieces and relation members) is
+// left out of the app's city-buildings layer, so nothing is drawn underneath the models.
 import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
-import { gltfExtent, setCullBox } from './culling';
+import { daylightAt } from '../map/daylight';
+import { gltfExtent, setCullBox, type CullBox } from './culling';
 
 export interface BuildingModelEntry {
   osm: string; // e.g. "way/277434241", the same ids as demo-day.json's buildings
@@ -19,6 +24,8 @@ export interface BuildingModelEntry {
   center: [number, number];
   height: number; // top of the model, metres
   landmark?: string;
+  /** Set on building:part / relation-member ids listed only so the city layer excludes them. */
+  partOf?: string;
 }
 
 export interface CampusModel {
@@ -26,6 +33,8 @@ export interface CampusModel {
   name: string;
   origin: [number, number]; // [lng, lat] of the model's (0, 0, 0)
   model: string; // URL of the GLB
+  /** Lit-window mesh with per-window schedules. */
+  lights?: { scheduled?: string };
   buildings: BuildingModelEntry[];
 }
 
@@ -34,7 +43,7 @@ export interface BuildingModelManifest {
   campuses: CampusModel[];
 }
 
-/** Parsed GLBs, keyed by campus id. */
+/** Parsed GLBs, keyed by campus id (the lit-window mesh as `<id>:scheduled`). */
 export type BuildingModels = Record<string, unknown>;
 
 export async function loadBuildingManifest(url = '/data/building-models.json'): Promise<BuildingModelManifest> {
@@ -43,11 +52,14 @@ export async function loadBuildingManifest(url = '/data/building-models.json'): 
   return res.json();
 }
 
-/** Fetch and parse every campus GLB once (about 6 MB in total). */
+/** Fetch and parse every campus GLB once, plus its lit-window meshes. */
 export async function loadBuildingModels(manifest: BuildingModelManifest): Promise<BuildingModels> {
-  const entries = await Promise.all(
-    manifest.campuses.map(async (c) => [c.id, await load(c.model, GLTFLoader)] as const),
-  );
+  const jobs: [string, string][] = [];
+  for (const c of manifest.campuses) {
+    jobs.push([c.id, c.model]);
+    for (const [when, url] of Object.entries(c.lights ?? {})) if (url) jobs.push([`${c.id}:${when}`, url]);
+  }
+  const entries = await Promise.all(jobs.map(async ([key, url]) => [key, await load(url, GLTFLoader)] as const));
   return Object.fromEntries(entries);
 }
 
@@ -61,54 +73,148 @@ export async function loadBuildings(url?: string) {
 export type BuildingLight = 'dawn' | 'day' | 'dusk' | 'night';
 
 export interface BuildingLayerOptions {
-  /** Match Mapbox Standard's lightPreset so the models don't glow at dusk or night. */
+  /** The current Mapbox light preset: tints the models when `clock` isn't given or in manual mode. */
   lightPreset?: BuildingLight;
+  /** Sim time, seconds since Boston midnight. Drives the window lights (and, with `auto`, the tint). */
+  clock?: number;
+  /** Auto lighting: tint and window brightness follow the sun's altitude at `clock`. */
+  auto?: boolean;
   /** Only draw these campuses (ids from the manifest). Default: all. */
   campuses?: string[];
   visible?: boolean;
   opacity?: number;
-  /** Depth-buffer units the models are pulled forward to beat Mapbox's own boxes. Default 1200. */
+  /** Depth-buffer units to pull the models forward. Only needed if Mapbox Standard's own 3D
+   *  buildings are left on underneath them (then ~1200 at normal pitch); 0 by default because
+   *  basemap.excludeBuildings() drops BU's buildings from the city layer. */
   depthBias?: number;
 }
 
 // deck.gl lights the models with its own default lights, which are brighter than Mapbox's dusk
-// and night presets; these multipliers keep them sitting in the scene.
+// and night presets; these multipliers keep them sitting in the scene (manual presets).
 const LIGHT_TINT: Record<BuildingLight, [number, number, number, number]> = {
   day: [255, 255, 255, 255],
   dawn: [236, 220, 214, 255],
   dusk: [206, 196, 214, 255],
   night: [120, 128, 158, 255],
 };
+// How strongly windows show under each manual preset.
+const WINDOW_STRENGTH: Record<BuildingLight, number> = { day: 0, dawn: 0.6, dusk: 0.85, night: 1 };
 
 interface Instance {
   position: [number, number, number];
 }
 
-// One instance per campus, built once. The layer is rebuilt every frame, and a new `data` array
-// each time made deck.gl re-upload every attribute of all ~70 model primitives per frame.
-const instanceCache = new WeakMap<CampusModel, Instance[]>();
-function campusInstance(c: CampusModel, model: unknown): Instance[] {
-  let data = instanceCache.get(c);
-  if (!data) {
-    instanceCache.set(c, (data = [{ position: [c.origin[0], c.origin[1], 0] }]));
-    // The campus model's real extent, so a campus that's off-screen (Fenway and Medical from the
-    // Charles River views) skips its ~20 draws a frame. Model frame: +x east, +y up, +z south.
-    const extent = gltfExtent(model);
-    if (extent) {
-      const pad = 5;
-      const kx = 111_320 * Math.cos((c.origin[1] * Math.PI) / 180);
-      const ky = 110_540;
-      setCullBox(`building-models-${c.id}`, [
-        c.origin[0] + (extent.min[0] - pad) / kx,
-        c.origin[1] - (extent.max[2] + pad) / ky,
-        extent.min[1] - pad,
-        c.origin[0] + (extent.max[0] + pad) / kx,
-        c.origin[1] - (extent.min[2] - pad) / ky,
-        extent.max[1] + pad,
-      ]);
-    }
+/** Polygon-offset units added as the camera flattens towards top-down (0 at 30 deg and above). */
+export function lowPitchDepthBias(pitch: number): number {
+  if (pitch >= 30) return 0;
+  const t = (30 - pitch) / 30;
+  return 3e6 * t * t;
+}
+
+type ModelLike = {
+  parameters?: Record<string, unknown>;
+  setParameters?: (p: Record<string, unknown>) => void;
+  shaderInputs?: { setProps(props: Record<string, unknown>): void };
+};
+type SceneNode = { model?: ModelLike };
+
+const WINDOW_UNIFORMS = `\
+uniform windowLightsUniforms {
+  float hour;
+  float strength;
+} windowLights;
+`;
+
+/** Window schedules: TEXCOORD_0 = (on hour, off hour) on a 12..36 h axis; `hour` on the same axis. */
+const windowLights = {
+  name: 'windowLights',
+  vs: WINDOW_UNIFORMS,
+  fs: WINDOW_UNIFORMS,
+  uniformTypes: { hour: 'f32', strength: 'f32' },
+  defaultUniforms: { hour: 21, strength: 1 },
+} as const;
+
+const WINDOW_FILTER = `
+  {
+    float on = geometry.uv.x;
+    float off = geometry.uv.y;
+    float h = windowLights.hour;
+    // ~15 sim minutes to switch, so a fast-forward reads as lights gradually going on and off
+    float k = smoothstep(on, on + 0.25, h) * (1.0 - smoothstep(off - 0.25, off, h)) * windowLights.strength;
+    if (k < 0.02) discard;
+    color.rgb *= k;
   }
-  return data;
+`;
+
+interface ExtraProps {
+  extraDepthBias: number;
+  /** Lit-window mesh: set the schedule uniforms. Hour on the 12..36 axis; strength 0..1. */
+  windowClock: { hour: number; strength: number } | null;
+}
+
+/**
+ * ScenegraphLayer with two additions:
+ * - pulls itself forward in the depth buffer when the camera looks almost straight down (in
+ *   interleaved mode Mapbox's depth for flat views drifts from deck.gl's, and Standard's 2D
+ *   building footprints then paint over the roofs);
+ * - for the lit-window mesh, a tiny shader module that switches each window on and off by its
+ *   own schedule against a clock uniform.
+ */
+class BuildingModelLayer extends ScenegraphLayer<Instance, ExtraProps> {
+  static layerName = 'BuildingModelLayer';
+  getShaders() {
+    const shaders = super.getShaders();
+    if (!this.props.windowClock) return shaders;
+    return {
+      ...shaders,
+      modules: [...shaders.modules, windowLights],
+      inject: { ...(shaders.inject ?? {}), 'fs:DECKGL_FILTER_COLOR': WINDOW_FILTER },
+    };
+  }
+  draw(opts: Parameters<ScenegraphLayer<Instance>['draw']>[0]) {
+    const pitch = (this.context.viewport as unknown as { pitch?: number }).pitch ?? 60;
+    const units = this.props.extraDepthBias + lowPitchDepthBias(pitch);
+    // luma.gl: gl.polygonOffset(factor = depthBias, units = depthBiasSlopeScale)
+    const offset = { depthBias: units ? -1 : 0, depthBiasSlopeScale: -units };
+    const clock = this.props.windowClock;
+    const scenegraph = (this.state as { scenegraph?: { traverse(cb: (node: SceneNode) => void): void } }).scenegraph;
+    scenegraph?.traverse((node) => {
+      node.model?.setParameters?.({ ...node.model.parameters, ...offset });
+      if (clock) node.model?.shaderInputs?.setProps({ windowLights: clock });
+    });
+    super.draw(opts);
+  }
+}
+
+// One instance per campus, built once, with the campus model's real extent. The layers are rebuilt
+// every frame, and a new `data` array each time made deck.gl re-upload every attribute of all the
+// model's primitives per frame. Model frame: +x east, +y up, +z south.
+const instanceCache = new WeakMap<CampusModel, { data: Instance[]; box: CullBox | null }>();
+function campusInstance(c: CampusModel, model: unknown) {
+  let cached = instanceCache.get(c);
+  if (!cached) {
+    const extent = gltfExtent(model);
+    const pad = 5;
+    const kx = 111_320 * Math.cos((c.origin[1] * Math.PI) / 180);
+    const ky = 110_540;
+    const box: CullBox | null = extent && [
+      c.origin[0] + (extent.min[0] - pad) / kx,
+      c.origin[1] - (extent.max[2] + pad) / ky,
+      extent.min[1] - pad,
+      c.origin[0] + (extent.max[0] + pad) / kx,
+      c.origin[1] - (extent.min[2] - pad) / ky,
+      extent.max[1] + pad,
+    ];
+    cached = { data: [{ position: [c.origin[0], c.origin[1], 0] }], box };
+    instanceCache.set(c, cached);
+  }
+  return cached;
+}
+
+/** Sim seconds since midnight -> hours on the 12..36 axis the window schedules use. */
+function scheduleHour(seconds: number): number {
+  const h = (((seconds / 3600) % 24) + 24) % 24;
+  return h < 12 ? h + 24 : h;
 }
 
 export function buildingModelLayers(
@@ -116,34 +222,56 @@ export function buildingModelLayers(
   models: BuildingModels,
   options: BuildingLayerOptions = {},
 ) {
-  const { lightPreset = 'dusk', campuses, visible = true, opacity = 1, depthBias = 1200 } = options;
-  const tint = LIGHT_TINT[lightPreset];
-  return manifest.campuses
-    .filter((c) => models[c.id] && (!campuses || campuses.includes(c.id)))
-    .map(
-      (c) =>
-        new ScenegraphLayer<Instance>({
-          id: `building-models-${c.id}`,
-          data: campusInstance(c, models[c.id]),
-          scenegraph: models[c.id] as never,
+  const { lightPreset = 'dusk', clock, auto = false, campuses, visible = true, opacity = 1, depthBias = 0 } = options;
+  let tint = LIGHT_TINT[lightPreset];
+  let strength = WINDOW_STRENGTH[lightPreset];
+  let hour = scheduleHour(clock ?? 21 * 3600);
+  if (auto && clock !== undefined) {
+    const d = daylightAt(clock);
+    tint = d.tint;
+    strength = d.windows;
+  } else if (strength > 0 && hour >= 12 && hour < 17.5) {
+    // A manual dusk/night preset at a daytime clock: show a typical evening instead.
+    hour = lightPreset === 'night' ? 21.5 : 19;
+  }
+  const layers: BuildingModelLayer[] = [];
+  for (const c of manifest.campuses) {
+    if (!models[c.id] || (campuses && !campuses.includes(c.id))) continue;
+    const { data, box } = campusInstance(c, models[c.id]);
+    const parts: { id: string; key: string; color: [number, number, number, number]; windowClock: ExtraProps['windowClock'] }[] = [
+      { id: c.id, key: c.id, color: tint, windowClock: null },
+    ];
+    // Lit windows: emissive, so untinted; skipped entirely in daylight.
+    if (strength > 0.01 && models[`${c.id}:scheduled`]) {
+      parts.push({ id: `${c.id}-lights`, key: `${c.id}:scheduled`, color: [255, 255, 255, 255], windowClock: { hour, strength } });
+    }
+    for (const part of parts) {
+      // An off-screen campus (Fenway and Medical from the Charles River views) skips its draws.
+      setCullBox(`building-models-${part.id}`, box);
+      layers.push(
+        new BuildingModelLayer({
+          id: `building-models-${part.id}`,
+          data,
+          scenegraph: models[part.key] as never,
           getPosition: (d) => d.position,
           // glTF is y-up; roll 90 stands it on the map: +x east, +y up, -z north.
           getOrientation: [0, 0, 90],
-          getColor: tint,
+          // An accessor, not a constant: deck only re-evaluates it (on change, via updateTriggers)
+          // when it's a function.
+          getColor: () => part.color,
           sizeScale: 1,
           _lighting: 'pbr',
           visible,
           opacity,
           pickable: false,
-          // Win depth ties against Mapbox's own extrusion of the same building (see header).
-          // Mapbox draws its own 3D buildings a small constant step nearer in the depth buffer
-          // than deck.gl's layers, so far-away or tall models (CDS's upper blocks) lose to the
-          // plain box they cover. A polygon offset of the same size restores the tie. luma.gl
-          // passes these to gl.polygonOffset(factor = depthBias, units = depthBiasSlopeScale).
-          parameters: { depthBias: -1, depthBiasSlopeScale: -depthBias },
-          updateTriggers: { getColor: lightPreset },
+          extraDepthBias: depthBias,
+          windowClock: part.windowClock,
+          updateTriggers: { getColor: part.color.map(Math.round).join(',') },
           // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
           slot: 'middle',
         }),
-    );
+      );
+    }
+  }
+  return layers;
 }

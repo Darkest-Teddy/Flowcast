@@ -16,8 +16,15 @@ each way. Approaches whose junction points lie within ~25 m are one intersection
 `axis` 0 is the main road's direction and 1 the crossing one, so the map can alternate them.
 
 Writes map-client/public/data/street.json:
-    { "signals": [{ "id", "position": [lng, lat], "bearing", "group", "axis", "road", "campus", "flash"? }] }
-`bearing` is the compass direction the heads face (toward oncoming traffic).
+    { "signals": [{ "id", "position": [lng, lat], "bearing", "group", "axis", "road", "campus", "flash"?,
+                    "stopLine": [lng, lat], "approach", "movement"? }],
+      "intersections": [{ "group", "name", "source", "sourceUrl", "published": "full" | "cycle" | "none",
+                          "plans": [{ "name", "from", "to", "cycle", "offset", "note"?, "splits": [...] }] }],
+      "timingSources": [...] }
+`bearing` is the compass direction the heads face (toward oncoming traffic); `approach` is the
+direction traffic on it travels and `stopLine` where it stops (transit vehicles match signals to
+their tracks with these). Each intersection's `plans` give its signal timing by time of day:
+published BTD timings along Comm Ave at BU, defaults elsewhere (see "Signal timing" below).
 
 Standard library only, in the style of make_demo_routes.py:
     python3 data-pipeline/fetch_street.py
@@ -49,6 +56,8 @@ APPROACH_SAMPLE = 15  # an approach's direction is measured over this much road 
 ARM_SIGNAL_METRES = 30  # a junction arm reaching another signal this soon already has its own pole
 MERGE_DEGREES = 35  # same-direction approaches this close are one approach (duplicate mapping)
 MERGE_METRES = 12
+CROSSWALK = 3.0  # a marked crosswalk is ~10 ft wide
+STOP_BAR_GAP = 1.2  # the stop bar sits ~4 ft before the crosswalk (MUTCD 3B.16)
 
 # Road classes, most important first. Anything else (footway, cycleway, busway...) is ignored.
 ROAD_RANK = {
@@ -253,6 +262,8 @@ def approach(node_id, pos, way, idx, step, mode, ref):
         "travel": travel,
         "curb": curb_offset(tags, rank, step),
         "mode": mode,
+        "oneway": bool(is_oneway(tags)),
+        "maxspeed": tags.get("maxspeed"),
     }
 
 
@@ -322,6 +333,24 @@ def junction_point(a):
 
 def pole_position(a):
     return offset(a["pos"], a["travel"], -SETBACK[a["mode"]], a["curb"])
+
+
+def half_width(a):
+    """Metres from an approach road's centreline to its curb (a one-way carriageway: half of it)."""
+    return max(LANE_WIDTH, a["curb"] - CURB_CLEARANCE)
+
+
+def stop_line(a, crossing_half):
+    """Where traffic on an approach stops, on the road's centreline: at a stop-line node, the node
+    itself; at a junction node, short of the crossing road and its crosswalk; mid-block, just
+    short of the crosswalk."""
+    if a["mode"] == "stop":
+        back = 0.0
+    elif a["mode"] == "junction":
+        back = min(25.0, max(6.0, crossing_half + CROSSWALK + STOP_BAR_GAP))
+    else:
+        back = CROSSWALK / 2 + STOP_BAR_GAP
+    return offset(a["pos"], a["travel"], -back, 0)
 
 
 def cluster(approaches):
@@ -394,21 +423,422 @@ def place(cid, elements):
                 continue
             a["pole"] = pole
             kept.append(a)
+        axis_of = lambda a: 1 if 45 < angle_diff(a["travel"], main) < 135 else 0  # noqa: E731
         for k, a in enumerate(kept):
-            diff = angle_diff(a["travel"], main)
+            crossing = [half_width(b) for b in group if axis_of(b) != axis_of(a)]
+            line = stop_line(a, max(crossing) if crossing else 2 * LANE_WIDTH)
             s = {
                 "id": f"{gid}-{k + 1}",
                 "position": [round(a["pole"][0], 7), round(a["pole"][1], 7)],
                 "bearing": round((a["travel"] + 180) % 360, 1),  # heads face oncoming traffic
                 "group": gid,
-                "axis": 1 if 45 < diff < 135 else 0,
+                "axis": axis_of(a),
                 "road": a["name"],
                 "campus": cid,
+                "stopLine": [round(line[0], 7), round(line[1], 7)],
+                "approach": round(a["travel"], 1),
+                # Used for timing below, then dropped from the output.
+                "halfWidth": round(half_width(a), 1),
+                "oneway": a["oneway"],
+                "rank": a["rank"],
+                "lanes": a["lanes"],
+                "maxspeed": a["maxspeed"],
             }
             if a["flash"]:
                 s["flash"] = True
             signals.append(s)
     return nodes, groups, signals
+
+
+# --------------------------------------------------------------------------------------------
+# Signal timing
+#
+# Boston publishes no live or current per-signal timing (no SPaT / connected-vehicle feed;
+# Analyze Boston's "Traffic Signals" dataset lists locations and BTD intersection numbers only;
+# MassDOT and DCR publish none). What is published:
+#   * BU's Charles River Campus Transportation Master Plan 2013-2023 (Jan 2013), Appendix B:
+#     Synchro "Timings" sheets for the Comm Ave signals from Packards Corner to Kenmore, weekday
+#     AM and PM peak hours, dated 5/16/2012, modelled with BTD's own timings: cycle, splits
+#     (green + yellow + all-red), yellow, all-red, offsets. Encoded below for the 12 we map.
+#     They predate the Comm Ave Phase 2A rebuild (BU Bridge to Packards, ~2018-21), so the
+#     western ones have likely changed since; no newer timings are published.
+#   * BTD, Fenway-Longwood-Kenmore Priority Projects (May 2010): Audubon Circle (Beacon St /
+#     Park Dr) proposed 85 s AM plan, 38 + 12 + 29 + 6 s, with a leading pedestrian interval.
+#   * Cycle lengths only: Mass Ave & Memorial Dr 110 s (P. Furth, Northeastern, 2022); Mass Ave
+#     coordinated at 100 s near Newmarket Sq (Furth, 2019).
+#   * BTD Signal Operations Design Policy (May 2023): cycles "as short as possible", min green
+#     8 s (through) / 6 s (turns), WALK >= 7 s, clearance at 3.5 ft/s, a 3-4 s buffer before
+#     conflicting traffic, LPI 3-6 s (default 3), pedestrian recall 7AM-11PM, progression no
+#     faster than the limit (5 mph lower considered), yellow / all-red per MUTCD and MassDOT.
+# Everything else gets a default plan built from that policy and the MUTCD / ITE formulas, and
+# says so in its `source`.
+# --------------------------------------------------------------------------------------------
+
+BU_TMP_SOURCE = "BTD Comm Ave timings (2012, BU Transportation Master Plan)"
+BU_TMP_URL = "https://www.bu.edu/community/files/2016/03/2013-2023-BU-Charles-River-Campus-Transportation-Master-Plan_January-17-2013.pdf"
+FLK_URL = "https://www.cityofboston.gov/images_documents/audubon%20051110_complete_tcm3-17184.pdf"
+FURTH_MEMORIAL_URL = "https://peterfurth.sites.northeastern.edu/2022/02/11/improving-the-mass-ave-memorial-drive-intersection"
+FURTH_NEWMARKET_URL = "https://peterfurth.sites.northeastern.edu/2019/07/14/mass-ave-newmarket-square-intersection-design-for-a-road-diet"
+BTD_POLICY_URL = "https://content.boston.gov/sites/default/files/file/2023/05/BTD%20Signal%20Policy%205-19-2023.pdf"
+
+H = 3600
+# Weekday plan periods. The BU sheets are for the AM and PM peak hours; BTD runs AM, midday,
+# PM, off-peak and overnight plans.
+PERIODS = [
+    ("AM peak", 6 * H, 10 * H),
+    ("Midday", 10 * H, 15 * H),
+    ("PM peak", 15 * H, 19 * H),
+    ("Evening", 19 * H, 22 * H),
+    ("Night", 22 * H, 30 * H),  # to 6:00 the next morning
+]
+# Default cycle lengths (s) by period, for arterials and for minor intersections. Peak values
+# follow the published corridor cycles (Comm Ave 100 / 110 s, Mass Ave 100-110 s, Audubon
+# Circle 85-110 s); off-peak ones are shorter, per BTD's "as short as possible".
+DEFAULT_CYCLES = {
+    "major": {"AM peak": 100, "Midday": 90, "PM peak": 110, "Evening": 90, "Night": 70},
+    "minor": {"AM peak": 80, "Midday": 70, "PM peak": 80, "Evening": 70, "Night": 60},
+}
+PARKING_LANE = 2.4  # m (8 ft), each side of a Boston street
+WALK = 7.0  # s, BTD minimum WALK
+PED_SPEED = 3.5 * 0.3048  # 3.5 ft/s
+PED_BUFFER = 3.0  # s of solid DON'T WALK before conflicting traffic (BTD: 3-4 s)
+LPI = 3.0  # s, BTD default leading pedestrian interval
+MIN_GREEN = 8.0  # s, BTD minimum through green
+DEFAULT_SPEED_MPH = 25  # Boston's default limit since 2017
+PROGRESSION_MPH = 20  # BTD: no faster than the limit; 5 mph lower should be considered
+PERCEPTION = 1.0  # s, ITE yellow formula
+DECEL = 10 * 0.3048  # 10 ft/s², ITE
+VEHICLE_LENGTH = 6.1  # 20 ft, ITE all-red formula
+
+COMPASS = {"NB": 0, "NE": 45, "EB": 90, "SE": 135, "SB": 180, "SW": 225, "WB": 270, "NW": 315}
+
+
+def ph(moves, start, split, yellow, all_red, label=None):
+    """One movement window from a Synchro sheet: `split` includes yellow and all-red."""
+    p = {"moves": moves, "start": start, "green": round(split - yellow - all_red, 1), "yellow": yellow, "allRed": all_red}
+    if label:
+        p["label"] = label
+    return p
+
+
+def ped(start, length, label="Exclusive pedestrian phase"):
+    return {"start": start, "green": 0, "yellow": 0, "allRed": length, "label": label}
+
+
+# The Comm Ave sheets, by Synchro node. Windows are seconds from the reference phase's start of
+# green (the sheet's offset reference); ring-and-barrier lead/lag phases become overlapping
+# windows per movement. "ø" phases with no lane group are pedestrian-only intervals.
+BU_SHEETS = [
+    {
+        "name": "Commonwealth Ave & Babcock St", "node": 2, "at": [(-71.12110, 42.35190)],
+        # EBT leads with WBT; ø1 (no lane group) then runs alongside WBT.
+        "AM": (100, 48, [ph(["EB"], 0, 51, 3, 1), ph(["WB"], 0, 74, 3, 1), ph(["NB", "SB"], 74, 26, 3, 3)]),
+        "PM": (110, 66, [ph(["EB"], 0, 51, 3, 1), ph(["WB"], 0, 77, 3, 1), ph(["NB", "SB"], 77, 33, 3, 3)]),
+    },
+    {
+        "name": "Commonwealth Ave & Harry Agganis Way / Pleasant St", "node": 3,
+        "at": [(-71.11812, 42.35153), (-71.11856, 42.35166), (-71.11872, 42.35130)],
+        "AM": (100, 65, [ph(["EB", "WB"], 0, 56, 3, 2), ph(["NB", "SB"], 56, 28, 3, 3), ped(84, 16)]),
+        "PM": (110, 49, [ph(["EB", "WB"], 0, 79, 3, 2), ph(["NB", "SB"], 79, 31, 3, 3)]),
+    },
+    {
+        "name": "Commonwealth Ave & Buick St / St Paul St", "node": 4, "at": [(-71.11559, 42.35126)],
+        "AM": (100, 82, [ph(["EB"], 0, 51, 3, 1), ph(["WB"], 0, 76, 3, 1), ph(["NB", "SB"], 76, 24, 3, 1)]),
+        "PM": (110, 23, [ph(["EB"], 0, 46, 3, 1), ph(["WB"], 0, 70, 3, 1), ph(["NB", "SB"], 70, 40, 3, 1)]),
+    },
+    {
+        "name": "Commonwealth Ave & Amory St", "node": 5, "at": [(-71.11388, 42.35076)],
+        # Referenced to the Amory St (NB right) phase; ø7 is a 12 s pedestrian interval.
+        "AM": (100, 92, [ph(["NB", "SB"], 0, 27, 3, 2), ped(27, 12), ph(["EB", "WB"], 39, 61, 3, 2)]),
+        "PM": (110, 13, [ph(["NB", "SB"], 0, 27, 3, 2), ped(27, 12), ph(["EB", "WB"], 39, 71, 3, 2)]),
+    },
+    {
+        "name": "Commonwealth Ave & BU Bridge / Essex St", "node": 6, "at": [(-71.11075, 42.35069)],
+        # Barrier 2: Essex St NBT, then ø4, alongside BU Bridge SB.
+        "AM": (100, 11, [ph(["EB", "WB"], 0, 52, 3, 1), ph(["NB"], 52, 32, 3, 4), ph(["SB"], 52, 48, 3, 4)]),
+        "PM": (110, 104, [ph(["EB", "WB"], 0, 52, 3, 1), ph(["NB"], 52, 29, 3, 4), ph(["SB"], 52, 58, 3, 4)]),
+    },
+    {
+        "name": "Commonwealth Ave & Carlton St / University Rd", "node": 8, "at": [(-71.10927, 42.35015)],
+        "AM": (100, 83, [ph(["EB", "WB"], 0, 45, 4, 3), ph(["NB", "SB"], 45, 55, 4, 4)]),
+        "PM": (110, 13, [ph(["EB", "WB"], 0, 37, 4, 3), ph(["NB", "SB"], 37, 73, 4, 4)]),
+    },
+    {
+        "name": "Commonwealth Ave & St Mary's St", "node": 9, "at": [(-71.10638, 42.35015)],
+        # Phase 1 (EB + WB), ø3 (pedestrians), then phase 5: WB with its leading left.
+        "AM": (100, 60, [ph(["EB"], 0, 37, 4, 2), ped(37, 23), ph(["WB"], 60, 77, 4, 2)]),
+        "PM": (110, 23, [ph(["EB"], 0, 39, 4, 2), ped(39, 23), ph(["WB"], 62, 87, 4, 2)]),
+    },
+    {
+        "name": "Commonwealth Ave & Cummington Mall", "node": 10, "at": [(-71.10513, 42.34970)],
+        # Phase 1 (EB + WB), Cummington NB, then the EB lead (with U-turns) into phase 1.
+        "AM": (100, 13, [ph(["WB"], 0, 46, 4, 2), ph(["NB", "SB"], 46, 27, 4, 3), ph(["EB"], 73, 73, 4, 2)]),
+        "PM": (110, 101, [ph(["WB"], 0, 68, 4, 2), ph(["NB", "SB"], 68, 21, 4, 3), ph(["EB"], 89, 89, 4, 2)]),
+    },
+    {
+        "name": "Commonwealth Ave & Granby St", "node": 11, "at": [(-71.10344, 42.34977)],
+        "AM": (100, 54, [ph(["EB", "WB"], 0, 71, 4, 2), ph(["NB", "SB"], 71, 29, 4, 3)]),
+        "PM": (110, 68, [ph(["EB", "WB"], 0, 74, 4, 2), ph(["NB", "SB"], 74, 36, 4, 3)]),
+    },
+    {
+        "name": "Commonwealth Ave & Silber Way / Blandford St", "node": 12, "at": [(-71.10042, 42.34940)],
+        "AM": (100, 98, [ph(["EB", "WB"], 0, 64, 4, 2), ph(["NB", "SB"], 64, 36, 4, 3)]),
+        "PM": (110, 18, [ph(["EB", "WB"], 0, 73, 4, 2), ph(["NB", "SB"], 73, 37, 4, 3)]),
+    },
+    {
+        "name": "Kenmore Square (Commonwealth Ave & Beacon St)", "node": 13, "at": [(-71.09488, 42.34917)],
+        # Phase 2 (Comm Ave EB, SB rights), phase 3 (NB rights, SW lefts and through), phase 1
+        # (NE rights, SW through).
+        "AM": (100, 28, [ph(["EB"], 0, 28, 4, 5), ph(["SB"], 0, 28, 4, 5), ph(["NB"], 28, 42, 3, 1),
+                         ph(["SW", "WB"], 28, 72, 3, 1), ph(["NE"], 70, 30, 4, 4)]),
+        "PM": (110, 81, [ph(["EB"], 0, 36, 4, 5), ph(["SB"], 0, 36, 4, 5), ph(["NB"], 36, 41, 3, 1),
+                         ph(["SW", "WB"], 36, 74, 3, 1), ph(["NE"], 77, 33, 4, 4)]),
+    },
+    {
+        "name": "Mountfort St & St Mary's St", "node": 45, "at": [(-71.10677, 42.34860)],
+        # Split phasing: St Mary's (NB + SB, reference), ø2 (pedestrians), Mountfort WB, EB.
+        "AM": (100, 95, [ph(["NB", "SB"], 0, 35, 3, 1), ped(35, 20), ph(["WB"], 55, 29, 3, 1), ph(["EB"], 84, 16, 3, 1)]),
+        "PM": (110, 74, [ph(["NB", "SB"], 0, 37, 3, 1), ped(37, 20), ph(["WB"], 57, 37, 3, 1), ph(["EB"], 94, 16, 3, 1)]),
+    },
+]
+
+# Audubon Circle: BTD's proposed AM plan (concurrent walks, LPI on the Park Dr south
+# crosswalk). The slides give the four intervals but not every movement; the 6 s one is held
+# as an all-red / pedestrian interval here.
+AUDUBON = {
+    "name": "Audubon Circle (Beacon St & Park Dr)", "at": [(-71.10487, 42.34647)],
+    "plan": (85, [ph(["EB", "WB"], 0, 38, 4, 2), ph(["NB"], 38, 41, 3, 2), ph(["SB"], 50, 29, 3, 2), ped(79, 6, "Clearance / pedestrians")]),
+}
+
+# Published cycle lengths without splits.
+CYCLE_ONLY = [
+    {"name": "Massachusetts Ave & Memorial Dr", "at": [(-71.09267, 42.35712), (-71.09283, 42.35745)], "cycle": 110,
+     "source": "Mass Ave & Memorial Dr cycle (Furth 2022), splits estimated", "url": FURTH_MEMORIAL_URL},
+    {"road": "Massachusetts Avenue", "campus": "medical", "cycle": 100,
+     "source": "Mass Ave corridor cycle (Furth 2019), splits estimated", "url": FURTH_NEWMARKET_URL},
+]
+
+
+def round_half(x):
+    return math.ceil(x * 2 - 1e-9) / 2
+
+
+def mph_of(tag):
+    try:
+        v = float(str(tag).split()[0])
+    except (TypeError, ValueError):
+        return DEFAULT_SPEED_MPH
+    return v / 1.609 if "km" in str(tag) else v
+
+
+def yellow_for(mph):
+    """ITE / MUTCD change interval: t + v / 2a, at least 3 s."""
+    v = mph * 0.44704
+    return max(3.0, round_half(PERCEPTION + v / (2 * DECEL)))
+
+
+def all_red_for(mph, crossing_width):
+    """ITE red clearance: (W + L) / v, 1-3 s."""
+    v = mph * 0.44704
+    return min(3.0, max(1.0, round_half((crossing_width + VEHICLE_LENGTH) / v)))
+
+
+def group_centre(sigs):
+    return (sum(s["position"][0] for s in sigs) / len(sigs), sum(s["position"][1] for s in sigs) / len(sigs))
+
+
+def near(sigs, points, metres=30):
+    return any(math.hypot(*to_xy(s["position"][0], s["position"][1], p)) <= metres for s in sigs for p in points)
+
+
+def road_width(sigs, axis):
+    """Curb-to-curb width pedestrians cross on this axis's road, from the approaches' travel
+    lanes plus a parking lane each side (one carriageway of a divided road: pedestrians cross
+    it in two stages at the median)."""
+    on = [s for s in sigs if s["axis"] == axis]
+    if not on:
+        return 2 * LANE_WIDTH
+    parking = 0 if any(s["rank"] <= ROAD_RANK["trunk"] for s in on) else 2 * PARKING_LANE
+    return max(2 * s["halfWidth"] for s in on) + parking
+
+
+def intersection_name(sigs):
+    names = []
+    for s in sorted(sigs, key=lambda s: s["axis"]):
+        n = s["road"]
+        if n in names or n.endswith(" Link") or n in ("Service", "Unclassified"):
+            continue
+        names.append(n)
+    return " & ".join(names[:3]) or sigs[0]["road"]
+
+
+def movement_of(sig, labels):
+    """The compass movement (of those a sheet uses) nearest this approach's travel bearing."""
+    best = min(labels, key=lambda m: angle_diff(COMPASS[m], sig["approach"]))
+    return best if angle_diff(COMPASS[best], sig["approach"]) <= 50 else None
+
+
+def with_axes(splits, sigs):
+    """Give each published window the axis of the approaches it moves, as a fallback for
+    approaches the sheet doesn't name."""
+    out = []
+    for p in splits:
+        p = dict(p)
+        axes = [s["axis"] for s in sigs if s.get("movement") in p.get("moves", [])]
+        if axes:
+            p["axis"] = max(set(axes), key=axes.count)
+        out.append(p)
+    return out
+
+
+def default_splits(sigs, cycle, lpi):
+    """A two-phase plan: main road, then crossing road (or a pedestrian crossing), each long
+    enough for the walk across the other road, the rest of the cycle shared by lanes."""
+    mph = max((mph_of(s.get("maxspeed")) for s in sigs), default=DEFAULT_SPEED_MPH)
+    w_main, w_cross = road_width(sigs, 0), road_width(sigs, 1)
+    y = yellow_for(mph)
+    ar0, ar1 = all_red_for(mph, w_cross), all_red_for(mph, w_main)
+    fdw_main = round(w_main / PED_SPEED)  # crossing the main road, during the crossing phase
+    fdw_cross = round(w_cross / PED_SPEED)
+    lanes = lambda axis: sum(s["lanes"] for s in sigs if s["axis"] == axis) or 1  # noqa: E731
+    share = min(0.45, max(0.3, lanes(1) / (lanes(0) + lanes(1))))
+    need1 = max(lpi + MIN_GREEN + y + ar1, lpi + WALK + fdw_main + PED_BUFFER)
+    need0 = max(lpi + MIN_GREEN + y + ar0, lpi + WALK + fdw_cross + PED_BUFFER)
+    split1 = max(need1, round(cycle * share))
+    split0 = cycle - split1
+    if split0 < need0:  # too short for both: lengthen the cycle rather than cut a walk
+        split0 = need0
+    split0, split1 = round(split0), round(split1)
+    cycle = split0 + split1
+    return cycle, [
+        {"axis": 0, "start": 0, "lpi": lpi, "green": split0 - lpi - y - ar0, "yellow": y, "allRed": ar0, "walk": WALK, "fdw": fdw_cross},
+        {"axis": 1, "start": split0, "lpi": lpi, "green": split1 - lpi - y - ar1, "yellow": y, "allRed": ar1, "walk": WALK, "fdw": fdw_main},
+    ]
+
+
+def stable_hash(text):
+    return int(hashlib.sha1(text.encode()).hexdigest()[:8], 16)
+
+
+def corridor_offsets(groups):
+    """Offsets giving a green wave along each named main road: eastbound (inbound) in the
+    morning and at night, westbound (outbound) in the afternoon and evening, at the BTD
+    progression speed. {gid: {period: offset}}."""
+    by_road = {}
+    for gid, sigs in groups.items():
+        main = next((s for s in sigs if s["axis"] == 0), sigs[0])
+        by_road.setdefault((main["campus"], main["road"]), []).append((gid, group_centre(sigs)))
+    v = PROGRESSION_MPH * 0.44704
+    out = {}
+    for (campus, road), members in by_road.items():
+        ref = members[0][1]
+        xs = {gid: to_xy(c[0], c[1], ref)[0] for gid, c in members}
+        x0, x1 = min(xs.values()), max(xs.values())
+        base = stable_hash(f"{campus}:{road}") % 997
+        for gid, _ in members:
+            out[gid] = {}
+            for period, _, _ in PERIODS:
+                eastward = period in ("AM peak", "Midday", "Night")
+                travel = (xs[gid] - x0) / v if eastward else (x1 - xs[gid]) / v
+                out[gid][period] = base + travel if len(members) > 1 else stable_hash(gid) % 997
+    return out
+
+
+def timings(signals):
+    """Per-intersection plans for street.json, and each approach's `movement` where a
+    published sheet names movements."""
+    groups = {}
+    for s in signals:
+        groups.setdefault(s["group"], []).append(s)
+    offsets = corridor_offsets(groups)
+    out = []
+    for gid, sigs in groups.items():
+        main = next((s for s in sigs if s["axis"] == 0), sigs[0])
+        if all(s.get("flash") for s in sigs):
+            out.append({"group": gid, "name": intersection_name(sigs), "source": "flashing beacon (OSM)", "published": "none", "plans": []})
+            continue
+        sheet = next((b for b in BU_SHEETS if near(sigs, b["at"])), None)
+        audubon = near(sigs, AUDUBON["at"])
+        if sheet or audubon:
+            plan_sets = {"AM": sheet["AM"], "PM": sheet["PM"]} if sheet else {"AM": (AUDUBON["plan"][0], 0, AUDUBON["plan"][1])}
+            labels = sorted({m for (_, _, splits) in plan_sets.values() for p in splits for m in p.get("moves", [])})
+            for s in sigs:
+                m = movement_of(s, labels)
+                if m:
+                    s["movement"] = m
+            plans = []
+            for period, start, end in PERIODS:
+                key = "PM" if period in ("PM peak",) and "PM" in plan_sets else "AM"
+                cycle, offset, splits = plan_sets[key]
+                if audubon and not sheet:
+                    offset = round(offsets[gid][period] % cycle, 1)
+                plan = {"name": period, "from": start, "to": end, "cycle": cycle, "offset": offset, "splits": with_axes(splits, sigs)}
+                if sheet and period not in ("AM peak", "PM peak"):
+                    plan["note"] = f"AM plan reused: no {period.lower()} plan published"
+                if audubon and not sheet and period != "AM peak":
+                    plan["note"] = f"AM plan reused: no {period.lower()} plan published"
+                plans.append(plan)
+            out.append({
+                "group": gid,
+                "name": sheet["name"] if sheet else AUDUBON["name"],
+                "source": BU_TMP_SOURCE if sheet else "BTD Audubon Circle plan (2010, proposed)",
+                "node": sheet["node"] if sheet else None,
+                "sourceUrl": BU_TMP_URL if sheet else FLK_URL,
+                "published": "full",
+                "corridor": "Commonwealth Avenue" if sheet else "Beacon Street",
+                "plans": plans,
+            })
+            continue
+
+        cycle_only = next((c for c in CYCLE_ONLY if ("at" in c and near(sigs, c["at"])) or
+                           (c.get("road") == main["road"] and c.get("campus") == main["campus"])), None)
+        comm_ave = main["campus"] == "charles-river" and main["road"] == "Commonwealth Avenue" and main["position"][0] < -71.0945
+        major = min(s["rank"] for s in sigs) <= ROAD_RANK["primary"] or comm_ave
+        plans = []
+        for period, start, end in PERIODS:
+            cycle = DEFAULT_CYCLES["major" if major else "minor"][period]
+            source = "typical Boston arterial (no published plan)" if major else "typical Boston signal (no published plan)"
+            url = BTD_POLICY_URL
+            if comm_ave and period in ("AM peak", "PM peak"):
+                cycle = 100 if period == "AM peak" else 110
+                source = "Comm Ave corridor cycle (BTD 2012 sheets), splits estimated"
+                url = BU_TMP_URL
+            elif cycle_only and period in ("AM peak", "Midday", "PM peak"):
+                cycle, source, url = cycle_only["cycle"], cycle_only["source"], cycle_only["url"]
+            day = period != "Night"  # pedestrian recall 7AM-11PM covers every plan but overnight
+            cycle, splits = default_splits(sigs, cycle, LPI if day else 0.0)
+            plans.append({"name": period, "from": start, "to": end, "cycle": cycle, "offset": round(offsets[gid][period] % cycle, 1),
+                          "splits": splits, "source": source, "sourceUrl": url})
+        # The intersection's source is what its busiest plans rest on.
+        peak = plans[0]
+        out.append({
+            "group": gid,
+            "name": intersection_name(sigs),
+            "source": peak.pop("source"),
+            "sourceUrl": peak.pop("sourceUrl"),
+            "published": "cycle" if (comm_ave or cycle_only) else "none",
+            "plans": plans,
+        })
+        for p in plans[1:]:
+            p.pop("sourceUrl")
+            src = p.pop("source")
+            if src != out[-1]["source"]:
+                p["note"] = "default: none published for this period"
+    return out
+
+
+INTERNAL_KEYS = ("halfWidth", "oneway", "rank", "lanes", "maxspeed")
+TIMING_SOURCES = [
+    {"what": "Comm Ave signals, Babcock St to Kenmore Sq, and Mountfort / St Mary's: AM and PM peak cycle, splits, yellow, all-red, offsets (5/16/2012)",
+     "title": "Boston University Charles River Campus Transportation Master Plan 2013-2023, Appendix B Synchro sheets", "url": BU_TMP_URL},
+    {"what": "Audubon Circle proposed AM plan: 85 s, 38/12/29/6 s, LPI",
+     "title": "BTD, Fenway-Longwood-Kenmore Priority Projects (May 2010)", "url": FLK_URL},
+    {"what": "Mass Ave & Memorial Dr: 110 s cycle", "title": "P. Furth, Improving the Mass Ave / Memorial Drive intersection (2022)", "url": FURTH_MEMORIAL_URL},
+    {"what": "Mass Ave coordinated at 100 s near Newmarket Sq", "title": "P. Furth, Mass Ave / Newmarket Square (2019)", "url": FURTH_NEWMARKET_URL},
+    {"what": "Defaults: min green, WALK 7 s, 3.5 ft/s clearance, 3 s buffer, LPI 3 s, ped recall 7AM-11PM, progression speed",
+     "title": "BTD Signal Operations Design Policy (May 2023)", "url": BTD_POLICY_URL},
+    {"what": "Yellow t + v/2a (t = 1 s, a = 10 ft/s²), all-red (W + L)/v", "title": "ITE change and clearance intervals / MUTCD 4D.26", "url": None},
+]
 
 
 def main():
@@ -424,12 +854,24 @@ def main():
         signals.extend(placed)
         print(f"  {len(nodes)} signal nodes -> {len(groups)} intersections -> {len(placed)} signal poles")
 
+    intersections = timings(signals)
+    for s in signals:
+        for key in INTERNAL_KEYS:
+            s.pop(key, None)
+    counts = {}
+    for i in intersections:
+        counts[i["published"]] = counts.get(i["published"], 0) + 1
+    print(f"  timing: {counts.get('full', 0)} published plans, {counts.get('cycle', 0)} published cycle only, "
+          f"{counts.get('none', 0)} defaults or flashing")
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({
         "source": "OpenStreetMap contributors (ODbL): highway=traffic_signals; poles placed by data-pipeline/fetch_street.py",
+        "timingSources": TIMING_SOURCES,
         "signals": signals,
+        "intersections": intersections,
     }, separators=(",", ":")))
-    print(f"wrote {OUT} ({len(signals)} signals)")
+    print(f"wrote {OUT} ({len(signals)} signals, {len(intersections)} intersections)")
 
 
 if __name__ == "__main__":

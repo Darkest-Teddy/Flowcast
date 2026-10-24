@@ -725,6 +725,14 @@ BU_LIVERY = {
 }
 
 
+# BU Night shuttle: the same bus in the Night line's blue (BU's route map colour).
+BU_NIGHT_LIVERY = {
+    "body": mat("#1736D6", 0.15, 0.45),
+    "roof": mat("#E8E8E8", 0.2, 0.55),
+    "mbta_yellow": mat("#FFFFFF", 0.05, 0.5),
+}
+
+
 def write_glb(mesh, name, path, overrides=None):
     materials = {**MATERIALS, **(overrides or {})}
     gltf = {
@@ -831,6 +839,7 @@ def main():
         "mbta-green-line-train": (build_train(), None),
         "mbta-bus": (build_bus(), None),
         "bu-shuttle": (build_bus(sign_text="BU", mbta_roundel=False, side_text="BU"), BU_LIVERY),
+        "bu-shuttle-night": (build_bus(sign_text="BU", mbta_roundel=False, side_text="BU"), BU_NIGHT_LIVERY),
     }
     for name, (mesh, overrides) in models.items():
         path = OUT / f"{name}.glb"
