@@ -19,6 +19,28 @@ test('walking buckets retain long trips, exclude endpoints, and support scrubbin
   assert.equal(playback.walkingAt(450)[0].position[0], -71.005);
 });
 
+test('trail windows retain fading and long walks, cache candidates, and follow scrubbing and speed', () => {
+  const trip = (start, end) => ({agent:'a', from:'home', to:'class', path:[[-71,42],[-71.01,42]], timestamps:[start,end]});
+  const trips = [trip(10,50), trip(280,299), trip(100,1000), trip(600,650), trip(2000,2100)];
+  const playback = new Playback({day:'Monday', buildings:[], locations:[], agents:[{id:'a',home:'off-campus',model:0}], trips});
+  const window = playback.trailsAt(310,20);
+  assert.ok(window.includes(trips[1]), 'a finished walk still has a fading trail');
+  assert.ok(window.includes(trips[2]), 'long walks span buckets');
+  assert.equal(playback.trailsAt(315,20), window);
+  assert.equal(new Set(window).size, window.length);
+  assert.ok(!window.includes(trips[4]), 'distant future trips stay off the GPU');
+  for (const [time, length] of [[700,20],[700,600],[300,20],[299,20],[2100,600],[50,20],[0,600]]) {
+    const candidates = playback.trailsAt(time,length);
+    for (const trip of trips) {
+      if (trip.timestamps[0] <= time && trip.timestamps.at(-1) > time-length) {
+        assert.ok(candidates.includes(trip), `missing visible trail at ${time} with length ${length}`);
+      }
+    }
+    assert.equal(new Set(candidates).size,candidates.length);
+  }
+  assert.deepEqual(playback.trailsAt(5000,20), []);
+});
+
 test('off-map stays are excluded from building occupancy without losing population', () => {
   const location = {id:'home',name:'Home',short:'Home',kind:'dorm',position:[-71,42],capacity:1,building:'h'};
   const playback = new Playback({ day:'Monday',buildings:[],locations:[location],agents:[{id:'a',home:'home',model:0},{id:'b',home:'off-campus',model:0}],trips:[],stays:[{agent:'a',location:'home',start:0,end:86400},{agent:'b',location:'off-campus',start:0,end:86400}] });

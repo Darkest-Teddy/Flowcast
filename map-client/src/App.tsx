@@ -440,7 +440,7 @@ export default function App() {
           ...crowdLayers({
             footprints: day.buildings,
             buildings: buildingOccupancy.filter((building) => building.modeled !== false),
-            trips: playback.data.trips,
+            trips: playback.trailsAt(t, Math.min(600, Math.max(20, speedRef.current * 3))),
             time: t,
             speed: speedRef.current,
             selectedId: selectedRef.current,

@@ -170,6 +170,7 @@ export class Playback {
   private readonly tripsByAgent = new Map<string, Trip[]>();
   private readonly staysByAgent = new Map<string, Stay[]>();
   private readonly walkingBuckets = new Map<number, Trip[]>();
+  private trailWindow: { first: number; last: number; trips: Trip[] } | null = null;
 
   readonly data: DayData;
 
@@ -228,6 +229,19 @@ export class Playback {
       end = Math.max(end, t.timestamps[t.timestamps.length - 1]);
     }
     return this.data.trips.length ? [start, end] : [0, 86400];
+  }
+
+  /** Stable GPU candidates; timestamps clip the exact visible trail inside this window. */
+  trailsAt(t: number, trailLength: number): Trip[] {
+    const first = Math.floor((t - trailLength) / 300);
+    const last = Math.floor(t / 300);
+    if (this.trailWindow?.first === first && this.trailWindow.last === last) return this.trailWindow.trips;
+    const trips = new Set<Trip>();
+    for (let bucket = first; bucket <= last; bucket++) {
+      for (const trip of this.walkingBuckets.get(bucket) ?? []) trips.add(trip);
+    }
+    this.trailWindow = { first, last, trips: [...trips] };
+    return this.trailWindow.trips;
   }
 
   /** Only trips active in this five-minute bucket need position interpolation. */
