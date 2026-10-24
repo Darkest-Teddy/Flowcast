@@ -8,6 +8,7 @@ import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadMonuments, monumentLayers } from './layers/monuments';
+import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { calibrateCapacities } from './sim/calibrate';
@@ -147,7 +148,7 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, fields] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
@@ -161,6 +162,7 @@ export default function App() {
         loadMonuments().catch(() => null),
         loadBikes('/data/bikes.json').catch(() => null),
         loadBoats().catch(() => null), // sailboats on the Charles (river polygon + models)
+        loadFields().catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -168,7 +170,7 @@ export default function App() {
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
       // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
       // Standard's own 3D buildings are off).
-      basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])));
+      basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])).concat(fields ? fieldBuildingIds(fields) : []));
 
       if (transitData) {
         // BU's own shuttles join the MBTA data: same tracks, snapping and panels.
@@ -310,6 +312,7 @@ export default function App() {
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), placer, models: transit.models, time: liveRef.current ? wallClockSeconds() : t, weekday: liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7 }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
+          ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
           ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus, placer })
