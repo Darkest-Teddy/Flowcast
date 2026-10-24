@@ -4,7 +4,6 @@
 import type {
   AdminUser,
   CalendarImport,
-  CampusEvent,
   CampusLocation,
   Club,
   ClubApplication,
@@ -104,14 +103,6 @@ export const clubs: Club[] = [
   { id: 'splash', name: 'Splash 2026', verified: true, members: 40, following: true, description: 'The fall activities fair team.' },
   { id: 'climbing', name: 'Climbing Club', verified: true, members: 130, following: false, description: 'Weekly trips and a bouldering crew.' },
   { id: 'chess', name: 'Chess Club', verified: true, members: 56, following: false, description: 'Casual games every Thursday at GSU.' },
-];
-
-export const campusEvents: CampusEvent[] = [
-  { id: 'e1', title: 'Splash 2026', locationId: 'nickerson', start: iso(3, 11), clubId: 'splash', source: 'club-ics' },
-  { id: 'e2', title: 'BU Data Science talk', locationId: 'cds', start: iso(1, 18, 30), clubId: 'bu-ds', source: 'club-ics' },
-  { id: 'e3', title: 'Hockey vs. BC', locationId: 'agganis', start: iso(2, 19), clubId: null, source: 'university' },
-  { id: 'e4', title: 'Robotics Club build night', locationId: 'epic', start: iso(0, 18), clubId: 'robotics', source: 'club-ics' },
-  { id: 'e5', title: 'Chess night', locationId: 'gsu', start: iso(1, 19), clubId: 'chess', source: 'club-ics' },
 ];
 
 export const clubApplications: ClubApplication[] = [

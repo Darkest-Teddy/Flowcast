@@ -1,8 +1,8 @@
 # How Flowcast uses Kiro
 
-We built Flowcast's student fatigue model with Kiro. This document lists each Kiro feature we used, where its files are, and how to check that it works. All paths are relative to the repository root.
+We built Flowcast with Kiro. This document lists each Kiro feature we used, where its files are, and how to check that it works. All paths are relative to the repository root. Two features are documented in depth: the student fatigue model (first) and real campus events on the map (second).
 
-The feature being built is a per-student fatigue score, from 0 to 1, computed from a student's schedule. The code is in `web/src/lib/fatigue.ts`, with tests in `web/tests/fatigue.test.ts` and a comparison script in `web/scripts/fatigue-sweep.ts`.
+The first feature is a per-student fatigue score, from 0 to 1, computed from a student's schedule. The code is in `web/src/lib/fatigue.ts`, with tests in `web/tests/fatigue.test.ts` and a comparison script in `web/scripts/fatigue-sweep.ts`.
 
 ## Summary
 
@@ -147,3 +147,55 @@ Every reference day peaks at 11:30 PM. That is the last modeled time, and sleep 
 - Fatigue scores come from stated assumptions. They have not been checked against data from real BU students.
 - The model is not yet connected to the map or the phone view (spec task 7).
 - The IDE hook has not been checked in the Kiro IDE.
+
+# Campus events: a second spec-driven feature
+
+The second feature brings BU's real public events into the simulation: scrape them, match venues to mapped buildings, have them pull simulated students on the map, and show their crowd impact by date on the dashboard. It was built in the Kiro CLI with the default agent, then the project agent below.
+
+## How the work went
+
+1. **Plan before code.** Kiro read the master plan and the code, then explained back what it understood: "events" meant two different things in the repo (the dashboard list and the plan's scenario events, Section 5.6). It asked which we meant before touching files. It also flagged two limits: venues hidden behind a login can't move the map, and the simulation only models one representative week.
+2. **Decisions we made from that.** Events inside the simulated week play on their real date; later events are projected onto the same weekday and labelled; a new dashboard tab lets anyone pick a date. Kiro implemented those choices exactly.
+3. **Spec.** `.kiro/specs/campus-events/` holds `requirements.md` (EARS criteria, including "never invent a venue" and "class times never move"), `design.md` (data flow and key decisions), and `tasks.md`, ticked only after test output showed each task worked.
+4. **Live steering mid-task.** While Kiro worked we redirected it twice (create the `.kiro` folder from the rules PDF; reduce approval prompts). It paused, handled the request, and resumed the plan.
+
+## What Kiro found that we would have missed
+
+- **Scraper bugs on real pages.** Three public events failed to parse. Kiro read the cached HTML and found organizer descriptions with raw newlines and invalid `\&quot;` escapes inside the JSON-LD; it fixed both and added tests.
+- **Wrong venues.** Terrier Central fills in 775 Commonwealth Ave for rooms in other buildings, so the old matcher rejected "CAS B36". Kiro changed matching to trust the venue name first, which raised mapped events from 4 to 33.
+- **Unrealistic attendance.** The first trial put 2,345 students in a 56-seat room. Kiro looked up the classroom directory and capped each event by its room's published seats.
+- **A capacity bug, caught by a property test.** `map-client/tests/gatherings.test.mjs` generates 100 random worlds and event days and checks that everyone is accounted for every second, caps hold, and classes never change. Seed 1014 failed: events in classrooms could push a building over capacity, because classrooms weren't in the minute-by-minute capacity ledger. The fix puts event venues into that shared ledger.
+- **Merge conflicts with teammates.** Teammates changed the same simulation function (adding transit) at the same time. Kiro merged both: transit stayed the 4th argument, and events became a 5th options argument. It added the new "gathering" stay purpose their incident code needed, then re-ran all 181 tests.
+
+## Kiro files for this feature
+
+| Feature | Location | Purpose |
+| --- | --- | --- |
+| Spec | `.kiro/specs/campus-events/` | Requirements, design and tasks for real campus events |
+| Steering | `.kiro/steering/product.md`, `tech.md`, `structure.md` | Data-honesty rules (registrations are never attendance, no invented venues), where code lives, and the commands that verify a change |
+| Custom agent | `.kiro/agents/flowcast.json` | Project agent: loads steering and skills, auto-approves built-in tools, always denies `rm -rf`, force push, `git reset --hard`, `git clean -f`, `git branch -D` and `sudo` |
+| Agent hooks | `.kiro/hooks/verify.sh`, `check_manifest.py`, wired into `flowcast.json` | On start: git status and open spec tasks. After every write: warns if a data snapshot changed without updating its checksum (this exact mistake once blocked a build). On stop: Python tests and both typechecks, about 8 seconds |
+| Skills | `.kiro/skills/refresh-events/`, `.kiro/skills/spec/` | `/refresh-events` re-scrapes and rebuilds; `/spec <feature>` starts or continues a spec |
+| Property-based test | `map-client/tests/gatherings.test.mjs` | 100 generated event days with a seeded generator, so failures are reproducible |
+
+## Other Kiro tools used
+
+- **Code intelligence and search** to trace `buildSourceDay`, the planner and every consumer of the event types before changing them.
+- **Task list** to track the seven build steps across a long session with context compaction.
+- **Introspect** to read Kiro's own docs on steering, agent, hook and trust formats before writing those files.
+- **Shell and browser checks**: Kiro drove headless Chrome to screenshot the new pages and the map, then revised the event-impact layout after seeing it (it moved small ripple effects into the table and switched to a clearer event-hour marker).
+
+## Verify
+
+```bash
+(cd data-pipeline && .venv/bin/python -m unittest discover -s tests)   # pipeline, incl. scraper and venue tests
+(cd map-client && node --test tests/gatherings.test.mjs)                # event behavior + property test
+bash .kiro/hooks/verify.sh                                               # the stop hook
+kiro-cli agent validate --path .kiro/agents/flowcast.json
+```
+
+## Limits
+
+- Event attendance (25% of free students) is the plan's default assumption, not measured attendance.
+- 55 of 88 events can't change the map: their location is login-only, their building isn't mapped yet (the Howard Thurman Center has 22), or they are multi-day listings.
+- MCP servers and Kiro powers were not used for this feature.

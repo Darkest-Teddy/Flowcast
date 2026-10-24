@@ -54,6 +54,29 @@ class EventTests(unittest.TestCase):
                          ["https://terriercentral.bu.edu/web/rsvp_boot?id=123"])
 
 
+    def test_raw_newline_in_description_still_parses(self):
+        html = ('<script type="application/ld+json">{"@type": "Event", "name": "Dogfight",'
+                ' "startDate": "2026-11-19T20:00:00-05:00", "endDate": "2026-11-19T23:00:00-05:00",'
+                ' "location": {"name": "Private Location (sign in to display)"},'
+                ' "description": "Fall student theatre\nmusical about a \\&quot;dogfight,\\&quot; bet"}</script>')
+        row = parse_event(source(html))
+        self.assertEqual(row["name"], "Dogfight")
+        self.assertEqual(row["locationStatus"], "hidden")
+
+    def test_private_events_are_skipped_with_a_warning(self):
+        public = self.event()
+        class Fetcher:
+            def get(self, url):
+                if url == LISTING_URL:
+                    return source('<a href="/web/rsvp_boot?id=375534">A</a><a href="/web/rsvp_boot?id=999">B</a>', url)
+                if url.endswith("id=999"):
+                    return source("<h1>Sign in</h1>", "https://terriercentral.bu.edu/otp_signup?module=event&event_id=999&private_event=1")
+                return public
+        result = collect(Fetcher())
+        self.assertEqual([row["eventId"] for row in result["events"]], ["375534"])
+        self.assertEqual(result["errors"], [])
+        self.assertTrue(any("1 listed events are private" in warning for warning in result["warnings"]))
+
     def test_second_listing_failure_retains_discovered_events(self):
         detail = self.event()
         class Fetcher:
