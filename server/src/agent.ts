@@ -2,7 +2,7 @@
 // tools.ts. The model only chooses tools and words the reply; every number comes from a tool.
 
 import { Agent, MaxTurnsExceededError, Runner, type Model } from '@openai/agents';
-import type { AskContext } from '../../map-client/src/insights';
+import type { ServerAskContext } from './facts';
 import { formatClock } from '../../map-client/src/sim/playback';
 import { WEEKDAYS } from '../../map-client/src/data/campusData';
 import { createTools, mapOutput, newToolLog, type AnswerRow, type MapShow } from './tools';
@@ -23,13 +23,23 @@ export interface AskResult {
   calls: string[];
 }
 
-function instructions(ctx: AskContext): string {
+function instructions(ctx: ServerAskContext): string {
   return [
     'You answer students’ questions about the Boston University campus for Flowcast, a 3D campus map filled with simulated students.',
     `The map currently shows ${WEEKDAYS[ctx.weekday]} at ${formatClock(ctx.time)} on the ${ctx.campus} campus. "Now" means that time.`,
     '',
+    'Tools: rank_places_by_crowd (rank places by simulated crowding), place_day (one place over a day: hours, now, hourly table, quietest/busiest open hours), ' +
+      'place_info (published hours, open now and next change, capacity basis, estimated profiles, evidence), campus_overview (whole-map totals, walkers, busiest places), ' +
+      'list_events (published events), free_rooms (rooms with no published class), model_basis (how the model works, for "why" questions), ' +
+      'published_counts (observed FitRec entries and pedestrian counts), walking_route, find_course, find_places.',
+    '',
     'Rules:',
     '- Get every number, place, time and course from a tool. Never estimate or recall one yourself. If no tool can answer, say what you can answer instead.',
+    '- Closed is not quiet: a place with open=false is closed by its published hours; never call it quiet, empty or least crowded. Unknown hours (open=null) are not closed: say its hours aren’t published.',
+    '- Published counts (published_counts, evidence items) are observed data from their own period. Call them published counts, give their period, and never mix them with simulated figures.',
+    '- If a tool gives afterMidnightNote, say the place is open then but the simulation doesn’t model visits after midnight; never call it empty.',
+    '- For another day, pass the weekday parameter (0 = Monday). If a tool returns available=false, say that day is still being simulated and to try again shortly.',
+    '- For "why" questions about crowding or numbers, use model_basis or place_info and explain from what they return.',
     '- Crowd figures are simulated students over each place’s stated capacity. Call them "simulated" or "modeled". Never call them predictions, measurements or live counts.',
     '- If a tool says modeled=false, say the simulation doesn’t model that place on this day. If percent is null, give the student count and say the capacity isn’t comparable.',
     '- If a walk has isEstimate=true, say it is a straight-line estimate because no footpath is mapped.',
@@ -59,9 +69,38 @@ export function rewordAnswer(answer: string): string | null {
 
 const numbers = (text: string) => text.replace(/(\d),(?=\d{3}\b)/g, '$1').match(/\d+(?:\.\d+)?/g) ?? [];
 
+/** Table columns whose cells are figures an answer may quote; hour and open-flag columns are not. */
+const FIGURE_COLUMNS = new Set(['percent', 'students', 'visits', 'pedestrians']);
+
+/**
+ * Numbers a tool output supports: scalar fields and strings anywhere, but in hourly tables
+ * ({ columns, rows }) only the figure columns, so hour numbers 0–23 and open flags don't make
+ * every small number look supported.
+ */
+export function supportedNumbers(output: string): string[] {
+  let value: unknown;
+  try { value = JSON.parse(output); } catch { return numbers(output); }
+  const out: string[] = [];
+  const walk = (v: unknown) => {
+    if (typeof v === 'number') out.push(...numbers(String(v)));
+    else if (typeof v === 'string') out.push(...numbers(v));
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      if (Array.isArray(o.columns) && Array.isArray(o.rows)) {
+        const keep = o.columns.map((c) => FIGURE_COLUMNS.has(String(c)));
+        for (const row of o.rows) if (Array.isArray(row)) row.forEach((cell, i) => { if (keep[i]) walk(cell); });
+        for (const [k, x] of Object.entries(o)) if (k !== 'rows' && k !== 'columns') walk(x);
+      } else Object.values(o).forEach(walk);
+    }
+  };
+  walk(value);
+  return out;
+}
+
 /** Numbers in the answer that appear in no tool output, the question or the shown day and time. */
 export function unsupportedNumbers(answer: string, sources: string[]): string[] {
-  const known = new Set(sources.flatMap(numbers));
+  const known = new Set(sources.flatMap(supportedNumbers));
   return numbers(answer).filter((n) => !known.has(n));
 }
 
@@ -71,7 +110,7 @@ export const unsupportedNumberCount = () => answersWithUnsupportedNumbers;
 
 // ---------------------------------------------------------------- the run
 
-export async function askAgent(question: string, ctx: AskContext, signal?: AbortSignal, model: string | Model = ASK_MODEL): Promise<AskResult> {
+export async function askAgent(question: string, ctx: ServerAskContext, signal?: AbortSignal, model: string | Model = ASK_MODEL): Promise<AskResult> {
   const log = newToolLog();
   const modelName = typeof model === 'string' ? model : ASK_MODEL;
   const agent = new Agent({

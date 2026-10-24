@@ -822,6 +822,7 @@ export default function App() {
         time: Math.floor(hud.time / 60) * 60,
         weekday,
         campus,
+        data: sourceData ?? undefined,
       }
     : null;
   const showAsk = (show: AskShow | null) => {
