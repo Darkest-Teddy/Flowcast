@@ -45,6 +45,23 @@ data-pipeline/.venv/bin/python data-pipeline/scrape_population_data.py \
 
 Identifiers are stable source identities, not yet the simulator's validated location IDs. `locationId` remains null until the data lead maps aliases and verifies a graph-connected entrance. Building codes, room codes, addresses, source names, raw evidence, and source URLs support that mapping. Do not publish these records as supported simulation destinations without reachability validation.
 
+### Campus-wide crawl
+
+Use the dedicated crawler to discover every course index linked by the BU Academics school/area pages and follow its full numeric pagination:
+
+```sh
+data-pipeline/.venv/bin/python data-pipeline/crawl_campus_catalog.py \
+  --term 'FALL 2026' --workers 8 --delay 0.25 --resume
+```
+
+It writes `output/campus-wide/catalog.json`, a per-area/per-school `coverage.json`, discovered URLs, progressive course/meeting JSONL files, and a checksum manifest. `coverage.json` is checkpointed during the run. With `--resume`, complete parsed JSONL records are reused as well as HTTP snapshots. Incomplete records and failed details are retried; excluded records must also be present before a course can be reused. `--offline` reconstructs from a complete cache.
+
+The request interval is shared across workers, so eight workers do not multiply the configured request rate. A 0.25-second interval caps new requests at four per second. HTTP 429 responses slow all workers, and `Retry-After` establishes a shared host cooldown. The room pass first follows the public classroom search pagination, then uses its canonical room-page links. Rooms without a matching directory entry remain unknown, avoiding unnecessary requests for guessed URLs. Combined-room entries are kept distinct from individual rooms.
+
+The crawler verifies final URLs before attributing a page to a school and records source failures. Areas with external sites or no own public course index are listed separately. Courses without target-term schedules remain in the course catalogue with explicit status. Fall-term rows retain their notes and a calendar-review flag because intensive/block sessions may cover only selected dates.
+
+This output is separate from the three-example dataset produced by the ordinary `scrape_catalog.py` default. Catalogue coverage is not a verified complete MyBU offering list, and public classroom capacities remain distinct from enrollment.
+
 ### Expand classes beyond the three examples
 
 By default, the catalog collector fetches MA 123, EK 103, and CH 101 from the guide. This is a reproducible starting sample, not campus-wide coverage. Select explicit courses with repeated `--course-url`, or discover them through department indexes:

@@ -2,12 +2,15 @@
 
 import argparse
 from dataclasses import dataclass, replace
+from collections import OrderedDict
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import hashlib
 import json
 import os
 from pathlib import Path
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -91,18 +94,34 @@ class Fetcher:
         self.offline, self.refresh = offline, refresh
         self.delay, self.timeout = delay, timeout
         self.last_request = {}
-        self.responses = {}
+        self.host_backoff = {}
+        self.rate_limit_count = 0
+        self.responses = OrderedDict()
+        self.seen_urls = set()
+        self._lock = threading.Lock()
+
+    def _remember(self, url, source):
+        with self._lock:
+            self.responses[url] = source
+            self.seen_urls.add(url)
+            self.responses.move_to_end(url)
+            while len(self.responses) > 128:
+                self.responses.popitem(last=False)
+        return source
 
     def get(self, url):
         parsed = urllib.parse.urlsplit(url)
         if parsed.scheme not in ("http", "https") or not parsed.netloc or parsed.username or parsed.password:
             raise ScrapeError(f"Not a public HTTP(S) URL: {url}")
-        if url in self.responses:
-            return replace(self.responses[url], cached=True)
+        with self._lock:
+            if url in self.responses:
+                self.responses.move_to_end(url)
+                return replace(self.responses[url], cached=True)
+            already_seen = url in self.seen_urls
         key = hashlib.sha256(url.encode()).hexdigest()
         body_path = self.cache_dir / f"{key}.body"
         meta_path = self.cache_dir / f"{key}.json"
-        if body_path.exists() and meta_path.exists() and not self.refresh:
+        if body_path.exists() and meta_path.exists() and (not self.refresh or already_seen):
             try:
                 meta = json.loads(meta_path.read_text())
                 body = body_path.read_bytes()
@@ -110,16 +129,17 @@ class Fetcher:
                     raise ScrapeError(f"Cache checksum mismatch: {url}")
                 source = Source(meta["url"], body, meta["retrievedAt"], meta["contentType"],
                                 str(body_path.resolve()), True, url)
-                self.responses[url] = source
-                return source
+                return self._remember(url, source)
             except (KeyError, json.JSONDecodeError) as exc:
                 raise ScrapeError(f"Invalid cache metadata for {url}: {exc}") from exc
         if self.offline:
             raise ScrapeError(f"No cached response for {url}; run online first")
         for attempt in range(3):
-            elapsed = time.monotonic() - self.last_request.get(parsed.netloc, 0)
-            time.sleep(max(0, self.delay - elapsed))
-            self.last_request[parsed.netloc] = time.monotonic()
+            with self._lock:
+                now = time.monotonic()
+                allowed = max(self.last_request.get(parsed.netloc, 0) + self.delay, self.host_backoff.get(parsed.netloc, 0))
+                time.sleep(max(0, allowed - now))
+                self.last_request[parsed.netloc] = time.monotonic()
             request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
@@ -128,10 +148,26 @@ class Fetcher:
                                     str(body_path.resolve()), False, url)
                 break
             except urllib.error.HTTPError as exc:
-                if exc.code in (429, 500, 502, 503, 504) and attempt < 2:
+                exc.close()
+                if exc.code in (429, 500, 502, 503, 504):
                     retry = exc.headers.get("Retry-After", "")
-                    time.sleep(min(30, int(retry)) if retry.isdigit() else 2 ** attempt)
-                    continue
+                    wait = 2 ** attempt
+                    if retry.isdigit():
+                        wait = int(retry)
+                    elif retry:
+                        try:
+                            wait = max(0, (parsedate_to_datetime(retry) - datetime.now(timezone.utc)).total_seconds())
+                        except (TypeError, ValueError):
+                            pass
+                    if exc.code == 429 or retry:
+                        with self._lock:
+                            if exc.code == 429:
+                                self.rate_limit_count += 1
+                                self.delay = max(1.0, self.delay * 2)
+                            self.host_backoff[parsed.netloc] = max(self.host_backoff.get(parsed.netloc, 0), time.monotonic() + wait)
+                    if attempt < 2:
+                        time.sleep(wait)
+                        continue
                 raise ScrapeError(f"HTTP {exc.code} fetching {url}") from exc
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 if attempt < 2:
@@ -142,8 +178,7 @@ class Fetcher:
         # Publish metadata last, so an interrupted response is never a complete cache entry.
         body_path.write_bytes(body)
         write_json(meta_path, source.provenance)
-        self.responses[url] = source
-        return source
+        return self._remember(url, source)
 
 
 def soup(source):

@@ -109,7 +109,13 @@ def parse_course(source, term="FALL 2026"):
             meetings.append(record)
     if not matched_tables:
         warnings.append(f"No public meeting tables for {term.upper()} on {source.url}; no term fallback was used.")
-    return {"meetings": meetings, "excludedMeetings": excluded, "warnings": warnings}
+    return {"meetings": meetings, "excludedMeetings": excluded, "warnings": warnings,
+            "course": {"id": "course-" + stable_id(source.url), "courseCode": course,
+                       "title": text(title) if title else None, "url": source.url,
+                       "term": term.upper(), "termTableCount": matched_tables,
+                       "meetingCount": len(meetings), "excludedMeetingCount": len(excluded),
+                       "scheduleStatus": "published" if matched_tables else "no_target_term_schedule_published",
+                       "provenance": source.provenance}}
 
 
 def parse_buildings(source):
@@ -143,11 +149,13 @@ def parse_classroom(source, building_code, room_code):
     capacity = fields.get("capacity", "")
     if not capacity.isdigit():
         raise ScrapeError(f"Published room capacity not found: {source.url}")
-    if fields.get("building code", "").upper() != building_code or fields.get("room number", "").upper() != room_code:
+    published_building = fields.get("building code", "").upper()
+    normalized_building = published_building.rsplit(" - ", 1)[-1] if published_building.startswith("BUMC - ") else published_building
+    if normalized_building != building_code or fields.get("room number", "").upper() != room_code:
         raise ScrapeError(f"Room identity mismatch for {building_code} {room_code}: {source.url}")
     return {
         "id": f"room-{building_code}-{room_code}", "buildingCode": building_code,
-        "roomCode": room_code, "address": fields.get("address"),
+        "roomCode": room_code, "publishedBuildingCode": fields.get("building code"), "address": fields.get("address"),
         "capacity": {"value": int(capacity), "unit": "seats", "measure": "capacity",
                      "estimated": False, "basis": "Published classroom directory; not enrollment or attendance"},
         "provenance": source.provenance,
@@ -176,8 +184,8 @@ def discover_courses(fetcher, index_urls, max_index_pages):
                 continue
             if COURSE_PATH.fullmatch(parsed.path):
                 found.append(target)
-            elif ("next" in (link.get("rel") or []) or re.search(r"/page/\d+/?$", parsed.path)) and target not in visited:
-                if parsed.path.startswith(urlparse(url).path.split('/page/')[0]):
+            elif ("next" in (link.get("rel") or []) or re.search(r"/courses/(?:page/)?\d+/?$", parsed.path)) and target not in visited:
+                if parsed.path.startswith(re.split(r'/courses/', urlparse(url).path)[0] + '/courses/'):
                     pending.append(target)
     if pending:
         warnings.append(f"Course index crawl stopped at {max_index_pages} pages; more index links remain.")
