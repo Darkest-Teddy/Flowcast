@@ -11,6 +11,7 @@ import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { calibrateCapacities } from './sim/calibrate';
+import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
@@ -141,7 +142,7 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
@@ -154,6 +155,7 @@ export default function App() {
         loadCampusData().catch(() => { setSourceError("Could not load campus data. Showing the demo."); return null; }),
         loadMonuments().catch(() => null),
         loadBikes('/data/bikes.json').catch(() => null),
+        loadBoats().catch(() => null), // sailboats on the Charles (river polygon + models)
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -222,6 +224,8 @@ export default function App() {
           const transit = transitRef.current;
           const streetText = streetTooltip(object, transit);
           if (streetText) return streetText;
+          const boatText = boatTooltip(object);
+          if (boatText) return boatText;
           const text = transit ? transitTooltip(object, transit.data, liveRef.current ? transit.feed : transit.schedule) : null;
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
@@ -296,6 +300,7 @@ export default function App() {
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
+          ...(boats ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current }) : []),
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus, placer })
             : []),
