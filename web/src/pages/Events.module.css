@@ -1,0 +1,6 @@
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin-top: var(--space-8);
+}

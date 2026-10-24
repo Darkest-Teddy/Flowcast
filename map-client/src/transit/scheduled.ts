@@ -1,32 +1,38 @@
 // Scheduled transit for playback mode. Live MBTA and BU feeds can only move at real time, so
-// when the simulated day is fast-forwarded (30x, 120x...) trains and buses come from here
-// instead: they run on the same tracks at typical headways and speeds, dwell at every stop,
-// and follow the simulation clock, so they stay in proportion to the walkers.
+// when the simulated day is played back or fast-forwarded (1x, 30x, 120x...) trains and buses
+// come from here instead: they run on the same tracks at typical headways, accelerate and brake
+// (motion.ts), dwell at every stop, wait at red signals on the simulation clock, and follow the
+// simulation clock, so they stay in proportion to the walkers.
 import type { Arrival, TransitData, TransitRoute, Vehicle } from './mbta';
-import { isUnderground, pointAlong, snapToTracks, type Track } from './tracks';
+import { isUnderground, pointAlong, type Track } from './tracks';
+import { nominalTripSeconds, planTrip, trackFeatures, tripAt, type TrackFeatures, type TripPlan } from './motion';
 
-/** Typical service, in seconds: [peak headway, off-peak headway, cruise speed m/s, dwell s]. */
-const SERVICE: Record<TransitRoute['kind'], [number, number, number, number]> = {
-  subway: [6 * 60, 9 * 60, 8, 25], // Green Line surface running down the Comm Ave median
-  bus: [10 * 60, 15 * 60, 6, 20],
-  shuttle: [15 * 60, 20 * 60, 6, 30],
+/** Typical service, in seconds: [peak headway, off-peak headway, dwell]. */
+const SERVICE: Record<TransitRoute['kind'], [number, number, number]> = {
+  subway: [6 * 60, 9 * 60, 25], // Green Line surface running down the Comm Ave median
+  bus: [10 * 60, 15 * 60, 15],
+  shuttle: [15 * 60, 20 * 60, 25],
 };
 // The 57 and the B branch are the busiest services through campus.
 const HEADWAY_OVERRIDE: Record<string, [number, number]> = { '57': [8 * 60, 12 * 60], 'Green-B': [5 * 60, 8 * 60] };
 const SERVICE_START = 5.5 * 3600;
 const SERVICE_END = 24.5 * 3600;
-const STOP_SNAP_METRES = 35;
+// Trips can run this much longer than their nominal time per signal on the way (worst case:
+// arriving just as it turns red), which bounds which departures can still be on the track.
+const SIGNAL_ALLOWANCE = 75;
 
 const isPeak = (t: number) => (t >= 7 * 3600 && t < 10 * 3600) || (t >= 16 * 3600 && t < 19 * 3600);
 
 interface Profile {
   track: Track;
+  name: string; // vehicle id prefix: route-direction, plus a branch number where a route has several
   kind: TransitRoute['kind'];
-  stops: { stopId: string; s: number; arrive: number; depart: number }[]; // times from leaving the start
-  speed: number;
-  total: number; // seconds from start to end of track
+  dwell: number;
+  features: TrackFeatures | null;
+  span: number; // the longest a trip can take, seconds
   offset: number; // seconds: staggers routes so they don't all depart together
   headway: [number, number];
+  plans: Map<number, TripPlan>; // by departure time
 }
 
 function hash(text: string): number {
@@ -42,33 +48,43 @@ export class ScheduledTransit {
   private time = 0;
 
   constructor(
-    data: TransitData,
+    private readonly data: TransitData,
     readonly tracks: Track[],
   ) {
     const routes = new Map(data.routes.map((r) => [r.id, r]));
+    const seen = new Map<string, number>();
     this.profiles = tracks.flatMap((track): Profile[] => {
       const route = routes.get(track.route);
       if (!route) return [];
-      const [peak, off, speed, dwell] = SERVICE[route.kind];
-      const stops = data.stops
-        .filter((s) => s.routes.includes(route.id))
-        .map((s) => ({ stopId: s.id, hit: snapToTracks([track], s.position) }))
-        .filter((x) => x.hit && x.hit.distance <= STOP_SNAP_METRES)
-        .map((x) => ({ stopId: x.stopId, s: x.hit!.s }))
-        .sort((a, b) => a.s - b.s);
-      let clock = 0;
-      let at = 0;
-      const timed = stops.map((stop) => {
-        clock += (stop.s - at) / speed;
-        at = stop.s;
-        const arrive = clock;
-        clock += dwell;
-        return { ...stop, arrive, depart: clock };
-      });
-      const total = clock + (track.length - at) / speed;
+      const [peak, off, dwell] = SERVICE[route.kind];
       const headway = HEADWAY_OVERRIDE[route.id] ?? [peak, off];
-      return [{ track, kind: route.kind, stops: timed, speed, total, offset: hash(`${track.route}:${track.direction}`) % headway[1], headway }];
+      // Routes with several branches one way (the 8, the 47) get one id prefix per branch.
+      const key = `${track.route}-${track.direction}`;
+      const branch = seen.get(key) ?? 0;
+      seen.set(key, branch + 1);
+      const name = branch ? `${key}b${branch}` : key;
+      return [{ track, name, kind: route.kind, dwell, features: null, span: 0, offset: hash(`${track.route}:${track.direction}`) % headway[1], headway, plans: new Map() }];
     });
+  }
+
+  /** Stops and signals along a profile's track; plans are redone if they change (street loaded). */
+  private featuresOf(p: Profile): TrackFeatures {
+    const features = trackFeatures(p.track, p.kind, this.data.stops);
+    if (features !== p.features) {
+      p.features = features;
+      p.span = nominalTripSeconds(p.track, features, p.kind, p.dwell) + SIGNAL_ALLOWANCE * (features.signals.length + 1);
+      p.plans.clear();
+    }
+    return features;
+  }
+
+  private planFor(p: Profile, departed: number): TripPlan {
+    let plan = p.plans.get(departed);
+    if (!plan) {
+      plan = planTrip(p.track, p.features!, p.kind, departed, p.dwell);
+      p.plans.set(departed, plan);
+    }
+    return plan;
   }
 
   /** Advance to simulation time `t` (seconds since midnight). Call once per frame. */
@@ -78,70 +94,64 @@ export class ScheduledTransit {
     const arrivals: Arrival[] = [];
     const wallNow = Date.now();
     for (const p of this.profiles) {
+      this.featuresOf(p);
       const headway = isPeak(t) ? p.headway[0] : p.headway[1];
-      // Every departure from the start of the track that is still somewhere along it.
-      const first = Math.ceil((t - p.total - p.offset) / headway);
+      // Every departure from the start of the track that may still be somewhere along it, and
+      // the next two to leave (for arrival times at the first stops).
+      const first = Math.ceil((t - p.span - p.offset) / headway);
       const last = Math.floor((t - p.offset) / headway);
-      for (let n = first; n <= last; n++) {
+      const next = new Map<string, number[]>();
+      for (let n = first; n <= last + 2; n++) {
         const departed = n * headway + p.offset;
         if (departed < SERVICE_START || departed > SERVICE_END) continue;
-        const v = this.vehicleAt(p, t - departed, `${p.track.route}-${p.track.direction}-${n}`);
+        const plan = this.planFor(p, departed);
+        for (const [stop, arrive] of plan.arrivals) {
+          if (arrive < t - 30) continue;
+          const list = next.get(stop) ?? [];
+          list.push(arrive);
+          next.set(stop, list);
+        }
+        if (n > last) continue;
+        const v = this.vehicleAt(p, plan, t, `${p.name}-${n}`);
         if (v) vehicles.push(v);
       }
       // Next two arrivals at each stop. Shown as "sim minutes from now" via a wall-clock time.
-      for (const stop of p.stops) {
-        const k = Math.ceil((t - stop.arrive - p.offset) / headway);
-        for (const n of [k, k + 1]) {
-          const eta = n * headway + p.offset + stop.arrive - t;
-          const departed = n * headway + p.offset;
-          if (departed < SERVICE_START || departed > SERVICE_END) continue;
-          arrivals.push({ stop: stop.stopId, route: p.track.route, direction: p.track.direction, time: wallNow + eta * 1000 });
+      for (const [stop, times] of next) {
+        for (const arrive of times.sort((a, b) => a - b).slice(0, 2)) {
+          arrivals.push({ stop, route: p.track.route, direction: p.track.direction, time: wallNow + (arrive - t) * 1000 });
         }
+      }
+      // Forget trips long finished or far in the future (after scrubbing).
+      if (p.plans.size > 64) {
+        for (const departed of p.plans.keys()) if (departed < t - p.span - 600 || departed > t + 4 * headway) p.plans.delete(departed);
       }
     }
     this.vehicles = vehicles;
     this.state.arrivals = arrivals;
   }
 
-  private vehicleAt(p: Profile, elapsed: number, id: string): Vehicle | null {
-    let s = 0;
-    let stopped = false;
-    let prevS = 0;
-    let prevTime = 0;
-    let done = false;
-    for (const stop of p.stops) {
-      if (elapsed < stop.arrive) {
-        s = prevS + (elapsed - prevTime) * p.speed;
-        done = true;
-        break;
-      }
-      if (elapsed < stop.depart) {
-        s = stop.s;
-        stopped = true;
-        done = true;
-        break;
-      }
-      prevS = stop.s;
-      prevTime = stop.depart;
-    }
-    if (!done) s = Math.min(p.track.length, prevS + (elapsed - prevTime) * p.speed);
-    if (isUnderground(p.track, s)) return null;
-    const at = pointAlong(p.track, s);
+  private vehicleAt(p: Profile, plan: TripPlan, t: number, id: string): Vehicle | null {
+    const at = tripAt(plan, t);
+    if (!at || isUnderground(p.track, at.s)) return null;
+    const { position, bearing } = pointAlong(p.track, at.s);
     return {
       id,
       route: p.track.route,
       direction: p.track.direction,
       label: 'scheduled',
-      status: stopped ? 'STOPPED_AT' : 'IN_TRANSIT_TO',
-      bearing: at.bearing,
-      position: at.position,
-      from: at.position,
-      to: at.position,
+      // STOPPED_AT only while standing at a stop; waiting at a red light is still in transit.
+      status: at.holding === 'stop' ? 'STOPPED_AT' : 'IN_TRANSIT_TO',
+      holding: at.holding,
+      speed: at.v,
+      bearing,
+      position,
+      from: position,
+      to: position,
       receivedAt: 0,
       interval: 1,
       track: p.track,
-      sFrom: s,
-      sTo: s,
+      sFrom: at.s,
+      sTo: at.s,
     };
   }
 

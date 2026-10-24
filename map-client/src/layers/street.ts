@@ -15,7 +15,8 @@ import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color } from '@deck.gl/core';
 import type { MbtaFeed, TransitData, TransitRoute, TransitStop } from '../transit/mbta';
 import { offsetPath, pointAlong, snapToTracks, type Track } from '../transit/tracks';
-import { lampAt, secondsToChange, type Lamp } from '../sim/signals';
+import { PLATFORM_LENGTH, platformCentre } from '../transit/motion';
+import { lampAt, registerSignals, secondsToChange, splitFor, timingFor, timingLabel, type IntersectionTiming, type Lamp } from '../sim/signals';
 import { transitTooltip } from './transit';
 
 /** Below this zoom the 3D furniture is too small to matter, so none of it draws. */
@@ -30,6 +31,9 @@ export interface StreetSignal {
   road: string;
   campus: string;
   flash?: boolean;
+  stopLine?: [number, number]; // where this approach's traffic stops
+  approach?: number; // its direction of travel (compass degrees)
+  movement?: string; // "EB", "WB"... where a published plan names movements
 }
 
 type ModelName = 'signal' | 'stop' | 'stopSign' | 'shelter';
@@ -49,7 +53,7 @@ export async function loadStreet(url = '/data/street.json'): Promise<Street> {
   const [json, models] = await Promise.all([
     fetch(url).then((r) => {
       if (!r.ok) throw new Error(`Failed to load ${url}: ${r.status}`);
-      return r.json() as Promise<{ signals: StreetSignal[] }>;
+      return r.json() as Promise<{ signals: StreetSignal[]; intersections?: IntersectionTiming[] }>;
     }),
     Promise.all(
       (Object.entries(MODEL_URLS) as [ModelName, string][]).map(async ([name, modelUrl]) => {
@@ -60,6 +64,8 @@ export async function loadStreet(url = '/data/street.json'): Promise<Street> {
       }),
     ),
   ]);
+  // Timing plans and stop lines go to the signal clock, which transit motion also reads.
+  registerSignals(json.signals, json.intersections ?? []);
   return { signals: json.signals.map((s) => ({ ...s, streetKind: 'signal' as const })), models: Object.fromEntries(models) };
 }
 
@@ -155,7 +161,7 @@ function signalGlows(signals: Street['signals'], time: number): Glow[] {
     cache = { lenses, key: '', glows: [] };
     signalCache.set(signals, cache);
   }
-  const lamps = signals.map((s) => lampAt(time, s.group, s.axis, s.flash));
+  const lamps = signals.map((s) => lampAt(time, s.group, s.axis, s.flash, s.movement));
   // Only rebuild the glow list (and re-upload it) when some lamp actually changed.
   const key = lamps.map((l) => (l ? l[0] : '-')).join('');
   if (key !== cache.key) {
@@ -175,17 +181,13 @@ function signalGlows(signals: Street['signals'], time: number): Glow[] {
 
 // Underground stations (no surface platform to draw): Kenmore, and Fenway on the D branch.
 const UNDERGROUND = new Set(['place-kencl', 'place-fenwy']);
-const PLATFORM_LENGTH = 60;
 const PLATFORM_INNER = 1.7; // metres right of the track centreline (beyond the rails)
 const PLATFORM_OUTER = 4.4;
 const PLATFORM_HEIGHT = 0.35;
 const TACTILE_WIDTH = 0.6;
 const SNAP_MAX_METRES = 40;
-// Platforms stop short of the street they're beside: their near end stays this far from a
-// signalised crossing (the signal groups' centres), on the station's side of it, or the far
-// side when the station sits on the crossing itself.
-const CROSSING_CLEARANCE = 8;
-const CROSSING_NEAR_TRACK = 30;
+// Platforms stop short of the street they're beside (motion.ts `platformCentre`, which trains
+// also use to know where to stop): their near end stays clear of a signalised crossing.
 
 interface Platform {
   streetKind: 'platform';
@@ -239,18 +241,7 @@ function placeTransitFurniture(data: TransitData, tracks: Track[], signals: Stre
       if (kind(track) !== 'subway' || !station.routes.includes(track.route)) continue;
       const snap = snapToTracks([track], station.position);
       if (!snap || snap.distance > SNAP_MAX_METRES) continue;
-      const half = PLATFORM_LENGTH / 2;
-      let s = snap.s;
-      const near = crossingCentres
-        .map((c) => snapToTracks([track], c))
-        .filter((c) => c && c.distance < CROSSING_NEAR_TRACK)
-        .map((c) => c!.s)
-        .sort((a, b) => Math.abs(a - snap.s) - Math.abs(b - snap.s));
-      const j = near[0];
-      if (j !== undefined && Math.abs(s - j) < half + CROSSING_CLEARANCE) {
-        s = s >= j - 5 ? j + CROSSING_CLEARANCE + half : j - CROSSING_CLEARANCE - half;
-      }
-      s = Math.max(half, Math.min(track.length - half, s));
+      const s = platformCentre(track, snap.s, crossingCentres);
       const piece = subTrack(track, s - PLATFORM_LENGTH / 2, s + PLATFORM_LENGTH / 2);
       const inner = offsetPath(piece, PLATFORM_INNER);
       const outer = offsetPath(piece, PLATFORM_OUTER);
@@ -418,11 +409,25 @@ export function streetTooltip(object: unknown, transit: { data: TransitData; fee
   const o = object as { streetKind?: string; signal?: StreetSignal };
   const signal = o.streetKind === 'signal' ? (object as StreetSignal) : o.signal && 'group' in o.signal ? o.signal : null;
   if (signal) {
-    const lamp = lampAt(lastTime, signal.group, signal.axis, signal.flash);
+    const { group, axis, movement } = signal;
+    const lamp = lampAt(lastTime, group, axis, signal.flash, movement);
     const state = signal.flash
       ? 'Flashing amber'
-      : `${LAMP_WORD[lamp ?? 'red']} for ${Math.ceil(secondsToChange(lastTime, signal.group, signal.axis))} s more`;
-    return `Traffic signal · ${signal.road}\n${state}\nSignal timing simulated`;
+      : `${LAMP_WORD[lamp ?? 'red']} for ${Math.ceil(secondsToChange(lastTime, group, axis, movement))} s more`;
+    const timing = timingFor(group);
+    const lines = [`Traffic signal · ${timing?.name ?? signal.road}`, state];
+    if (signal.flash) {
+      lines.push('Flashing beacon: no timing plan');
+    } else {
+      const split = splitFor(lastTime, group, axis, movement);
+      if (split) {
+        const who = movement ? `${signal.road} ${movement}` : signal.road;
+        const lpi = split.lpi ? ` after a ${split.lpi} s walk head start` : '';
+        lines.push(`${who}: green ${Math.round(split.green)} s${lpi}, amber ${split.yellow} s, all-red ${split.allRed} s`);
+      }
+      lines.push(timingLabel(lastTime, group));
+    }
+    return lines.join('\n');
   }
   if (o.streetKind === 'bus-stop') {
     const b = object as BusStop;
