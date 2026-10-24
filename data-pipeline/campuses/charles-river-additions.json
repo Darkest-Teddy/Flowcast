@@ -1,0 +1,164 @@
+{
+  "campus": "charles-river",
+  "name": "Charles River Campus",
+  "bbox": [42.3475, -71.1232, 42.3548, -71.0885],
+  "locations": [
+    {
+      "id": "fitrec",
+      "name": "Fitness and Recreation Center",
+      "short": "FitRec",
+      "kind": "gym",
+      "lat": 42.35187, "lon": -71.11647,
+      "capacity": 1200,
+      "osm": "way/102385045",
+      "height": 14.4
+    },
+    {
+      "id": "dewolfe",
+      "name": "DeWolfe Boathouse",
+      "short": "DeWolfe",
+      "kind": "gym",
+      "lat": 42.35325, "lon": -71.10777,
+      "capacity": 150,
+      "osm": "way/263551761"
+    },
+    {
+      "id": "stuvi2",
+      "name": "Student Village 2 (33 Harry Agganis Way)",
+      "short": "StuVi2",
+      "kind": "dorm",
+      "lat": 42.35326, "lon": -71.11780,
+      "capacity": 960,
+      "osm": "way/155291470"
+    },
+    {
+      "id": "rich",
+      "name": "Rich Hall",
+      "short": "Rich",
+      "kind": "dorm",
+      "lat": 42.35348, "lon": -71.12063,
+      "capacity": 600,
+      "osm": "way/29680668"
+    },
+    {
+      "id": "sleeper",
+      "name": "Sleeper Hall",
+      "short": "Sleeper",
+      "kind": "dorm",
+      "lat": 42.35292, "lon": -71.12053,
+      "capacity": 600,
+      "osm": "way/813732836"
+    },
+    {
+      "id": "west-dining",
+      "name": "West Campus Dining Hall",
+      "short": "West Dining",
+      "kind": "dining",
+      "lat": 42.35262, "lon": -71.12029,
+      "capacity": 500,
+      "osm": "way/813732837"
+    },
+    {
+      "id": "comm-1019",
+      "name": "1019 Commonwealth Avenue",
+      "short": "1019",
+      "kind": "dorm",
+      "lat": 42.35227, "lon": -71.12141,
+      "capacity": 300,
+      "osm": "way/300840086"
+    },
+    {
+      "id": "towers",
+      "name": "The Towers",
+      "short": "The Towers",
+      "kind": "dorm",
+      "lat": 42.35001, "lon": -71.09980,
+      "capacity": 750,
+      "osm": "way/242272535"
+    },
+    {
+      "id": "hojo",
+      "name": "575 Commonwealth Avenue",
+      "short": "HoJo",
+      "kind": "dorm",
+      "lat": 42.34946, "lon": -71.09872,
+      "capacity": 550,
+      "osm": "way/316156067"
+    },
+    {
+      "id": "danielsen",
+      "name": "Danielsen Hall",
+      "short": "Danielsen",
+      "kind": "dorm",
+      "lat": 42.35089, "lon": -71.09030,
+      "capacity": 200,
+      "osm": "way/29715237"
+    },
+    {
+      "id": "marciano",
+      "name": "Marciano Commons",
+      "short": "Marciano",
+      "kind": "dining",
+      "lat": 42.34983, "lon": -71.09791,
+      "capacity": 920,
+      "osm": "way/316156069"
+    },
+    {
+      "id": "law-tower",
+      "name": "School of Law (Law Tower)",
+      "short": "Law Tower",
+      "kind": "classroom",
+      "lat": 42.35109, "lon": -71.10717,
+      "capacity": 900,
+      "osm": "way/485223499"
+    },
+    {
+      "id": "com",
+      "name": "College of Communication",
+      "short": "COM",
+      "kind": "classroom",
+      "lat": 42.34884, "lon": -71.10232,
+      "capacity": 800,
+      "osm": "way/29787983"
+    },
+    {
+      "id": "cfa",
+      "name": "College of Fine Arts",
+      "short": "CFA",
+      "kind": "classroom",
+      "lat": 42.35129, "lon": -71.11388,
+      "capacity": 600,
+      "osm": "way/29680728",
+      "height": 14.4
+    },
+    {
+      "id": "cgs",
+      "name": "College of General Studies",
+      "short": "CGS",
+      "kind": "classroom",
+      "lat": 42.35148, "lon": -71.11457,
+      "capacity": 600,
+      "osm": "way/29939094",
+      "height": 14.4
+    },
+    {
+      "id": "sargent",
+      "name": "Sargent College of Health & Rehabilitation Sciences",
+      "short": "Sargent",
+      "kind": "classroom",
+      "lat": 42.34986, "lon": -71.10200,
+      "capacity": 600,
+      "osm": "way/29579939",
+      "height": 21.6
+    },
+    {
+      "id": "eng",
+      "name": "College of Engineering (110 Cummington Mall)",
+      "short": "ENG",
+      "kind": "classroom",
+      "lat": 42.34909, "lon": -71.10545,
+      "capacity": 400,
+      "osm": "way/1189269258"
+    }
+  ]
+}
