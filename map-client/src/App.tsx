@@ -64,6 +64,7 @@ const MemoCameraControls = memo(CameraControls);
 const MemoWeatherControls = memo(WeatherControls);
 
 const SPEEDS = [1, 30, 120, 600];
+const COUNTS_KEY = 'flowcast.trafficCounts';
 const params = new URLSearchParams(window.location.search);
 // Live by default: the simulated day follows the real clock at 1x, so walkers, trains and buses
 // all move at their true relative speeds. ?at= or ?speed= start in playback mode instead.
@@ -174,6 +175,9 @@ export default function App() {
   const [showTransit, setShowTransit] = useState(true);
   // Car traffic is off by default: most students walk, bike or take the T. Still available in the Transit tab.
   const [showTraffic, setShowTraffic] = useState(false);
+  // Traffic count sites ("1,313 vehicles/h · 29 bikes/h"): off by default, remembered.
+  const [showCounts, setShowCounts] = useState(() => { try { return localStorage.getItem(COUNTS_KEY) === '1'; } catch { return false; } });
+  const showCountsRef = useRef(showCounts);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
   const weatherRef = useRef<ActiveWeather | null>(null);
@@ -518,7 +522,7 @@ export default function App() {
           ...agentLayers(thinForZoom(inView(nearView(walking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
           ...incidentFrameLayers,
           ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
-          ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
+          ...(currentMobility && showCountsRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
@@ -577,6 +581,12 @@ export default function App() {
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
     setShowTransit(showTransitRef.current);
+  };
+
+  const toggleCounts = () => {
+    showCountsRef.current = !showCountsRef.current;
+    setShowCounts(showCountsRef.current);
+    try { localStorage.setItem(COUNTS_KEY, showCountsRef.current ? '1' : '0'); } catch { /* storage blocked: this session only */ }
   };
 
   const toggleBikes = () => {
@@ -686,6 +696,7 @@ export default function App() {
     setSelectedMobility(null);
   };
   const selectMobility = (item: MobilityPoint | MobilityArc) => {
+    if (!showCountsRef.current) toggleCounts(); // picking a site from the list shows it on the map
     selectedMobilityRef.current = item.id;
     setSelectedMobility(item.id);
     const position: [number, number] = item.mobilityKind === 'flow'
@@ -889,6 +900,11 @@ export default function App() {
             </section>
           ) : tab === 'traffic' ? (
             <section id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic">
+              <div className="toggles" role="group" aria-label="Map layers">
+                <button onClick={toggleCounts} aria-pressed={showCounts}>
+                  Counts on map
+                </button>
+              </div>
               <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday} selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
             </section>
           ) : tab === 'data' ? (
