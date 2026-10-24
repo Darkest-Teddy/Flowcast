@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type Evidence, type SourceMeeting } from './data/campusData';
+import { dailyParticipantLimit } from './sim/sourceDay';
+import { carriedForwardHours, dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type Evidence, type SourceMeeting } from './data/campusData';
 import { formatClock, type CampusLocation } from './sim/playback';
 import './source-data.css';
 
@@ -74,7 +75,8 @@ export function SourceDataPanel({ data, locations, selectedBuilding, campus, wee
       if (!source) continue;
       source.buildingCodes.forEach((code) => codes.add(code));
       source.evidence.forEach((item) => evidence.set(item.id, item));
-      hours.push({ location, entries: openingHoursForDate(source.hours, date, weekday) });
+      const published = openingHoursForDate(source.hours, date, weekday);
+      hours.push({ location, entries: published.length || source.hoursStatus === 'restricted' ? published : carriedForwardHours(source.hours, date, weekday) });
       for (const meeting of source.meetings) {
         for (const interval of meeting.intervals) {
           if (interval.weekday !== weekday) continue;
@@ -147,7 +149,7 @@ export function SourceDataPanel({ data, locations, selectedBuilding, campus, wee
             return <div className="source-hours" key={`estimate:${location.id}`}>
               <h3>Activity estimate</h3>
               <strong>{location.name}</strong>
-              <span>{housing ? `${housing.capacity.toLocaleString()} estimated beds · ${Math.round(housing.occupancyRate * 100)}% occupied` : `${profile!.dailyParticipants} daily participant limit · ${profile!.durationMinutes}-minute visits`}</span>
+              <span>{housing ? `${housing.capacity.toLocaleString()} estimated beds · ${Math.round(housing.occupancyRate * 100)}% occupied` : `${dailyParticipantLimit(profile!, weekday)} daily participant limit · ${profile!.durationMinutes}-minute visits`}</span>
               {profile && <span>{WEEKDAYS[weekday]}: {windows.length ? windows.map(([start, end]) => `${formatClock(start)}–${formatClock(end)}`).join(', ') : 'No estimated activities'}</span>}
               <details><summary>Model assumptions</summary><p>{estimate.note}</p><p>{estimate.proxy}</p><p>Confidence: {estimate.confidence}. These are simulation estimates.</p></details>
             </div>;
