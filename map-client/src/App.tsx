@@ -5,6 +5,7 @@ import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPr
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, crowdLevel } from './layers/crowd';
 import { createPlacer } from './layers/placement';
+import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData } from './transit/mbta';
@@ -66,6 +67,7 @@ export default function App() {
   const [live, setLive] = useState(START_LIVE);
   const [playing, setPlaying] = useState(true);
   const [light, setLight] = useState<LightPreset>('dusk');
+  const lightRef = useRef<LightPreset>('dusk'); // read by the frame loop (building model tint)
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'crowds' | 'transit'>('crowds');
   const [campuses, setCampuses] = useState<Campus[]>([]);
@@ -87,13 +89,15 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
         // Transit is an extra: the campus view must still start if it can't load.
         loadTransit('/data/transit.json').catch(() => null),
         loadVehicleModels().catch(() => ({})),
+        // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
+        loadBuildings().catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -172,6 +176,9 @@ export default function App() {
         const transit = transitRef.current;
         overlay!.setProps({
           layers: [
+            ...(detailedBuildings
+              ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
+              : []),
             ...crowdLayers({
               footprints: day.buildings,
               buildings: playback.byBuilding(occupancy),
@@ -205,6 +212,7 @@ export default function App() {
 
   useEffect(() => {
     basemapRef.current?.setLightPreset(light);
+    lightRef.current = light;
   }, [light]);
 
   useEffect(() => {
