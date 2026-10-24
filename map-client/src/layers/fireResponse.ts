@@ -1,5 +1,5 @@
 // Modeled fire engines for the fire scenario: procedural trucks (no downloaded models, no agency
-// markings) driven only by the frames from sim/fireResponse.ts, with deterministic light flashing
+// markings) driven only by the frames from sim/disasterFireResponse.ts, with deterministic light flashing
 // and, while a truck is fighting the fire, a ground hose and a stylized water arc onto the facade.
 // Illustrative only; not a model of any real fire department's apparatus or tactics.
 //
@@ -13,7 +13,7 @@ import type { Layer } from '@deck.gl/core';
 import { PathLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers';
 import { CubeGeometry } from '@luma.gl/engine';
-import type { FireTruckFrame } from '../sim/fireResponse';
+import type { FireTruckFrame } from '../sim/disasterFireResponse';
 
 type RGB = [number, number, number];
 type RGBA = [number, number, number, number];

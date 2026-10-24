@@ -7,7 +7,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   try { return nextResolve(specifier, context); }
   catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
 } });
-const { ask, walkBetween, nextMeeting, meetingsFor, coursesFor, parseTime, placeMentions, courseMentions } = await import('../src/insights.ts');
+const { ask, walkBetween, nextMeeting, meetingsFor, coursesFor, parseTime, placeMentions, courseMentions, openAt, rankByCrowd, rankTier, busyOutlook } = await import('../src/insights.ts');
 
 const loc = (id, name, short, kind, position, capacity, extra = {}) => ({ id, name, short, kind, position, capacity, building: `way/${id}`, campus: 'charles-river', ...extra });
 const locations = [
@@ -152,4 +152,83 @@ test('an unprefixed code naming two courses picks the most common one and keeps 
   assert.equal(d.from.locationId, 'cas');
   // With the school prefix there is no ambiguity.
   assert.equal(ask('where is WED BI 515', ctx({ meetings: twoCourses })).courseCode, 'WED BI 515');
+});
+
+// ---------------------------------------------------------------- opening hours
+// Reference week starts Monday 2026-10-26. Mugar's Sunday and Monday windows run to 02:00
+// (26:00); GSU has a dated closure on Tuesday; Warren Dining and CDS publish no hours.
+const hours = (date, windows, text, qualifier = null) => ({ date, windows, text, qualifier, sourceUrl: '' });
+const source = (hoursStatus, list = [], hoursReason) => ({ id: 'x', buildingCodes: [], meetings: [], evidence: [], hours: list, ...(hoursStatus ? { hoursStatus } : {}), ...(hoursReason ? { hoursReason } : {}) });
+const data = {
+  referenceWeekStart: '2026-10-26',
+  locations: {
+    mugar: source('published', [hours('2026-10-25', [[36000, 93600]], '10:00am – 2:00am'), hours('2026-10-26', [[25200, 93600]], '7:00am – 2:00am')]),
+    pardee: source('published', [hours('2026-10-26', [[28800, 79200]], '8:00am – 10:00pm')]),
+    gsu: source('published', [hours('2026-10-26', [[39600, 82800]], '11:00–23:00', 'Union of four meal vendors'), hours('2026-10-27', [], 'Closed')]),
+    'warren-dining': source(undefined),
+    agganis: source('restricted', [], 'Event arena; no published general recreation access'),
+  },
+};
+const withData = (over = {}) => ctx({ data, ...over });
+
+test('openAt: published windows, the qualifier, exact-date closures and unpublished dates', () => {
+  const noon = openAt('gsu', 0, 12 * 3600, data);
+  assert.deepEqual([noon.open, noon.date, noon.hoursText, noon.qualifier], [true, '2026-10-26', '11:00–23:00', 'Union of four meal vendors']);
+  assert.equal(openAt('gsu', 0, 23 * 3600, data).open, false); // windows are [open, close)
+  assert.equal(openAt('gsu', 1, 12 * 3600, data).open, false); // dated closure
+  const wed = openAt('gsu', 2, 12 * 3600, data);
+  assert.equal(wed.open, null); // no hours for 2026-10-28: unknown, not closed
+  assert.match(wed.reason, /2026-10-28/);
+});
+
+test('openAt: a window past midnight covers the small hours of the next date', () => {
+  const late = openAt('mugar', 0, 3600, data); // Monday 01:00, from Sunday's 10:00–26:00
+  assert.deepEqual([late.open, late.fromPreviousDay, late.hoursText], [true, true, '10:00am – 2:00am']);
+  assert.equal(openAt('mugar', 1, 3600, data).open, true); // Tuesday 01:00, from Monday's window
+  assert.equal(openAt('mugar', 0, 3 * 3600, data).open, false); // closed 02:00–07:00
+  assert.equal(openAt('mugar', 0, 2 * 3600, data).open, false);
+  assert.equal(openAt('mugar', 0, 8 * 3600, data).fromPreviousDay, undefined);
+});
+
+test('openAt: no published hours is unknown; restricted access is closed with its reason', () => {
+  assert.equal(openAt('cds', 0, 12 * 3600, data).open, null);
+  assert.equal(openAt('warren-dining', 0, 12 * 3600, data).open, null);
+  const arena = openAt('agganis', 0, 12 * 3600, data);
+  assert.equal(arena.open, false);
+  assert.match(arena.reason, /Event arena/);
+});
+
+test('rankings put open places first, then unknown hours, then closed, then unmodeled', () => {
+  // 23:00: Pardee (10%) is closed, Mugar (115%) is open, so Mugar ranks first.
+  const night = ask('quietest library at 11pm', withData());
+  assert.deepEqual(night.ranked.map((r) => [r.location.id, r.open, rankTier(r)]), [['mugar', true, 0], ['pardee', false, 3]]);
+  assert.equal(ask('quietest library at 11pm', ctx()).ranked[0].location.id, 'pardee'); // without data: as before
+  const noon = rankByCrowd(withData(), 'dining', 12 * 3600, null);
+  assert.deepEqual(noon.map((r) => [r.location.id, rankTier(r)]), [['gsu', 0], ['warren-dining', 2]]);
+  const unmodeled = (t) => occupancyAt(t).map((o) => (o.location.id === 'gsu' ? { ...o, modeled: false } : o));
+  const late = rankByCrowd(withData({ occupancyAt: unmodeled }), 'dining', 23 * 3600, null);
+  assert.deepEqual(late.map((r) => [r.location.id, rankTier(r)]), [['warren-dining', 2], ['gsu', 4]]);
+  // Unknown hours: comparable percentages before headcounts.
+  const odd = locations.map((l) => (l.id === 'warren-dining' ? { ...l, capacityBasis: 'estimated_student_capacity' } : l));
+  const fen = { ...data, locations: { ...data.locations, gsu: source(undefined) } };
+  const both = rankByCrowd(ctx({ data: fen, locations: odd, occupancyAt: (t) => occupancyAt(t).map((o) => (o.location.id === 'warren-dining' ? { ...o, location: odd[6] } : o)) }), 'dining', 12 * 3600, null);
+  assert.deepEqual(both.map((r) => [r.location.id, r.share === null]), [['gsu', false], ['warren-dining', true]]);
+  // All kinds at once.
+  assert.equal(rankByCrowd(withData(), null, 12 * 3600, null).length, 7);
+});
+
+test('the outlook skips closed hours and flags open hours after midnight', () => {
+  const gsu = ask('when is GSU quiet', withData({ time: 9 * 3600 }));
+  assert.equal(gsu.openNow.open, false);
+  assert.equal(gsu.quiet.time, 11 * 3600); // first open hour, not 09:00 when it's closed
+  assert.equal(gsu.busy.time, 12 * 3600);
+  assert.equal(ask('when is GSU quiet', ctx({ time: 9 * 3600 })).quiet.time, 9 * 3600); // without data: as before
+  const location = locations.find((l) => l.id === 'mugar');
+  const mugar = busyOutlook(withData(), location, 30 * 60);
+  assert.equal(mugar.afterMidnight, true);
+  assert.equal(mugar.openNow.fromPreviousDay, true);
+  assert.equal(mugar.quiet.time, 7 * 3600);
+  // The shown time is itself a candidate when it is open.
+  assert.equal(busyOutlook(withData(), location, 7.5 * 3600).quiet.time, 7.5 * 3600);
+  assert.equal(busyOutlook(ctx(), location, 7.5 * 3600).quiet.time, 8 * 3600);
 });

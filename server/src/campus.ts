@@ -10,6 +10,7 @@ import { buildPopulation, type PopulationBase } from '../../map-client/src/sim/p
 import { buildSourceDay } from '../../map-client/src/sim/sourceDay';
 import { askMeetings } from '../../map-client/src/insights';
 import type { CampusData, SourceMeeting } from '../../map-client/src/data/campusData';
+import { assumptionTable, capacityBasis, dayFrom, pedestrianSites, type AskFacts } from './facts';
 
 const root = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
@@ -96,6 +97,8 @@ export interface CampusModel {
   privateBundle: boolean;
   /** How many built days are kept. */
   daysCached: number;
+  /** What the tools may read beyond the shown day (facts.ts). */
+  facts: AskFacts;
 }
 
 export function daysCachedFrom(env: Record<string, string | undefined>): number {
@@ -103,7 +106,7 @@ export function daysCachedFrom(env: Record<string, string | undefined>): number 
   return Number.isInteger(n) && n >= 1 ? Math.min(n, 7) : 7;
 }
 
-export function loadCampusModel(env: Record<string, string | undefined> = process.env): CampusModel {
+export function loadCampusModel(env: Record<string, string | undefined> = process.env, retryAfterSec = 10): CampusModel {
   const day = expandDay(readJson(root('map-client/public/data/demo-day.json')));
   const bundle = chooseBundle(env, (path) => existsSync(root(path)));
   const campus: CampusData = readJson(root(bundle.path));
@@ -112,13 +115,30 @@ export function loadCampusModel(env: Record<string, string | undefined> = proces
   const daysCached = daysCachedFrom(env);
   const days = new BuildCache<number, Playback>((weekday) => new Playback(buildSourceDay(base, campus, weekday)), daysCached);
 
+  const locations = base.locations.filter((l) => l.kind !== 'off-campus');
+  const populationSummary = {
+    total: base.populationSummary.total,
+    reportingPeriod: base.populationSummary.reportingPeriod,
+    campusAllocation: base.populationSummary.campusAllocation,
+  };
+  const facts: AskFacts = {
+    data: campus,
+    day: dayFrom((weekday) => days.ready(weekday), (weekday) => days.get(weekday), retryAfterSec),
+    basis: capacityBasis(population.locationCapacityBasis),
+    populationSummary,
+    pedestrians: pedestrianSites(readJson(root('map-client/public/data/mobility.json'))),
+    assumptions: assumptionTable(campus, locations, populationSummary),
+    allLocations: base.locations,
+  };
+
   return {
-    locations: base.locations.filter((l) => l.kind !== 'off-campus'),
+    locations,
     walkRoutes: (day as { walkRoutes?: Record<string, WalkRoute> }).walkRoutes ?? {},
     meetings: askMeetings(campus),
     ready: (weekday) => days.ready(weekday),
     playback: (weekday) => days.get(weekday),
     privateBundle: bundle.private,
     daysCached,
+    facts,
   };
 }

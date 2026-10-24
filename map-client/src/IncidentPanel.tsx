@@ -1,17 +1,20 @@
-import { fireResponseAt, FIRE_RESPONSE_LIMITATIONS, type FireResponse, type FireResponseUnavailable } from './sim/fireResponse';
+import { fireResponseAt, FIRE_RESPONSE_LIMITATIONS, type FireResponse as DisasterFireResponse, type FireResponseUnavailable } from './sim/disasterFireResponse';
 import { useState } from 'react';
 import { formatClock, type CampusLocation } from './sim/playback';
 import { ACTIVITY_DECISION_LIMITATIONS, INCIDENT_LIMITATIONS, type Incident, type IncidentKind, type IncidentParticipant, type IncidentResult, DISASTER_LIMITATIONS, DISASTER_ASSUMPTIONS, isDisasterKind } from './sim/incidents';
 import { incidentProgress } from './sim/incidentProgress';
 import { CASUALTY_LIMITATIONS, type CasualtyEvent } from './sim/casualties';
 import { IncidentDecisions } from './IncidentDecisions';
+import { FireResponsePanel } from './FireResponsePanel';
+import type { FireResponse } from './sim/fireResponse';
 
 const names: Record<IncidentKind, string> = {
-  'fire-drill': 'Fire drill', 'building-closure': 'Building closure',
+  'fire-drill': 'Fire drill', 'fire-alarm': 'Fire alarm', 'building-closure': 'Building closure',
   fire: 'Fire', earthquake: 'Earthquake', meteor: 'Meteor impact',
 };
 const descriptions: Record<IncidentKind, string> = {
   'fire-drill': 'Occupants evacuate and assemble before deciding what to do next.',
+  'fire-alarm': 'Occupants evacuate and assemble while Boston Fire responds to an unplanned alarm.',
   'building-closure': 'Students decide whether to wait, move elsewhere, or abandon the visit.',
   fire: 'A fire prompts a faster evacuation. The damaged building stays closed for the rest of the day.',
   earthquake: 'Students in affected buildings shelter through the modeled shaking, then leave damaged buildings, which remain closed for the rest of the day.',
@@ -19,7 +22,9 @@ const descriptions: Record<IncidentKind, string> = {
 };
 
 export interface IncidentRun {
-  fireResponse?: FireResponse | null;
+  fireResponse?: DisasterFireResponse | null;
+  /** Fire alarms only: Boston Fire apparatus (null while loading or unavailable). */
+  response?: FireResponse | null;
   fireResponseUnavailable?: FireResponseUnavailable | 'no-road-data' | null;
   incident: Incident;
   hazard?: IncidentResult['hazard'];
@@ -33,13 +38,16 @@ export interface IncidentRun {
   casualties?: CasualtyEvent[];
 }
 
-export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate }: {
+export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate, siren = false, onSiren, responsePending }: {
   locations: CampusLocation[];
   time: number;
   run: IncidentRun | null;
   onStart: (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number) => void;
   onReset: () => void;
   onLocate: (location: CampusLocation) => void;
+  siren?: boolean;
+  onSiren?: (on: boolean) => void;
+  responsePending?: boolean;
 }) {
   const [kind, setKind] = useState<IncidentKind>('fire-drill');
   const [locationId, setLocationId] = useState('');
@@ -56,7 +64,8 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
   const leaving = trucks.filter(truck => truck.phase === 'leaving').length;
   const stoppedAt = new Map((run?.casualties ?? []).map(event => [event.agentId, event.at]));
   const decisions = run?.participants.filter(person => !person.decision || person.decision.at < (stoppedAt.get(person.agentId) ?? Infinity)) ?? [];
-  const isDrill = (run?.incident.kind ?? kind) === 'fire-drill';
+  const isAlarm = (run?.incident.kind ?? kind) === 'fire-alarm';
+  const isDrill = (run?.incident.kind ?? kind) === 'fire-drill' || isAlarm;
   const areaEvent = kind === 'earthquake' || kind === 'meteor';
   const showCasualties = !!run && isDisasterKind(run.incident.kind) && !!run.casualties;
   const minimumMinutes = isDisasterKind(kind) ? DISASTER_ASSUMPTIONS[kind].minDurationSeconds / 60 : 0;
@@ -109,6 +118,7 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
             <div><dt>Rejoining schedule</dt><dd>{progress.recovering.toLocaleString()}</dd></div>
             <div><dt>Schedule resumed</dt><dd>{progress.resumed.toLocaleString()}</dd></div>
           </dl>}
+          {isAlarm && <FireResponsePanel response={run.response ?? null} time={time} siren={siren} onSiren={(on) => onSiren?.(on)} pending={responsePending} />}
           <IncidentDecisions participants={decisions} time={time} locations={locations} onLocate={onLocate} />
           {!run.hazard && time >= run.incident.start && time < run.endsAt && <p role="status">Access reopens in {Math.ceil((run.endsAt - time) / 60)} simulated minutes.</p>}
           {time >= progress.clearedAt && progress.occupantCount > 0 && <p className="model-note">{showCasualties ? 'Modeled evacuation response' : 'Modeled clearance'}: {Math.ceil((progress.clearedAt - run.incident.start) / 60)} minutes, using an assumed exit flow of 2 people per second per building.</p>}
@@ -135,10 +145,11 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
             <select aria-label="Incident" value={kind} onChange={(event) => {
               const value = event.target.value as IncidentKind;
               setKind(value);
-              setMinutes(value === 'fire-drill' ? 30 : 120);
+              setMinutes(value === 'fire-drill' || value === 'fire-alarm' ? 30 : 120);
               setRadius(value === 'meteor' ? 100 : 250);
             }}>
-              <option value="fire-drill">Fire drill</option>
+              <option value="fire-drill">Fire drill (scheduled)</option>
+              <option value="fire-alarm">Fire alarm (Boston Fire responds)</option>
               <option value="building-closure">Building closure</option>
               <option value="fire">Fire</option>
               <option value="earthquake">Earthquake</option>
@@ -160,9 +171,11 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
               {[5, 15, 30, 60, 120, ...(isDisasterKind(kind) ? [240] : [])].filter(value => value >= minimumMinutes).map((value) => <option key={value} value={value}>{value} simulated minutes</option>)}
             </select>
           </label>
+          {kind === 'fire-drill' && <p className="model-note">A scheduled drill is run by building staff and announced to the fire department in advance, so no apparatus are sent. Choose Fire alarm for an unplanned alarm.</p>}
+          {kind === 'fire-alarm' && <p className="model-note">Boston Fire sends the nearest engines, ladder trucks and a district chief by drive time, with lights and optional siren.</p>}
           <p className="model-note">Starts at {formatClock(time)}. {descriptions[kind]} Classes stay tied to their scheduled location. Meals, studying, and exercise can move when a suitable venue and enough time are available.</p>
           {error && <p role="alert">{error}</p>}
-          <button type="submit" disabled={!target}>Start {kind === 'building-closure' ? 'closure' : names[kind].toLowerCase()}</button>
+          <button type="submit" disabled={!target}>{kind === 'fire-alarm' ? 'Sound fire alarm' : `Start ${kind === 'building-closure' ? 'closure' : names[kind].toLowerCase()}`}</button>
         </form>
       )}
       <p className="model-note">Restrictions apply to visits to affected buildings. Through-traffic on saved paths may still cross the affected area. Disaster effects are illustrative; damage is stylized. Disaster casualties are uncalibrated scenario rules, and rescue and treatment are not simulated.</p>

@@ -1,197 +1,196 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { test } from 'node:test';
-registerHooks({ resolve(specifier, context, next) {
-  try { return next(specifier, context); }
-  catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return next(`${specifier}.ts`, context); throw error; }
+import { readFileSync } from 'node:fs';
+registerHooks({ resolve(specifier, context, nextResolve) {
+  try { return nextResolve(specifier, context); }
+  catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
 } });
-const { buildFireResponse, planFireResponse, fireResponseAt, FIRE_RESPONSE_ASSUMPTIONS: A, FIRE_RESPONSE_LIMITATIONS } = await import('../src/sim/fireResponse.ts');
-const { footprintDistance } = await import('../src/sim/disasters.ts');
+const F = await import('../src/sim/fireResponse.ts');
+const { registerSignals } = await import('../src/sim/signals.ts');
+const { applyIncident } = await import('../src/sim/incidents.ts');
 
-// Straight eastbound bus street along latitude 42 from -71.01 to -70.99 (≈ 1655 m). The target
-// building A sits just north of it around -71. 0.0001° lat ≈ 11.1 m, 0.0001° lng ≈ 8.3 m.
-const KY = 111320, KX = KY * Math.cos(42 * Math.PI / 180);
-const box = (id, x0, y0, x1, y1, height = 20) => ({ id, name: id, polygon: [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]], height });
-const A_BOX = box('A', -71.0001, 42.0002, -70.9999, 42.0004, 30);
-const street = (kind = 'bus', path = [[-71.01, 42], [-70.99, 42]], extra = {}) => ({ id: `r-${kind}`, name: kind, longName: kind, kind, color: '#000', textColor: '#fff', directions: ['E', 'W'], paths: [{ direction: 0, path, ...extra }] });
-const run = (extra = {}) => ({ incident: { kind: 'fire', start: 36000 }, location: { position: [-71, 42.0003], building: 'A' }, hazard: { activeUntil: 37800 }, ...extra });
-const metres = (a, b) => Math.hypot((a[0] - b[0]) * KX, (a[1] - b[1]) * KY);
-function toPolyline(p, path) { // metres from p to a [lng, lat] polyline
-  let best = Infinity;
-  for (let i = 1; i < path.length; i++) {
-    const ax = (path[i - 1][0] - p[0]) * KX, ay = (path[i - 1][1] - p[1]) * KY, bx = (path[i][0] - p[0]) * KX, by = (path[i][1] - p[1]) * KY;
-    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
-    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+const json = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url)));
+const street = json('../public/data/street.json');
+registerSignals(street.signals, street.intersections);
+const network = F.parseFireNetwork(json('../public/data/fire-response.json'));
+const day = json('../public/data/demo-day.json');
+const signals = F.signalOracle(street.signals);
+
+/** A 100 m square block, A -> B one-way, the other three sides two-way. */
+function square() {
+  const points = [[0, 0], [100, 0], [100, 100], [0, 100]].map(([x, y]) => F.toLngLat(x, y));
+  const nodes = [];
+  let last = [0, 0];
+  for (const [lng, lat] of points) {
+    const q = [Math.round(lng * 1e6), Math.round(lat * 1e6)];
+    nodes.push(q[0] - last[0], q[1] - last[1]);
+    last = q;
   }
-  return best;
+  const residential = 6;
+  return F.parseFireNetwork({ classes: network.classes, stations: [], nodes, signals: [], hydrants: [],
+    edges: [0, 1, residential, 1 | (1 << 1), 1, 2, residential, 0, 2, 3, residential, 0, 3, 0, residential, 0] });
 }
-const inside = (p, polygon) => footprintDistance(p, polygon) === 0;
-/** Seven body points of a parked/driving truck: centre, front/rear, four corners. */
-function body(frame) {
-  const r = frame.bearing * Math.PI / 180, ux = Math.sin(r), uy = Math.cos(r), hl = A.truckHalfLengthMetres, hw = A.truckWidthMetres / 2;
-  const at = (a, b) => [frame.position[0] + (ux * a + uy * b) / KX, frame.position[1] + (uy * a - ux * b) / KY];
-  return [at(0, 0), at(hl, 0), at(-hl, 0), at(hl, hw), at(hl, -hw), at(-hl, hw), at(-hl, -hw)];
-}
-const sweep = (plan, step = 1) => {
-  const t0 = Math.min(...plan.trucks.map(t => t.departAt)) - 5, t1 = Math.max(...plan.trucks.map(t => t.exitAt)) + 5, out = [];
-  for (let t = t0; t <= t1; t += step) out.push([t, fireResponseAt(plan, t)]);
-  return out;
+const metresBetween = (a, b) => Math.hypot(...[0, 1].map((i) => F.toXY(a)[i] - F.toXY(b)[i]));
+
+test('routes respect one-way streets; only an emergency final approach may run briefly against one', () => {
+  const net = square();
+  const fromB = F.snapOnEdge(net, 1, 100, 1); // on B-C, at B
+  // 90 m against A -> B: too far, so both go round the block (B, C, D, A, then along A -> B).
+  const far = F.snapOnEdge(net, 0, 10, 0);
+  for (const emergency of [true, false]) {
+    const route = F.routeBetween(net, fromB, far, { emergency });
+    assert.equal(route.fromB, false);
+    assert.ok(Math.abs(route.metres - 310) < 2, `${route.metres} m round the block`);
+  }
+  // 50 m against it: the engine takes the short contra-flow approach; normal traffic can't.
+  const near = F.snapOnEdge(net, 0, 50, 0);
+  const emergency = F.routeBetween(net, fromB, near, { emergency: true });
+  assert.equal(emergency.fromB, true);
+  assert.ok(Math.abs(emergency.metres - 51) < 2);
+  const normal = F.routeBetween(net, fromB, near, { emergency: false });
+  assert.ok(Math.abs(normal.metres - 349) < 2, `${normal.metres} m`);
+  // A parked truck facing away pays for a U-turn: it pulls away forwards when that's not far longer.
+  const parked = F.snapOnEdge(net, 2, 50, 100); // C-D midpoint
+  const target = F.snapOnEdge(net, 1, 100, 60); // on B-C
+  const westbound = F.routeBetween(net, parked, target, { emergency: false, startBearing: 270 });
+  assert.ok(westbound.metres > 200, 'forwards round the block (C -> D -> A -> B)');
+  const eastbound = F.routeBetween(net, parked, target, { emergency: false, startBearing: 90 });
+  assert.ok(eastbound.metres < 100, 'straight to C and down');
+});
+
+test('every routed segment on the real network is a legal move', () => {
+  const photonics = day.locations.find((l) => l.id === 'photonics');
+  const kerb = F.snapTo(network, [photonics.position]);
+  for (const station of network.stations) {
+    const route = F.routeBetween(network, F.snapTo(network, [station.position]), kerb, { emergency: true });
+    assert.ok(route, `${station.name} reaches Photonics`);
+    for (let i = 1; i + 2 < route.xs.length; i++) {
+      const [a, b] = [route.nodes[i], route.nodes[i + 1]];
+      const e = route.edges[i];
+      assert.ok((network.ea[e] === a && network.eb[e] === b) || (!network.oneway[e] && network.ea[e] === b && network.eb[e] === a),
+        `${station.name}: segment ${i} follows edge ${e} in a legal direction`);
+    }
+    const straight = metresBetween(station.position, photonics.position);
+    assert.ok(route.metres < straight * 2.2, `${station.name}: ${route.metres.toFixed(0)} m vs ${straight.toFixed(0)} m straight`);
+  }
+});
+
+const photonicsAlarm = () => {
+  const loc = day.locations.find((l) => l.id === 'photonics');
+  return { id: 'alarm-1', start: 10 * 3600, endsAt: 10 * 3600 + 1800, targetName: loc.name, position: loc.position,
+    polygon: day.buildings.find((b) => b.id === loc.building).polygon };
 };
-const freeze = v => { if (v && typeof v === 'object') { Object.freeze(v); for (const c of Object.values(v)) freeze(c); } return v; };
 
-test('assumptions and limitations are stated', () => {
-  assert.equal(A.trucks, 2); assert.equal(A.dispatchDelaySeconds, 60); assert.equal(A.staggerSeconds, 20); assert.equal(A.maxHoseMetres, 80);
-  assert.ok(A.cruiseSpeed > 0 && A.cruiseSpeed <= 12);
-  assert.ok(FIRE_RESPONSE_LIMITATIONS.some(s => /illustrative/i.test(s) && /no real fire station/i.test(s)));
-  assert.ok(FIRE_RESPONSE_LIMITATIONS.some(s => /visual cue only/i.test(s)));
+test('a fire alarm gets the first-alarm box from the nearest houses by drive time', () => {
+  const response = F.planFireResponse(network, photonicsAlarm(), { signals });
+  const count = (kind) => response.units.filter((u) => u.kind === kind).length;
+  assert.deepEqual([count('engine'), count('ladder'), count('chief')], [3, 2, 1]);
+  assert.equal(new Set(response.units.map((u) => u.id)).size, 6);
+  // Back Bay's Engine 33 / Ladder 15 are first due on Comm Ave at BU.
+  const ids = response.units.map((u) => u.id);
+  assert.ok(ids.includes('L15') && ids.includes('E33'), ids.join());
+  const first = [...response.units].sort((a, b) => a.arrive - b.arrive)[0];
+  assert.ok(first.eta > 150 && first.eta < 480, `first on scene after ${first.eta.toFixed(0)} s`);
+  // Each kind's units are the quickest of that kind by the dispatch estimate.
+  for (const unit of response.units) assert.equal(unit.label, `BFD ${unit.name}`);
+  // Deterministic: the same alarm plans the same response.
+  const again = F.planFireResponse(network, photonicsAlarm(), { signals });
+  assert.deepEqual(again.units.map((u) => [u.id, u.arrive, u.home]), response.units.map((u) => [u.id, u.arrive, u.home]));
 });
 
-test('non-fire incidents and fires without an active window get no trucks', () => {
-  for (const kind of ['fire-drill', 'building-closure', 'earthquake', 'meteor'])
-    assert.deepEqual(planFireResponse(run({ incident: { kind, start: 36000 } }), { routes: [street()] }, [A_BOX]), { plan: null, reason: 'not-fire' });
-  assert.equal(planFireResponse(run({ hazard: undefined }), { routes: [street()] }, [A_BOX]).reason, 'no-active-fire');
-  assert.equal(planFireResponse(run({ hazard: { activeUntil: 36000 } }), { routes: [street()] }, [A_BOX]).reason, 'no-active-fire');
-  assert.deepEqual(fireResponseAt(null, 36500), []);
-});
-
-test('missing, subway-only or distant corridors return null with a reason', () => {
-  assert.equal(planFireResponse(run(), { routes: [] }, [A_BOX]).reason, 'no-corridor');
-  assert.equal(planFireResponse(run(), { routes: [street('subway')] }, [A_BOX]).reason, 'no-corridor');
-  assert.equal(buildFireResponse(run(), { routes: [street('subway')] }, [A_BOX]), null);
-  assert.equal(planFireResponse(run(), { routes: [street('bus', [[-71.01, 42.002], [-70.99, 42.002]])] }, [A_BOX]).reason, 'out-of-reach');
-  assert.ok(buildFireResponse(run(), { routes: [street('subway'), street('shuttle')] }, [A_BOX]).routeId === 'r-shuttle');
-});
-
-test('a facade screened by a neighbouring building is obstructed, never sprayed through', () => {
-  const wall = box('W', -71.003, 42.0001, -70.997, 42.00015, 10);
-  const r = planFireResponse(run(), { routes: [street()] }, [A_BOX, wall]);
-  assert.deepEqual(r, { plan: null, reason: 'obstructed' });
-  // A partial screen: trucks park where the straight hose line misses it.
-  const shed = box('S', -71.0002, 42.0001, -70.9998, 42.00015, 4);
-  const plan = buildFireResponse(run(), { routes: [street()] }, [A_BOX, shed]);
-  assert.ok(plan);
-  for (const truck of plan.trucks) {
-    const [, frames] = [0, fireResponseAt(plan, truck.fightStart + 1)];
-    const f = frames.find(x => x.id === truck.id);
-    for (let i = 1; i < 50; i++) {
-      const t = i / 50, p = [f.position[0] + (f.waterTarget[0] - f.position[0]) * t, f.position[1] + (f.waterTarget[1] - f.position[1]) * t];
-      assert.ok(!inside(p, shed.polygon), `${truck.id} hose crosses the shed`);
+test('apparatus positions are a function of sim time: turnout, smooth response, parked, return, home', () => {
+  const alarm = photonicsAlarm();
+  const response = F.planFireResponse(network, alarm, { signals });
+  const footprint = alarm.polygon;
+  for (const unit of response.units) {
+    assert.equal(F.apparatusAt(unit, alarm.start - 1).phase, null, 'not on the map before the alarm');
+    const turnout = unit.depart - unit.alarm;
+    assert.ok(turnout >= 60 && turnout <= 80, `turnout ${turnout}`);
+    const bay = F.apparatusAt(unit, alarm.start + 5);
+    assert.equal(bay.phase, 'turnout');
+    assert.equal(bay.lights, false);
+    assert.ok(metresBetween(bay.position, unit.station.position) < 40, 'starts at its firehouse');
+    assert.equal(F.apparatusAt(unit, unit.depart - 1).lights, true, 'lights on before pulling out');
+    // No teleporting: 0.25 s steps never jump further than a fast emergency speed allows.
+    let prev = F.apparatusAt(unit, unit.depart).position.slice();
+    let maxSpeed = 0;
+    for (let t = unit.depart + 0.25; t <= unit.arrive; t += 0.25) {
+      const state = F.apparatusAt(unit, t);
+      const v = metresBetween(prev, state.position) / 0.25;
+      maxSpeed = Math.max(maxSpeed, v);
+      assert.ok(v < 17, `${unit.id} at ${t}: ${v.toFixed(1)} m/s`);
+      assert.ok(state.phase === 'responding' || t === unit.arrive);
+      assert.ok(state.lights);
+      prev = state.position.slice();
     }
+    assert.ok(maxSpeed > 8, `${unit.id} gets up to speed (${(maxSpeed * 3.6).toFixed(0)} km/h)`);
+    const avg = unit.out.metres / (unit.arrive - unit.depart) * 3.6;
+    assert.ok(avg > 20 && avg < 50, `${unit.id} averages ${avg.toFixed(0)} km/h`);
+    // Parked at the kerb beside the building, lights still on, and not moving.
+    const parked = F.apparatusAt(unit, unit.arrive + 1).position.slice();
+    const later = F.apparatusAt(unit, unit.release - 1);
+    assert.equal(later.phase, 'on-scene');
+    assert.ok(later.lights);
+    assert.ok(metresBetween(parked, later.position) < 1e-6);
+    const toBuilding = Math.min(...footprint.map((p) => metresBetween(p, parked)));
+    assert.ok(toBuilding < 140, `${unit.id} parks ${toBuilding.toFixed(0)} m from the building`);
+    assert.ok(unit.release >= alarm.endsAt, 'stays until access reopens');
+    // Back to quarters at normal speed, lights off, then off the map.
+    const back = F.apparatusAt(unit, (unit.release + unit.home) / 2);
+    assert.equal(back.phase, 'returning');
+    assert.equal(back.lights, false);
+    assert.ok(Math.max(...unit.back.v) <= 13.5, `returns within 30 mph city limits (${(Math.max(...unit.back.v) * 3.6).toFixed(0)} km/h)`);
+    assert.ok(metresBetween(F.apparatusAt(unit, unit.home - 0.01).position, unit.station.position) < 40);
+    assert.equal(F.apparatusAt(unit, unit.home).phase, null);
   }
 });
 
-test('trucks park at distinct spots, clear of every footprint including the truck corners', () => {
-  // A kiosk on the south kerb right where the nearest spot would be: centre line clear, corners not.
-  const lane = -A.laneOffsetMetres / KY;
-  const kiosk = box('K', -71.0003, 42 + lane - 5 / KY, -70.9997, 42 + lane - 0.9 / KY, 3);
-  const footprints = [A_BOX, kiosk];
-  const plan = buildFireResponse(run(), { routes: [street()] }, footprints);
-  assert.equal(plan.trucks.length, 2);
-  const parked = fireResponseAt(plan, plan.trucks[1].fightStart + 10);
-  assert.equal(parked.length, 2);
-  assert.ok(metres(parked[0].position, parked[1].position) >= A.minSpacingMetres - 0.5);
-  assert.ok(metres(parked[0].position, parked[1].position) <= A.maxSpacingMetres + 0.5);
-  for (const f of parked) {
-    for (const p of body(f)) for (const fp of footprints) assert.ok(!inside(p, fp.polygon), `${f.id} body point inside ${fp.id}`);
-    assert.equal(f.phase, 'fighting'); assert.equal(f.speed, 0);
-    assert.ok(metres(f.position, f.waterTarget) <= A.maxHoseMetres);
-    assert.ok(footprintDistance(f.waterTarget, A_BOX.polygon) < 0.5, 'water target on the facade');
-    assert.ok(f.waterTarget[2] >= A.minWaterHeight && f.waterTarget[2] <= A.maxWaterHeight);
-  }
-  // Without the kiosk the trucks would have parked where its corners are.
-  const free = fireResponseAt(buildFireResponse(run(), { routes: [street()] }, [A_BOX]), 37000);
-  assert.ok(free.some(f => body(f).some(p => inside(p, kiosk.polygon))), 'fixture exercises the corner check');
+test('parked apparatus do not overlap', () => {
+  const response = F.planFireResponse(network, photonicsAlarm(), { signals });
+  const parked = response.units.map((u) => ({ u, p: F.apparatusAt(u, u.arrive + 1).position.slice() }));
+  for (let i = 0; i < parked.length; i++) for (let j = i + 1; j < parked.length; j++)
+    assert.ok(metresBetween(parked[i].p, parked[j].p) > 4, `${parked[i].u.id} and ${parked[j].u.id}`);
 });
 
-test('dispatch, stagger and phase boundaries; no early arrival or early water', () => {
-  const plan = buildFireResponse(run(), { routes: [street()] }, [A_BOX]);
-  const [one, two] = plan.trucks;
-  assert.equal(one.id, 'engine-1'); assert.equal(two.id, 'engine-2');
-  assert.equal(one.departAt, 36000 + 60); assert.equal(two.departAt, 36000 + 80);
-  assert.equal(two.leaveAt - one.leaveAt, 20);
-  for (const t of plan.trucks) {
-    assert.ok(t.departAt < t.arriveAt && t.arriveAt < t.fightStart && t.fightStart < t.fightEnd && t.fightEnd < t.leaveAt && t.leaveAt < t.exitAt);
-    assert.equal(t.fightStart - t.arriveAt, A.setupSeconds); assert.equal(t.fightEnd, 37800);
-    const at = time => fireResponseAt(plan, time).find(f => f.id === t.id);
-    assert.equal(at(t.departAt - 0.01), undefined);
-    assert.equal(at(t.departAt).phase, 'responding');
-    assert.equal(at(t.arriveAt - 0.01).phase, 'responding');
-    assert.equal(at(t.arriveAt).phase, 'staging');
-    assert.equal(at(t.fightStart - 0.01).phase, 'staging'); assert.equal(at(t.fightStart - 0.01).waterTarget, undefined);
-    assert.equal(at(t.fightStart).phase, 'fighting'); assert.ok(at(t.fightStart).waterTarget);
-    assert.equal(at(t.fightEnd).phase, 'staging'); assert.equal(at(t.fightEnd).waterTarget, undefined);
-    assert.equal(at(t.leaveAt).phase, 'leaving');
-    assert.equal(at(t.exitAt), undefined);
-  }
-  for (const [time, frames] of sweep(plan, 0.5)) for (const f of frames) if (f.phase === 'fighting') assert.ok(time >= 36000 + 60 && time < 37800);
-  assert.deepEqual(fireResponseAt(plan, 35999), []);
-  // A fire that ends before setup finishes never shows water.
-  const short = buildFireResponse(run({ hazard: { activeUntil: 36100 } }), { routes: [street()] }, [A_BOX]);
-  assert.ok(sweep(short).every(([, frames]) => frames.every(f => f.phase !== 'fighting' && !f.waterTarget)));
+test('through red signals carefully with lights on; stopped at red when back in service', () => {
+  const alwaysRed = { approaches: street.signals, lamp: () => 'red', toGreen: () => 30 };
+  const response = F.planFireResponse(network, photonicsAlarm(), { signals: alwaysRed });
+  const unit = response.units.find((u) => u.id === 'L15');
+  assert.equal(Math.max(...unit.out.wait), 0, 'never waits on the way to the fire');
+  assert.ok(Math.min(...Array.from(unit.out.v).slice(5, -5)) <= 2.81, 'crawls through a red light');
+  assert.ok(Math.max(...unit.back.wait) >= 30, 'waits for green on the way home');
+  const green = F.planFireResponse(network, photonicsAlarm(), { signals: { approaches: street.signals, lamp: () => 'green', toGreen: () => 0 } });
+  assert.ok(green.units.find((u) => u.id === 'L15').arrive < unit.arrive, 'greens are quicker');
 });
 
-test('trucks stay on the saved corridor, face travel, brake smoothly and never jump or reverse', () => {
-  const plan = buildFireResponse(run(), { routes: [street()] }, [A_BOX]);
-  const centre = street().paths[0].path;
-  const last = new Map();
-  for (const [time, frames] of sweep(plan, 0.5)) {
-    for (const f of frames) {
-      assert.ok(toPolyline(f.position, centre) <= A.laneOffsetMetres + 0.2, 'on the road');
-      assert.ok(Math.abs(f.bearing - 90) < 0.5, `eastbound bearing ${f.bearing}`);
-      assert.ok(f.speed >= 0 && f.speed <= A.cruiseSpeed + 1e-9);
-      const prev = last.get(f.id);
-      if (prev) {
-        const dx = (f.position[0] - prev.f.position[0]) * KX;
-        assert.ok(dx >= -1e-3, `${f.id} reversed at ${time}`);
-        assert.ok(metres(f.position, prev.f.position) <= A.cruiseSpeed * (time - prev.time) + 0.05, `${f.id} jumped at ${time}`);
-        if (f.phase === 'responding' && prev.f.phase === 'responding' && f.speed < A.cruiseSpeed) assert.ok(f.speed <= prev.f.speed + 1e-9, 'decelerating');
-      }
-      last.set(f.id, { f, time });
-    }
+test('strobes alternate red and white sides; reduced motion slows them right down', () => {
+  let changes = 0, last = -1;
+  for (let t = 0; t < 1.6; t += 0.01) {
+    const mask = F.strobeMask(t);
+    assert.ok((mask & 3) !== 3, 'A and B are never lit together');
+    if (last >= 0 && (mask & 3) !== (last & 3)) changes++;
+    last = mask;
   }
-  // Approach is about 600 m and bounded by the path start when the fire is near it.
-  for (const t of plan.trucks) assert.ok(Math.abs(t.stageAt - A.approachMetres) < 1);
-  const nearStart = buildFireResponse(run({ location: { position: [-71.0097, 42.0003], building: 'A2' } }), { routes: [street()] },
-    [box('A2', -71.0098, 42.0002, -71.0096, 42.0004)]);
-  for (const t of nearStart.trucks) {
-    assert.ok(t.stageAt < 100);
-    assert.deepEqual(fireResponseAt(nearStart, t.departAt).find(f => f.id === t.id).position, t.path[0]);
-    assert.ok(metres(t.path[0], [-71.01, 42 - A.laneOffsetMetres / KY]) < 0.5, 'enters at the saved path start');
-  }
+  assert.ok(changes >= 8, `${changes} flashes in 1.6 s`);
+  let slow = 0; last = -1;
+  for (let t = 0; t < 4; t += 0.01) { const mask = F.strobeMask(t, true); if (last >= 0 && mask !== last) slow++; last = mask; }
+  assert.ok(slow <= 4, `${slow} changes in 4 s`);
 });
 
-test('seeking is stateless: any order, repeated builds and frozen inputs give identical frames', () => {
-  const inputs = freeze({ run: run(), transit: { routes: [street()] }, footprints: [A_BOX] });
-  const plan = buildFireResponse(inputs.run, inputs.transit, inputs.footprints);
-  assert.deepEqual(buildFireResponse(inputs.run, inputs.transit, inputs.footprints), plan);
-  const times = sweep(plan, 7).map(([t]) => t);
-  const forward = times.map(t => fireResponseAt(plan, t));
-  const shuffled = [...times].reverse().map(t => [t, fireResponseAt(plan, t)]).reverse().map(([, f]) => f);
-  assert.deepEqual(shuffled, forward);
-  assert.deepEqual(fireResponseAt(plan, 37000), fireResponseAt(plan, 37000));
-  const frames = fireResponseAt(plan, 37000); frames[0].position[0] = 0;
-  assert.notEqual(fireResponseAt(plan, 37000)[0].position[0], 0, 'frames do not alias the plan');
-});
-
-test('real CDS fixture: trucks use a saved bus corridor and stay on it', () => {
-  const day = JSON.parse(readFileSync(new URL('../public/data/demo-day.json', import.meta.url)));
-  const transit = JSON.parse(readFileSync(new URL('../public/data/transit.json', import.meta.url)));
-  const cds = day.locations.find(l => l.id === 'cds');
-  const plan = buildFireResponse({ incident: { kind: 'fire', start: 36000 }, location: cds, hazard: { activeUntil: 37800 } }, transit, day.buildings);
-  assert.ok(plan);
-  const route = transit.routes.find(r => r.id === plan.routeId);
-  assert.ok(route.kind === 'bus' || route.kind === 'shuttle');
-  const raws = route.paths.filter(p => p.direction === plan.direction).map(p => p.path);
-  assert.equal(plan.trucks.length, 2);
-  const target = day.buildings.filter(b => b.id === cds.building);
-  for (const [, frames] of sweep(plan, 2)) for (const f of frames) {
-    assert.ok(Math.min(...raws.map(p => toPolyline(f.position, p))) <= 2 * A.laneOffsetMetres + 0.5, `${f.id} off corridor`);
-    if (f.phase === 'staging' || f.phase === 'fighting')
-      for (const p of body(f)) for (const b of day.buildings) assert.ok(!inside(p, b.polygon), `${f.id} parked inside ${b.id}`);
-    if (f.waterTarget) {
-      assert.ok(metres(f.position, f.waterTarget) <= A.maxHoseMetres);
-      assert.ok(Math.min(...target.map(b => footprintDistance(f.waterTarget, b.polygon))) < 0.5);
-    }
-  }
+test('a fire alarm evacuates exactly like a drill', () => {
+  const DAY = 86400;
+  const location = (id, x) => ({ id, name: id, short: id, kind: 'classroom', position: [x, 42], capacity: 100, building: id });
+  const locations = [location('hall', -71), location('assembly', -70.999), location('home', -71.001)];
+  const pos = (id) => locations.find((l) => l.id === id).position;
+  const base = { day: 'Monday', buildings: [], locations,
+    agents: [{ id: 'a', home: 'home', model: 0, walkSpeed: 1 }],
+    walkRoutes: { 'hall>assembly': { path: [pos('hall'), pos('assembly')], cumulative: [0, 30] } },
+    trips: [{ agent: 'a', from: 'home', to: 'hall', path: [pos('home'), pos('hall')], timestamps: [50, 80] }],
+    stays: [{ agent: 'a', location: 'home', start: 0, end: 50 }, { agent: 'a', location: 'hall', start: 80, end: DAY }] };
+  const drill = applyIncident(base, { id: 'i', kind: 'fire-drill', locationId: 'hall', start: 100, duration: 100 });
+  const alarm = applyIncident(base, { id: 'i', kind: 'fire-alarm', locationId: 'hall', start: 100, duration: 100 });
+  assert.ok(alarm.assemblyLocation);
+  assert.deepEqual(alarm.day.trips, drill.day.trips);
+  assert.equal(alarm.endsAt, drill.endsAt);
 });

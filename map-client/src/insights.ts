@@ -10,7 +10,7 @@
 // is answered with a pointer to the course form or the student's own home page.
 
 import type { CampusLocation, LocationKind, Occupancy, WalkRoute } from './sim/playback';
-import type { CampusData, SourceMeeting } from './data/campusData';
+import { dateForWeekday, openingHoursForDate, type CampusData, type OpeningHours, type SourceMeeting } from './data/campusData';
 import { effectiveMeetingIntervals } from './data/academicCalendar';
 
 export const ASK_ASSUMPTIONS = {
@@ -53,13 +53,18 @@ export interface RankedPlace {
   /** False when the simulation doesn't model activity here on the shown day (the tags say "Not modeled"). */
   modeled: boolean;
   walk: Walk | null;
+  /**
+   * Published opening state at the ranked time (see openAt): null when hours aren't published,
+   * undefined when the context carries no campus data.
+   */
+  open?: boolean | null;
 }
 
 export type MapInsight =
   | { kind: 'leastCrowded'; placeKind: LocationKind; time: number; ranked: RankedPlace[]; from: PlaceRef | null }
   | { kind: 'distance'; from: PlaceRef; to: PlaceRef; walk: Walk }
   | { kind: 'course'; courseCode: string; title: string; next: CourseMeeting; buildings: { locationId: string; sections: string[] }[] }
-  | { kind: 'busy'; location: CampusLocation; modeled: boolean; now: number | null; quiet: { time: number; share: number } | null; busy: { time: number; share: number } | null; time: number }
+  | { kind: 'busy'; location: CampusLocation; modeled: boolean; now: number | null; quiet: { time: number; share: number } | null; busy: { time: number; share: number } | null; time: number; openNow?: OpenState; afterMidnight?: boolean }
   | { kind: 'personal' }
   | { kind: 'needTwoPlaces' }
   | { kind: 'noCourse'; code: string }
@@ -81,6 +86,53 @@ export interface AskContext {
   weekday: number;
   /** Campus in view; rankings stay on it. */
   campus: string;
+  /**
+   * The campus bundle, for published opening hours (openAt). Without it rankings and outlooks
+   * ignore hours, as before.
+   */
+  data?: CampusData;
+}
+
+// ---------------------------------------------------------------- opening hours
+
+export interface OpenState {
+  /** True inside a published window, false when published hours exclude the time, null when unknown. */
+  open: boolean | null;
+  reason?: string;
+  hoursText?: string;
+  qualifier?: string | null;
+  /** Reference-week date of the weekday asked about. */
+  date: string;
+  /** Open only through the previous date's window running past midnight. */
+  fromPreviousDay?: boolean;
+}
+
+const inWindow = (windows: [number, number][], t: number) => windows.some(([s, e]) => s <= t && t < e);
+const hoursText = (entries: OpeningHours[]) => entries.map((e) => e.text).join(' / ');
+const qualifierOf = (entries: OpeningHours[]) => entries.find((e) => e.qualifier)?.qualifier ?? null;
+
+/**
+ * Whether a place is open at `timeSec` on a reference-week weekday (0 = Monday), from published
+ * hours only. A window can run past midnight (Mugar 07:00–26:00), so the previous date's windows
+ * cover the small hours. False only when hours are published for that date and none contains the
+ * time (an exact-date closure counts) or when access is restricted; null when hours aren't
+ * published for the date or the place has no published hours (classrooms, dorms).
+ */
+export function openAt(locationId: string, weekday: number, timeSec: number, data: CampusData): OpenState {
+  const date = dateForWeekday(data, weekday);
+  const source = data.locations[locationId];
+  if (source?.hoursStatus === 'restricted') return { open: false, reason: source.hoursReason ?? 'Access is restricted.', date };
+  if (!source || source.hoursStatus !== 'published') return { open: null, reason: 'Opening hours are not published for this place.', date };
+  const prevWeekday = (weekday + 6) % 7;
+  const previous = openingHoursForDate(source.hours, dateForWeekday(data, weekday - 1), prevWeekday)
+    .filter((e) => e.windows.some(([, end]) => end > 86400));
+  if (previous.some((e) => inWindow(e.windows, timeSec + 86400))) {
+    return { open: true, hoursText: hoursText(previous), qualifier: qualifierOf(previous), date, fromPreviousDay: true };
+  }
+  const today = openingHoursForDate(source.hours, date, weekday);
+  if (!today.length) return { open: null, reason: `Opening hours are not published for ${date}.`, date };
+  const open = today.some((e) => inWindow(e.windows, timeSec));
+  return { open, hoursText: hoursText(today), qualifier: qualifierOf(today), date };
 }
 
 /**
@@ -128,24 +180,41 @@ export function comparable(location: CampusLocation, modeled: boolean | undefine
     && location.capacityBasis !== 'estimated_student_capacity';
 }
 
-export function rankByCrowd(ctx: AskContext, placeKind: LocationKind, time: number, from: CampusLocation | null): RankedPlace[] {
-  const occupancy = ctx.occupancyAt(time).filter((o) => o.location.kind === placeKind && (o.location.campus ?? 'charles-river') === ctx.campus);
+/**
+ * Ranking tier: 0 open with a comparable percentage, 1 open with a headcount only, 2 hours not
+ * published, 3 closed, 4 not modeled. Without campus data every modeled place counts as open.
+ */
+export function rankTier(r: RankedPlace): number {
+  if (!r.modeled) return 4;
+  if (r.open === false) return 3;
+  if (r.open === null) return 2;
+  return r.share !== null ? 0 : 1;
+}
+
+export function rankByCrowd(ctx: AskContext, placeKind: LocationKind | null, time: number, from: CampusLocation | null): RankedPlace[] {
+  const occupancy = ctx.occupancyAt(time).filter((o) => (placeKind === null ? o.location.kind !== 'off-campus' : o.location.kind === placeKind) && (o.location.campus ?? 'charles-river') === ctx.campus);
+  const data = ctx.data;
   return occupancy
-    .map((o) => ({
+    .map((o): RankedPlace => ({
       location: o.location,
       count: o.count,
       share: comparable(o.location, o.modeled) ? o.count / o.location.capacity : null,
       modeled: o.modeled !== false && o.location.activityModeled !== false,
       walk: from ? walkBetween(from, o.location, ctx.walkRoutes) : null,
+      ...(data ? { open: openAt(o.location.id, ctx.weekday, time, data).open } : {}),
     }))
-    // Percentages first, then modeled headcounts, then places the simulation doesn't model.
-    .sort((x, y) => {
-      const tier = (r: RankedPlace) => (r.share !== null ? 0 : r.modeled ? 1 : 2);
-      return tier(x) - tier(y) || (x.share ?? 0) - (y.share ?? 0) || x.count - y.count || (x.walk?.meters ?? 0) - (y.walk?.meters ?? 0);
-    });
+    // Open places with percentages first, then open headcounts, places with unpublished hours
+    // (percentages before headcounts), closed places, and last the ones the simulation doesn't model.
+    .sort((x, y) => rankTier(x) - rankTier(y) || Number(x.share === null) - Number(y.share === null)
+      || (x.share ?? 0) - (y.share ?? 0) || x.count - y.count || (x.walk?.meters ?? 0) - (y.walk?.meters ?? 0));
 }
 
-/** Quietest and busiest whole hour from `time` to midnight on the shown day. */
+/**
+ * Quietest and busiest whole hour from `time` to midnight on the shown day. With campus data the
+ * shown time itself is a candidate, hours when the place is closed are skipped, and hours open
+ * only through the previous day's window past midnight are skipped and flagged (`afterMidnight`):
+ * simulated stays end at midnight, so those hours read empty though the place is open.
+ */
 export function busyOutlook(ctx: AskContext, location: CampusLocation, time: number) {
   const current = ctx.occupancyAt(time).find((x) => x.location.id === location.id);
   const modeled = current?.modeled !== false && location.activityModeled !== false;
@@ -153,16 +222,26 @@ export function busyOutlook(ctx: AskContext, location: CampusLocation, time: num
     const o = ctx.occupancyAt(t).find((x) => x.location.id === location.id);
     return o && comparable(o.location, o.modeled) ? o.count / location.capacity : null;
   };
+  const data = ctx.data;
+  const openNow = data ? openAt(location.id, ctx.weekday, time, data) : undefined;
   const now = shareAt(time);
   let quiet: { time: number; share: number } | null = null;
   let busy: { time: number; share: number } | null = null;
-  for (let t = Math.ceil(time / 3600) * 3600; t < 86400; t += 3600) {
+  let afterMidnight = Boolean(openNow?.open && openNow.fromPreviousDay);
+  const candidates: number[] = data ? [time] : [];
+  for (let t = Math.ceil(time / 3600) * 3600; t < 86400; t += 3600) if (t !== time || !data) candidates.push(t);
+  for (const t of candidates) {
+    if (data) {
+      const state = t === time ? openNow! : openAt(location.id, ctx.weekday, t, data);
+      if (state.open === false) continue;
+      if (state.open && state.fromPreviousDay) { afterMidnight = true; continue; }
+    }
     const share = shareAt(t);
     if (share === null) continue;
     if (!quiet || share < quiet.share) quiet = { time: t, share };
     if (!busy || share > busy.share) busy = { time: t, share };
   }
-  return { modeled, now, quiet, busy };
+  return data ? { modeled, now, quiet, busy, openNow, afterMidnight } : { modeled, now, quiet, busy };
 }
 
 // ---------------------------------------------------------------- courses

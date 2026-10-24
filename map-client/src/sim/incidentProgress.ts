@@ -73,7 +73,7 @@ export function incidentProgress(run: { incident: Incident; endsAt: number; part
     Math.max(latest, Math.min(person.resumedAt, stoppedAt.get(person.agentId) ?? Infinity)), run.endsAt);
   const phase = !started ? 'Scheduled'
     : run.incident.kind === 'earthquake' && run.hazard && time < run.hazard.responseStartsAt ? 'Sheltering during shaking'
-    : inside > 0 ? (run.incident.kind === 'fire-drill' ? 'Evacuating' : 'Clearing building')
+    : inside > 0 ? ((run.incident.kind === 'fire-drill' || run.incident.kind === 'fire-alarm') ? 'Evacuating' : 'Clearing building')
     : run.hazard && time >= run.hazard.activeUntil && time < run.endsAt ? 'Buildings damaged'
     : time < run.endsAt ? 'Access closed'
     : time < completedAt ? 'Resuming'

@@ -1,4 +1,5 @@
-"""Generate low-poly MBTA vehicle models (Green Line train, 40-ft bus) as self-contained GLBs.
+"""Generate low-poly vehicle models (MBTA Green Line train, 40-ft bus, BU shuttles, Boston Fire
+Department engine, ladder truck and district chief's SUV) as self-contained GLBs.
 
 Standard library only. Everything is built from flat-shaded polygons with plain PBR colours
 (no textures), so the files load in deck.gl's ScenegraphLayer exactly like the Kenney models.
@@ -71,7 +72,23 @@ MATERIALS = {
     "sign_black": mat("#111315", 0.1, 0.5),
     "sign_amber": mat("#FFB21A", 0.0, 0.4, emissive="#FF9E00"),
     "sign_white": mat("#FFFFFF", 0.0, 0.4, emissive="#606060"),
+    # Boston Fire Department apparatus: red with a white cab roof and gold-leaf lettering.
+    "fire_red": mat("#B5121B", 0.25, 0.4),
+    "fire_white": mat("#F2F2F0", 0.15, 0.45),
+    "fire_gold": mat("#D4A63A", 0.6, 0.35),
+    "alu": mat("#BFC5CB", 0.75, 0.35),         # roll-up compartment doors, diamond plate
+    "chrome": mat("#DDE2E6", 0.9, 0.2),
+    "hose": mat("#B49A62", 0.0, 0.8),
+    "lightbar": mat("#202326", 0.2, 0.5),
 }
+
+# Warning lights. Their emissiveFactor is a code, not a colour: (0, 0, k/4) puts the lens in
+# flash group k (1: A, 2: B, 3: slow rear group). The fire layer's shader (layers/fireTrucks.ts)
+# lights each group from a per-truck bitmask, using the lens's base colour; off, it's a dark lens.
+for _name, _hex, _group in (("strobe_red_a", "#E8141E", 1), ("strobe_red_b", "#E8141E", 2),
+                            ("strobe_white_a", "#FFFFFF", 1), ("strobe_white_b", "#FFFFFF", 2),
+                            ("strobe_amber_c", "#FF9A10", 3)):
+    MATERIALS[_name] = {**mat(_hex, 0.0, 0.3), "emissiveFactor": [0.0, 0.0, _group / 4]}
 
 
 # --------------------------------------------------------------------------------------------
@@ -348,6 +365,12 @@ FONT = {
     "5": ["#####", "#....", "####.", "....#", "....#", "#...#", ".###."],
     "7": ["#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..."],
     "U": ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    "C": [".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."],
+    "D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
+    "E": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
+    "F": ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+    "H": ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    "I": [".###.", "..#..", "..#..", "..#..", "..#..", "..#..", ".###."],
     " ": [".....", ".....", ".....", ".....", ".....", ".....", "....."],
 }
 
@@ -710,6 +733,217 @@ def build_bus(sign_text=BUS_SIGN_TEXT, mbta_roundel=True, side_text=None):
 
 
 # --------------------------------------------------------------------------------------------
+# Boston Fire Department apparatus: engine (pumper), rear-mount aerial ladder, chief's SUV
+# --------------------------------------------------------------------------------------------
+#
+# Boxy custom-cab fire apparatus (E-ONE style, which BFD has bought since 1984) built from boxes
+# and flat decals. Left (+X) and right (-X) warning lights are in opposite flash groups, so red
+# and white alternate side to side: A = left reds + right whites, B = right reds + left whites.
+
+FIRE_HALF_W = 1.25
+
+
+def decal_x(m, side, x_half, z0, z1, y0, y1, material, offset=0.012):
+    """A flat rectangle on a body side (side=+1 for +X, -1 for -X) whose face is at |x| = x_half."""
+    x = side * (x_half + offset)
+    m.poly([(x, y0, z0), (x, y0, z1), (x, y1, z1), (x, y1, z0)], material, outward=(side, 0.0, 0.0))
+
+
+def decal_z(m, facing, z_face, x0, x1, y0, y1, material, offset=0.012):
+    """A flat rectangle on a front (+1) or rear (-1) face at z = z_face."""
+    z = z_face + facing * offset
+    m.poly([(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)], material, outward=(0.0, 0.0, facing))
+
+
+def side_text(m, x_half, text, zc, yc, pixel, material):
+    """Lettering read from outside on both sides (+X reads toward -Z, -X toward +Z)."""
+    for s in (1, -1):
+        for x0, x1, y0, y1 in text_rects(text, zc, yc, pixel, facing=-s):
+            decal_x(m, s, x_half, x0, x1, y0, y1, material, 0.02)
+
+
+def fire_wheel(m, zc, radius=0.52, dual=False):
+    for s in (1, -1):
+        xo, xi = s * 1.24, s * (0.78 if dual else 0.94)
+        m.cylinder_x(0, radius, zc, radius, min(xo, xi), max(xo, xi), 16, "tyre")
+        hx = s * 1.255
+        m.cylinder_x(0, radius, zc, radius * 0.55, min(hx, xo), max(hx, xo), 12, "chrome",
+                     caps=("+x",) if s > 0 else ("-x",))
+
+
+def lightbar(m, z0, z1, y0, half_width=1.1, segments=6):
+    """Roof light bar: dark base, alternating red/white lenses, groups mirrored left/right."""
+    m.box(-half_width - 0.03, half_width + 0.03, y0, y0 + 0.06, z0 - 0.03, z1 + 0.03, "lightbar")
+    width = 2 * half_width / segments
+    for i in range(segments):
+        x1 = half_width - i * width
+        x0 = x1 - width + 0.02
+        left = (x0 + x1) / 2 > 0
+        red = i % 2 == 0 if left else (segments - 1 - i) % 2 == 0
+        group = ("a" if left else "b") if red else ("b" if left else "a")
+        m.box(x0, x1, y0 + 0.06, y0 + 0.2, z0, z1, f"strobe_{'red' if red else 'white'}_{group}")
+
+
+def fire_cab(m, z_rear, z_front, roof=2.95, crew=True):
+    """Tilt cab: red, white roof, big windscreen, door windows, bumper, grille and lights."""
+    w = FIRE_HALF_W
+    m.box(-w, w, 0.55, roof - 0.12, z_rear, z_front, "fire_red")
+    m.box(-w, w, roof - 0.12, roof, z_rear, z_front, "fire_white")
+    # Windscreen and side glass.
+    decal_z(m, 1, z_front, -1.12, 1.12, 1.78, roof - 0.28, "glass")
+    decal_z(m, 1, z_front, -0.025, 0.025, 1.78, roof - 0.28, "trim", 0.02)
+    for s in (1, -1):
+        decal_x(m, s, w, z_front - 1.25, z_front - 0.12, 1.78, roof - 0.3, "glass")
+        if crew:
+            decal_x(m, s, w, z_rear + 0.15, z_rear + 1.3, 1.78, roof - 0.3, "glass")
+        # Door seams and handles.
+        decal_x(m, s, w, z_front - 1.32, z_front - 1.28, 0.65, roof - 0.25, "trim")
+        decal_x(m, s, w, z_front - 1.55, z_front - 1.3, 1.45, 1.52, "chrome")
+        # Cab-side warning lights (upper front corners) and step lights.
+        decal_x(m, s, w, z_front - 0.35, z_front - 0.06, roof - 0.3, roof - 0.16, "strobe_red_a" if s > 0 else "strobe_red_b", 0.03)
+    # Grille, headlights and front warning lights.
+    decal_z(m, 1, z_front, -0.62, 0.62, 0.92, 1.62, "trim")
+    for k in range(6):
+        y = 0.98 + k * 0.11
+        decal_z(m, 1, z_front, -0.58, 0.58, y, y + 0.04, "chrome", 0.02)
+    for s in (1, -1):
+        decal_z(m, 1, z_front, *sorted((s * 0.72, s * 1.12)), 1.0, 1.3, "headlight")
+        decal_z(m, 1, z_front, *sorted((s * 0.72, s * 1.12)), 1.38, 1.6, "strobe_red_a" if s > 0 else "strobe_red_b")
+        decal_z(m, 1, z_front, *sorted((s * 0.72, s * 1.12)), 1.66, 1.74, "strobe_white_b" if s > 0 else "strobe_white_a")
+        decal_z(m, 1, z_front, *sorted((s * 1.14, s * 1.24)), 1.0, 1.3, "indicator")
+    m.box(-w - 0.05, w + 0.05, 0.42, 0.78, z_front, z_front + 0.32, "chrome")
+    lightbar(m, z_front - 0.62, z_front - 0.28, roof)
+    # BFD in gold on the cab doors.
+    side_text(m, w, "BFD", z_front - 0.7, 1.15, 0.05, "fire_gold")
+
+
+def fire_body_details(m, z0, z1, top, compartments, rear_face=True):
+    """Compartment doors, gold stripe, side and rear warning lights on the body box."""
+    w = FIRE_HALF_W
+    for s in (1, -1):
+        for a, b in compartments:
+            decal_x(m, s, w, a, b, 0.85, top - 0.15, "alu")
+            for k in range(1, 6):  # roll-up door slats
+                y = 0.85 + k * (top - 1.0) / 6
+                decal_x(m, s, w, a + 0.04, b - 0.04, y, y + 0.02, "trim", 0.02)
+        decal_x(m, s, w, z0 + 0.05, z1 - 0.05, top - 0.12, top - 0.06, "fire_gold")
+        mid = (z0 + z1) / 2
+        decal_x(m, s, w, mid - 0.12, mid + 0.12, 0.62, 0.76, "strobe_red_a" if s > 0 else "strobe_red_b", 0.03)
+        decal_x(m, s, w, z0 + 0.06, z0 + 0.32, top - 0.32, top - 0.16, "strobe_red_b" if s > 0 else "strobe_red_a", 0.03)
+    if rear_face:
+        for s in (1, -1):
+            decal_z(m, -1, z0, *sorted((s * 0.85, s * 1.2)), top - 0.42, top - 0.14, "strobe_red_a" if s > 0 else "strobe_red_b")
+            decal_z(m, -1, z0, *sorted((s * 0.45, s * 0.8)), top - 0.42, top - 0.14, "strobe_amber_c")
+            decal_z(m, -1, z0, *sorted((s * 0.85, s * 1.2)), 0.9, 1.2, "taillight")
+        decal_z(m, -1, z0, -0.75, 0.75, 1.3, top - 0.6, "alu")
+
+
+def build_fire_engine():
+    """BFD pumper, ~10.2 m: crew cab, pump panel, three compartments a side, hose bed."""
+    m = Mesh()
+    zf, zr = 5.1, -5.1
+    fire_cab(m, 2.1, zf)
+    m.box(-1.0, 1.0, 0.32, 0.6, zr + 0.1, zf - 0.1, "under", skip=("+y",))
+    # Pump panel between cab and body.
+    m.box(-FIRE_HALF_W, FIRE_HALF_W, 0.55, 2.7, 1.25, 2.1, "fire_red")
+    for s in (1, -1):
+        decal_x(m, s, FIRE_HALF_W, 1.32, 2.03, 0.8, 2.5, "chrome")
+        for k in range(3):
+            decal_x(m, s, FIRE_HALF_W, 1.45 + k * 0.2, 1.57 + k * 0.2, 1.9, 2.02, "sign_black", 0.02)  # gauges
+        m.cylinder_x(0, 1.0, 1.68, 0.12, *sorted((s * FIRE_HALF_W, s * (FIRE_HALF_W + 0.12))), 8, "chrome")  # intake
+    # Body and hose bed.
+    m.box(-FIRE_HALF_W, FIRE_HALF_W, 0.55, 2.62, zr, 1.25, "fire_red")
+    m.box(-1.12, 1.12, 2.62, 2.78, zr + 0.1, 0.9, "hose")
+    for k in range(5):
+        x = -1.0 + k * 0.5
+        m.box(x - 0.04, x + 0.04, 2.78, 2.8, zr + 0.15, 0.85, "under")
+    m.box(-FIRE_HALF_W, FIRE_HALF_W, 2.62, 2.84, 0.9, 1.25, "fire_red")
+    fire_body_details(m, zr, 1.25, 2.62, [(-4.9, -3.35), (-3.2, -1.55), (-1.4, 0.95)])
+    m.box(-1.1, 1.1, 0.5, 0.62, zr - 0.35, zr, "alu")  # rear step
+    fire_wheel(m, 3.35)
+    fire_wheel(m, -2.6, dual=True)
+    return m
+
+
+def build_fire_ladder():
+    """BFD rear-mount aerial ladder, ~12.8 m: cab, compartments, turntable at the rear and the
+    ladder stack bedded forward over the cab."""
+    m = Mesh()
+    zf, zr = 6.4, -6.4
+    fire_cab(m, 3.5, zf, roof=2.9)
+    m.box(-1.0, 1.0, 0.32, 0.6, zr + 0.1, zf - 0.1, "under", skip=("+y",))
+    top = 2.25
+    m.box(-FIRE_HALF_W, FIRE_HALF_W, 0.55, top, zr, 3.5, "fire_red")
+    fire_body_details(m, zr, 3.5, top, [(-6.2, -4.9), (-2.4, -0.6), (-0.45, 1.3), (1.45, 3.3)])
+    # Outrigger jacks behind the rear axles and behind the cab.
+    for z in (-4.6, 3.05):
+        for s in (1, -1):
+            m.box(*sorted((s * 1.05, s * 1.27)), 0.35, 1.0, z - 0.2, z + 0.2, "under")
+            decal_x(m, s, 1.27, z - 0.2, z + 0.2, 0.42, 0.5, "strobe_amber_c", 0.01)
+    # Turntable and pedestal.
+    m.box(-1.05, 1.05, top, top + 0.22, -5.95, -4.15, "alu")
+    m.box(-0.62, 0.62, top + 0.22, top + 0.62, -5.75, -4.6, "fire_red")
+    m.box(-0.3, 0.3, top + 0.62, top + 0.82, -5.9, -5.35, "under")  # control pedestal
+    # Ladder stack: three nested sections, rails and rungs, from the turntable over the cab.
+    y0 = 2.98
+    for inset, (z0, z1), material in ((0.0, (-6.1, 6.0), "alu"), (0.08, (-5.9, 6.3), "chrome"), (0.16, (-5.7, 6.6), "alu")):
+        for s in (1, -1):
+            x0, x1 = sorted((s * (0.7 - inset), s * (0.6 - inset)))
+            m.box(x0, x1, y0 + inset * 0.6, y0 + 0.42 - inset * 0.6, z0, z1, material)
+    z = -5.6
+    while z < 6.4:
+        m.box(-0.62, 0.62, y0 + 0.04, y0 + 0.1, z - 0.03, z + 0.03, "alu")
+        z += 0.36
+    m.box(-0.7, 0.7, y0 - 0.12, y0, -6.1, -4.9, "fire_red")  # heel pin housing
+    m.beam((0.0, top + 0.6, -4.7), (0.0, y0, -3.3), 0.24, 0.18, "chrome")  # elevation cylinder
+    m.box(-0.72, 0.72, 2.9, y0 - 0.02, 4.15, 4.4, "under")  # cradle over the cab
+    m.box(-0.08, 0.08, top, y0, 3.0, 3.25, "under")
+    # Ladder-tip lights.
+    for s in (1, -1):
+        m.box(*sorted((s * 0.56, s * 0.72)), y0 + 0.1, y0 + 0.26, 6.6, 6.68, "strobe_white_a" if s > 0 else "strobe_white_b")
+    fire_wheel(m, 4.75)
+    for zc in (-3.3, -4.7):
+        fire_wheel(m, zc, dual=True)
+    return m
+
+
+def build_chief_suv():
+    """District chief's SUV, ~5.3 m: red with a white roof, roof light bar, grille lights."""
+    m = Mesh()
+    w = 1.0
+    zf, zr = 2.65, -2.65
+    m.box(-w, w, 0.38, 1.12, zr, zf, "fire_red")
+    m.box(-0.98, 0.98, 0.3, 0.42, zr + 0.3, zf - 0.3, "under")
+    # Greenhouse: slanted windscreen, roof, side glass.
+    zw0, zw1, yb, yt = 1.25, 0.55, 1.12, 1.85
+    m.poly([(-0.95, yb, zw0), (0.95, yb, zw0), (0.92, yt, zw1), (-0.92, yt, zw1)], "glass", outward=(0, 0.6, 1))
+    m.box(-0.95, 0.95, yb, yt - 0.05, zr, zw1, "glass", skip=("+z",))
+    m.box(-0.96, 0.96, yt - 0.05, yt, zr + 0.02, zw1, "fire_white")
+    for s in (1, -1):
+        m.poly([(s * 0.95, yb, zw0), (s * 0.95, yb, zw1), (s * 0.92, yt, zw1)], "glass", outward=(s, 0, 0))
+        for z in (-0.3, -1.6):  # pillars
+            decal_x(m, s, 0.95, z - 0.06, z + 0.06, yb, yt - 0.05, "fire_red", 0.006)
+        decal_x(m, s, w, -1.2, 0.9, 0.98, 1.04, "fire_gold")
+        decal_x(m, s, w, 2.2, 2.5, 0.85, 0.98, "strobe_red_a" if s > 0 else "strobe_red_b", 0.02)
+    side_text(m, w, "CHIEF", -0.3, 0.72, 0.035, "fire_gold")
+    decal_z(m, 1, zf, -0.55, 0.55, 0.6, 0.95, "trim")
+    for s in (1, -1):
+        decal_z(m, 1, zf, *sorted((s * 0.6, s * 0.95)), 0.8, 0.98, "headlight")
+        decal_z(m, 1, zf, *sorted((s * 0.12, s * 0.45)), 0.66, 0.78, "strobe_red_a" if s > 0 else "strobe_red_b", 0.02)
+        decal_z(m, 1, zf, *sorted((s * 0.12, s * 0.45)), 0.8, 0.9, "strobe_white_b" if s > 0 else "strobe_white_a", 0.02)
+        decal_z(m, -1, zr, *sorted((s * 0.7, s * 0.95)), 0.8, 1.05, "taillight")
+        decal_z(m, -1, zr, *sorted((s * 0.3, s * 0.65)), 0.95, 1.05, "strobe_amber_c", 0.02)
+    m.box(-w - 0.03, w + 0.03, 0.35, 0.55, zf, zf + 0.12, "trim")
+    lightbar(m, 0.0, 0.32, yt, half_width=0.72, segments=6)
+    for zc in (1.6, -1.6):
+        for s in (1, -1):
+            xo, xi = s * 1.0, s * 0.76
+            m.cylinder_x(0, 0.4, zc, 0.4, min(xo, xi), max(xo, xi), 14, "tyre")
+            m.cylinder_x(0, 0.4, zc, 0.24, *sorted((s * 1.0, s * 1.012)), 10, "hub", caps=("+x",) if s > 0 else ("-x",))
+    return m
+
+
+# --------------------------------------------------------------------------------------------
 # GLB writer and checker
 # --------------------------------------------------------------------------------------------
 
@@ -840,7 +1074,13 @@ def main():
         "mbta-bus": (build_bus(), None),
         "bu-shuttle": (build_bus(sign_text="BU", mbta_roundel=False, side_text="BU"), BU_LIVERY),
         "bu-shuttle-night": (build_bus(sign_text="BU", mbta_roundel=False, side_text="BU"), BU_NIGHT_LIVERY),
+        "bfd-engine": (build_fire_engine(), None),
+        "bfd-ladder": (build_fire_ladder(), None),
+        "bfd-chief": (build_chief_suv(), None),
     }
+    only = [a.split("=", 1)[1] for a in sys.argv if a.startswith("--only=")]
+    if only:
+        models = {k: v for k, v in models.items() if k.startswith(only[0])}
     for name, (mesh, overrides) in models.items():
         path = OUT / f"{name}.glb"
         write_glb(mesh, name, path, overrides)

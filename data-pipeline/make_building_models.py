@@ -51,6 +51,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "data-pipeline" / ".cache" / "overpass"
 MODELS_DIR = ROOT / "map-client" / "public" / "models"
 MANIFEST = ROOT / "map-client" / "public" / "data" / "building-models.json"
+FOOTPRINTS = ROOT / "map-client" / "public" / "data" / "building-footprints.json"
 OVERPASS = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "Flowcast-DSX-hackathon/0.1"
 
@@ -2022,9 +2023,14 @@ def _floor_plan(ctx, v, floor):
     return plan
 
 
-def _room_schedule(r, cosy):
+# Rooms in use after dark, by housing use class ("site": a residence emptied for renovation, where
+# only the odd room has a work light on).
+ROOM_SHARE = {"cosy": 0.42, "site": 0.1}
+
+
+def _room_schedule(r, use):
     """A dorm or apartment room: (used, on, off, morning?)."""
-    if r.random() > (0.42 if cosy else 0.78):
+    if r.random() > ROOM_SHARE.get(use, 0.78):
         return None
     on = 16.0 + r.random() * 3.5
     x = r.random()
@@ -2036,7 +2042,7 @@ def _room_schedule(r, cosy):
         off = 26.0 + r.random() * 2.0          # 2 - 4 AM
     else:
         off = 30.5                             # up all night
-    morning = r.random() < (0.12 if cosy else 0.2)
+    morning = r.random() < (0.12 if use == "cosy" else 0.2)
     return on, off, morning
 
 
@@ -2063,7 +2069,7 @@ def light_windows(ctx, v, band, a, b, y0, y1, nbays, nrm, out=0.12, floor=None):
         if housing:
             if room_left == 0:
                 room_left = 1 + rng.randrange(3)
-                room = _room_schedule(rng, v.use == "cosy")
+                room = _room_schedule(rng, v.use)
             room_left -= 1
             if room is None:
                 continue
@@ -2770,6 +2776,10 @@ def landmark_warren(mesh, b, ctx, rng, vols):
         ordered = sorted(vols, key=lambda v: ring_centroid(v.rings[0])[0])
         towers = [ordered[i] for i in (1, 3, 5)] if len(ordered) == 7 else towers
         podium = [v for v in vols if v not in towers]
+    # The middle tower (Marshall, BU's Tower B: west to east the towers are Shields, Marshall and
+    # Fairfield) is under scaffolding for the renovation; see WARREN_TOWER_B_SCAFFOLD.
+    middle = sorted(towers, key=lambda v: ring_centroid(v.rings[0])[0])[1] if len(towers) == 3 else None
+    scaffold = WARREN_TOWER_B_SCAFFOLD and middle is not None
     top = 0
     pod_h = 15.5
     for v in podium:
@@ -2796,6 +2806,8 @@ def landmark_warren(mesh, b, ctx, rng, vols):
         v.parapet = 1.2
         v.mech = False
         v.lit_share = 0.5
+        if scaffold and v is middle:
+            v.use = "site"  # emptied for the works: only the odd work light behind the netting
         t = build_volume(mesh, v, ctx, {b.ref}, rng)
         centre, eu, ev, hu, hv = obb(v.rings[0])
         y = v.top + ROOF_UP
@@ -2804,7 +2816,180 @@ def landmark_warren(mesh, b, ctx, rng, vols):
         ring = oriented(ring)
         mesh.prism("tan_pier", ring, y, y + 3.4, top_mat="roof_light")
         top = max(top, t, y + 4.6)
+    if scaffold:
+        top = max(top, warren_scaffold(mesh, middle, podium, pod_h + roof_up(pod_h)))
     return top
+
+
+# Warren Towers is being renovated (BU, 2025-2028): the middle tower (Marshall, Tower B) is wrapped
+# in scaffolding and debris netting from the podium roof up, with a hoist and a site office on the
+# podium roof beside it, and its windows are mostly dark. Set False when the works there are done
+# (the tower then lights up as a dorm again). The scaffold isn't a crowd-glow volume: the
+# manifest's `volumes` stay the towers' and podium's own massing.
+WARREN_TOWER_B_SCAFFOLD = True
+
+
+def _face_toward(mesh, mat, pts, want):
+    """mesh.face with the winding flipped if needed so the face looks along `want` (model space)."""
+    nx = ny = nz = 0.0
+    n = len(pts)
+    for i in range(n):
+        x1, y1, z1 = pts[i]
+        x2, y2, z2 = pts[(i + 1) % n]
+        nx += (y1 - y2) * (z1 + z2)
+        ny += (z1 - z2) * (x1 + x2)
+        nz += (x1 - x2) * (y1 + y2)
+    if nx * want[0] + ny * want[1] + nz * want[2] < 0:
+        pts = pts[::-1]
+    mesh.face(mat, pts)
+
+
+def _tube(mesh, mat, p, q, r, side=(1.0, 0.0, 0.0), cap=False):
+    """A square-section scaffold tube (half width r) from p to q (model space: x, y up, z south):
+    four sides, plus an end cap at q if asked. Vertical tubes square up to `side`, others to the
+    horizontal, so their faces line up with the facade."""
+    d = (q[0] - p[0], q[1] - p[1], q[2] - p[2])
+    L = math.sqrt(d[0] ** 2 + d[1] ** 2 + d[2] ** 2)
+    if L < 1e-6:
+        return
+    d = (d[0] / L, d[1] / L, d[2] / L)
+    if abs(d[1]) > 0.999:
+        sv = side
+    else:
+        h = math.hypot(d[0], d[2])
+        sv = (-d[2] / h, 0.0, d[0] / h)
+    tv = (sv[1] * d[2] - sv[2] * d[1], sv[2] * d[0] - sv[0] * d[2], sv[0] * d[1] - sv[1] * d[0])
+    offs = [tuple(r * (a * sv[k] + c * tv[k]) for k in range(3)) for a, c in ((1, 1), (-1, 1), (-1, -1), (1, -1))]
+    for k in range(4):
+        o0, o1 = offs[k], offs[(k + 1) % 4]
+        _face_toward(mesh, mat, [tuple(p[i] + o0[i] for i in range(3)), tuple(p[i] + o1[i] for i in range(3)),
+                                 tuple(q[i] + o1[i] for i in range(3)), tuple(q[i] + o0[i] for i in range(3))],
+                     tuple(o0[i] + o1[i] for i in range(3)))
+    if cap:
+        _face_toward(mesh, mat, [tuple(q[i] + o[i] for i in range(3)) for o in offs], d)
+
+
+def warren_scaffold(mesh, v, podium, y_base):
+    """Tube-and-board scaffold wrapped around one Warren tower, from the podium roof (y_base) to a
+    guard rail above its parapet: standards ~2 m apart on an inner and an outer line (about 1 m
+    and 2.2 m off the piers), ledgers, a plank deck and a toe board at every floor, facade bracing
+    stepping up the outer face, and dark green debris netting just inside the outer tubes with a
+    few bays left open (more near the top, where the sheeting is still going up). Over the street
+    (the Comm Ave front and the Turnpike back, past the podium) it stands on outrigger struts back
+    to the wall, so the sidewalks stay clear. A rack-and-pinion hoist and a site office stand on the podium
+    roof off the east face. Existing materials only and no randomness (hashes), so nothing else
+    in the campus changes. Returns the top (m)."""
+    ring = oriented(v.rings[0], True)
+    n = len(ring)
+    wo = wall_out(v.top) + (v.fins[1] if v.fins else 0.0)  # face of the piers
+    d_in, d_out = wo + 0.95, wo + 2.2
+    R_WALL, R_IN, R_OUT = offset_ring(ring, wo), offset_ring(ring, d_in), offset_ring(ring, d_out)
+    R_NET = offset_ring(ring, d_out - 0.08)
+    R_TOE = offset_ring(ring, d_out - 0.17)
+    R_DIN, R_DOUT = offset_ring(ring, d_in - 0.2), offset_ring(ring, d_out - 0.1)
+    R_BRACE = offset_ring(ring, d_out + 0.1)
+    tube, plank, net = "roof_metal", "fin_sand", "roof_green"
+    y_eave = v.top + roof_up(v.top)
+    y_top = y_eave + v.parapet + 1.1
+    lifts = [y_base] + [y for y in storey_lines(v, -0.2, y_eave) if y_base + 1.5 < y < y_eave - 1.5] + [y_eave]
+    rows = len(lifts) - 1  # netted rows; the guard-rail row above the roof stays open
+
+    def P(pt, y):
+        return (pt[0], y, -pt[1])
+
+    def lerp(a, b, t):
+        return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+
+    def over_podium(pt):
+        return any(point_in_ring(pt, pv.rings[0]) for pv in podium)
+
+    for i in range(n):
+        j = (i + 1) % n
+        a, b = ring[i], ring[j]
+        L = dist(a, b)
+        eu = ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+        side = (eu[0], 0.0, -eu[1])
+        nrm = right_normal(a, b)
+        bays = max(1, round(dist(R_OUT[i], R_OUT[j]) / 2.0))
+        mid = lerp(a, b, 0.5)
+        street = not over_podium((mid[0] + nrm[0] * 3.0, mid[1] + nrm[1] * 3.0))
+        # standards (each edge owns its start corner), and outrigger struts where it oversails
+        for k in range(bays):
+            t = k / bays
+            _tube(mesh, tube, P(lerp(R_IN[i], R_IN[j], t), y_base), P(lerp(R_IN[i], R_IN[j], t), y_top), 0.06, side, cap=True)
+            _tube(mesh, tube, P(lerp(R_OUT[i], R_OUT[j], t), y_base - (0.4 if street else 0.0)),
+                  P(lerp(R_OUT[i], R_OUT[j], t), y_top), 0.06, side, cap=True)
+            if street and k % 2 == 0 and k > 0:
+                _tube(mesh, tube, P(lerp(R_OUT[i], R_OUT[j], t), y_base - 0.3), P(lerp(R_WALL[i], R_WALL[j], t), y_base - 3.0), 0.06)
+        # ledgers: both lines at every lift and the top rail, the outer line at hand-rail height too
+        for y in lifts + [y_top]:
+            _tube(mesh, tube, P(R_IN[i], y - 0.08), P(R_IN[j], y - 0.08), 0.05)
+            _tube(mesh, tube, P(R_OUT[i], y - 0.08), P(R_OUT[j], y - 0.08), 0.05)
+        for y in lifts:
+            _tube(mesh, tube, P(R_OUT[i], y + 1.05), P(R_OUT[j], y + 1.05), 0.05)
+            # plank deck (top and underside) and toe board (both faces)
+            quad = [R_DIN[i], R_DIN[j], R_DOUT[j], R_DOUT[i]]
+            _face_toward(mesh, plank, [P(q, y) for q in quad], (0, 1, 0))
+            _face_toward(mesh, plank, [P(q, y - 0.05) for q in quad], (0, -1, 0))
+            mesh.wall(plank, R_TOE[i], R_TOE[j], y, y + 0.2)
+            mesh.wall(plank, R_TOE[j], R_TOE[i], y, y + 0.2)
+        for r in range(rows):
+            y0, y1 = lifts[r], lifts[r + 1]
+            # netting: one sheet (both faces) per run of closed bays, under each lift's toe board
+            share = 11 if r < rows - 2 else 35
+            run = None
+            for k in range(bays + 1):
+                closed = k < bays and h32(f"warren-net|{i}|{r}|{k}") % 100 >= share
+                if closed and run is None:
+                    run = k
+                elif not closed and run is not None:
+                    na, nb = lerp(R_NET[i], R_NET[j], run / bays), lerp(R_NET[i], R_NET[j], k / bays)
+                    mesh.wall(net, na, nb, y0 + 0.25, y1 - 0.02)
+                    mesh.wall(net, nb, na, y0 + 0.25, y1 - 0.02)
+                    run = None
+            # facade bracing: one bay in four, stepping along a bay per lift
+            for k in range(bays):
+                if (k + r + i) % 4 == 0:
+                    t0, t1 = (k / bays, (k + 1) / bays) if i % 2 == 0 else ((k + 1) / bays, k / bays)
+                    _tube(mesh, tube, P(lerp(R_BRACE[i], R_BRACE[j], t0), y0), P(lerp(R_BRACE[i], R_BRACE[j], t1), y1), 0.045)
+    # the hoist, off the east face towards the back (south, Turnpike) end, away from the Comm Ave front
+    i = max(range(n), key=lambda e: right_normal(ring[e], ring[(e + 1) % n])[0])
+    j = (i + 1) % n
+    a, b = ring[i], ring[j]
+    L = dist(a, b)
+    eu = ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+    nrm = right_normal(a, b)
+    t = 0.28 if b[1] > a[1] else 0.72
+    foot = lerp(a, b, t)
+    y_mast = y_top + 1.6
+    c = (foot[0] + nrm[0] * (d_out + 1.15), foot[1] + nrm[1] * (d_out + 1.15))
+    hw = 0.75
+    corners = [(c[0] + sx * hw * eu[0] + sy * hw * nrm[0], c[1] + sx * hw * eu[1] + sy * hw * nrm[1])
+               for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    side = (eu[0], 0.0, -eu[1])
+    for q in corners:
+        _tube(mesh, tube, P(q, y_base), P(q, y_mast), 0.07, side, cap=True)
+    ys = [y_base + 2.0] + lifts[1:] + [y_top, y_mast - 0.1]
+    for y0, y1 in zip(ys, ys[1:]):
+        for k in range(4):
+            q0, q1 = corners[k], corners[(k + 1) % 4]
+            _tube(mesh, tube, P(q0, y1), P(q1, y1), 0.04)
+            _tube(mesh, tube, P(q0 if k % 2 else q1, y0), P(q1 if k % 2 else q0, y1), 0.035)
+    # base enclosure, the car part-way up (beside the mast, at a landing) and the drive on top
+    mesh.box("mech", (c[0] + nrm[0] * 0.45, c[1] + nrm[1] * 0.45), eu, 1.4, 1.1, y_base, y_base + 2.0, top_mat="mech")
+    yc = lifts[len(lifts) // 2]
+    mesh.box("mech", (c[0] + eu[0] * 1.7 - nrm[0] * 0.15, c[1] + eu[1] * 1.7 - nrm[1] * 0.15), eu, 0.85, 0.75,
+             yc, yc + 2.5, top_mat="mech", bottom=True)
+    mesh.box("mech", c, eu, 0.6, 0.6, y_mast, y_mast + 0.6, top_mat="mech")
+    # site office (a 20 ft cabin) and a pallet of materials on the podium roof, clear of the hoist
+    oc = lerp(a, b, 1.0 - t)
+    oc = (oc[0] + nrm[0] * (d_out + 6.0), oc[1] + nrm[1] * (d_out + 6.0))
+    if over_podium(oc):
+        mesh.box("trim_white", oc, eu, 3.05, 1.22, y_base, y_base + 2.6, top_mat="roof_metal")
+        sgn = 1.0 if t > 0.5 else -1.0
+        pc = (oc[0] + eu[0] * sgn * 4.7, oc[1] + eu[1] * sgn * 4.7)
+        mesh.box(plank, pc, eu, 1.2, 0.6, y_base, y_base + 0.9, top_mat=plank)
+    return y_mast + 0.6
 
 
 def landmark_stuvi(mesh, b, ctx, rng, vols):
@@ -3960,6 +4145,7 @@ def main():
     manifest = {"frame": "glTF metres: +x east, +y up, +z south (north is -z), relative to origin [lng, lat]",
                 "campuses": []}
     total = 0
+    model_footprints = []
     for campus in CAMPUSES:
         cid = campus["id"]
         frame = frames[cid]
@@ -4012,6 +4198,10 @@ def main():
                         top = max(top, build_volume(mesh, v, ctx, {b.ref} | {f"{p['type']}/{p['id']}" for p in b.parts}, rng))
             outer = b.rings_ll[0][0]
             c = ring_centroid(outer)
+            # Outer rings of every modelled building (and its parts), for the app to hide the base
+            # map's own buildings, labels and trees wherever ours stand (building-footprints.json).
+            model_footprints.append({"osm": b.ref, "rings": [[[round(x, 6), round(y, 6)] for x, y in o]
+                                                           for o, _ in b.rings_ll]})
             entries.append({"osm": b.ref, "name": b.name, "center": [round(c[0], 6), round(c[1], 6)],
                             "height": round(top, 1), **({"landmark": kind} if kind else {})})
             vols_out = massing_entries(ctx.massing, frame, top)
@@ -4055,7 +4245,8 @@ def main():
                   f"({', '.join(f'{k} {n}' for k, n in context_counts.items())}), "
                   f"{mesh.vert_count() - bu_verts:,} vertices, {(ctx.lit.vert_count() - bu_lit) // 4:,} lit windows")
     MANIFEST.write_text(manifest_json(manifest))
-    print(f"Total {total / 1e6:.2f} MB. Manifest -> {MANIFEST.relative_to(ROOT)}")
+    FOOTPRINTS.write_text(json.dumps(model_footprints, separators=(",", ":")) + "\n")
+    print(f"Total {total / 1e6:.2f} MB. Manifest -> {MANIFEST.relative_to(ROOT)}, footprints -> {FOOTPRINTS.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
