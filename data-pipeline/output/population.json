@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "dataset": "population",
+  "generatedAt": "2026-10-24T17:13:24.242086+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "students": {
+    "reportingPeriod": "Fall 2025 CDS census",
+    "unit": "people",
+    "total": 36977,
+    "undergraduate": 18289,
+    "graduate": 18688,
+    "degreeSeekingUndergraduate": 17628,
+    "cohorts": [
+      {
+        "level": "undergraduate",
+        "attendance": "full-time",
+        "headcount": 17818
+      },
+      {
+        "level": "undergraduate",
+        "attendance": "part-time",
+        "headcount": 471
+      },
+      {
+        "level": "graduate",
+        "attendance": "full-time",
+        "headcount": 10531
+      },
+      {
+        "level": "graduate",
+        "attendance": "part-time",
+        "headcount": 8157
+      }
+    ],
+    "exclusivelyDistanceEducation": null,
+    "charlesRiverHeadcount": null,
+    "medicalHeadcount": null
+  },
+  "housing": {
+    "degreeSeekingUndergraduateResidentPercent": 57,
+    "denominatorHeadcount": 17628,
+    "denominator": "degree-seeking undergraduates",
+    "estimatedUndergraduateResidents": 10048,
+    "estimateBasis": "CDS F1 rounded percentage multiplied by CDS B1 degree-seeking undergraduate headcount; not an exact resident count",
+    "residenceCapacity": 12351
+  },
+  "employees": {
+    "unit": "people",
+    "reportingPeriod": "End of November 2025 payroll",
+    "total": 11140,
+    "charlesRiver": 7871,
+    "medical": 3269,
+    "overseas": 0,
+    "scope": "University employees; excludes extramural medical faculty"
+  },
+  "campusStudentFte": {
+    "unit": "full-time equivalents",
+    "reportingPeriod": "End of Semester I Fall 2025",
+    "charlesRiver": 26187,
+    "medical": 3128
+  },
+  "sources": [
+    {
+      "url": "https://www.bu.edu/asir/files/2026/05/CDS-2025-2026-B.pdf",
+      "requestedUrl": "https://www.bu.edu/asir/files/2026/05/CDS-2025-2026-B.pdf",
+      "retrievedAt": "2026-10-24T17:10:13.083891+00:00",
+      "sha256": "3573e84388d9aab714a8fc1e2ec9dafab9b641dcdafd319d13c5c753068d0ad8",
+      "contentType": "application/pdf",
+      "rawPath": "data-pipeline/.cache/sources/5e58ef03e224ac6961c26341904164f7af47b46ab3078e2b7f3e5a692807abbe.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/asir/files/2026/05/CDS-2025-2026-F.pdf",
+      "requestedUrl": "https://www.bu.edu/asir/files/2026/05/CDS-2025-2026-F.pdf",
+      "retrievedAt": "2026-10-24T17:10:13.567993+00:00",
+      "sha256": "2195f7abde0f53e3e48b79c694d59dbdce7bb0a343a529c770786c3f8dbf9d9b",
+      "contentType": "application/pdf",
+      "rawPath": "data-pipeline/.cache/sources/2708d55c023ec6d1faa80f457644892b33f4e3b9da64fd191358f47d7c95d8b4.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/asir/files/2026/06/G3b-Fact-Sheet-FY2026.pdf",
+      "requestedUrl": "https://www.bu.edu/asir/files/2026/06/G3b-Fact-Sheet-FY2026.pdf",
+      "retrievedAt": "2026-10-24T17:10:12.524107+00:00",
+      "sha256": "b6987ffafcc0fd4adafbd05b0b522e223885d86e056a26a899d8ea7e6c52970c",
+      "contentType": "application/pdf",
+      "rawPath": "data-pipeline/.cache/sources/efc67aead1bf3aa41fcee4053c4363536bbe90a97e8b220c1ad8afa977a14922.body",
+      "cacheUsed": true
+    }
+  ],
+  "limitations": [
+    "Institutional enrollment is not simultaneous campus occupancy. Online-only and campus-specific student headcounts are not established by these reports.",
+    "Campus student FTE measures enrollment intensity, not people; never use it as a headcount or a campus allocation ratio.",
+    "Residence capacity is beds, not occupied beds. Undergraduate resident headcount is estimated from a rounded published percentage.",
+    "CDS uses the fall census; the fact sheet uses end-of-semester enrollment. Their student totals must not be combined.",
+    "Employee headcounts are not daily attendance and may overlap enrolled students."
+  ],
+  "errors": []
+}

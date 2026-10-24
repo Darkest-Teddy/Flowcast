@@ -1,0 +1,30 @@
+.mobility-panel { font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.mobility-panel h2, .mobility-panel h3 { color: var(--text); }
+.mobility-panel h3 { margin: 12px 0 5px; font-size: 13px; }
+.mobility-panel p { margin: 6px 0; }
+.mobility-panel a { color: #ffe66a; text-underline-offset: 3px; }
+.mobility-panel .mobility-caption { color: var(--muted); font-size: 12px; }
+.mobility-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.mobility-modes button { min-height: 40px; padding: 4px; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.mobility-modes button[aria-pressed='true'] { color: #111; background: var(--accent); border-color: var(--accent); font-weight: 650; }
+.mobility-panel .mobility-period { margin-top: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.mobility-selection { margin-top: 12px; padding: 0 0 12px; border-bottom: 1px solid rgba(255,255,255,.2); }
+.mobility-selection > strong { font-size: 16px; font-variant-numeric: tabular-nums; }
+.mobility-breakdown { white-space: pre-line; color: var(--muted); font-size: 12px; }
+.mobility-locations { list-style: none; padding: 0; margin: 0; }
+.mobility-locations li + li { border-top: 1px solid rgba(255,255,255,.08); }
+.mobility-locations button { display: flex; flex-direction: column; gap: 3px; width: 100%; min-height: 48px; padding: 9px 7px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.mobility-locations button:hover { background: rgba(255,255,255,.06); }
+.mobility-locations button[aria-pressed='true'] { border-color: var(--accent); }
+.mobility-locations strong { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mobility-panel summary { min-height: 36px; padding: 6px 0; cursor: pointer; }
+.mobility-panel button:focus-visible, .mobility-panel summary:focus-visible, .mobility-panel a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mobility-empty { margin-top: 16px; }
+.mobility-empty ul { margin: 4px 0; padding-left: 17px; color: var(--muted); font-size: 12px; }
+.mobility-sources { margin-top: 16px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,.16); }
+.mobility-sources ul { padding: 0; margin: 0; list-style: none; }
+.mobility-sources li { display: flex; flex-direction: column; gap: 3px; padding: 7px 0; }
+.mobility-sources li span { color: var(--muted); font-size: 12px; }
+@media (max-width: 800px) { .mobility-modes button { min-height: 44px; } }
+
+.mobility-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }

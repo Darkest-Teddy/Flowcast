@@ -1,0 +1,59 @@
+.chart {
+  --chart-height: calc(var(--space-16) + var(--space-8));
+}
+
+.tall {
+  --chart-height: calc(var(--space-16) * 3);
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  height: var(--chart-height);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  position: relative;
+  z-index: 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.bar {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.fill {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+
+.now::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunken);
+  z-index: -1;
+}
+
+.axis {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.axis span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: visible;
+}

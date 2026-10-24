@@ -1,0 +1,321 @@
+.frame {
+  display: grid;
+  grid-template-columns: 22% minmax(0, 1fr);
+  aspect-ratio: 16 / 11;
+  width: 100%;
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-overlay);
+}
+
+.frame i {
+  display: block;
+}
+
+.noSide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  background: var(--color-canvas);
+  border-right: 1px solid var(--color-hairline-soft);
+}
+
+.brand {
+  width: var(--space-3);
+  height: var(--space-3);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--color-strong);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.line,
+.lineSm,
+.lineAccent {
+  height: var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-hover);
+  flex-shrink: 0;
+}
+
+.lineSm {
+  height: var(--space-1);
+  background: var(--color-hairline);
+}
+
+.lineAccent {
+  background: var(--color-accent);
+  opacity: 0.5;
+}
+
+.heading {
+  width: 30%;
+  height: var(--space-2);
+  margin-top: var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--color-ink-tertiary);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--space-5);
+  border-bottom: 1px solid var(--color-hairline-soft);
+}
+
+.row .line {
+  flex: 0 1 auto;
+}
+
+.row > :last-child {
+  margin-left: auto;
+}
+
+/* Home */
+.search {
+  height: var(--space-5);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 var(--space-1) var(--color-surface-sunken);
+  margin-bottom: var(--space-1);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-sm);
+}
+
+.value {
+  width: 40%;
+  height: var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--color-ink);
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: var(--space-6);
+}
+
+.bars i {
+  flex: 1;
+  background: var(--color-accent-soft);
+}
+
+.bars .barOn {
+  background: var(--color-accent);
+}
+
+/* Schedule and forecasts */
+.suggestion {
+  display: flex;
+  align-items: center;
+  height: var(--space-5);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+}
+
+.meter {
+  width: 22%;
+  height: var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.meter b {
+  display: block;
+  height: 100%;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  flex: 1;
+  min-height: var(--space-8);
+  max-height: var(--space-16);
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+.chart i {
+  flex: 1;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  opacity: 0.7;
+}
+
+/* Map */
+.map {
+  position: relative;
+  flex: 1;
+  margin: calc(var(--space-3) * -1);
+  background: var(--color-surface-sunken);
+}
+
+.road,
+.roadV {
+  position: absolute;
+  background: var(--color-surface);
+}
+
+.road {
+  left: 0;
+  right: 0;
+  height: var(--space-2);
+}
+
+.roadV {
+  top: 0;
+  bottom: 0;
+  width: var(--space-2);
+}
+
+.building {
+  position: absolute;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xs);
+  box-shadow: var(--space-1) var(--space-1) 0 var(--color-hairline-soft);
+}
+
+.dot {
+  position: absolute;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-surface);
+}
+
+.legend {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--text-xs);
+  color: var(--color-ink-secondary);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.legend i {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+}
+
+/* Clubs and events */
+.swatch {
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+
+.verified {
+  width: var(--space-6);
+  height: var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--color-ok-soft);
+}
+
+.pill,
+.pillOn {
+  width: var(--space-10);
+  height: var(--space-4);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-hairline);
+}
+
+.pillOn {
+  border-color: transparent;
+  background: var(--color-strong);
+}
+
+.dateBox {
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-hairline);
+  flex-shrink: 0;
+}
+
+/* Privacy */
+.switchOn,
+.switchOff {
+  width: var(--space-6);
+  height: var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-ok);
+}
+
+.switchOff {
+  background: var(--color-hairline);
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  margin-top: var(--space-1);
+}
+
+.buttons {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+.button,
+.buttonDanger {
+  width: var(--space-16);
+  height: var(--space-5);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-hairline);
+}
+
+.buttonDanger {
+  background: var(--color-bad-soft);
+  border-color: transparent;
+}

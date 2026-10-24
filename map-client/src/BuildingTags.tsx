@@ -20,6 +20,7 @@ const svg = (paths: string) =>
 
 // Lucide-style glyphs (ISC), one per kind of place.
 const ICONS: Record<LocationKind, string> = {
+  'off-campus': '',
   dorm: svg('<path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/>'),
   classroom: svg('<path d="M22 10v6"/><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>'),
   dining: svg('<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>'),
@@ -27,7 +28,7 @@ const ICONS: Record<LocationKind, string> = {
   gym: svg('<path d="M6.5 6.5l11 11"/><path d="M21 21l-1-1"/><path d="M3 3l1 1"/><path d="M18 22l4-4"/><path d="M2 6l4-4"/><path d="M3 10l7-7"/><path d="M14 21l7-7"/>'),
 };
 
-const KIND_LABEL: Record<LocationKind, string> = { dorm: 'Residence', classroom: 'Academic', dining: 'Dining', library: 'Library', gym: 'Athletics' };
+const KIND_LABEL: Record<LocationKind, string> = { dorm: 'Residence', classroom: 'Academic', dining: 'Dining', library: 'Library', gym: 'Athletics', 'off-campus': 'Off map' };
 
 /** px from the roof to the bottom of the card (the stem). */
 const STEM = 16;

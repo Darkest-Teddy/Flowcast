@@ -6,6 +6,7 @@
 // Optional: a free key from https://api-v3.mbta.com in VITE_MBTA_API_KEY (map-client/.env.local).
 
 import { pollShuttleArrivals, pollShuttleVehicles, type ShuttleData } from './buShuttle';
+import { isFreshObservation, parseObservationTime } from './liveFreshness';
 import { isUnderground, makeTrack, pointAlong, snapToTracks, type Track } from './tracks';
 import { JUMP_METRES, newFollower, stepFollower, trackFeatures, type Follower, type Holding } from './motion';
 
@@ -86,6 +87,7 @@ export interface Vehicle {
   reportedStatus?: string;
   from: [number, number];
   to: [number, number];
+  observedAt?: number | null; // freshness epoch; skewed BU clocks use first receipt of each source timestamp
   receivedAt: number; // performance.now() of the latest report
   interval: number; // ms until the next report is expected
   /** Set when the report snapped onto the vehicle's track: it then moves along the track. */
@@ -132,6 +134,7 @@ async function getJson(path: string, params: Record<string, string>) {
 }
 
 interface VehicleReport {
+  observedAt: number | null;
   id: string;
   route: string;
   direction: 0 | 1;
@@ -212,7 +215,9 @@ export class MbtaFeed {
    */
   positionsAt(now: number): Vehicle[] {
     const signalTime = wallClockSeconds();
-    for (const v of this.state.vehicles) {
+    // Stale reports (vehicle gone quiet) aren't drawn; fresh ones follow their reports (motion.ts).
+    const vehicles = this.state.vehicles.filter((v) => isFreshObservation(v.observedAt));
+    for (const v of vehicles) {
       const follower = this.followers.get(v.id);
       if (v.track && follower) {
         stepFollower(follower, v.track, this.featuresFor(v.track), this.kindOf(v.route), {
@@ -236,7 +241,7 @@ export class MbtaFeed {
       }
     }
     // Trains in a tunnel (Kenmore, Hynes, the D past Fenway) are underground: don't draw them.
-    return this.state.vehicles.filter((v) => v.track && !isUnderground(v.track, this.followers.get(v.id)?.s ?? v.sTo));
+    return vehicles.filter((v) => v.track && !isUnderground(v.track, this.followers.get(v.id)?.s ?? v.sTo));
   }
 
   private kindOf(route: string): TransitRoute['kind'] {
@@ -289,11 +294,12 @@ export class MbtaFeed {
   private async pollVehicles() {
     const json = await getJson('/vehicles', {
       'filter[route]': this.routeIds,
-      'fields[vehicle]': 'latitude,longitude,bearing,current_status,direction_id,label',
+      'fields[vehicle]': 'latitude,longitude,bearing,current_status,direction_id,label,updated_at',
     });
     const reports = (json.data as ApiResource[]).map((r): VehicleReport => {
-      const a = r.attributes as { latitude: number; longitude: number; bearing: number; current_status: string; direction_id: 0 | 1; label: string };
+      const a = r.attributes as { latitude: number; longitude: number; bearing: number; current_status: string; direction_id: 0 | 1; label: string; updated_at: string | null };
       return {
+        observedAt: parseObservationTime(a.updated_at),
         id: r.id,
         route: r.relationships.route.data!.id,
         direction: a.direction_id,
@@ -317,6 +323,7 @@ export class MbtaFeed {
       // TransLoc reports heading 0 when stopped; only trust it while moving.
       bearing: v.speed > 1 ? v.heading : undefined,
       to: v.position,
+      observedAt: v.observedAt,
     }));
     this.shuttleVehicles = this.place(reports, this.shuttleVehicles, SHUTTLE_POLL_MS);
     this.publishVehicles();
@@ -332,7 +339,8 @@ export class MbtaFeed {
     const margin = 0.01;
     const nearCampus = ([lng, lat]: [number, number]) =>
       this.data.areas.some(({ bbox: [west, south, east, north] }) => lng >= west - margin && lng <= east + margin && lat >= south - margin && lat <= north + margin);
-    const previous = new Map(previousList.map((v) => [v.id, v]));
+    const epochNow = Date.now();
+    const previous = new Map(previousList.filter((v) => isFreshObservation(v.observedAt, epochNow)).map((v) => [v.id, v]));
     const now = performance.now();
     // A vehicle missing from a poll or two (the feed drops them now and then) keeps its
     // follower for a while, so when it's back it glides on (and stops for signals) rather
@@ -350,7 +358,7 @@ export class MbtaFeed {
     }
     return reports
       .map((r): Vehicle | null => {
-        if (!nearCampus(r.to)) return null;
+        if (!isFreshObservation(r.observedAt, epochNow) || !nearCampus(r.to)) return null;
         const prev = previous.get(r.id);
         const vehicle: Vehicle = {
           id: r.id,
@@ -363,6 +371,7 @@ export class MbtaFeed {
           from: prev ? [...prev.position] : r.to,
           to: r.to,
           position: prev ? [...prev.position] : r.to,
+          observedAt: r.observedAt,
           receivedAt: now,
           interval,
           sFrom: 0,

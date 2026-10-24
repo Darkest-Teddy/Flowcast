@@ -1,0 +1,9 @@
+.line {
+  min-height: var(--space-5);
+  display: flex;
+  align-items: center;
+}
+
+.line:empty {
+  min-height: 0;
+}
