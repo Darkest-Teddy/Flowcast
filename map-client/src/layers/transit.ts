@@ -74,6 +74,16 @@ interface RoutePath {
 }
 
 // Track geometry only depends on the static route shapes, so build it once per feed.
+// The track is drawn flat on the ground, so it would z-fight with the base map's ground (a flicker
+// while zooming). Each layer is pulled slightly towards the camera, rails over ties over ballast.
+const TRACK_DEPTH = {
+  bed: { depthBias: -1, depthBiasSlopeScale: -200 },
+  ties: { depthBias: -1, depthBiasSlopeScale: -300 },
+  rails: { depthBias: -1, depthBiasSlopeScale: -400 },
+} as const;
+const TIES_MIN_ZOOM = 17.5;
+const RAILS_MIN_ZOOM = 16;
+
 const geometryCache = new WeakMap<Track[], TrackGeometry>();
 function subwayTracks(feed: TransitSource, routes: Map<string, TransitRoute>): TrackGeometry {
   let geometry = geometryCache.get(feed.tracks);
@@ -158,11 +168,14 @@ export function transitLayers({ data, feed, now, zoom, models, time, weekday }: 
       data: tracks.beds,
       getPath: (d) => d.path,
       getColor: [86, 82, 76, 255],
-      getWidth: 3.4,
+      // 4.6 m: the two beds (4 m apart) join into one ballast strip that also covers the base map's
+      // own rail lines, so only our two tracks show.
+      getWidth: 4.6,
       widthUnits: 'meters',
       widthMinPixels: 4,
       jointRounded: true,
       pickable: true,
+      parameters: TRACK_DEPTH.bed,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
@@ -174,6 +187,9 @@ export function transitLayers({ data, feed, now, zoom, models, time, weekday }: 
       getColor: [128, 108, 88, 255],
       getWidth: 0.26,
       widthUnits: 'meters',
+      // Sub-pixel ties shimmer (moiré) as the camera zooms out: only draw them up close.
+      visible: zoom >= TIES_MIN_ZOOM,
+      parameters: TRACK_DEPTH.ties,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
@@ -186,6 +202,8 @@ export function transitLayers({ data, feed, now, zoom, models, time, weekday }: 
       widthUnits: 'meters',
       widthMinPixels: 1,
       jointRounded: true,
+      visible: zoom >= RAILS_MIN_ZOOM,
+      parameters: TRACK_DEPTH.rails,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
