@@ -68,6 +68,10 @@ import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireMo
 import { loadFireNetwork, planFireResponse, signalOracle, type FireNetwork } from './sim/fireResponse';
 import { registeredSignals } from './sim/signals';
 import { FireSiren } from './fireSiren';
+import { ParkingTags, type ParkingTagsHandle } from './ParkingTags';
+import { ParkingPanel } from './ParkingPanel';
+import { parkingLayers, parkingUnder } from './layers/parking';
+import { campusParkingEvents, createParkingModel, loadParking, parkingAt, parkingDayKind, type LotState, type ParkingData, type ParkingEvent, type ParkingModel, type ParkingState } from './sim/parking';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -107,6 +111,12 @@ const START_WEEKDAY = START_LIVE ? wallClockWeekday() : URL_DATE ? weekdayOf(URL
 const BOSTON_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
 /** Today's calendar date in Boston, "2026-10-24". */
 function wallClockDate(): string { return BOSTON_DATE.format(new Date()); }
+
+// Parking is an opt-in estimate layer (Transit tab), off by default and remembered.
+const PARKING_KEY = 'flowcast.parking';
+function storedParking(): boolean {
+  try { return localStorage.getItem(PARKING_KEY) === '1'; } catch { return false; }
+}
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
 const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
@@ -128,6 +138,13 @@ interface Transit {
   feed: MbtaFeed; // live MBTA + BU feeds (Live mode)
   schedule: PublishedTransit | null; // scheduled service on the sim clock (playback / fast-forward)
   models: VehicleModels;
+}
+
+interface Parking {
+  data: ParkingData;
+  model: ParkingModel;
+  /** BU's own events from campus-data.json, as small parking demands (built on first use). */
+  campusEvents: ParkingEvent[] | null;
 }
 
 interface Bikes {
@@ -153,6 +170,12 @@ export default function App() {
   const showTransitRef = useRef(true);
   const bikesRef = useRef<Bikes | null>(null);
   const showBikesRef = useRef(true);
+  const parkingRef = useRef<Parking | null>(null);
+  const parkingTagsRef = useRef<ParkingTagsHandle>(null);
+  const [showParking, setShowParking] = useState(storedParking);
+  const showParkingRef = useRef(showParking);
+  const [parkingView, setParkingView] = useState<ParkingState | null>(null);
+  const [parkingError, setParkingError] = useState<string | null>(null);
 
   const [loadProgress] = useState(createLoadProgress);
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
@@ -349,6 +372,10 @@ export default function App() {
           tagsRef.current?.hoverBuilding(buildingUnder(object));
           transitTagsRef.current?.hoverMarker(markerUnder(object));
           placeTagsRef.current?.hoverPlace(placeUnder(object));
+          if (showParkingRef.current) {
+            const lot = parkingUnder(object);
+            parkingTagsRef.current?.hoverLot(lot === null ? null : parkingRef.current?.data.lots[lot]?.id ?? null);
+          }
         },
         // Building footprints and labels both carry the building id; anything else clears.
         onClick: ({ object }: PickingInfo) => {
@@ -382,8 +409,8 @@ export default function App() {
           // Stops and docks with a tag expand it instead of showing a tooltip.
           const marker = markerUnder(object);
           if (marker && transitTagsRef.current?.hasTag(marker)) return null;
-          // Places (monuments, open spaces, fields) open their tag instead.
-          if (placeUnder(object)) return null;
+          // Places (monuments, open spaces, fields) and parking lots open their tag instead.
+          if (placeUnder(object) || parkingUnder(object) !== null) return null;
           const bikes = bikesRef.current;
           const bikeText = bikes ? bikeTooltip(object, bikes.data, bikes.feed, timeRef.current) : null;
           if (bikeText) return bikeText;
@@ -439,6 +466,8 @@ export default function App() {
       let buildingsFrom: Occupancy[] | null = null;
       let buildingsPlayback: Playback | null = null;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
+      let parkingState: ParkingState | null = null; // only while the Parking toggle is on
+      let lastParking = 0;
       const tick = (now: number) => {
         // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
         if (!pacer.shouldRender(now)) {
@@ -520,6 +549,18 @@ export default function App() {
           camera: basemap.getCamera(),
           roofHeights,
         });
+        // Parking (toggle on only): the estimate is refreshed at most twice a second, then its tags
+        // (with the toggle on, lots are what the user asked to see: placed before the transit tags).
+        const parking = showParkingRef.current ? parkingRef.current : null;
+        if (parking) {
+          if (!parkingState || now - lastParking > OCCUPANCY_REFRESH_MS) {
+            lastParking = now;
+            parking.campusEvents ??= campusParkingEvents(snapshot.events);
+            parkingState = parkingAt(parking.model, parkingDay(snapshot, liveRef.current, weekdayRef.current), liveRef.current ? wallClockSeconds() : t, parking.campusEvents);
+            setParkingView(parkingState);
+          }
+          parkingTagsRef.current?.update({ placer, project: basemap.project, camera: basemap.getCamera(), state: parkingState });
+        } else parkingState = null;
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
         const source = transit ? transitSourceAt(transit, t, liveRef.current, weekdayRef.current) : null;
@@ -573,6 +614,7 @@ export default function App() {
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), lightPreset: lightRef.current }) : []),
+          ...(parking && parkingState ? parkingLayers(parking.data, parkingState) : []),
           ...placeHitLayers(monuments?.monuments ?? null, fields?.fields ?? null, basemap.getZoom()),
           ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
           ...(showBikesNow
@@ -629,6 +671,16 @@ export default function App() {
 
   useEffect(() => { campusRef.current = campus; }, [campus]);
 
+  // The parking lots and events load the first time the toggle is on (never while it's off).
+  useEffect(() => {
+    if (!showParking || parkingRef.current) return;
+    let stale = false;
+    loadParking()
+      .then((data) => { if (!stale) parkingRef.current = { data, model: createParkingModel(data), campusEvents: null }; setParkingError(null); })
+      .catch((error: Error) => setParkingError(error.message));
+    return () => { stale = true; };
+  }, [showParking]);
+
   const goToCampus = (c: Campus) => {
     setCampus(c.id);
     loadDeferredRef.current?.(c.id);
@@ -652,6 +704,13 @@ export default function App() {
     setShowCounts(showCountsRef.current);
     try { localStorage.setItem(COUNTS_KEY, showCountsRef.current ? '1' : '0'); } catch { /* storage blocked: this session only */ }
   };
+  const toggleParking = () => {
+    showParkingRef.current = !showParkingRef.current;
+    setShowParking(showParkingRef.current);
+    if (!showParkingRef.current) setParkingView(null);
+    try { localStorage.setItem(PARKING_KEY, showParkingRef.current ? '1' : '0'); } catch { /* private mode */ }
+  };
+  const selectLot = (s: LotState) => basemapRef.current?.flyTo(s.lot.position, 17);
 
   const toggleBikes = () => {
     showBikesRef.current = !showBikesRef.current;
@@ -876,6 +935,7 @@ export default function App() {
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
       <TransitTags ref={transitTagsRef} />
       <PlaceTags ref={placeTagsRef} />
+      {showParking && <ParkingTags ref={parkingTagsRef} />}
 
       <header className="panel title">
         <h1>Flowcast</h1>
@@ -1075,7 +1135,13 @@ export default function App() {
                     Traffic
                   </button>
                 )}
+                <button onClick={toggleParking} aria-pressed={showParking} title="Estimated parking at BU and event-area lots">
+                  Parking
+                </button>
               </div>
+              {showParking && (parkingError
+                ? <p role="alert">Parking estimate unavailable: {parkingError}</p>
+                : parkingRef.current && <ParkingPanel data={parkingRef.current.data} state={parkingView} onSelect={selectLot} />)}
               {transit && source && showTransit && (
                 <>
                   <h2>
@@ -1235,6 +1301,12 @@ export default function App() {
 
     </div>
   );
+}
+
+/** The day parking is estimated for: today in Clock mode, else the chosen day of the simulated week. */
+function parkingDay(data: CampusData, live: boolean, weekday: number) {
+  const date = live ? wallClockDate() : dateForWeekday(data, weekday);
+  return { date, weekday, kind: parkingDayKind(date, weekday, data.academicCalendar?.terms) };
 }
 
 /** Soonest bus (or BU shuttle) per route and direction at any of a campus's stops. */
