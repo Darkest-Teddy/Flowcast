@@ -116,6 +116,7 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes'>('crowds');
   const [weekday, setWeekday] = useState(2);
+  const weekdayRef = useRef(2); // 0 = Monday (the day picker's index), read by the frame loop
   const [sourceData, setSourceData] = useState<CampusData | null>(null);
   const [sourceError, setSourceError] = useState('');
   const baseDayRef = useRef<DayData | null>(null);
@@ -163,10 +164,9 @@ export default function App() {
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
-      if (detailedBuildings) {
-        // Our detailed models replace Mapbox's own copies of those buildings.
-        basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])));
-      }
+      // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
+      // Standard's own 3D buildings are off).
+      basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])));
 
       if (transitData) {
         // BU's own shuttles join the MBTA data: same tracks, snapping and panels.
@@ -306,7 +306,7 @@ export default function App() {
             roofHeights,
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
-          ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+          ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), placer, models: transit.models, time: liveRef.current ? wallClockSeconds() : t, weekday: liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7 }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
           ...(boats ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current }) : []),
           ...(showBikesNow
@@ -409,6 +409,7 @@ export default function App() {
     if (!baseDayRef.current || !sourceData) return;
     playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(baseDayRef.current, sourceData, value)));
     setWeekday(value);
+    weekdayRef.current = value;
     setHud((prev) => ({
       time: timeRef.current,
       walking: playbackRef.current!.walkingAt(timeRef.current).length,
