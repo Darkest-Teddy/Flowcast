@@ -32,6 +32,8 @@ export interface Basemap {
   /** Screen pixel position of a lng/lat (ground level). */
   project(lngLat: [number, number]): [number, number];
   getZoom(): number;
+  /** True once every tile the current view needs has loaded (the loading screen waits on it). */
+  tilesLoaded(): boolean;
   remove(): void;
 
   // Camera control (src/map/camera.ts). Moves made through these never count as user interaction.
@@ -403,6 +405,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         return [p.x, p.y];
       },
       getZoom: () => map.getZoom(),
+      tilesLoaded: () => map.areTilesLoaded(),
       remove: () => {
         stopQuality();
         map.remove();
@@ -443,6 +446,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       return [p.x, p.y];
     },
     getZoom: () => map.getZoom(),
+    tilesLoaded: () => map.areTilesLoaded(),
     remove: () => map.remove(),
     ...cameraApi(map as unknown as CameraMap, 85),
   };

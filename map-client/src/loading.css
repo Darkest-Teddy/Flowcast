@@ -1,0 +1,250 @@
+/* Startup overlay (LoadingScreen.tsx). Only transform/opacity animate, so the compositor does the
+   work while the main thread parses models and builds the population. */
+
+.loader {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, #151b2a 0%, #0b0d12 70%);
+  transition: opacity 0.9s ease 0.15s;
+}
+.loader.ld-out { opacity: 0; pointer-events: none; }
+
+/* A street grid tilted like the map's pitched camera, drifting toward the viewer. */
+.ld-grid {
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  top: 35%;
+  height: 120%;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(rgba(45, 212, 191, 0.08) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(45, 212, 191, 0.08) 2px, transparent 2px);
+  background-size: 48px 48px, 48px 48px, 240px 240px, 240px 240px;
+  transform: perspective(520px) rotateX(64deg);
+  transform-origin: 50% 0;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 30%, #000 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 30%, #000 60%, transparent 100%);
+  animation: ld-drift 6s linear infinite;
+}
+@keyframes ld-drift { to { background-position: 0 240px, 0 240px, 0 240px, 0 240px; } }
+
+.ld-glow {
+  position: absolute;
+  width: 560px;
+  height: 560px;
+  left: 50%;
+  top: 50%;
+  margin: -340px 0 0 -280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 214, 10, 0.1) 0%, rgba(45, 212, 191, 0.06) 35%, transparent 65%);
+  animation: ld-breathe 5s ease-in-out infinite;
+}
+@keyframes ld-breathe { 50% { transform: scale(1.12); opacity: 0.7; } }
+
+.ld-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 24px;
+  transition: transform 1s cubic-bezier(0.5, 0, 0.2, 1), opacity 0.6s ease;
+}
+/* On reveal the vignette swells past the viewer while the real map zooms in underneath. */
+.ld-out .ld-stage { transform: scale(1.35); opacity: 0; }
+
+/* ---- Campus vignette ---- */
+
+.ld-scene {
+  position: relative;
+  width: 320px;
+  height: 240px;
+  animation: ld-float 6s ease-in-out infinite;
+}
+.ld-scene svg { display: block; overflow: visible; }
+@keyframes ld-float { 50% { transform: translateY(-6px); } }
+
+.ld-plate { stroke: rgba(255, 255, 255, 0.12); stroke-width: 1; animation: ld-fade 0.8s ease both; }
+.ld-river { animation: ld-fade 1s ease 0.1s both; }
+.ld-current {
+  fill: none;
+  stroke: rgba(130, 190, 255, 0.35);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-dasharray: 8 22;
+  animation: ld-flow 3.5s linear infinite;
+  animation-delay: calc(var(--i) * -1.1s);
+}
+@keyframes ld-flow { to { stroke-dashoffset: -60; } }
+
+.ld-street {
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: ld-draw 1.2s cubic-bezier(0.6, 0, 0.2, 1) forwards;
+  animation-delay: calc(0.2s + var(--i) * 0.12s);
+}
+@keyframes ld-draw { to { stroke-dashoffset: 0; } }
+
+.ld-bld {
+  opacity: 0;
+  animation: ld-rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1.15) forwards;
+  animation-delay: calc(0.5s + var(--i) * 0.09s);
+}
+@keyframes ld-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+.ld-face-l { fill: #1f2738; }
+.ld-face-r { fill: #161c29; }
+.ld-top { fill: #2c3549; stroke: rgba(255, 255, 255, 0.14); stroke-width: 0.6; }
+/* Busy buildings glow like the map's crowd heat. */
+.ld-heat { fill: #ffd60a; opacity: 0; animation: ld-heat 2.6s ease-in-out infinite; animation-delay: calc(1.4s + var(--i) * 0.4s); }
+@keyframes ld-heat { 50% { opacity: 0.55; } }
+.ld-ping {
+  fill: none;
+  stroke: #ffd60a;
+  stroke-width: 1.2;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ld-ping 2.6s ease-out infinite;
+  animation-delay: calc(1.4s + var(--i) * 0.4s);
+}
+@keyframes ld-ping {
+  0% { opacity: 0.9; transform: scale(0.6); }
+  70%, 100% { opacity: 0; transform: scale(2.2); }
+}
+
+.ld-agent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: rgb(45, 212, 191);
+  box-shadow: 0 0 6px rgba(45, 212, 191, 0.9);
+  offset-rotate: 0deg;
+  offset-distance: 0%;
+  opacity: 0;
+  animation-name: ld-walk;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.ld-agent.warm { background: #ffd60a; box-shadow: 0 0 6px rgba(255, 214, 10, 0.9); }
+@keyframes ld-walk {
+  0% { offset-distance: 0%; opacity: 0; }
+  8%, 92% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+/* Students arrive after the streets are drawn. */
+.ld-walkers { position: absolute; inset: 0; animation: ld-fade 0.8s ease 1.2s both; }
+
+/* ---- Brand and progress ---- */
+
+.ld-brand { display: flex; align-items: center; gap: 12px; margin-top: 8px; animation: ld-up 0.8s ease 0.3s both; }
+.ld-brand h1 { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: 0.01em; }
+.ld-mark { width: 38px; height: 38px; }
+.ld-mark rect { fill: #11141c; stroke: rgba(255, 255, 255, 0.12); }
+.ld-mark path {
+  fill: none;
+  stroke: #ffd60a;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ld-mark 2.8s cubic-bezier(0.6, 0, 0.3, 1) 0.4s infinite;
+}
+@keyframes ld-mark {
+  0% { stroke-dashoffset: 1; }
+  45%, 70% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -1; }
+}
+.ld-tagline { margin: 6px 0 22px; color: var(--muted); font-size: 14px; animation: ld-up 0.8s ease 0.45s both; }
+@keyframes ld-up { from { opacity: 0; transform: translateY(8px); } }
+@keyframes ld-fade { from { opacity: 0; } }
+
+.ld-bar {
+  position: relative;
+  width: min(280px, 70vw);
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  animation: ld-up 0.8s ease 0.6s both;
+}
+.ld-bar span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgb(45, 212, 191), #ffd60a);
+  transform-origin: 0 50%;
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* A highlight sweeping along the filled part. */
+.ld-bar span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: translateX(-100%);
+  animation: ld-sheen 1.6s ease-in-out infinite;
+}
+@keyframes ld-sheen { to { transform: translateX(100%); } }
+
+.ld-step {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-height: 20px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  animation: ld-up 0.8s ease 0.7s both;
+}
+.ld-step-text { animation: ld-swap 0.35s ease both; }
+@keyframes ld-swap { from { opacity: 0; transform: translateY(4px); } }
+.ld-count { font-variant-numeric: tabular-nums; opacity: 0.6; }
+
+.ld-error { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 360px; text-align: center; }
+.ld-error p { margin: 0; color: #ffb4a8; font-size: 14px; }
+.ld-error button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ld-error button:hover { background: rgba(255, 255, 255, 0.14); }
+.ld-error button:focus-visible { outline: 2px solid var(--accent); }
+/* A failed start freezes the city. */
+.ld-failed .ld-agent, .ld-failed .ld-heat, .ld-failed .ld-ping { animation-play-state: paused; }
+.ld-failed .ld-mark path { animation: none; stroke-dashoffset: 0; stroke: #ff8a75; }
+
+@media (max-width: 480px) {
+  .ld-scene { margin: -30px 0 -20px; transform: scale(0.8); animation: none; }
+  .ld-brand h1 { font-size: 28px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader, .loader *, .loader *::after { animation: none !important; transition-duration: 0.2s !important; transition-delay: 0s !important; }
+  .ld-bld { opacity: 1; }
+  .ld-street { stroke-dashoffset: 0; }
+  .ld-mark path { stroke-dashoffset: 0; }
+  .ld-agent { display: none; }
+  .ld-out .ld-stage { transform: none; }
+}
