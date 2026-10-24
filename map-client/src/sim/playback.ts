@@ -64,6 +64,7 @@ export interface DayData {
   locations: CampusLocation[];
   agents: Agent[];
   trips: Trip[];
+  walkRoutes?: Record<string, { path: [number, number][]; cumulative: number[] }>;
 }
 
 export interface WalkingAgent {
@@ -95,8 +96,7 @@ export async function loadDay(url: string): Promise<DayData> {
     const route = file.walkRoutes[`${from}>${to}`];
     return { agent, from, to, path: route.path, timestamps: route.cumulative.map((m) => depart + m / speed) };
   });
-  const { walkRoutes: _routes, ...rest } = file;
-  return { ...rest, trips };
+  return { ...file, trips };
 }
 
 function bearingBetween(a: [number, number], b: [number, number]): number {
@@ -114,9 +114,15 @@ export class Playback {
   private readonly agents = new Map<string, Agent>();
   private readonly tripsByAgent = new Map<string, Trip[]>();
 
-  constructor(readonly data: DayData) {
+  readonly data: DayData;
+
+  constructor(data: DayData) {
+    this.data = data;
     this.locations = data.locations;
-    for (const agent of data.agents) this.agents.set(agent.id, agent);
+    for (const agent of data.agents) {
+      this.agents.set(agent.id, agent);
+      this.tripsByAgent.set(agent.id, []);
+    }
     for (const trip of data.trips) {
       const list = this.tripsByAgent.get(trip.agent) ?? [];
       list.push(trip);
@@ -126,11 +132,11 @@ export class Playback {
   }
 
   get startTime(): number {
-    return Math.min(...this.data.trips.map((t) => t.timestamps[0]));
+    return this.data.trips.length ? Math.min(...this.data.trips.map((t) => t.timestamps[0])) : 0;
   }
 
   get endTime(): number {
-    return Math.max(...this.data.trips.map((t) => t.timestamps[t.timestamps.length - 1]));
+    return this.data.trips.length ? Math.max(...this.data.trips.map((t) => t.timestamps[t.timestamps.length - 1])) : 86400;
   }
 
   /** Agents outdoors on a walkway at time t; everyone else is inside a building. */
@@ -158,19 +164,24 @@ export class Playback {
 
   /**
    * Roll location occupancy up to footprints, so co-located places share one label and glow.
-   * A building reports its busiest place: a packed dining hall shouldn't read as "Moderate"
-   * because the dorm above it is half empty.
+   * Counts include every co-located place. The color scale retains the busiest place's
+   * model load so a busy dining hall remains visible beneath a quiet dorm.
    */
   byBuilding(occupancy: Occupancy[]): BuildingOccupancy[] {
     const out = new Map<string, BuildingOccupancy>();
     for (const { location, count, share } of occupancy) {
       const current = out.get(location.building);
-      if (current && current.share >= share) continue;
+      if (current) {
+        current.count += count;
+        current.capacity += location.capacity;
+        current.share = Math.max(current.share, share);
+        continue;
+      }
       out.set(location.building, {
         id: location.building,
         name: location.name,
         short: location.short,
-        position: current?.position ?? location.position, // keep the label from jumping
+        position: location.position,
         count,
         capacity: location.capacity,
         share,
