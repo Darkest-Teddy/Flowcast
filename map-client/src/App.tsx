@@ -8,6 +8,7 @@ import { createPlacer } from './layers/placement';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData } from './transit/mbta';
+import { loadShuttles } from './transit/buShuttle';
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
@@ -97,10 +98,20 @@ export default function App() {
       setMapKind(basemap.kind);
 
       if (transitData) {
-        const feed = new MbtaFeed(transitData, (state) => {
-          setFeedError(state.error);
-          setFeedUpdatedAt(state.updatedAt);
-        });
+        // BU's own shuttles join the MBTA data: same tracks, snapping and panels.
+        const shuttle = await loadShuttles(transitData.areas).catch(() => undefined);
+        if (shuttle) {
+          transitData.routes.push(...shuttle.routes);
+          transitData.stops.push(...shuttle.stops);
+        }
+        const feed = new MbtaFeed(
+          transitData,
+          (state) => {
+            setFeedError(state.error);
+            setFeedUpdatedAt(state.updatedAt);
+          },
+          shuttle,
+        );
         feed.start();
         transitRef.current = { data: transitData, feed, models: vehicleModels };
       }
@@ -248,6 +259,7 @@ export default function App() {
   const transit = transitRef.current;
   const stations = transit?.data.stops.filter((s) => s.kind === 'station' && s.area === campus) ?? [];
   const busArrivals = transit ? nextBuses(transit, campus) : [];
+  const shuttleArrivals = transit ? nextBuses(transit, campus, 'shuttle') : [];
 
   return (
     <div className="app">
@@ -385,6 +397,24 @@ export default function App() {
                       </ul>
                     </>
                   )}
+                  {shuttleArrivals.length > 0 && (
+                    <>
+                      <h3>BU Shuttle</h3>
+                      <ul className="buses">
+                        {shuttleArrivals.map((b) => (
+                          <li key={b.route}>
+                            <span className="route-badge" style={{ background: b.color, color: readableOn(b.color) }} aria-hidden="true">
+                              BU
+                            </span>
+                            <span className="bus-text">
+                              {b.longName} at {b.stop}
+                            </span>
+                            <strong>{minutesUntil(b.time)}</strong>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </>
               )}
               {mapKind === 'mapbox' && showTraffic && (
@@ -454,14 +484,14 @@ export default function App() {
   );
 }
 
-/** Soonest bus per route and direction at any of a campus's stops, for the side panel. */
-function nextBuses({ data, feed }: Transit, area: string) {
+/** Soonest bus (or BU shuttle) per route and direction at any of a campus's stops. */
+function nextBuses({ data, feed }: Transit, area: string, kind: 'bus' | 'shuttle' = 'bus') {
   const routes = new Map(data.routes.map((r) => [r.id, r]));
   const stops = new Map(data.stops.map((s) => [s.id, s]));
   const now = Date.now();
   const best = new Map<string, { route: string; direction: 0 | 1; time: number; stop: string }>();
   for (const a of feed.state.arrivals) {
-    if (routes.get(a.route)?.kind !== 'bus' || stops.get(a.stop)?.area !== area || a.time < now - 30_000) continue;
+    if (routes.get(a.route)?.kind !== kind || stops.get(a.stop)?.area !== area || a.time < now - 30_000) continue;
     const key = `${a.route}:${a.direction}`;
     if (!best.has(key) || a.time < best.get(key)!.time) best.set(key, { ...a, stop: stops.get(a.stop)?.short ?? a.stop });
   }
@@ -469,7 +499,14 @@ function nextBuses({ data, feed }: Transit, area: string) {
     .sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }) || a.direction - b.direction)
     .map((a) => {
       const route = routes.get(a.route)!;
-      return { ...a, name: route.name, color: route.color, textColor: route.textColor, directionName: route.directions[a.direction] };
+      return {
+        ...a,
+        name: route.name,
+        longName: route.longName,
+        color: route.color,
+        textColor: route.textColor,
+        directionName: route.directions[a.direction],
+      };
     });
 }
 
@@ -477,4 +514,14 @@ function nextBuses({ data, feed }: Transit, area: string) {
 function greenBranches({ data }: Transit, stations: { routes: string[] }[]) {
   const ids = new Set(stations.flatMap((s) => s.routes));
   return data.routes.filter((r) => r.kind === 'subway' && ids.has(r.id)).map((r) => r.name);
+}
+
+/** Black or white text, whichever reads better on a hex background (BU's lime Comm Ave line needs black). */
+function readableOn(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.18 ? '#111' : '#fff';
 }

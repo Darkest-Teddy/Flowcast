@@ -8,6 +8,7 @@ import { GLTFLoader } from '@loaders.gl/gltf';
 import { CubeGeometry } from '@luma.gl/engine';
 import type { Color } from '@deck.gl/core';
 import { minutesUntil, type MbtaFeed, type TransitData, type TransitRoute, type TransitStop, type Vehicle } from '../transit/mbta';
+import { BU_RED } from '../transit/buShuttle';
 import { trackGeometry, type Track, type TrackGeometry } from '../transit/tracks';
 import { labelWidth, type LabelPlacer } from './placement';
 
@@ -15,20 +16,26 @@ const CUBE = new CubeGeometry(); // spans -1..1 on each axis; getScale gives hal
 // True scale vanishes from campus height (a train is under a pixel wide at zoom 15.5), so
 // vehicles grow as the camera pulls back: real size at street level, up to ~5x on the overview.
 // Buses are a quarter of a train's length, so they start growing a little earlier.
-function vehicleScale(zoom: number, kind: 'subway' | 'bus') {
-  return kind === 'bus' ? Math.min(7, Math.max(1, 2 ** (18.4 - zoom))) : Math.min(5, Math.max(1, 2 ** (17.8 - zoom)));
+type VehicleKind = 'subway' | 'bus' | 'shuttle';
+
+function vehicleScale(zoom: number, kind: VehicleKind) {
+  return kind !== 'subway' ? Math.min(7, Math.max(1, 2 ** (18.4 - zoom))) : Math.min(5, Math.max(1, 2 ** (17.8 - zoom)));
 }
 // Half-dimensions in metres: a two-car Green Line train (~45 m) and a 40-ft bus.
-const HALF_SIZE = { subway: [1.35, 22.5, 1.8], bus: [1.3, 6.1, 1.6] } as const;
+const HALF_SIZE = { subway: [1.35, 22.5, 1.8], bus: [1.3, 6.1, 1.6], shuttle: [1.3, 6.1, 1.6] } as const;
 const STATION_LABEL_HEIGHT = 38;
 
 // Real models when public/models has them (metres, Y-up, front +Z, like the Kenney
 // characters); plain blocks otherwise.
-const VEHICLE_MODEL_URLS = { subway: '/models/mbta-green-line-train.glb', bus: '/models/mbta-bus.glb' };
+const VEHICLE_MODEL_URLS = {
+  subway: '/models/mbta-green-line-train.glb',
+  bus: '/models/mbta-bus.glb',
+  shuttle: '/models/bu-shuttle.glb', // BU red
+};
 // Same convention as agents.ts: a model facing +Z, stood upright with a 90° roll.
 const MODEL_YAW_OFFSET = 180;
 
-export type VehicleModels = Partial<Record<'subway' | 'bus', unknown>>;
+export type VehicleModels = Partial<Record<VehicleKind, unknown>>;
 
 export async function loadVehicleModels(): Promise<VehicleModels> {
   const entries = await Promise.all(
@@ -75,13 +82,18 @@ function subwayTracks(feed: MbtaFeed, routes: Map<string, TransitRoute>): TrackG
 export function transitLayers({ data, feed, now, zoom, placer, models }: TransitLayerInput) {
   const routes = new Map(data.routes.map((r) => [r.id, r]));
   const kindOf = (routeId: string) => routes.get(routeId)?.kind ?? 'bus';
+  // Draw order, bottom to top: BU shuttle lines, MBTA buses, and the 57 last. It's the primary
+  // line along Comm Ave, so nothing covers it where routes share the street.
+  const lineRank = (r: TransitRoute) => (r.id === '57' ? 2 : r.kind === 'bus' ? 1 : 0);
   const busPaths: RoutePath[] = data.routes
-    .filter((r) => r.kind === 'bus')
+    .filter((r) => r.kind !== 'subway')
+    .sort((a, b) => lineRank(a) - lineRank(b))
     .flatMap((route) => route.paths.map(({ path }) => ({ route, path })));
   const tracks = subwayTracks(feed, routes);
   const vehicles = feed.positionsAt(now);
   const trains = vehicles.filter((v) => kindOf(v.route) === 'subway');
   const buses = vehicles.filter((v) => kindOf(v.route) === 'bus');
+  const shuttles = vehicles.filter((v) => kindOf(v.route) === 'shuttle');
 
   const stations = data.stops.filter((s) => s.kind === 'station');
   const labelText = (s: TransitStop) => {
@@ -108,7 +120,7 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
   const labelled = stations.filter((s) => lifts.has(s));
   const labelKey = labelled.map((s) => `${s.id}:${lifts.get(s)}:${texts.get(s)}`).join();
 
-  const vehicleLayer = (id: string, kind: 'subway' | 'bus', data: Vehicle[]) =>
+  const vehicleLayer = (id: string, kind: VehicleKind, data: Vehicle[]) =>
     models[kind]
       ? new ScenegraphLayer<Vehicle>({
           id,
@@ -141,12 +153,25 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
     });
 
   return [
+    // A light casing under every bus line, so dark ones (BU's black Albany St line) still read.
+    new PathLayer<RoutePath>({
+      id: 'transit-bus-casing',
+      data: busPaths,
+      getPath: (d) => d.path,
+      getColor: [255, 255, 255, 150],
+      getWidth: (d) => (d.route.id === '57' ? 7 : 5.5),
+      widthUnits: 'pixels',
+      capRounded: true,
+      jointRounded: true,
+      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+      slot: 'middle',
+    }),
     new PathLayer<RoutePath>({
       id: 'transit-bus-routes',
       data: busPaths,
       getPath: (d) => d.path,
-      getColor: (d) => hexToColor(d.route.color, 200),
-      getWidth: 3.5,
+      getColor: (d) => hexToColor(d.route.color, d.route.id === '57' ? 255 : 210),
+      getWidth: (d) => (d.route.id === '57' ? 5 : 3.5),
       widthUnits: 'pixels',
       capRounded: true,
       jointRounded: true,
@@ -197,10 +222,11 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
       // Stations on top of bus stops.
       data: [...data.stops].sort((a, b) => Number(a.kind === 'station') - Number(b.kind === 'station')),
       getPosition: (s) => s.position,
-      getRadius: (s) => (s.kind === 'station' ? 9 : 5),
+      getRadius: (s) => (s.kind === 'station' ? 9 : s.kind === 'shuttle' ? 6 : 5),
       radiusUnits: 'pixels',
       getFillColor: [255, 255, 255, 255],
-      getLineColor: (s) => (s.kind === 'station' ? hexToColor('#00843D') : [30, 30, 30, 255]),
+      getLineColor: (s) =>
+        s.kind === 'station' ? hexToColor('#00843D') : s.kind === 'shuttle' ? hexToColor(BU_RED) : [30, 30, 30, 255],
       getLineWidth: (s) => (s.kind === 'station' ? 3.5 : 2),
       lineWidthUnits: 'pixels',
       stroked: true,
@@ -209,6 +235,7 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'top',
     }),
+    vehicleLayer('transit-shuttles', 'shuttle', shuttles),
     vehicleLayer('transit-buses', 'bus', buses),
     vehicleLayer('transit-trains', 'subway', trains),
     new TextLayer<TransitStop>({
@@ -248,13 +275,16 @@ export function transitTooltip(object: unknown, data: TransitData, feed: MbtaFee
     const v = object as Vehicle;
     const route = routes.get(v.route);
     const status = { STOPPED_AT: 'Stopped', INCOMING_AT: 'Arriving', IN_TRANSIT_TO: 'Moving' }[v.status] ?? v.status;
-    return `${route?.kind === 'subway' ? 'Green Line B' : `Bus ${route?.name}`} · ${route?.directions[v.direction] ?? ''}\n${status} · vehicle ${v.label}`;
+    if (route?.kind === 'shuttle') return `BU Shuttle · ${route.longName}\n${status} · bus ${v.label}`;
+    const line = route?.kind === 'subway' ? `Green Line ${route.name}` : `Bus ${route?.name}`;
+    return `${line} · ${route?.directions[v.direction] ?? ''}\n${status} · vehicle ${v.label}`;
   }
   if ('platforms' in object) {
     const s = object as TransitStop;
     const lines = feed.nextArrivals(s.id).map((a) => {
       const route = routes.get(a.route)!;
-      return `${route.kind === 'subway' ? 'Green B' : route.name} ${route.directions[a.direction]}: ${minutesUntil(a.time)}`;
+      if (route.kind === 'shuttle') return `${route.longName}: ${minutesUntil(a.time)}`;
+      return `${route.kind === 'subway' ? `Green ${route.name}` : route.name} ${route.directions[a.direction]}: ${minutesUntil(a.time)}`;
     });
     return [s.name, ...(lines.length ? lines : ['No predictions right now'])].join('\n');
   }
@@ -265,7 +295,7 @@ export function transitTooltip(object: unknown, data: TransitData, feed: MbtaFee
   }
   if ('path' in object && 'route' in object) {
     const r = (object as RoutePath).route;
-    return `Bus ${r.name}: ${r.longName}`;
+    return r.kind === 'shuttle' ? `BU Shuttle · ${r.longName}` : `Bus ${r.name}: ${r.longName}`;
   }
   return null;
 }

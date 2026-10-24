@@ -5,6 +5,7 @@
 // IP — and a hackathon venue shares one IP — so polling is modest and backs off on 429.
 // Optional: a free key from https://api-v3.mbta.com in VITE_MBTA_API_KEY (map-client/.env.local).
 
+import { pollShuttleArrivals, pollShuttleVehicles, type ShuttleData } from './buShuttle';
 import { makeTrack, pointAlong, snapToTracks, type Track } from './tracks';
 
 const API = 'https://api-v3.mbta.com';
@@ -14,17 +15,20 @@ const PREDICTION_POLL_MS = 30_000;
 const MAX_BACKOFF_MS = 120_000;
 // Each direction runs on its own track this far right of the shape's centreline (metres):
 // the B branch's two tracks are ~4 m apart; buses keep to their side of the street.
-const TRACK_OFFSET = { subway: 2.0, bus: 2.5 };
+const TRACK_OFFSET = { subway: 2.0, bus: 2.5, shuttle: 2.5 };
 // Reports further than this from the route (a train in the yard, a bus deadheading) aren't snapped.
 const SNAP_MAX_METRES = 40;
-// A vehicle that "moves" further than this between reports has jumped; don't glide it there.
-const MAX_GLIDE_METRES = 600;
+// Glide no faster than a Green Line train or bus really moves (16 m/s, ~35 mph); a bigger gap
+// between reports (missed polls, back-off) jumps the vehicle rather than racing it down the street.
+const MAX_GLIDE_SPEED = 16;
+// BU's TransLoc feed updates every few seconds and has no published rate limit worth worrying about.
+const SHUTTLE_POLL_MS = 6_000;
 
 export interface TransitRoute {
   id: string;
   name: string; // "B", "57"
   longName: string;
-  kind: 'subway' | 'bus';
+  kind: 'subway' | 'bus' | 'shuttle';
   color: string; // "#00843D"
   textColor: string;
   directions: [string, string]; // by direction_id
@@ -42,7 +46,7 @@ export interface TransitStop {
   id: string;
   name: string;
   short: string;
-  kind: 'station' | 'bus';
+  kind: 'station' | 'bus' | 'shuttle';
   area: string;
   position: [number, number];
   platforms: string[]; // the stop/platform ids predictions may name
@@ -67,6 +71,7 @@ export interface Vehicle {
   from: [number, number];
   to: [number, number];
   receivedAt: number; // performance.now() of the latest report
+  interval: number; // ms until the next report is expected
   /** Set when the report snapped onto the vehicle's track: it then moves along the track. */
   track?: Track;
   sFrom: number;
@@ -103,6 +108,16 @@ async function getJson(path: string, params: Record<string, string>) {
   return res.json();
 }
 
+interface VehicleReport {
+  id: string;
+  route: string;
+  direction: 0 | 1;
+  label: string;
+  status: string;
+  bearing?: number; // degrees clockwise from north, when the source's heading is trustworthy
+  to: [number, number];
+}
+
 interface ApiResource {
   id: string;
   attributes: Record<string, unknown>;
@@ -119,12 +134,19 @@ export class MbtaFeed {
   private readonly timers: number[] = [];
   private stopped = false;
 
+  private mbtaVehicles: Vehicle[] = [];
+  private shuttleVehicles: Vehicle[] = [];
+  private mbtaArrivals: Arrival[] = [];
+  private shuttleArrivals: Arrival[] = [];
+
+  /** `data` may include BU shuttle routes and stops (merged in by the caller); `shuttle` turns on their polling. */
   constructor(
     private readonly data: TransitData,
     private readonly onChange: (state: FeedState) => void,
+    private readonly shuttle?: ShuttleData,
   ) {
-    this.routeIds = data.routes.map((r) => r.id).join(',');
-    this.stopIds = data.stops.map((s) => s.id).join(',');
+    this.routeIds = data.routes.filter((r) => r.kind !== 'shuttle').map((r) => r.id).join(',');
+    this.stopIds = data.stops.filter((s) => s.kind !== 'shuttle').map((s) => s.id).join(',');
     for (const stop of data.stops) for (const platform of stop.platforms) this.stopForPlatform.set(platform, stop.id);
     this.tracks = data.routes.flatMap((route) =>
       route.paths.map(({ direction, path }) => makeTrack(route.id, direction, path, TRACK_OFFSET[route.kind])),
@@ -134,6 +156,10 @@ export class MbtaFeed {
   start() {
     this.loop(() => this.pollVehicles(), VEHICLE_POLL_MS);
     this.loop(() => this.pollPredictions(), PREDICTION_POLL_MS);
+    if (this.shuttle) {
+      this.loop(() => this.pollShuttleVehicles(), SHUTTLE_POLL_MS);
+      this.loop(() => this.pollShuttleArrivals(), PREDICTION_POLL_MS);
+    }
   }
 
   stop() {
@@ -141,10 +167,14 @@ export class MbtaFeed {
     this.timers.forEach((t) => clearTimeout(t));
   }
 
-  /** Vehicles eased toward their latest report over one poll interval, so they glide instead of jump. */
+  /**
+   * Vehicles eased toward their latest report over one poll interval, so they glide instead of
+   * jump. Only vehicles on a mapped track are returned: off it (underground past our map, in a
+   * yard, deadheading) there's no reliable position or heading to draw them with.
+   */
   positionsAt(now: number): Vehicle[] {
     for (const v of this.state.vehicles) {
-      const f = Math.min(1, (now - v.receivedAt) / VEHICLE_POLL_MS);
+      const f = Math.min(1, (now - v.receivedAt) / v.interval);
       if (v.track) {
         const at = pointAlong(v.track, v.sFrom + (v.sTo - v.sFrom) * f);
         v.position = at.position;
@@ -153,11 +183,11 @@ export class MbtaFeed {
         v.position = [v.from[0] + (v.to[0] - v.from[0]) * f, v.from[1] + (v.to[1] - v.from[1]) * f];
       }
     }
-    return this.state.vehicles;
+    return this.state.vehicles.filter((v) => v.track);
   }
 
   private alongTrack(v: Vehicle, now: number): number {
-    const f = Math.min(1, (now - v.receivedAt) / VEHICLE_POLL_MS);
+    const f = Math.min(1, (now - v.receivedAt) / v.interval);
     return v.sFrom + (v.sTo - v.sFrom) * f;
   }
 
@@ -205,36 +235,73 @@ export class MbtaFeed {
       'filter[route]': this.routeIds,
       'fields[vehicle]': 'latitude,longitude,bearing,current_status,direction_id,label',
     });
+    const reports = (json.data as ApiResource[]).map((r): VehicleReport => {
+      const a = r.attributes as { latitude: number; longitude: number; bearing: number; current_status: string; direction_id: 0 | 1; label: string };
+      return {
+        id: r.id,
+        route: r.relationships.route.data!.id,
+        direction: a.direction_id,
+        label: a.label,
+        status: a.current_status,
+        bearing: a.bearing,
+        to: [a.longitude, a.latitude],
+      };
+    });
+    this.mbtaVehicles = this.place(reports, this.mbtaVehicles, VEHICLE_POLL_MS);
+    this.publishVehicles();
+  }
+
+  private async pollShuttleVehicles() {
+    const reports = (await pollShuttleVehicles()).map((v): VehicleReport => ({
+      id: v.id,
+      route: v.route,
+      direction: 0,
+      label: v.label,
+      status: v.speed > 1 ? 'IN_TRANSIT_TO' : 'STOPPED_AT',
+      // TransLoc reports heading 0 when stopped; only trust it while moving.
+      bearing: v.speed > 1 ? v.heading : undefined,
+      to: v.position,
+    }));
+    this.shuttleVehicles = this.place(reports, this.shuttleVehicles, SHUTTLE_POLL_MS);
+    this.publishVehicles();
+  }
+
+  private publishVehicles() {
+    this.state.vehicles = [...this.mbtaVehicles, ...this.shuttleVehicles];
+    this.state.updatedAt = Date.now();
+  }
+
+  /** Snap fresh reports onto their tracks, gliding on from where each vehicle is drawn now. */
+  private place(reports: VehicleReport[], previousList: Vehicle[], interval: number): Vehicle[] {
     const margin = 0.01;
     const nearCampus = ([lng, lat]: [number, number]) =>
       this.data.areas.some(({ bbox: [west, south, east, north] }) => lng >= west - margin && lng <= east + margin && lat >= south - margin && lat <= north + margin);
-    const previous = new Map(this.state.vehicles.map((v) => [v.id, v]));
+    const previous = new Map(previousList.map((v) => [v.id, v]));
     const now = performance.now();
-    this.state.vehicles = (json.data as ApiResource[])
+    return reports
       .map((r): Vehicle | null => {
-        const a = r.attributes as { latitude: number; longitude: number; bearing: number; current_status: string; direction_id: 0 | 1; label: string };
-        const to: [number, number] = [a.longitude, a.latitude];
-        if (!nearCampus(to)) return null;
+        if (!nearCampus(r.to)) return null;
         const prev = previous.get(r.id);
-        const route = r.relationships.route.data!.id;
         const vehicle: Vehicle = {
           id: r.id,
-          route,
-          direction: a.direction_id,
-          label: a.label,
-          status: a.current_status,
-          bearing: a.bearing ?? prev?.bearing ?? 0,
-          from: prev ? [...prev.position] : to,
-          to,
-          position: prev ? [...prev.position] : to,
+          route: r.route,
+          direction: r.direction,
+          label: r.label,
+          status: r.status,
+          bearing: r.bearing ?? prev?.bearing ?? 0,
+          from: prev ? [...prev.position] : r.to,
+          to: r.to,
+          position: prev ? [...prev.position] : r.to,
           receivedAt: now,
+          interval,
           sFrom: 0,
           sTo: 0,
         };
         // Prefer the track for the vehicle's own direction; fall back to the route's other track.
-        const ownTracks = this.tracks.filter((t) => t.route === route && t.direction === a.direction_id);
+        // A reported heading (when trustworthy) also steers it off the opposite-direction side.
+        const ownTracks = this.tracks.filter((t) => t.route === r.route && t.direction === r.direction);
         const snapped =
-          snapToTracks(ownTracks, to) ?? snapToTracks(this.tracks.filter((t) => t.route === route), to);
+          snapToTracks(ownTracks, r.to, r.bearing) ?? snapToTracks(this.tracks.filter((t) => t.route === r.route), r.to, r.bearing);
         if (snapped && snapped.distance <= SNAP_MAX_METRES) {
           vehicle.track = snapped.track;
           vehicle.sTo = snapped.s;
@@ -243,7 +310,7 @@ export class MbtaFeed {
             const current = this.alongTrack(prev, now);
             // GPS jitter can put a report slightly behind; vehicles don't reverse, so hold still.
             vehicle.sTo = snapped.s < current && current - snapped.s < 30 ? current : snapped.s;
-            if (Math.abs(vehicle.sTo - current) <= MAX_GLIDE_METRES) vehicle.sFrom = current;
+            if (Math.abs(vehicle.sTo - current) <= MAX_GLIDE_SPEED * (interval / 1000)) vehicle.sFrom = current;
           }
           const at = pointAlong(snapped.track, vehicle.sFrom);
           vehicle.position = at.position;
@@ -252,7 +319,6 @@ export class MbtaFeed {
         return vehicle;
       })
       .filter((v): v is Vehicle => v !== null);
-    this.state.updatedAt = Date.now();
   }
 
   private async pollPredictions() {
@@ -261,13 +327,23 @@ export class MbtaFeed {
       'filter[route]': this.routeIds,
       'fields[prediction]': 'arrival_time,departure_time,direction_id',
     });
-    this.state.arrivals = (json.data as ApiResource[]).flatMap((r) => {
+    this.mbtaArrivals = (json.data as ApiResource[]).flatMap((r) => {
       const a = r.attributes as { arrival_time: string | null; departure_time: string | null; direction_id: 0 | 1 };
       const when = a.arrival_time ?? a.departure_time; // first stops only have a departure
       const stop = this.stopForPlatform.get(r.relationships.stop.data?.id ?? '');
       if (!when || !stop) return [];
       return [{ stop, route: r.relationships.route.data!.id, direction: a.direction_id, time: Date.parse(when) }];
     });
+    this.publishArrivals();
+  }
+
+  private async pollShuttleArrivals() {
+    this.shuttleArrivals = await pollShuttleArrivals(this.shuttle!.stopForRouteStop);
+    this.publishArrivals();
+  }
+
+  private publishArrivals() {
+    this.state.arrivals = [...this.mbtaArrivals, ...this.shuttleArrivals];
     this.state.updatedAt = Date.now();
   }
 }
