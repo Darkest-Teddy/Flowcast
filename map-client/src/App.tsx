@@ -26,6 +26,7 @@ import type { DayData, CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
+import { activeWindFromDegrees } from './weather/weather';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
 import { precipitationLayers } from './weather/precipitation';
 import {
@@ -309,7 +310,7 @@ export default function App() {
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), placer, models: transit.models, time: liveRef.current ? wallClockSeconds() : t, weekday: liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7 }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
-          ...(boats ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current }) : []),
+          ...(boats ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus, placer })
             : []),
@@ -839,4 +840,11 @@ function transitSourceAt(transit: Transit, t: number, live: boolean): TransitSou
 function dockStatusAt({ data, feed }: Bikes, target: number): Map<string, DockEstimate> {
   const now = wallClockSeconds();
   return new Map(data.stations.map((s) => [s.id, estimateDock(s, feed.status(s), data.binSeconds, now, target)]));
+}
+
+// Sailboats tack against the shown weather's wind, rounded to 15° so a slowly veering wind doesn't
+// re-plan every boat's course on every reading. Westerly until the first weather arrives.
+function boatWind(): number | undefined {
+  const from = activeWindFromDegrees();
+  return from === null ? undefined : Math.round(from / 15) * 15;
 }
