@@ -1768,6 +1768,13 @@ class Ctx:
         self.lit = None
         self.floor_plans = {}
         self.heights = {}
+        # The visible massing of the building being built: (raw ring, base, top of its walls or
+        # parapet), one per volume or tower. Written to the manifest as `volumes` so the app's
+        # crowd glow can trace the model's real shape (see massing_entries).
+        self.massing = []
+
+    def record(self, ring, base, top):
+        self.massing.append((ring, max(0.0, base), top))
 
     def footprint_at(self, p, exclude=()):
         for key, rings in self.grid.get((int(math.floor(p[0] / self.cell)), int(math.floor(p[1] / self.cell))), ()):
@@ -2474,7 +2481,7 @@ def build_volume(mesh, v, ctx, exclude, rng):
             else:
                 c = ((a[0] + b[0]) / 2 + nrm[0] * 0.9, (a[1] + b[1]) / 2 + nrm[1] * 0.9)
                 mesh.box("trim_metal", c, eu, L / 2 * 0.9, 0.9, ys[1] - 0.6, ys[1] - 0.3, top_mat="trim_metal", bottom=True)
-    top = y_eave
+    top = rim = y_eave  # rim: where a pitched or mansard roof starts
     if v.roof == "mansard" and len(v.rings) == 1:
         t = mansard_top(mesh, v, rings_o, y_eave, fronts[:1])
         if t is None:
@@ -2485,7 +2492,7 @@ def build_volume(mesh, v, ctx, exclude, rng):
         top = pitched_top(mesh, v, rings_o[0], y_eave, v.roof)
     elif v.roof != "mansard" or top == y_eave:
         build_flat_top(mesh, v, rings_o, y_eave, info, rng)
-        top = y_eave + v.parapet
+        top = rim = y_eave + v.parapet
         if v.mech:
             add_mech(mesh, v, v.rings, y_eave, rng)
         if v.chimneys:
@@ -2511,6 +2518,7 @@ def build_volume(mesh, v, ctx, exclude, rng):
         if v.door:
             kind = "row" if v.stoop else ("big" if v.top > 25 or abs(signed_area(v.rings[0])) > 1500 else "small")
             add_door(mesh, v, fronts[0], 1.1 if v.stoop else 0.0, kind, rng)
+    ctx.record(v.rings[0], v.base, rim)
     return top
 
 
@@ -2606,6 +2614,7 @@ def landmark_chapel(mesh, b, ctx, rng, vols):
                 mesh.pyramid("trim_stone", sq, nave_eave + 1.2, nave_eave + 3.4)
     v.style = "gothic"
     v.roof_mat = "slate"
+    ctx.record(ring, 0.0, nave_eave)
     rise = min(hv * 1.25, 12.0)
     ridge = pitched_top(mesh, v, ring_o, nave_eave, "gabled", rise=rise)
     # great traceried window on the plaza end
@@ -2664,6 +2673,7 @@ def landmark_cas(mesh, b, ctx, rng, vols, plaza_side="west"):
     y1 = v.top + ROOF_UP + 10.0
     t = tower(mesh, sq, -0.2, y1, 4, 2.6, b.ref + "t", roof="pyramid", band=B_LANCET, pinnacles=True,
               cap="trim_stone", cap_ratio=1.25)
+    ctx.record(oriented(sq, True), 0.0, y1 + 1.4)  # the battlements, under the spire
     return max(top, t)
 
 
@@ -2794,6 +2804,7 @@ def landmark_arena(mesh, b, ctx, rng, vols):
         mesh.face("trim_stone", [(ring_o[i][0], y_eave - 0.7, -ring_o[i][1]), (ring_o[j][0], y_eave - 0.7, -ring_o[j][1]),
                                  (rc[j][0], y_eave - 0.7, -rc[j][1]), (rc[i][0], y_eave - 0.7, -rc[i][1])])
     mesh.flat("roof_dark", [rc], y_eave + 0.3, True)
+    ctx.record(ring, 0.0, y_eave + 0.3)  # the cornice, under the barrel roof
     # long shallow barrel roof over the bowl, ridge along the long axis, standing seams across it
     rise = 7.5
     inset = 3.0
@@ -3183,6 +3194,7 @@ def landmark_castle(mesh, b, ctx, rng, vols):
     rings_o = [offset_ring(r, wall_out(v.top)) for r in v.rings]
     y_eave = v.top + roof_up(v.top)
     info, ys = build_walls(mesh, v, ctx, rings_o, -0.2, y_eave, {b.ref})
+    ctx.record(v.rings[0], 0.0, y_eave)
     ring_o = rings_o[0]
     centre, eu, ev, hu, hv = obb(ring_o)
     # stone string courses between storeys and a moulded eaves course
@@ -3471,6 +3483,42 @@ def build_canopy(mesh, v):
 # glTF writer
 # ------------------------------------------------------------------------------------------------
 
+def massing_entries(massing, frame, top):
+    """The manifest's `volumes` for one building: each modelled volume's footprint ([lng, lat],
+    open ring, counter-clockwise), base and top (m; the top of its walls or parapet, below any
+    pitched roof, spire or rooftop crown). Only where the model isn't one plain box up to its
+    `height`, i.e. where a single outline at `height` wouldn't fit it: several volumes (CDS's
+    stacked pieces, Warren's towers on their podium, CAS's tower), a raised base, or a roof,
+    spire or mast well above the walls."""
+    if not massing:
+        return None
+    if len(massing) == 1 and massing[0][1] < 0.5 and abs(massing[0][2] - top) <= 1.5:
+        return None
+    out = []
+    for ring, base, vtop in massing:
+        pts = [frame.to_lnglat(x, y) for x, y in ring]
+        out.append({"ring": [[round(lng, 7), round(lat, 7)] for lng, lat in pts],
+                    "base": round(base, 1), "top": round(vtop, 1)})
+    return out
+
+
+def manifest_json(manifest):
+    """The manifest as indented JSON, with each of the `volumes` on one line (indented, their
+    coordinates would be most of the file)."""
+    compact = {}
+
+    def stub(v):
+        key = f"@@volume{len(compact)}@@"
+        compact[key] = json.dumps(v, separators=(",", ":"))
+        return key
+    stubbed = {**manifest, "campuses": [
+        {**c, "buildings": [{**e, "volumes": [stub(v) for v in e["volumes"]]} if "volumes" in e else e
+                            for e in c["buildings"]]} for c in manifest["campuses"]]}
+    text = json.dumps(stubbed, indent=1)
+    text = re.sub(r'"(@@volume\d+@@)"', lambda m: compact[m.group(1)], text)
+    return text + "\n"
+
+
 def write_glb(path, mesh, png=None, materials=None, normals=True):
     blob = bytearray()
     views, accessors = [], []
@@ -3630,19 +3678,25 @@ def main():
             for v in vols:
                 configure(b, v, abs(signed_area(v.rings[0])))
             kind = LANDMARKS.get(b.ref)
+            ctx.massing = []
             if kind:
                 top = LANDMARK_FN[kind](mesh, b, ctx, rng, vols)
             else:
                 top = 0
                 for v in vols:
                     if v.roof == "canopy":
-                        top = max(top, build_canopy(mesh, v))
+                        t = build_canopy(mesh, v)
+                        ctx.record(v.rings[0], 0.0, t)
+                        top = max(top, t)
                     else:
                         top = max(top, build_volume(mesh, v, ctx, {b.ref} | {f"{p['type']}/{p['id']}" for p in b.parts}, rng))
             outer = b.rings_ll[0][0]
             c = ring_centroid(outer)
             entries.append({"osm": b.ref, "name": b.name, "center": [round(c[0], 6), round(c[1], 6)],
                             "height": round(top, 1), **({"landmark": kind} if kind else {})})
+            vols_out = massing_entries(ctx.massing, frame, top)
+            if vols_out:
+                entries[-1]["volumes"] = vols_out
             if kind == "garage":
                 entries[-1]["deck"] = 3.5  # roof deck under New Balance Field; "height" includes the parapet
             # Pieces Mapbox's vector tiles carry as separate features: building:part ways and a
@@ -3667,7 +3721,7 @@ def main():
         })
         nlit = ctx.lit.vert_count() // 4
         print(f"  {campus['name']}: {sum(1 for e in entries if 'partOf' not in e)} buildings ({len(entries)} OSM ids), {mesh.vert_count():,} vertices, {nlit:,} lit windows, {size / 1e6:.2f} MB")
-    MANIFEST.write_text(json.dumps(manifest, indent=1) + "\n")
+    MANIFEST.write_text(manifest_json(manifest))
     print(f"Total {total / 1e6:.2f} MB. Manifest -> {MANIFEST.relative_to(ROOT)}")
 
 

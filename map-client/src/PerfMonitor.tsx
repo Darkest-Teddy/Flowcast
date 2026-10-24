@@ -2,10 +2,11 @@
 // On by default for now; `P` toggles it, ?perf=0 hides it.
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { quality, type QualityMode } from './perf/quality';
+import { pacer } from './perf/pacer';
 import { mapGpuInfo, type GpuInfo } from './gpu';
 
 // What each Auto level has turned off (perf/quality.ts).
-const AUTO_LEVELS = ['all on', 'no shadows', 'no shadows or footpaths', 'lean map'];
+const AUTO_LEVELS = ['all on', 'no shadows', 'lighter map', 'lean map'];
 
 export interface PerfCounts {
   walkers: number;
@@ -56,6 +57,11 @@ export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
     let frames: number[] = [];
     let recent: number[] = []; // frame times for the rolling 1% low
     const loop = (now: number) => {
+      // Only frames the map actually draws (perf/pacer.ts), not every display refresh.
+      if (!pacer.shouldRender(now)) {
+        frame = requestAnimationFrame(loop);
+        return;
+      }
       frames.push(now - last);
       recent.push(now - last);
       if (recent.length > LOW_WINDOW_FRAMES) recent = recent.slice(-LOW_WINDOW_FRAMES);

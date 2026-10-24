@@ -60,15 +60,16 @@ const WALKER_PIXELS_PER_METRE = 22 / 2.3;
 const minPixelsPerMetre = (zoom: number) => WALKER_PIXELS_PER_METRE * Math.min(1.5, Math.max(1, 1 + (18.6 - zoom) * 0.2));
 
 let riderModels: unknown[] | null = null;
-// Still copies (gltf-static.ts) for the overview, where pedalling is a few pixels: 2 draws per
-// rider model instead of 7, and no animation to update. The animated models take over from here in.
+// Still copies (gltf-static.ts) for the overview, where pedalling and the rider's face are a few
+// pixels: one classic and one e-bike rider, 2 draws each instead of 7 for each of six models, and
+// no animation to update. The six animated models take over from here in.
 let stillRiderModels: unknown[] | null = null;
 const ANIMATED_FROM_ZOOM = 17;
 
 /** Fetch and parse the rider models once; riders are drawn as blocks until they arrive. */
 export async function loadBikeModels(): Promise<void> {
   riderModels = await Promise.all(RIDER_MODELS.map((url) => load(url, GLTFLoader)));
-  const still = riderModels.map((m) => bakeStaticPose(m));
+  const still = [riderModels[0], riderModels[CLASSIC_RIDERS.length]].map((m) => bakeStaticPose(m));
   stillRiderModels = still.every(Boolean) ? still : null;
 }
 
@@ -114,16 +115,20 @@ function riderLayers(riding: RidingBike[], time: number, zoom: number) {
       }),
     ];
   }
-  const buckets: RidingBike[][] = models.map(() => []);
-  for (const r of riding) buckets[riderModel(r.trip)].push(r);
   const animated = !stillRiderModels || zoom >= ANIMATED_FROM_ZOOM;
+  const buckets: RidingBike[][] = models.map(() => []);
+  const stillBuckets: RidingBike[][] = [[], []]; // classic, electric
+  for (const r of riding) {
+    if (animated) buckets[riderModel(r.trip)].push(r);
+    else stillBuckets[r.trip.type === 'electric' ? 1 : 0].push(r);
+  }
   // Both sets of layers stay in the list (the unused one empty and hidden), so crossing the zoom
   // threshold doesn't re-upload the models.
   const sets = [
-    { prefix: 'bike-riders', models, active: animated },
-    ...(stillRiderModels ? [{ prefix: 'bike-riders-still', models: stillRiderModels, active: !animated }] : []),
+    { prefix: 'bike-riders', models, groups: buckets, active: animated },
+    ...(stillRiderModels ? [{ prefix: 'bike-riders-still', models: stillRiderModels, groups: stillBuckets, active: !animated }] : []),
   ];
-  return sets.flatMap(({ prefix, models: set, active }) => buckets.map(
+  return sets.flatMap(({ prefix, models: set, groups, active }) => groups.map(
     (bucket, i) => {
       // Same riders as last frame: same array, so only positions (and headings, when one turns)
       // are re-uploaded, not every attribute of every part of the model.
