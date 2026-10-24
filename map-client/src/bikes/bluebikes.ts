@@ -229,3 +229,46 @@ export function formatDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+export interface DockEstimate {
+  bikes: number;
+  ebikes: number;
+  docks: number; // empty docks
+  estimated: boolean; // false = straight from the live feed
+}
+
+/**
+ * Bikes and empty docks at a dock at `target` (seconds since midnight). Starts from the live
+ * count at `now` and adds the typical day's arrivals minus departures between the two (forward
+ * for the future, backward for earlier), clamped to the dock's size at every step. Doesn't know
+ * about Bluebikes' rebalancing vans, so it's an estimate; the UI says so.
+ */
+export function estimateDock(
+  station: BikeStation,
+  live: DockStatus | undefined,
+  binSeconds: number,
+  now: number,
+  target: number,
+): DockEstimate {
+  if (live && Math.abs(target - now) < 120) return { bikes: live.bikes, ebikes: live.ebikes, docks: live.docks, estimated: false };
+  // Usable size: what the live feed sees (some docks are out of service), else the dock's size.
+  const size = live ? live.bikes + live.docks : (station.capacity ?? 15); // 15 is a common Bluebikes dock size
+  const bins = station.profile.arrivals.length;
+  const net = (bin: number) => station.profile.arrivals[(bin + bins) % bins] - station.profile.departures[(bin + bins) % bins];
+  // Without a live reading, anchor at half full at 4 AM (docks are quietest then) and run forward.
+  let level = live ? live.bikes : size / 2;
+  let from = live ? now : 4 * 3600;
+  const to = target;
+  const dir = to >= from ? 1 : -1;
+  while (dir * (to - from) > 0) {
+    const bin = Math.floor(from / binSeconds) - (dir < 0 && from % binSeconds === 0 ? 1 : 0);
+    const edge = dir > 0 ? (bin + 1) * binSeconds : bin * binSeconds;
+    const next = dir > 0 ? Math.min(edge, to) : Math.max(edge, to);
+    level += dir * net(bin) * Math.abs(next - from) / binSeconds; // this bin's share of flow, run backward when dir < 0
+    level = Math.max(0, Math.min(size, level));
+    from = next;
+  }
+  const bikes = Math.round(level);
+  const ebikeShare = live && live.bikes > 0 ? live.ebikes / live.bikes : 0.3;
+  return { bikes, ebikes: Math.round(bikes * ebikeShare), docks: Math.max(0, Math.round(size - level)), estimated: true };
+}

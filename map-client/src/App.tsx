@@ -18,7 +18,17 @@ import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
-import { BikeReplay, BluebikesFeed, activityCurve, formatDate, loadBikes, type BikeData, type BikeTrip } from './bikes/bluebikes';
+import {
+  BikeReplay,
+  BluebikesFeed,
+  activityCurve,
+  estimateDock,
+  formatDate,
+  loadBikes,
+  type BikeData,
+  type BikeTrip,
+  type DockEstimate,
+} from './bikes/bluebikes';
 import { bikeLayers, bikeTooltip } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
 
@@ -208,6 +218,7 @@ export default function App() {
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
+      let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       const tick = (now: number) => {
         const dt = Math.min(now - last, 100) / 1000;
         last = now;
@@ -224,6 +235,7 @@ export default function App() {
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
           occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
           lastOccupancy = now;
+          if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
           const ridingByCampus = new Map<string, number>();
           for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
           setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus });
@@ -251,7 +263,7 @@ export default function App() {
           ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
           ...(showBikesNow
-            ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom() })
+            ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus, placer })
             : []),
           ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
         ];
@@ -454,7 +466,7 @@ export default function App() {
                     {new Date(`${bikes.data.month}-15T12:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' })}
                   </p>
                   <h3>
-                    Live docks{' '}
+                    {live ? 'Live docks' : `Docks at ${hud ? formatClock(hud.time) : ''} (estimated)`}{' '}
                     <span className="muted">
                       {bikeFeedError ??
                         (bikeFeedUpdatedAt ? `· updated ${new Date(bikeFeedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
@@ -465,24 +477,41 @@ export default function App() {
                       <tr>
                         <th scope="col">Dock</th>
                         <th scope="col">Bikes</th>
-                        <th scope="col">E-bikes</th>
                         <th scope="col">Empty</th>
+                        <th scope="col" title="Estimated bikes in 1 hour">+1 h</th>
+                        <th scope="col" title="Estimated bikes in 3 hours">+3 h</th>
                       </tr>
                     </thead>
                     <tbody>
                       {docks.map((s) => {
-                        const live = bikes.feed.status(s);
+                        // "Now" is the shown time: the live count in Live mode, else an estimate.
+                        const shown = hud ? (live ? wallClockSeconds() : hud.time) : wallClockSeconds();
+                        const at = (offset: number) => estimateDock(s, bikes.feed.status(s), bikes.data.binSeconds, wallClockSeconds(), shown + offset);
+                        const nowEst = at(0);
+                        const mark = (e: DockEstimate) => (e.estimated ? '≈' : '');
                         return (
                           <tr key={s.id}>
                             <th scope="row">{s.short}</th>
-                            <td>{live ? live.bikes : '—'}</td>
-                            <td>{live ? live.ebikes : '—'}</td>
-                            <td>{live ? live.docks : '—'}</td>
+                            <td>
+                              {mark(nowEst)}
+                              {nowEst.bikes}
+                              {nowEst.ebikes > 0 && <span className="muted"> ({nowEst.ebikes}⚡)</span>}
+                            </td>
+                            <td>
+                              {mark(nowEst)}
+                              {nowEst.docks}
+                            </td>
+                            <td>≈{at(3600).bikes}</td>
+                            <td>≈{at(3 * 3600).bikes}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
+                  <p className="muted source">
+                    ≈ estimated: today's live count plus a typical {bikes.data.weekday}'s arrivals and departures at each dock. Bluebikes'
+                    rebalancing vans aren't modelled. ⚡ = e-bikes.
+                  </p>
                 </>
               )}
               <p className="muted source">
@@ -725,4 +754,10 @@ function transitSourceAt(transit: Transit, t: number, live: boolean): TransitSou
   if (live) return transit.feed;
   transit.schedule.setTime(t);
   return transit.schedule;
+}
+
+/** Bikes and empty docks at every BU dock at `target` (sim seconds): live if that's now, else estimated. */
+function dockStatusAt({ data, feed }: Bikes, target: number): Map<string, DockEstimate> {
+  const now = wallClockSeconds();
+  return new Map(data.stations.map((s) => [s.id, estimateDock(s, feed.status(s), data.binSeconds, now, target)]));
 }
