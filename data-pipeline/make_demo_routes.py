@@ -595,7 +595,7 @@ def stop_routes(campus, stops):
         reachable = sorted((cost[node], loc_id) for loc_id, node in loc_nodes.items() if node in cost)
         for _, loc_id in reachable[:STOP_ROUTES_PER_STOP]:
             walk, _ = route_between(network, prev, start, loc_nodes[loc_id])
-            path = [[round(lon, 6), round(lat, 6)]] + walk
+            path = pedestrian_network.tidy([[round(lon, 6), round(lat, 6)]] + walk)
             route = {"path": path, "cumulative": pedestrian_network.cumulative(path)}
             routes.setdefault(stop["id"], []).append((route["cumulative"][-1], f"{stop['id']}>{loc_id}", route))
     return routes

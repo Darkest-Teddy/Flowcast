@@ -84,6 +84,15 @@ class SidewalkTests(unittest.TestCase):
         self.assertIn(pn.key(*at(0, 8)), net.adj[node])
         self.assertIn(pn.key(*at(100, 8)), net.adj[node])
 
+    def test_saved_distances_strictly_increase_between_distinct_points(self):
+        # Two OSM vertices 8 cm apart (seen in Boston data) must not give two points at one 0.1 m distance.
+        path = pn.tidy([at(0, 0), at(10, 0), [at(10, 0)[0] + 0.000001, at(10, 0)[1]], at(20, 0)])
+        self.assertEqual(len(path), 3)
+        dist = pn.cumulative(path)
+        self.assertTrue(all(b > a for a, b in zip(dist, dist[1:])))
+        self.assertEqual(pn.tidy([at(0, 0), at(0, 0)]), [at(0, 0), at(0, 0)])  # one door: zero-length stays
+        self.assertEqual(pn.tidy([at(0, 0), at(5, 0), at(5.1, 0)])[-1], at(5.1, 0))  # the end point is kept
+
     def test_massgis_street_width_is_capped_by_lanes(self):
         _, road = pn.classify({'highway': 'primary', 'oneway': 'yes', 'lanes': '2', 'width': '47.0', 'sidewalk:right': 'separate', 'sidewalk:left': 'no'})
         self.assertLess(road['offset'], 9)

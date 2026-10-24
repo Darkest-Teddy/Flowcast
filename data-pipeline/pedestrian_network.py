@@ -366,14 +366,9 @@ class Network:
                 out.append(b0)
         out.append(xy[-1])
         out = _untangle(out, xy, shifts)
-        points = []
-        for x, y in out:
-            p = [round(lon0 + x / kx, 6), round(lat0 + y / ky, 6)]
-            if not points or p != points[-1]:
-                points.append(p)
-        if len(points) == 1:
-            points.append(points[0])
-        return points
+        points = [[round(lon0 + x / kx, 6), round(lat0 + y / ky, 6)] for x, y in out]
+        points[0], points[-1] = list(nodes[0]), list(nodes[-1])
+        return tidy(points)
 
 
 def _untangle(out, xy, shifts):
@@ -392,6 +387,21 @@ def _untangle(out, xy, shifts):
         cleaned.append(out[i])
     cleaned.append(out[-1])
     return cleaned
+
+
+def tidy(path, min_metres=0.3):
+    """Drop points within `min_metres` of the one before (two OSM nodes a few cm apart, or an offset
+    corner landing on a vertex): saved distances have 0.1 m precision, and playback rejects two
+    distinct points at the same distance. The first and last points always stay."""
+    out = [path[0]]
+    for i, point in enumerate(path[1:], 1):
+        if distance(out[-1], point) >= min_metres:
+            out.append(point)
+        elif i == len(path) - 1 and len(out) > 1:
+            out[-1] = point
+    if len(out) == 1:
+        out.append(path[-1])
+    return out
 
 
 def cumulative(path):
