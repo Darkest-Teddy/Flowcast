@@ -7,6 +7,7 @@
 
 import { pollShuttleArrivals, pollShuttleVehicles, type ShuttleData } from './buShuttle';
 import { isUnderground, makeTrack, pointAlong, snapToTracks, type Track } from './tracks';
+import { JUMP_METRES, newFollower, stepFollower, trackFeatures, type Follower, type Holding } from './motion';
 
 const API = 'https://api-v3.mbta.com';
 const API_KEY = import.meta.env.VITE_MBTA_API_KEY as string | undefined;
@@ -19,10 +20,12 @@ const TRACK_OFFSET = { subway: 2.0, bus: 2.5, shuttle: 2.5 };
 // Reports further than this from the route (a train in the yard, a bus deadheading) aren't snapped.
 const SNAP_MAX_METRES = 40;
 // Glide no faster than a Green Line train or bus really moves (16 m/s, ~35 mph); a bigger gap
-// between reports (missed polls, back-off) jumps the vehicle rather than racing it down the street.
+// between reports (missed polls, back-off) starts the glide from the new report's predecessor
+// rather than racing the vehicle down the street.
 const MAX_GLIDE_SPEED = 16;
 // BU's TransLoc feed updates every few seconds and has no published rate limit worth worrying about.
 const SHUTTLE_POLL_MS = 6_000;
+const LOST_KEEP_MS = 60_000;
 
 export interface TransitRoute {
   id: string;
@@ -67,18 +70,31 @@ export interface Vehicle {
   route: string;
   direction: 0 | 1;
   label: string;
-  status: string; // STOPPED_AT | INCOMING_AT | IN_TRANSIT_TO
+  /** STOPPED_AT (standing at a stop, as drawn) | INCOMING_AT | IN_TRANSIT_TO */
+  status: string;
   bearing: number;
-  /** Where to draw it now: eased from the previous report to the latest one. */
+  /** Where to draw it now: following the reports with real acceleration, stops and signals. */
   position: [number, number];
+  /** Why it is standing still as drawn: at a stop, at a red signal, or held in traffic. */
+  holding?: Holding;
+  speed?: number; // m/s as drawn
+  /** The feed's own status for the latest report (Live only). */
+  reportedStatus?: string;
   from: [number, number];
   to: [number, number];
   receivedAt: number; // performance.now() of the latest report
   interval: number; // ms until the next report is expected
   /** Set when the report snapped onto the vehicle's track: it then moves along the track. */
   track?: Track;
+  /** The report glides from sFrom to sTo metres along the track over `interval`. */
   sFrom: number;
   sTo: number;
+}
+
+/** Seconds since local midnight: the signal clock in Live mode (App.tsx uses the same). */
+function wallClockSeconds(): number {
+  const d = new Date();
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000;
 }
 
 export interface Arrival {
@@ -150,6 +166,9 @@ export class MbtaFeed {
   private shuttleVehicles: Vehicle[] = [];
   private mbtaArrivals: Arrival[] = [];
   private shuttleArrivals: Arrival[] = [];
+  /** How each vehicle is drawn moving: its own speed and position along its track. */
+  private readonly followers = new Map<string, Follower>();
+  private readonly lost = new Map<string, { vehicle: Vehicle; at: number }>();
 
   /** `data` may include BU shuttle routes and stops (merged in by the caller); `shuttle` turns on their polling. */
   constructor(
@@ -182,28 +201,46 @@ export class MbtaFeed {
   }
 
   /**
-   * Vehicles eased toward their latest report over one poll interval, so they glide instead of
-   * jump. Only vehicles on a mapped track are returned: off it (underground past our map, in a
-   * yard, deadheading) there's no reliable position or heading to draw them with.
+   * Vehicles following their latest report about one poll behind (see motion.ts): they glide
+   * with real acceleration and braking, stand at stops and wait at red lights. `now` is
+   * performance.now(). Only vehicles on a mapped track are returned: off it (underground past
+   * our map, in a yard, deadheading) there's no reliable position or heading to draw them with.
    */
   positionsAt(now: number): Vehicle[] {
+    const signalTime = wallClockSeconds();
     for (const v of this.state.vehicles) {
-      const f = Math.min(1, (now - v.receivedAt) / v.interval);
-      if (v.track) {
-        const at = pointAlong(v.track, v.sFrom + (v.sTo - v.sFrom) * f);
+      const follower = this.followers.get(v.id);
+      if (v.track && follower) {
+        stepFollower(follower, v.track, this.featuresFor(v.track), this.kindOf(v.route), {
+          sFrom: v.sFrom,
+          sTo: v.sTo,
+          receivedAt: v.receivedAt,
+          interval: v.interval,
+          stopped: v.reportedStatus === 'STOPPED_AT',
+        }, now, signalTime);
+        const at = pointAlong(v.track, follower.s);
         v.position = at.position;
         v.bearing = at.bearing;
+        v.holding = follower.holding;
+        v.speed = follower.v;
+        // STOPPED_AT only while it's drawn standing at a stop (not at a red light).
+        const reported = v.reportedStatus ?? v.status;
+        v.status = follower.holding === 'stop' ? 'STOPPED_AT' : reported === 'STOPPED_AT' ? (follower.holding ? 'IN_TRANSIT_TO' : 'INCOMING_AT') : reported;
       } else {
+        const f = Math.min(1, (now - v.receivedAt) / v.interval);
         v.position = [v.from[0] + (v.to[0] - v.from[0]) * f, v.from[1] + (v.to[1] - v.from[1]) * f];
       }
     }
     // Trains in a tunnel (Kenmore, Hynes, the D past Fenway) are underground: don't draw them.
-    return this.state.vehicles.filter((v) => v.track && !isUnderground(v.track, this.alongTrack(v, now)));
+    return this.state.vehicles.filter((v) => v.track && !isUnderground(v.track, this.followers.get(v.id)?.s ?? v.sTo));
   }
 
-  private alongTrack(v: Vehicle, now: number): number {
-    const f = Math.min(1, (now - v.receivedAt) / v.interval);
-    return v.sFrom + (v.sTo - v.sFrom) * f;
+  private kindOf(route: string): TransitRoute['kind'] {
+    return this.data.routes.find((r) => r.id === route)?.kind ?? 'bus';
+  }
+
+  private featuresFor(track: Track) {
+    return trackFeatures(track, this.kindOf(track.route), this.data.stops);
   }
 
   /** Soonest upcoming arrival per route and direction at a stop. */
@@ -293,6 +330,20 @@ export class MbtaFeed {
       this.data.areas.some(({ bbox: [west, south, east, north] }) => lng >= west - margin && lng <= east + margin && lat >= south - margin && lat <= north + margin);
     const previous = new Map(previousList.map((v) => [v.id, v]));
     const now = performance.now();
+    // A vehicle missing from a poll or two (the feed drops them now and then) keeps its
+    // follower for a while, so when it's back it glides on (and stops for signals) rather
+    // than reappearing further down the street.
+    const reported = new Set(reports.map((r) => r.id));
+    for (const v of previousList) if (!reported.has(v.id)) this.lost.set(v.id, { vehicle: v, at: now });
+    for (const [id, { at }] of this.lost) {
+      if (now - at > LOST_KEEP_MS) {
+        this.lost.delete(id);
+        this.followers.delete(id);
+      } else if (reported.has(id)) {
+        if (!previous.has(id)) previous.set(id, this.lost.get(id)!.vehicle);
+        this.lost.delete(id);
+      }
+    }
     return reports
       .map((r): Vehicle | null => {
         if (!nearCampus(r.to)) return null;
@@ -302,7 +353,8 @@ export class MbtaFeed {
           route: r.route,
           direction: r.direction,
           label: r.label,
-          status: r.status,
+          status: prev && prev.track ? prev.status : r.status,
+          reportedStatus: r.status,
           bearing: r.bearing ?? prev?.bearing ?? 0,
           from: prev ? [...prev.position] : r.to,
           to: r.to,
@@ -321,15 +373,33 @@ export class MbtaFeed {
           vehicle.track = snapped.track;
           vehicle.sTo = snapped.s;
           vehicle.sFrom = snapped.s;
-          if (prev?.track === snapped.track) {
-            const current = this.alongTrack(prev, now);
+          let follower = this.followers.get(r.id);
+          if (prev?.track === snapped.track && follower) {
+            const current = follower.s;
             // GPS jitter can put a report slightly behind; vehicles don't reverse, so hold still.
             vehicle.sTo = snapped.s < current && current - snapped.s < 30 ? current : snapped.s;
-            if (Math.abs(vehicle.sTo - current) <= MAX_GLIDE_SPEED * (interval / 1000)) vehicle.sFrom = current;
+            if (Math.abs(vehicle.sTo - current) > JUMP_METRES) {
+              follower = undefined; // missed polls or a different trip: start again here
+            } else if (vehicle.sTo - prev.sTo <= MAX_GLIDE_SPEED * (interval / 1000) * 1.5) {
+              // The report glides on from the previous one (or from the drawn vehicle, if that
+              // got further), one interval behind the real vehicle.
+              vehicle.sFrom = Math.max(prev.sTo, Math.min(current, vehicle.sTo));
+            } else {
+              vehicle.sFrom = Math.min(current, vehicle.sTo);
+            }
+          } else {
+            follower = undefined;
           }
-          const at = pointAlong(snapped.track, vehicle.sFrom);
+          if (!follower) {
+            follower = newFollower(vehicle.sTo, now, this.featuresFor(snapped.track).stops);
+            this.followers.set(r.id, follower);
+            vehicle.sFrom = vehicle.sTo;
+          }
+          const at = pointAlong(snapped.track, follower.s);
           vehicle.position = at.position;
           vehicle.bearing = at.bearing;
+        } else {
+          this.followers.delete(r.id);
         }
         return vehicle;
       })
