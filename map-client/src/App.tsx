@@ -9,7 +9,7 @@ import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTa
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer } from './layers/placement';
 import { cullLayers } from './layers/culling';
-import { buildingModelLayers, loadBuildings } from './layers/buildings';
+import { buildingModelLayers, campusBounds, DEFERRED_CAMPUSES, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
@@ -66,6 +66,7 @@ const MemoCameraControls = memo(CameraControls);
 const MemoWeatherControls = memo(WeatherControls);
 
 const SPEEDS = [1, 30, 120, 600];
+const COUNTS_KEY = 'flowcast.trafficCounts';
 const params = new URLSearchParams(window.location.search);
 /** ?date=2026-11-18 plays that date's campus events on its weekday (projected onto the representative week). */
 const URL_DATE = /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : null;
@@ -168,6 +169,7 @@ export default function App() {
   const baseDayRef = useRef<PopulationBase | null>(null);
   // Published MBTA service the students ride (null: timetable unavailable, gateways are walk-only).
   const transitServiceRef = useRef<TransitService | undefined>(undefined);
+  const loadDeferredRef = useRef<((campus: string) => void) | null>(null);
   const playbackRef = useRef<Playback | null>(null);
   // Campus events: on by default. Which date's events play is decided by eventDateFor().
   const [eventsOn, setEventsOn] = useState(START_EVENTS);
@@ -204,6 +206,9 @@ export default function App() {
   const [showTransit, setShowTransit] = useState(true);
   // Car traffic is off by default: most students walk, bike or take the T. Still available in the Transit tab.
   const [showTraffic, setShowTraffic] = useState(false);
+  // Traffic count sites ("1,313 vehicles/h · 29 bikes/h"): off by default, remembered.
+  const [showCounts, setShowCounts] = useState(() => { try { return localStorage.getItem(COUNTS_KEY) === '1'; } catch { return false; } });
+  const showCountsRef = useRef(showCounts);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
   const weatherRef = useRef<ActiveWeather | null>(null);
@@ -256,6 +261,10 @@ export default function App() {
       // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
       // Standard's own 3D buildings are off).
       basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])).concat(fields ? fieldBuildingIds(fields) : []));
+      // The base map's own 3D models hidden under ours (Standard's Fenway Park), plus, once the
+      // transit data is in, the Green Line trackbed (no trees on it). One clip layer for both.
+      const clips = landmarkClips(detailedBuildings?.manifest);
+      if (clips.length) basemap.clipModels(clips);
 
       if (transitData) {
         // BU's own shuttles join the MBTA data: same tracks, snapping and panels.
@@ -275,7 +284,7 @@ export default function App() {
         feed.start();
         transitRef.current = { data: transitData, feed, schedule: timetable ? new PublishedTransit(transitData, feed.tracks, timetable) : null, models: vehicleModels };
         // Keep the base map's trees off the Green Line trackbed.
-        basemap.clipModels(trackCorridors(feed.tracks.filter((t) => t.route.startsWith('Green-')), 3.2));
+        basemap.clipModels([...clips, ...trackCorridors(feed.tracks.filter((t) => t.route.startsWith('Green-')), 3.2)]);
       }
 
       if (bikeData) {
@@ -385,6 +394,11 @@ export default function App() {
       requestAnimationFrame(() => requestAnimationFrame(reveal));
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
+      // Deferred campuses (buildings.ts): load their models once the view comes near them.
+      const deferred = detailedBuildings
+        ? DEFERRED_CAMPUSES.flatMap((id) => { const b = campusBounds(detailedBuildings.manifest, id, 0); return b ? [{ id, bounds: b }] : []; })
+        : [];
+      loadDeferredRef.current = (id: string) => { if (detailedBuildings) void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id); };
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       const volumes = modelVolumes(detailedBuildings?.manifest);
       let last = performance.now();
@@ -504,6 +518,14 @@ export default function App() {
           monuments: monuments?.monuments ?? null,
           fields: fields?.fields ?? null,
         });
+        // What's in view (with a margin): walkers outside it aren't drawn, and a deferred campus
+        // starts loading when the view approaches it.
+        const view = expandBounds(basemap.visibleBounds(), 0.25);
+        // A tilted view's bounds reach to the horizon, so nearness is judged from the camera's centre.
+        const camera = basemap.getCamera();
+        for (const d of deferred) {
+          if (!detailedBuildings!.models[d.id] && (camera.zoom < 14.5 || metresToBox(camera.center, d.bounds) < DEFERRED_LOAD_METRES)) loadDeferredRef.current?.(d.id);
+        }
         const frameLayers = [
           ...(detailedBuildings
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows })
@@ -528,10 +550,10 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(nearView(walking, basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
+          ...agentLayers(thinForZoom(inView(nearView(walking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
           ...incidentFrameLayers,
           ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
-          ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
+          ...(currentMobility && showCountsRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
@@ -576,6 +598,7 @@ export default function App() {
 
   const goToCampus = (c: Campus) => {
     setCampus(c.id);
+    loadDeferredRef.current?.(c.id);
     // The Charles River Campus is long and thin and needs the wide default shot; the others fit closer in.
     if (c.id === 'charles-river') basemapRef.current?.flyTo(INITIAL_VIEW.center, INITIAL_VIEW.zoom);
     else basemapRef.current?.flyTo(c.center, 16.4);
@@ -589,6 +612,12 @@ export default function App() {
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
     setShowTransit(showTransitRef.current);
+  };
+
+  const toggleCounts = () => {
+    showCountsRef.current = !showCountsRef.current;
+    setShowCounts(showCountsRef.current);
+    try { localStorage.setItem(COUNTS_KEY, showCountsRef.current ? '1' : '0'); } catch { /* storage blocked: this session only */ }
   };
 
   const toggleBikes = () => {
@@ -718,6 +747,7 @@ export default function App() {
     setSelectedMobility(null);
   };
   const selectMobility = (item: MobilityPoint | MobilityArc) => {
+    if (!showCountsRef.current) toggleCounts(); // picking a site from the list shows it on the map
     selectedMobilityRef.current = item.id;
     setSelectedMobility(item.id);
     const position: [number, number] = item.mobilityKind === 'flow'
@@ -925,6 +955,11 @@ export default function App() {
             </section>
           ) : tab === 'traffic' ? (
             <section id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic">
+              <div className="toggles" role="group" aria-label="Map layers">
+                <button onClick={toggleCounts} aria-pressed={showCounts}>
+                  Counts on map
+                </button>
+              </div>
               <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday} selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
             </section>
           ) : tab === 'data' ? (
@@ -1169,6 +1204,48 @@ function nearView(walkers: WalkingAgent[], center: [number, number], radius: num
     const dy = (w.position[1] - center[1]) * 110_540;
     return dx * dx + dy * dy <= r2;
   });
+}
+
+/** Bounds grown by `share` of their size on every side. */
+function expandBounds([w, s, e, n]: [number, number, number, number], share: number): [number, number, number, number] {
+  const dx = (e - w) * share;
+  const dy = (n - s) * share;
+  return [w - dx, s - dy, e + dx, n + dy];
+}
+/** A deferred campus loads once the camera centre is this close to its buildings. */
+const DEFERRED_LOAD_METRES = 1500;
+function metresToBox([lng, lat]: [number, number], [w, s, e, n]: [number, number, number, number]): number {
+  const dx = (lng < w ? w - lng : lng > e ? lng - e : 0) * 111_320 * Math.cos((lat * Math.PI) / 180);
+  const dy = (lat < s ? s - lat : lat > n ? lat - n : 0) * 110_540;
+  return Math.hypot(dx, dy);
+}
+/** Walkers inside these bounds (people off screen, e.g. on the Medical Campus, aren't drawn). */
+function inView(walkers: WalkingAgent[], [w, s, e, n]: [number, number, number, number]): WalkingAgent[] {
+  return walkers.filter(({ position: [x, y] }) => x >= w && x <= e && y >= s && y <= n);
+}
+
+// Level of detail for walkers: from far out the figures are drawn several times life size, so the
+// whole crowd reads as clutter and costs GPU skinning for people a few pixels apart. A stable share
+// of students (the same ones every frame, picked by id) is drawn when zoomed out, and everyone from
+// street level in. Only the drawing thins; every count in the panels stays the full simulation.
+const DRAW_ALL_FROM_ZOOM = 16.5;
+const FARTHEST_ZOOM = 14;
+const FARTHEST_SHARE = 0.35;
+const walkerShare = new Map<string, number>();
+function shareOf(id: string): number {
+  let v = walkerShare.get(id);
+  if (v === undefined) {
+    let h = 2166136261;
+    for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+    walkerShare.set(id, (v = (h >>> 0) / 4294967296));
+  }
+  return v;
+}
+function thinForZoom(walkers: WalkingAgent[], zoom: number): WalkingAgent[] {
+  if (zoom >= DRAW_ALL_FROM_ZOOM) return walkers;
+  const f = Math.min(1, Math.max(0, (zoom - FARTHEST_ZOOM) / (DRAW_ALL_FROM_ZOOM - FARTHEST_ZOOM)));
+  const keep = FARTHEST_SHARE + (1 - FARTHEST_SHARE) * f;
+  return walkers.filter((w) => shareOf(w.id) < keep);
 }
 
 /**
