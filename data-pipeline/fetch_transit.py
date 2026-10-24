@@ -134,8 +134,11 @@ def main():
             if p["relationships"]["route"]["data"]["id"] != rid or p["attributes"]["typicality"] != 1:
                 continue
             shape = decode_polyline(shapes[trips[p["relationships"]["representative_trip"]["data"]["id"]]])
+            # Points run in travel order for this direction, so the map can lay each direction
+            # on its own right-hand track and point vehicles along it.
+            direction = p["attributes"]["direction_id"]
             for area in areas_for_route[rid]:
-                paths += clip(shape, area["bbox"])
+                paths += [{"direction": direction, "path": run} for run in clip(shape, area["bbox"])]
         is_green = rid.startswith("Green-")
         out_routes.append({
             "id": rid,

@@ -89,6 +89,7 @@ Trips (a path plus timestamps) are what deck.gl's TripsLayer reads natively. The
 ## Pitfalls we already hit (don't re-debug these)
 
 - **Mapbox must use `projection: 'mercator'`.** Mapbox Standard defaults to a globe, which flips deck.gl into GlobeView. Text labels and the 3D characters then draw nothing, with no error.
+- **MBTA headings and GPS are noisy** (stopped trains often report a stale bearing), so drawn as-is, vehicles sat off the rails at odd angles. `src/transit/tracks.ts` snaps each vehicle onto its direction's track, points it along the track and glides it along the curve between reports.
 - **Tiny vehicles vanish.** At campus zoom a real-width train is under a pixel wide, so `transit.ts` scales vehicles up as the camera pulls back.
 - **MapLibre is pinned to v5.** MapLibre 6 removed `map.transform`, which deck.gl 9.4's interleaved mode reads, and every deck layer crashes.
 - **`HeatmapLayer` and `CollisionFilterExtension` render nothing in interleaved mode.** Both need an offscreen pass. That's why the "heatmap" is tinted building footprints plus trails, and why label overlap is handled in screen space in `crowd.ts`.
