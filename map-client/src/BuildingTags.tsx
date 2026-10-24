@@ -205,7 +205,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         for (const b of buildings) {
           const [gx, gy] = project(b.position);
           const [ax, ay] = viewport.project([b.position[0], b.position[1], 0]);
-          const [rx, ry] = viewport.project([b.position[0], b.position[1], s.heights.get(b.id) ?? 0]);
+          const [rx, ry] = viewport.project([b.position[0], b.position[1], b.roof ?? s.heights.get(b.id) ?? 0]);
           const x = gx + rx - ax;
           const y = gy + ry - ay;
           if (x > -MARGIN && x < width + MARGIN && y > -MARGIN && y < height + MARGIN) anchors.set(b, [x, y]);
