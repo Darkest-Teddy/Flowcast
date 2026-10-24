@@ -21,6 +21,7 @@ Sign-in is mocked: "Continue with Google" signs you in as a sample user with stu
 - **Data only through `src/data/api.ts`.** It answers from `fixtures.ts` today; when `/server` exists each function becomes a request and pages don't change. Pages never import `fixtures.ts`.
 - **Reuse `src/ui`** (buttons, lists, tables, fields, status badges, page headers) and `src/lib/format.ts` for dates and percentages.
 - Each page keeps its CSS in a sibling `*.module.css`.
+- **Glass, not opaque boxes.** Pages sit on the canvas gradient. A card or bar that needs a surface writes `composes: glass from global;` (or `glass-strong` for big panels and anything content scrolls under) and `border-radius: var(--radius-card)`. Don't paint `--color-surface` or `--color-canvas` over the page. Reduce transparency (Settings, or the device setting) turns all glass solid by itself.
 
 ## Layout
 
