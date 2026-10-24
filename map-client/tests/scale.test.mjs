@@ -20,6 +20,7 @@ test('bundled population and weekly schedules conserve all people and physical t
   const base = buildPopulation(read('demo-day'), source, read('population'));
   const mapped = new Set(base.locations.map(l => l.id));
   const gateways = new Set(Object.values(base.stopRoutes ?? {}).map(route => JSON.stringify(route.path[0])));
+  const estimatedVisits = new Map();
   let checkedTrips = 0;
   for (let weekday = 0; weekday < 7; weekday++) {
     const day = buildSourceDay(base, source, weekday);
@@ -27,6 +28,14 @@ test('bundled population and weekly schedules conserve all people and physical t
     assert.ok(day.sourceStats.modeledOffCampusMeals > 0, 'off-campus meals are represented without adding people');
     for (const activity of day.sourceActivities) {
       if (activity.kind === 'off-campus-meal') continue;
+      if (activity.kind === 'estimated') {
+        const profile = base.locations.find(location => location.id === activity.locationId)?.estimatedProfile;
+        assert.ok(profile && activity.estimated && profile.confidence === 'low');
+        assert.ok(profile.weekdayWindows.filter(day => day.weekday === weekday).flatMap(day => day.windows)
+          .some(([start, end]) => start <= activity.startSec && activity.endSec <= end));
+        estimatedVisits.set(activity.locationId, (estimatedVisits.get(activity.locationId) ?? 0) + 1);
+        continue;
+      }
       const windows = openingHoursForDate(source.locations[activity.locationId]?.hours ?? [], dateForWeekday(source,weekday),weekday).flatMap(h=>h.windows);
       assert.ok(windows.some(([start,end])=>start<=activity.startSec && activity.endSec<=end), `${activity.locationId} optional visits require published hours`);
     }
@@ -36,6 +45,18 @@ test('bundled population and weekly schedules conserve all people and physical t
     for (const stay of day.stays) {
       if (!diningHours.has(stay.location)) continue;
       assert.ok(diningHours.get(stay.location).some(([start,end])=>start<=stay.start && stay.end<=end), `${stay.location} dining stays must fit their entire opening window`);
+    }
+    for (const location of day.locations.filter(location => location.estimatedProfile)) {
+      const profile = location.estimatedProfile;
+      const windows = profile.weekdayWindows.filter(day => day.weekday === weekday).flatMap(day => day.windows);
+      const stays = day.stays.filter(stay => stay.location === location.id);
+      for (const stay of stays) assert.ok(windows.some(([start, end]) => start <= stay.start && stay.end <= end), `${location.id} complete stays fit estimated windows`);
+      const changes = stays.flatMap(stay => [[stay.start, 1], [stay.end, -1]]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      let count = 0;
+      for (const [, delta] of changes) {
+        count += delta;
+        assert.ok(count <= Math.min(profile.capacity, location.capacity), `${location.id} stays within its attendance quota`);
+      }
     }
     const timelines = new Map(day.agents.map(a => [a.id, []]));
     for (const stay of day.stays) timelines.get(stay.agent).push([stay.start, stay.end]);
@@ -61,7 +82,9 @@ test('bundled population and weekly schedules conserve all people and physical t
           assert.equal(occupancy.count, 0, `${occupancy.location.id} cannot host diners outside verified hours`);
         }
       }
-      for (const id of ['agganis', 'dewolfe']) assert.equal(playback.occupancyAt(time).find(o => o.location.id === id)?.count ?? 0, 0);
+      for (const occupancy of playback.occupancyAt(time).filter(o => o.location.estimatedProfile)) {
+        assert.ok(occupancy.count <= occupancy.location.capacity, `${occupancy.location.id} estimated presence stays within capacity`);
+      }
     }
     for (const trip of day.trips) {
       assert.ok(mapped.has(trip.from) || trip.from === 'off-campus');
@@ -77,6 +100,13 @@ test('bundled population and weekly schedules conserve all people and physical t
       checkedTrips++;
     }
     assert.deepEqual(day.locations.map(l=>l.capacity), base.locations.map(l=>l.capacity));
+  }
+  assert.equal(base.locations.filter(location => !location.activityModeled).length, 0);
+  for (const location of base.locations.filter(location => location.estimatedProfile)) {
+    assert.ok(estimatedVisits.get(location.id) > 0, `${location.id} has estimated activity during the week`);
+  }
+  for (const location of base.locations.filter(location => location.estimatedHousingProfile)) {
+    assert.ok(base.agents.some(agent => agent.home === location.id), `${location.id} has allocated residents`);
   }
   assert.ok(checkedTrips > 10000);
   console.log(`Verified ${checkedTrips} trips and 672 population snapshots across seven days`);

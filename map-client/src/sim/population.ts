@@ -1,5 +1,5 @@
-import type { CampusData } from '../data/campusData';
-import type { Agent, DayData } from './playback';
+import { dateForWeekday, openingHoursForDate, type CampusData } from '../data/campusData';
+import type { Agent, DayData, EstimatedActivityProfile, EstimatedHousingProfile } from './playback';
 
 export interface PopulationData {
   schemaVersion: 1;
@@ -9,11 +9,15 @@ export interface PopulationData {
   locationCapacities: Record<string, number>;
   residentialCapacities: Record<string, number>;
   locationNames?: Record<string, string>;
+  locationEstimatedProfiles?: Record<string, EstimatedActivityProfile>;
+  estimatedHousingProfiles?: Record<string, EstimatedHousingProfile>;
+  locationCapacityBasis?: Record<string, { basis: string }>;
+  campusResidentMinimums?: { campus: string; students: number; sourceUrl: string; basis: string }[];
   sources: { url: string }[];
 }
 export interface PopulationSummary {
   total: number; mappedResidents: number; residentsOutsideMap: number; commuters: number;
-  reportingPeriod: string; campusAllocation: string;
+  reportingPeriod: string; campusAllocation: string; estimatedGraduateResidents: number; estimatedMappedResidents: number;
 }
 export interface PopulationBase extends DayData { populationSummary: PopulationSummary }
 
@@ -35,8 +39,20 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
   for (const capacity of Object.values(population.residentialCapacities)) {
     if (!Number.isInteger(capacity) || capacity < 0) throw new Error('Invalid residential capacity');
   }
-  const locations = base.locations.map((location) => ({ ...location, name: population.locationNames?.[location.id] ?? location.name,
-    short: population.locationNames?.[location.id] ?? location.short, capacity: population.locationCapacities[location.id] ?? location.capacity }));
+  const locations = base.locations.map((location) => {
+    const published = source.locations[location.id];
+    const openThisWeek = published?.hoursStatus !== 'restricted' && Array.from({ length: 7 }, (_, weekday) =>
+      openingHoursForDate(published?.hours ?? [], dateForWeekday(source, weekday), weekday).some(h => h.windows.length > 0)).some(Boolean);
+    return { ...location, name: population.locationNames?.[location.id] ?? location.name,
+      short: population.locationNames?.[location.id] ?? location.short,
+      capacity: population.locationCapacities[location.id] ?? location.capacity,
+      capacityBasis: population.locationCapacityBasis?.[location.id]?.basis,
+      estimatedProfile: population.locationEstimatedProfiles?.[location.id],
+      estimatedHousingProfile: population.estimatedHousingProfiles?.[location.id],
+      activityModeled: (population.residentialCapacities[location.id] ?? 0) > 0
+        || (published?.meetings.length ?? 0) > 0 || openThisWeek
+        || !!population.locationEstimatedProfiles?.[location.id] || !!population.estimatedHousingProfiles?.[location.id] };
+  });
   const campuses = base.campuses?.map((c) => c.id) ?? ['charles-river'];
   const weights = campuses.map((campus) => {
     const ids = new Set(locations.filter((l) => l.campus === campus).map((l) => l.id));
@@ -70,9 +86,41 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
     residents[i].residency = 'resident';
     if (i < beds.length) { residents[i].home = beds[i].location; residents[i].campus = beds[i].campus; mappedResidents++; }
   }
+  const relocated = new Set<string>();
+  for (const minimum of population.campusResidentMinimums ?? []) {
+    if (!campuses.includes(minimum.campus) || !Number.isInteger(minimum.students) || minimum.students < 0) throw new Error('Invalid campus resident minimum');
+    const existing = residents.filter((agent) => agent.campus === minimum.campus).length;
+    let remaining = Math.max(0, minimum.students - existing);
+    for (const agent of residents) {
+      if (!remaining) break;
+      if (agent.home !== 'off-campus' || agent.campus === minimum.campus || relocated.has(agent.id)) continue;
+      agent.campus = minimum.campus;
+      relocated.add(agent.id); remaining--;
+    }
+    if (remaining) throw new Error('Campus resident minimum exceeds available unmapped residents');
+  }
+  let estimatedGraduateResidents = 0, estimatedMappedResidents = 0;
+  const graduatePool = agents.filter(agent => agent.studentLevel === 'graduate' && agent.home === 'off-campus')
+    .sort((a, b) => hash(`graduate-housing:${a.id}`) - hash(`graduate-housing:${b.id}`));
+  const housingProfiles = Object.values(population.estimatedHousingProfiles ?? {}).sort((a, b) =>
+    Number(b.campus === 'fenway') - Number(a.campus === 'fenway') || a.locationId.localeCompare(b.locationId));
+  for (const profile of housingProfiles) {
+    if (!Number.isInteger(profile.capacity) || profile.capacity < 0 || !Number.isFinite(profile.occupancyRate)
+      || profile.occupancyRate < 0 || profile.occupancyRate > 1 || !locations.some(l => l.id === profile.locationId && l.kind === 'dorm')) throw new Error('Invalid estimated housing profile');
+    const count = Math.round(profile.capacity * profile.occupancyRate);
+    const pool = (profile.studentLevel === 'graduate' ? graduatePool : residents).filter(agent =>
+      agent.home === 'off-campus' && (profile.studentLevel === 'graduate' || agent.campus === profile.campus || !relocated.has(agent.id)))
+      .sort((a, b) => Number(b.campus === profile.campus) - Number(a.campus === profile.campus));
+    if (pool.length < count) throw new Error('Estimated housing exceeds available existing residents');
+    for (const agent of pool.slice(0, count)) {
+      agent.home = profile.locationId; agent.campus = profile.campus; agent.residency = 'resident';
+      mappedResidents++; estimatedMappedResidents++;
+      if (profile.studentLevel === 'graduate') estimatedGraduateResidents++;
+    }
+  }
   return { ...base, agents, locations, trips: [], populationSummary: {
-    total: agents.length, mappedResidents, residentsOutsideMap: residents.length - mappedResidents,
-    commuters: agents.length - residents.length, reportingPeriod: population.students.reportingPeriod,
+    total: agents.length, mappedResidents, residentsOutsideMap: residents.filter(a => a.home === 'off-campus').length, estimatedGraduateResidents, estimatedMappedResidents,
+    commuters: agents.length - residents.length - estimatedGraduateResidents, reportingPeriod: population.students.reportingPeriod,
     campusAllocation: 'Synthetic course-capacity allocation; campus headcounts and online enrollment are unavailable.',
   } };
 }

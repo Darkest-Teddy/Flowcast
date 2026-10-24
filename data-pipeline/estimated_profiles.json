@@ -1,0 +1,877 @@
+{
+  "schemaVersion": 1,
+  "referenceWeekStart": "2026-10-19",
+  "housing": [
+    {
+      "locationId": "claflin",
+      "campus": "charles-river",
+      "studentLevel": "undergraduate",
+      "capacity": 600,
+      "occupancyRate": 0.95,
+      "capacityRange": [
+        450,
+        750
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Equal share of published approximately 1,800 West Campus residential spaces across three halls",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "rich",
+      "campus": "charles-river",
+      "studentLevel": "undergraduate",
+      "capacity": 600,
+      "occupancyRate": 0.95,
+      "capacityRange": [
+        450,
+        750
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Equal share of published approximately 1,800 West Campus residential spaces across three halls",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "sleeper",
+      "campus": "charles-river",
+      "studentLevel": "undergraduate",
+      "capacity": 600,
+      "occupancyRate": 0.95,
+      "capacityRange": [
+        450,
+        750
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Equal share of published approximately 1,800 West Campus residential spaces across three halls",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "comm-1019",
+      "campus": "charles-river",
+      "studentLevel": "undergraduate",
+      "capacity": 300,
+      "occupancyRate": 0.9,
+      "capacityRange": [
+        225,
+        375
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/charles-river-additions.json); not a published bed count",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "hojo",
+      "campus": "charles-river",
+      "studentLevel": "undergraduate",
+      "capacity": 550,
+      "occupancyRate": 0.9,
+      "capacityRange": [
+        412,
+        688
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/charles-river-additions.json); not a published bed count",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "danielsen",
+      "campus": "charles-river",
+      "studentLevel": "undergraduate",
+      "capacity": 200,
+      "occupancyRate": 0.9,
+      "capacityRange": [
+        150,
+        250
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/charles-river-additions.json); not a published bed count",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "bumc-residence",
+      "campus": "medical",
+      "studentLevel": "graduate",
+      "capacity": 208,
+      "occupancyRate": 0.85,
+      "capacityRange": [
+        156,
+        260
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/medical.json); not a published bed count",
+      "note": "Estimated home assignment from existing resident roster; neither occupied beds nor exact building capacity is observed. Graduate allocation uses graduate agents only."
+    },
+    {
+      "locationId": "riverway-house",
+      "campus": "fenway",
+      "studentLevel": "undergraduate",
+      "capacity": 120,
+      "occupancyRate": 0.9,
+      "capacityRange": [
+        90,
+        150
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "longwood-house",
+      "campus": "fenway",
+      "studentLevel": "undergraduate",
+      "capacity": 70,
+      "occupancyRate": 0.9,
+      "capacityRange": [
+        52,
+        88
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "pilgrim-house",
+      "campus": "fenway",
+      "studentLevel": "undergraduate",
+      "capacity": 80,
+      "occupancyRate": 0.9,
+      "capacityRange": [
+        60,
+        100
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "fenway-center",
+      "campus": "fenway",
+      "studentLevel": "undergraduate",
+      "capacity": 108,
+      "occupancyRate": 0.9,
+      "capacityRange": [
+        81,
+        135
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "peabody",
+      "campus": "fenway",
+      "studentLevel": "undergraduate",
+      "capacity": 134,
+      "occupancyRate": 0.9,
+      "capacityRange": [
+        100,
+        168
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    }
+  ],
+  "activities": [
+    {
+      "locationId": "bumc-sph",
+      "campus": "medical",
+      "purpose": "academic",
+      "studentLevel": "graduate",
+      "weekdayWindows": [
+        {
+          "weekday": 0,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 1,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 2,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 3,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 4,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        }
+      ],
+      "durationMinutes": 120,
+      "attendanceProbability": 0.8,
+      "capacity": 150,
+      "dailyParticipants": 200,
+      "capacityRange": [
+        75,
+        225
+      ],
+      "participantRange": [
+        100,
+        300
+      ],
+      "confidence": "low",
+      "basis": "estimated_student_activity",
+      "proxy": "Conservative student-use fraction of configured 500-person size proxy (data-pipeline/campuses/medical.json) and mapped facility purpose",
+      "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+    },
+    {
+      "locationId": "bumc-dental",
+      "campus": "medical",
+      "purpose": "academic",
+      "studentLevel": "graduate",
+      "weekdayWindows": [
+        {
+          "weekday": 0,
+          "windows": [
+            [
+              28800,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 1,
+          "windows": [
+            [
+              28800,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 2,
+          "windows": [
+            [
+              28800,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 3,
+          "windows": [
+            [
+              28800,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 4,
+          "windows": [
+            [
+              28800,
+              61200
+            ]
+          ]
+        }
+      ],
+      "durationMinutes": 180,
+      "attendanceProbability": 0.8,
+      "capacity": 120,
+      "dailyParticipants": 160,
+      "capacityRange": [
+        60,
+        180
+      ],
+      "participantRange": [
+        80,
+        240
+      ],
+      "confidence": "low",
+      "basis": "estimated_student_activity",
+      "proxy": "Conservative student-use fraction of configured 400-person size proxy (data-pipeline/campuses/medical.json) and mapped facility purpose",
+      "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+    },
+    {
+      "locationId": "bumc-cabr",
+      "campus": "medical",
+      "purpose": "research",
+      "studentLevel": "graduate",
+      "weekdayWindows": [
+        {
+          "weekday": 0,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 1,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 2,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 3,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 4,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        }
+      ],
+      "durationMinutes": 240,
+      "attendanceProbability": 0.8,
+      "capacity": 80,
+      "dailyParticipants": 100,
+      "capacityRange": [
+        40,
+        120
+      ],
+      "participantRange": [
+        50,
+        150
+      ],
+      "confidence": "low",
+      "basis": "estimated_student_activity",
+      "proxy": "Conservative student-use fraction of configured 200-person size proxy (data-pipeline/campuses/medical.json) and mapped facility purpose",
+      "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+    },
+    {
+      "locationId": "bumc-conte",
+      "campus": "medical",
+      "purpose": "research",
+      "studentLevel": "graduate",
+      "weekdayWindows": [
+        {
+          "weekday": 0,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 1,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 2,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 3,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 4,
+          "windows": [
+            [
+              32400,
+              64800
+            ]
+          ]
+        }
+      ],
+      "durationMinutes": 240,
+      "attendanceProbability": 0.8,
+      "capacity": 60,
+      "dailyParticipants": 75,
+      "capacityRange": [
+        30,
+        90
+      ],
+      "participantRange": [
+        38,
+        112
+      ],
+      "confidence": "low",
+      "basis": "estimated_student_activity",
+      "proxy": "Conservative student-use fraction of configured 150-person size proxy (data-pipeline/campuses/medical.json) and mapped facility purpose",
+      "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+    },
+    {
+      "locationId": "fenway-classroom",
+      "campus": "fenway",
+      "purpose": "academic",
+      "studentLevel": "undergraduate",
+      "weekdayWindows": [
+        {
+          "weekday": 0,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 1,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 2,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 3,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 4,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        }
+      ],
+      "durationMinutes": 90,
+      "attendanceProbability": 0.8,
+      "capacity": 90,
+      "dailyParticipants": 140,
+      "capacityRange": [
+        45,
+        135
+      ],
+      "participantRange": [
+        70,
+        210
+      ],
+      "confidence": "low",
+      "basis": "estimated_student_activity",
+      "proxy": "Conservative student-use fraction of configured 300-person size proxy (data-pipeline/campuses/fenway.json) and mapped facility purpose",
+      "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+    },
+    {
+      "locationId": "fenway-activities",
+      "campus": "fenway",
+      "purpose": "community",
+      "studentLevel": "undergraduate",
+      "weekdayWindows": [
+        {
+          "weekday": 0,
+          "windows": [
+            [
+              46800,
+              72000
+            ]
+          ]
+        },
+        {
+          "weekday": 1,
+          "windows": [
+            [
+              46800,
+              72000
+            ]
+          ]
+        },
+        {
+          "weekday": 2,
+          "windows": [
+            [
+              46800,
+              72000
+            ]
+          ]
+        },
+        {
+          "weekday": 3,
+          "windows": [
+            [
+              46800,
+              72000
+            ]
+          ]
+        },
+        {
+          "weekday": 4,
+          "windows": [
+            [
+              46800,
+              72000
+            ]
+          ]
+        }
+      ],
+      "durationMinutes": 75,
+      "attendanceProbability": 0.8,
+      "capacity": 60,
+      "dailyParticipants": 90,
+      "capacityRange": [
+        30,
+        90
+      ],
+      "participantRange": [
+        45,
+        135
+      ],
+      "confidence": "low",
+      "basis": "estimated_student_activity",
+      "proxy": "Conservative student-use fraction of configured 400-person size proxy (data-pipeline/campuses/fenway.json) and mapped facility purpose",
+      "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+    },
+    {
+      "locationId": "hawes",
+      "campus": "fenway",
+      "purpose": "academic",
+      "studentLevel": "undergraduate",
+      "weekdayWindows": [
+        {
+          "weekday": 0,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 1,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 2,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 3,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        },
+        {
+          "weekday": 4,
+          "windows": [
+            [
+              32400,
+              61200
+            ]
+          ]
+        }
+      ],
+      "durationMinutes": 90,
+      "attendanceProbability": 0.8,
+      "capacity": 24,
+      "dailyParticipants": 40,
+      "capacityRange": [
+        12,
+        36
+      ],
+      "participantRange": [
+        20,
+        60
+      ],
+      "confidence": "low",
+      "basis": "estimated_student_activity",
+      "proxy": "Conservative student-use fraction of configured 60-person size proxy (data-pipeline/campuses/fenway.json) and mapped facility purpose",
+      "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+    },
+    {
+      "locationId": "agganis",
+      "campus": "charles-river",
+      "purpose": "arena",
+      "studentLevel": "any",
+      "weekdayWindows": [
+        {
+          "weekday": 0,
+          "windows": [
+            [
+              50400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 1,
+          "windows": [
+            [
+              50400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 2,
+          "windows": [
+            [
+              50400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 3,
+          "windows": [
+            [
+              50400,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 4,
+          "windows": [
+            [
+              50400,
+              64800
+            ]
+          ]
+        }
+      ],
+      "durationMinutes": 120,
+      "attendanceProbability": 0.8,
+      "capacity": 120,
+      "dailyParticipants": 120,
+      "capacityRange": [
+        60,
+        180
+      ],
+      "participantRange": [
+        60,
+        180
+      ],
+      "confidence": "low",
+      "basis": "estimated_student_activity",
+      "proxy": "Conservative student-use fraction of configured 1500-person size proxy (data-pipeline/campuses/charles-river.json) and mapped facility purpose",
+      "note": "Team practice scenario only; excludes public gym access, employees and spectators. No actual practice schedule is asserted. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+    },
+    {
+      "locationId": "dewolfe",
+      "campus": "charles-river",
+      "purpose": "rowing",
+      "studentLevel": "any",
+      "weekdayWindows": [
+        {
+          "weekday": 0,
+          "windows": [
+            [
+              21600,
+              32400
+            ],
+            [
+              57600,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 1,
+          "windows": [
+            [
+              21600,
+              32400
+            ],
+            [
+              57600,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 2,
+          "windows": [
+            [
+              21600,
+              32400
+            ],
+            [
+              57600,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 3,
+          "windows": [
+            [
+              21600,
+              32400
+            ],
+            [
+              57600,
+              64800
+            ]
+          ]
+        },
+        {
+          "weekday": 4,
+          "windows": [
+            [
+              21600,
+              32400
+            ],
+            [
+              57600,
+              64800
+            ]
+          ]
+        }
+      ],
+      "durationMinutes": 90,
+      "attendanceProbability": 0.8,
+      "capacity": 60,
+      "dailyParticipants": 75,
+      "capacityRange": [
+        30,
+        90
+      ],
+      "participantRange": [
+        38,
+        112
+      ],
+      "confidence": "low",
+      "basis": "estimated_student_activity",
+      "proxy": "Conservative student-use fraction of configured 150-person size proxy (data-pipeline/campuses/charles-river-additions.json) and mapped facility purpose",
+      "note": "Team practice scenario only; excludes public gym access, employees and spectators. No actual practice schedule is asserted. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+    }
+  ]
+}

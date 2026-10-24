@@ -3,8 +3,8 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './layers/crowd';
-import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
+import { crowdLayers, modelRoofHeights } from './layers/crowd';
+import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
@@ -392,10 +392,8 @@ export default function App() {
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' })
             : []),
           ...crowdLayers({
-            // Every tracked building, modelled or not: the glow is light around and on top of
-            // the model (at its real height), never a box over it.
             footprints: day.buildings,
-            buildings,
+            buildings: buildings.filter((building) => building.modeled !== false),
             trips: playback.data.trips,
             time: t,
             speed: speedRef.current,
@@ -619,21 +617,25 @@ export default function App() {
               <h2>Campus activity</h2>
               <ol>
                 {ranked.slice(0, 8).map((o) => {
-                  const level = crowdLevel(o.share);
+                  const display = activityDisplay({
+                    count: o.count, capacity: o.location.capacity, share: o.share,
+                    modeled: o.modeled ?? o.location.activityModeled,
+                    capacityBasis: o.location.capacityBasis, kind: o.location.kind,
+                  });
                   return (
                     <li key={o.location.id}>
                       <button
                         className={o.location.building === selected ? 'row selected' : 'row'}
                         onClick={() => select(o)}
                         aria-pressed={o.location.building === selected}
-                        style={crowdLevelStyle(o.share)}
+                        style={display.style}
                       >
                         <span className="name">{o.location.name}</span>
-                        <span className="bar" aria-hidden="true">
-                          <span style={{ width: `${Math.min(100, o.share * 100)}%` }} />
-                        </span>
+                        {display.hasPercentage && <span className="bar" aria-hidden="true">
+                          <span style={{ width: `${Math.min(100, display.percent)}%` }} />
+                        </span>}
                         <span className="value">
-                          <b>{Math.round(o.share * 100)}%</b> · {level.label}
+                          <b>{display.primary}</b>{display.secondary && ` · ${display.secondary}`}
                         </span>
                       </button>
                     </li>

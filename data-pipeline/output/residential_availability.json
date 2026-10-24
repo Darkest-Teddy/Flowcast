@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dataset": "residential_availability",
-  "generatedAt": "2026-10-24T17:50:45.350066+00:00",
+  "generatedAt": "2026-10-24T18:24:47.551949+00:00",
   "timezone": "America/New_York",
   "status": "ok",
   "records": [
@@ -40,6 +40,17 @@
         }
       ],
       "note": "Supported minimum for the reference week: reopened Tower A only. Tower B students are assigned to Fenway; Tower C is not counted without a verified component bed total. Capacity is not observed occupancy."
+    }
+  ],
+  "campusResidentMinimums": [
+    {
+      "campus": "fenway",
+      "students": 595,
+      "validFrom": "2026-10-19",
+      "validTo": "2026-10-25",
+      "basis": "published_planned_relocation",
+      "sourceUrl": "https://www.bu.edu/cpo/warren-faq/",
+      "note": "Model minimum based on the published Fall 2026 Tower B relocation plan; not observed attendance or assignment to a specific Fenway residence."
     }
   ],
   "sources": [
