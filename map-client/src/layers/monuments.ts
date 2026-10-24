@@ -1,16 +1,15 @@
 // BU's monuments and landmarks: real-scale 3D models (Free at Last, the Rhett bench, the Citgo
-// sign, the Harry Agganis statue), small labels for them and for other public art, and the named
-// open spaces (BU Beach, Marsh Plaza) as faint outlines.
+// sign, the Harry Agganis statue), a dot for other public art, and the named open spaces (BU
+// Beach, Marsh Plaza) as faint outlines. Their name tags are HTML, in PlaceTags.tsx.
 //
 // Data: public/data/monuments.json (positions and sources, mostly OpenStreetMap; see each entry's
 // `source`). Models: scripts/make_monument_models.py (metres, +Y up, front +Z), turned to face each
 // entry's compass bearing the same way agents.ts turns the walkers.
-import { PolygonLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
+import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color } from '@deck.gl/core';
-import { labelWidth, type LabelPlacer } from './placement';
 import { citgoLightLayers, type CitgoLights } from './citgo';
 
 export interface Monument {
@@ -57,8 +56,6 @@ export type MonumentLight = 'dawn' | 'day' | 'dusk' | 'night';
 
 export interface MonumentLayerOptions {
   zoom: number;
-  /** Shared with the other label layers so no two labels overlap. */
-  placer: LabelPlacer;
   /** Mapbox Standard's lightPreset: unlit surfaces darken at night while the Citgo sign glows. */
   lightPreset?: MonumentLight;
   /** Shown time, seconds since local midnight: the Citgo sign is lit from sunset to midnight. */
@@ -76,21 +73,16 @@ const LIGHT_TINT: Record<MonumentLight, Color> = {
 
 const CITGO_NIGHT_TINT: Color = [4, 4, 6, 255];
 
-// Labels appear as the camera comes in: landmarks first, single artworks last.
-const LABEL_MIN_ZOOM: Record<Monument['kind'], number> = { landmark: 15.8, monument: 16.8, area: 16.5, artwork: 17.8 };
-const LABEL_HEIGHT = 36;
-const NAME_SIZE = 12;
+// Tags (PlaceTags.tsx) appear as the camera comes in: landmarks first, single artworks last.
+export const LABEL_MIN_ZOOM: Record<Monument['kind'], number> = { landmark: 15.8, monument: 16.8, area: 16.5, artwork: 17.8 };
 const ACCENT: Color = [214, 178, 112, 255]; // warm bronze, distinct from crowd and transit colours
 
-function labelText(m: Monument) {
-  return m.subtitle ? `${m.name}\n${m.subtitle}` : m.name;
-}
-
-function labelPosition(m: Monument): [number, number, number] {
+/** Where a monument's tag stands: just above the model (or its spot, for areas and artworks). */
+export function labelPosition(m: Monument): [number, number, number] {
   return [m.position[0], m.position[1], (m.altitude ?? 0) + (m.height ?? 0) + 1];
 }
 
-export function monumentLayers({ monuments, models, citgoLights }: MonumentData, { zoom, placer, lightPreset = 'dusk', time }: MonumentLayerOptions) {
+export function monumentLayers({ monuments, models, citgoLights }: MonumentData, { zoom, lightPreset = 'dusk', time }: MonumentLayerOptions) {
   const citgo = monuments.find((m) => m.id === 'citgo-sign');
   const tint = LIGHT_TINT[lightPreset];
   const byModel = new Map<string, Monument[]>();
@@ -98,22 +90,6 @@ export function monumentLayers({ monuments, models, citgoLights }: MonumentData,
 
   const areas = monuments.filter((m) => m.kind === 'area' && m.polygon);
   const artworks = monuments.filter((m) => m.kind === 'artwork');
-  // Most important first: if labels must be dropped, the minor artworks go.
-  const order: Monument['kind'][] = ['landmark', 'monument', 'area', 'artwork'];
-  const candidates = monuments
-    .filter((m) => zoom >= LABEL_MIN_ZOOM[m.kind])
-    .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
-  // Areas label their middle; everything else sits above its anchor.
-  const lifts = placer.place(candidates, {
-    position: (m) => m.position,
-    width: (m) => labelWidth(labelText(m), NAME_SIZE, 20),
-    height: LABEL_HEIGHT,
-    direction: -1,
-    gap: 4,
-    maxLift: 3,
-  });
-  const labelled = candidates.filter((m) => lifts.has(m));
-  const liftKey = labelled.map((m) => `${m.id}:${lifts.get(m)}`).join();
 
   return [
     new PolygonLayer<Monument>({
@@ -174,33 +150,6 @@ export function monumentLayers({ monuments, models, citgoLights }: MonumentData,
       pickable: false,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
-    }),
-    new TextLayer<Monument>({
-      id: 'monument-labels',
-      data: labelled,
-      getPosition: labelPosition,
-      getText: labelText,
-      getSize: NAME_SIZE,
-      getColor: [244, 245, 247, 255],
-      // The panels' dark glass (styles.css --panel), with a thin bronze rule.
-      getBackgroundColor: [17, 20, 28, 214],
-      getBorderColor: (m) => (m.kind === 'area' ? [255, 255, 255, 50] : [214, 178, 112, 170]),
-      getBorderWidth: 1,
-      background: true,
-      backgroundPadding: [8, 4],
-      getTextAnchor: 'middle',
-      getAlignmentBaseline: (m) => (m.kind === 'area' ? 'center' : 'bottom'),
-      getPixelOffset: (m) => [0, m.kind === 'area' ? 0 : -6 - LABEL_HEIGHT * (lifts.get(m) ?? 0)],
-      fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-      fontWeight: 500,
-      characterSet: 'auto',
-      lineHeight: 1.3,
-      billboard: true,
-      pickable: false,
-      parameters: { depthCompare: 'always' },
-      updateTriggers: { getPixelOffset: liftKey },
-      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
-      slot: 'top',
     }),
   ];
 }
