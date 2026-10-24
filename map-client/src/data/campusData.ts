@@ -71,9 +71,31 @@ export interface SourceEvent {
   sourceUrl: string;
 }
 
+export interface CourseComponentRule {
+  status: 'resolved' | 'unresolved';
+  components: { id: string; sections: string[] }[];
+  dependencies: { section: string; requires: { component: string; sections: string[] }[] }[];
+  sourceUrls: string[];
+  notes: string[];
+  mappedCoverage: Record<string, string[]>;
+  mappedCourse: boolean;
+  hasCompleteMappedOption: boolean;
+  reason: string | null;
+  classificationBasis?: string;
+}
 export interface CampusData {
   academicCalendar?: AcademicCalendar;
   fitrecUsage?: FitrecUsage;
+  catalogCourseCodes?: string[];
+  catalogCourseCoverage?: {
+    courseCodes: string[];
+    courseGroups: string[][];
+    basis: string;
+    excludedCalendarRestrictedRows: number;
+    excludedUnscheduledOrNonphysicalRows: number;
+    sourceUrls: string[];
+  };
+  courseComponentRules?: Record<string, CourseComponentRule>;
   schemaVersion: 1;
   term: string;
   collectedAt: string;

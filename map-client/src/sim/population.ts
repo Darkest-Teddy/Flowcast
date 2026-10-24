@@ -122,8 +122,9 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
   const agents: Agent[] = [];
   for (const cohort of cohorts) for (let i = 0; i < cohort.headcount; i++) {
     const id = `${cohort.level}:${cohort.attendance}:${i}`;
+    const academicCampus = campusFor(id, cohort.level);
     agents.push({ id, home: 'off-campus', residency: 'commuter', studentLevel: cohort.level,
-      attendance: cohort.attendance, campus: campusFor(id, cohort.level), model: Math.floor(hash(`model:${id}`) * 12),
+      attendance: cohort.attendance, campus: academicCampus, academicCampus, model: Math.floor(hash(`model:${id}`) * 12),
       walkSpeed: 1.4 });
   }
   const residents = agents.filter((a) => a.studentLevel === 'undergraduate')

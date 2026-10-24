@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dataset": "residential_availability",
-  "generatedAt": "2026-10-24T18:24:47.551949+00:00",
+  "generatedAt": "2026-10-24T19:37:29.700457+00:00",
   "timezone": "America/New_York",
   "status": "ok",
   "records": [
@@ -12,8 +12,8 @@
       "basis": "verified_reopened_component",
       "coverage": "partial",
       "displayName": "Warren Towers (Tower A)",
-      "validFrom": "2026-10-19",
-      "validTo": "2026-10-25",
+      "validFrom": "2026-10-26",
+      "validTo": "2026-11-01",
       "sourcePublishedDate": "2026-09-15",
       "sourceUrl": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
       "sourceUrls": [
@@ -46,8 +46,8 @@
     {
       "campus": "fenway",
       "students": 595,
-      "validFrom": "2026-10-19",
-      "validTo": "2026-10-25",
+      "validFrom": "2026-10-26",
+      "validTo": "2026-11-01",
       "basis": "published_planned_relocation",
       "sourceUrl": "https://www.bu.edu/cpo/warren-faq/",
       "note": "Model minimum based on the published Fall 2026 Tower B relocation plan; not observed attendance or assignment to a specific Fenway residence."

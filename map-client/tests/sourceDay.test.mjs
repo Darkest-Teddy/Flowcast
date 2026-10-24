@@ -12,7 +12,7 @@ registerHooks({
     }
   },
 });
-const { buildSourceDay, venueWindows } = await import('../src/sim/sourceDay.ts');
+const { buildSourceDay, venueWindows, sampleMappedCourseLoad, sampleActivityStart } = await import('../src/sim/sourceDay.ts');
 const { Playback } = await import('../src/sim/playback.ts');
 const { calibrateCapacities } = await import('../src/sim/calibrate.ts');
 
@@ -59,7 +59,11 @@ function validate(day) {
     for(let i=1;i<parts.length;i++) {
       assert.ok(Math.abs(parts[i].start-parts[i-1].end)<1e-7,'no overlap or uncovered time');
       const entering=parts[i-1].to==='off-campus'||parts[i].from==='off-campus';
-      if(!entering) assert.equal(parts[i-1].to,parts[i].from,'continuous network movement');
+      if(!entering&&parts[i-1].to!==parts[i].from){
+        const a=day.locations.find(l=>l.id===parts[i-1].to).position,b=day.locations.find(l=>l.id===parts[i].from).position;
+        const route=day.walkRoutes?.[`${parts[i-1].to}>${parts[i].from}`];
+        assert.ok(route?.cumulative.at(-1)===0||Math.hypot((a[0]-b[0])*111320*Math.cos(a[1]*Math.PI/180),(a[1]-b[1])*111320)<=1,'only co-located places can transition without a trip');
+      }
     }
   }
 }
@@ -75,6 +79,40 @@ test('weekly section enrollment repeats every published day and caches results',
   for(const day of days) validate(day);
   assert.ok(buildSourceDay(base,data,6).trips.length>0);
   assert.equal(buildSourceDay(base,data,6).sourceAssignments.length,0);
+});
+
+test('dated sections run only on inclusive valid dates within the reference week',()=>{
+  const {base,data}=fixture();
+  const intervals=[0,2,4].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}));
+  data.locations.class.meetings=[
+    meeting('active',0,9*3600,10*3600,{intervals,validFrom:'2026-10-21',validTo:'2026-10-23'}),
+    meeting('ended',0,11*3600,12*3600,{validTo:'2026-10-18'}),
+    meeting('future',0,13*3600,14*3600,{validFrom:'2026-10-26'}),
+  ];
+  const monday=buildSourceDay(base,data,0), wednesday=buildSourceDay(base,data,2), friday=buildSourceDay(base,data,4);
+  assert.equal(monday.sourceAssignments.length,0);
+  assert.ok(wednesday.sourceAssignments.length>0);
+  assert.deepEqual(wednesday.sourceAssignments,friday.sourceAssignments);
+  assert.ok(wednesday.sourceAssignments.every(row=>row.meetingId==='active'));
+  for(const day of [monday,wednesday,friday]) validate(day);
+});
+
+test('database section keys keep same-label sessions as separate enrollment options',()=>{
+  const {base,data}=fixture();
+  data.locations.class.meetings=[
+    meeting('session1',0,9*3600,10*3600,{courseCode:'CAS MA 123',sourceSectionKey:'UGRD:2268:1:A1'}),
+    meeting('session2',0,11*3600,12*3600,{courseCode:'CAS MA 123',sourceSectionKey:'UGRD:2268:2:A1'}),
+  ];
+  const day=buildSourceDay(base,data,0);
+  assert.equal(day.sourceStats.eligibleWeeklySections,2);
+  assert.ok(day.sourceAssignments.length>0);
+  for(const agent of base.agents) assert.equal(day.sourceAssignments.filter(row=>row.agentId===agent.id).length,1);
+  validate(day);
+  const publicData=structuredClone(data);
+  for(const row of publicData.locations.class.meetings) delete row.sourceSectionKey;
+  const publicDay=buildSourceDay(base,publicData,0);
+  assert.equal(publicDay.sourceStats.eligibleWeeklySections,1);
+  for(const agent of base.agents) assert.equal(publicDay.sourceAssignments.filter(row=>row.agentId===agent.id).length,2);
 });
 
 test('section admission requires full-week travel feasibility',()=>{
@@ -257,7 +295,7 @@ test('same-building classes permit a mapped resident home break before the locat
   base.stopRoutes={};for(const loc of Object.values(data.locations))loc.hours=[];
   data.locations.class.meetings=[meeting('morning',0,9*3600,10*3600),meeting('evening',0,18*3600,19*3600)];
   const day=buildSourceDay(base,data,0);validate(day);
-  assert.ok(day.stays.some(s=>s.location==='home'&&s.start===10*3600+100&&s.end===18*3600-100));
+  assert.ok(day.stays.some(s=>s.location==='home'&&s.start===10*3600+100&&s.end<=18*3600-100-120&&s.end>=18*3600-100-720));
   assert.ok(!day.stays.some(s=>s.location==='class'&&s.end-s.start>3600));
 });
 
@@ -377,6 +415,135 @@ test('stable school affinity concentrates feasible schedules while allowing elec
   assert.ok(day.sourceStats.affinityCourseEnrollments>0);
 });
 
+function componentRule(extra={}) {
+  return {status:'resolved',components:[{id:'lecture',sections:['A1','A2']},{id:'lab',sections:['B1','B2']}],dependencies:[{section:'B1',requires:[{component:'lecture',sections:['A1']}]},{section:'B2',requires:[{component:'lecture',sections:['A2']}]}],sourceUrls:['source'],notes:['Explicit linked enrollment'],mappedCoverage:{lecture:['A1','A2'],lab:['B1','B2']},mappedCourse:true,hasCompleteMappedOption:true,reason:null,...extra};
+}
+
+test('linked lecture and lab bundles obey section dependencies, weekly seats and one-course load counts',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:30},(_,i)=>({id:`linked-${i}`,home:'home',residency:'resident',campus:'main',studentLevel:'undergraduate',model:0}));
+  data.locations.class.meetings=[
+    meeting('lecture-1',0,9*3600,10*3600,{courseCode:'CAS CS 111',section:'A1',roomCode:'101',roomCapacity:20}),
+    meeting('lecture-2',0,10*3600,11*3600,{courseCode:'CAS CS 111',section:'A2',roomCode:'101',roomCapacity:20}),
+    meeting('lab-1',2,12*3600,13*3600,{courseCode:'CAS CS 111',section:'B1',roomCode:'102',roomCapacity:3}),
+    meeting('lab-2',2,13*3600,14*3600,{courseCode:'CAS CS 111',section:'B2',roomCode:'103',roomCapacity:4}),
+  ];
+  data.courseComponentRules={'CAS CS 111':componentRule()};
+  const monday=buildSourceDay(base,data,0),wednesday=buildSourceDay(base,data,2);validate(monday);validate(wednesday);
+  assert.equal(monday.sourceStats.weeklyEnrollments,7);assert.equal(monday.sourceStats.linkedCourseEnrollments,7);
+  assert.equal(monday.sourceAssignments.length,7);assert.equal(wednesday.sourceAssignments.length,7);
+  for(const lab of wednesday.sourceAssignments){
+    assert.equal(lab.component,'lab');const lecture=monday.sourceAssignments.find(a=>a.agentId===lab.agentId);assert.equal(lecture.component,'lecture');
+    assert.equal(lecture.meetingId,lab.meetingId==='lab-1'?'lecture-1':'lecture-2');
+  }
+});
+
+test('database identities retain label-based component dependencies',()=>{
+  const {base,data}=fixture();
+  data.locations.class.meetings=[
+    meeting('lecture',0,9*3600,10*3600,{courseCode:'CAS CS 111',section:'A1',sourceSectionKey:'course-key:class-100'}),
+    meeting('lab',2,12*3600,13*3600,{courseCode:'CAS CS 111',section:'B1',sourceSectionKey:'course-key:class-200'}),
+  ];
+  data.courseComponentRules={'CAS CS 111':componentRule()};
+  const monday=buildSourceDay(base,data,0),wednesday=buildSourceDay(base,data,2);
+  assert.ok(monday.sourceAssignments.length>0);
+  assert.equal(monday.sourceAssignments.length,wednesday.sourceAssignments.length);
+  for(const lab of wednesday.sourceAssignments){
+    assert.equal(lab.component,'lab');
+    assert.equal(monday.sourceAssignments.find(row=>row.agentId===lab.agentId).component,'lecture');
+  }
+});
+
+test('unmapped mandatory components and unresolved linkage exclude incomplete degree enrollment',()=>{
+  for(const extra of [{hasCompleteMappedOption:false,mappedCoverage:{lecture:['A1'],lab:[]}},{status:'unresolved'}]) {
+    const {base,data}=fixture();data.locations.class.meetings=[meeting('lecture-only',0,9*3600,10*3600,{courseCode:'CAS CS 111',section:'A1'})];
+    data.courseComponentRules={'CAS CS 111':componentRule(extra)};
+    const day=buildSourceDay(base,data,0);validate(day);assert.equal(day.sourceAssignments.length,0);assert.equal(day.sourceStats.excludedIncompleteComponentCourses,1);
+  }
+});
+
+test('mapped load draws are stable and decorrelated instead of almost all zero-or-full loads',()=>{
+  const histogram=Array(6).fill(0);
+  for(let i=0;i<10000;i++)histogram[sampleMappedCourseLoad(`distribution-${i}`,5,.6)]++;
+  const mean=histogram.reduce((sum,count,index)=>sum+count*index,0)/10000;
+  assert.ok(mean>2.9&&mean<3.1);assert.ok(histogram[0]+histogram[5]<1200,JSON.stringify(histogram));
+  assert.equal(sampleMappedCourseLoad('stable',5,.6),sampleMappedCourseLoad('stable',5,.6));
+  assert.equal(sampleMappedCourseLoad('none',5,0),0);assert.equal(sampleMappedCourseLoad('all',5,1),5);
+});
+
+test('mapped class arrivals spread before the bell while tight transfers retain source start times',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:20},(_,i)=>({id:`lead-${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  data.locations.class.meetings=[meeting('arrival',0,9*3600,10*3600,{roomCapacity:100})];
+  const day=buildSourceDay(base,data,0);validate(day);
+  const arrivals=day.trips.filter(t=>t.to==='class').map(t=>t.timestamps.at(-1));
+  assert.ok(arrivals.every(t=>t>=9*3600-720&&t<=9*3600-120));assert.ok(new Set(arrivals).size>10);
+  const tight=fixture();tight.base.agents=[{id:'tight',home:'home',residency:'resident',campus:'main',model:0}];
+  tight.data.locations.class.meetings=[meeting('early',0,8*3600,8*3600+58*60)];tight.data.locations.study.meetings=[meeting('next',0,9*3600,10*3600)];
+  const schedule=buildSourceDay(tight.base,tight.data,0);validate(schedule);
+  const arrival=schedule.trips.find(t=>t.from==='class'&&t.to==='study');assert.ok(arrival);assert.ok(9*3600-arrival.timestamps.at(-1)<=20+1e-7);
+});
+
+test('home breaks do not spend longer on an added walking detour than at home',()=>{
+  const {base,data}=fixture();base.agents=[{id:'rational-home',home:'home',residency:'resident',campus:'main',model:0}];base.stopRoutes={};
+  const home=base.locations.find(l=>l.id==='home').position,venue=base.locations.find(l=>l.id==='class').position;
+  base.walkRoutes={'home>class':{path:[home,venue],cumulative:[0,1680]},'class>home':{path:[venue,home],cumulative:[0,1680]}};
+  data.locations.class.meetings=[meeting('one',0,9*3600,10*3600),meeting('two',0,11*3600,12*3600)];
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.ok(!day.trips.some(t=>t.from==='class'&&t.to==='home'&&t.timestamps[0]===10*3600));
+});
+
+test('optional visits reject incremental walking longer than the activity',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`travel-budget-${i}`,home:'home',residency:'resident',campus:'main',model:0}));data.locations.class.meetings=[];
+  const home=base.locations.find(l=>l.id==='home').position,gym=base.locations.find(l=>l.id==='gym');
+  for(const key of Object.keys(base.walkRoutes))if(key.includes('gym'))delete base.walkRoutes[key];
+  base.walkRoutes['home>gym']={path:[home,gym.position],cumulative:[0,4200]};base.walkRoutes['gym>home']={path:[gym.position,home],cumulative:[0,4200]};
+  gym.estimatedProfile=profile('rowing',{durationMinutes:30});data.locations.gym.hoursStatus='restricted';data.locations.gym.hours=[];
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.ok(!day.sourceActivities.some(a=>a.locationId==='gym'));assert.ok(day.sourceStats.optionalTravelRejectedCandidates>0);
+});
+
+test('off-map meals cannot teleport between distant gateways inside a short class gap',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`gateway-budget-${i}`,home:'off-campus',residency:'resident',campus:'main',model:0}));
+  const a=base.locations.find(l=>l.id==='class'),b=base.locations.find(l=>l.id==='study');b.position=[-71.14,42.35];
+  base.walkRoutes={'class>study':{path:[a.position,b.position],cumulative:[0,4500]},'study>class':{path:[b.position,a.position],cumulative:[0,4500]}};
+  base.stopRoutes={'gateA>class':{path:[[a.position[0],42.3501],a.position],cumulative:[0,140]},'gateB>study':{path:[[b.position[0],42.3501],b.position],cumulative:[0,140]}};
+  data.locations.class.meetings=[meeting('one',0,11*3600,12*3600,{roomCapacity:100})];data.locations.study.meetings=[meeting('two',0,13*3600,14*3600,{roomCapacity:100})];
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.ok(!day.sourceActivities.some(a=>a.locationId==='off-campus'&&a.startSec>=12*3600&&a.endSec<=13*3600));
+  assert.ok(day.sourceStats.behaviorRejectedCandidates>0);assert.equal(day.sourceAssignments.length,200);
+});
+
+test('unmapped degree loads become explicit estimated off-map academic blocks without fake enrollment',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`unmapped-load-${i}`,home:'home',residency:'resident',studentLevel:'undergraduate',campus:'main',model:0}));data.locations.class.meetings=[];
+  data.catalogCourseCodes=['CAS MA 101','CAS MA 102'];
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.equal(day.sourceStats.mappedCourseCoverage.undergraduate.fraction,0);assert.equal(day.sourceAssignments.length,0);
+  const blocks=day.sourceActivities.filter(a=>a.kind==='unmapped-academic');assert.ok(blocks.length>0);
+  for(const block of blocks){assert.equal(block.endSec-block.startSec,7200);assert.equal(block.locationId,'off-campus');assert.ok(block.estimated&&block.basis==='modeled_unmapped_academic_time');}
+  assert.ok(day.trips.some(t=>t.to==='off-campus'));assert.ok(day.trips.some(t=>t.from==='off-campus'));
+});
+
+test('real cross-campus routes connect academic campus classes while unknown service is not modeled zero',()=>{
+  const {base,data}=fixture();base.agents=[{id:'fenway-home',home:'home',residency:'resident',campus:'fenway',academicCampus:'main',model:0}];base.locations.find(l=>l.id==='home').campus='fenway';
+  const day=buildSourceDay(base,data,0);validate(day);assert.ok(day.sourceAssignments.length>0);assert.ok(day.trips.some(t=>t.from==='home'&&t.to==='class'));
+  const unknown=fixture();unknown.data.locations.class.meetings=[];unknown.data.locations.meal.hours=[];unknown.data.locations.gym.hours=[{date:'2026-10-19',windows:[],text:'Closed',sourceUrl:'source',qualifier:null}];
+  const monday=buildSourceDay(unknown.base,unknown.data,0);assert.equal(monday.locations.find(l=>l.id==='meal').activityModeled,false);assert.equal(monday.locations.find(l=>l.id==='gym').activityModeled,true);
+});
+
+test('modeled arrival shoulders permit morning gym, early study and late lunch without forcing visits',()=>{
+  for(const[index,earlier,later]of [[4,17*3600,null],[2,14*3600,null],[1,null,14.6*3600]]) {
+    const starts=Array.from({length:1000},(_,i)=>sampleActivityStart(`shoulder-${i}`,index));
+    if(earlier!==null)assert.ok(starts.some(t=>t<earlier));if(later!==null)assert.ok(starts.some(t=>t>later));
+    assert.equal(sampleActivityStart('stable-shoulder',index),sampleActivityStart('stable-shoulder',index));
+  }
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  base.agents=Array.from({length:1000},(_,i)=>({id:`shoulder-resident-${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.ok(day.sourceActivities.some(a=>a.kind==='gym'&&a.startSec<17*3600));
+  assert.ok(day.sourceActivities.some(a=>a.kind==='library'&&a.startSec<14*3600));
+  assert.ok(day.sourceActivities.some(a=>a.kind==='dining'&&a.startSec>14.6*3600&&a.startSec<16*3600));
+  for(const activity of day.sourceActivities.filter(a=>a.locationId!=='off-campus')) assert.ok(activity.startSec>=7*3600&&activity.endSec<=23*3600);
+});
+
 function profile(purpose='academic',extra={}) {
   return {purpose,weekdayWindows:Array.from({length:7},(_,weekday)=>({weekday,windows:[[9*3600,17*3600]]})),durationMinutes:30,attendanceProbability:1,capacity:5,dailyParticipants:20,studentLevel:'any',basis:'configured_scenario_estimate',confidence:'low',note:'Synthetic student participants; no observed attendance',proxy:'Scenario proxy',...extra};
 }
@@ -414,6 +581,7 @@ test('all configured estimated buildings receive weekly activity without adding 
   const {eligibleStudentLevels,countsTowardDegreeLoad}=await import('../src/sim/courseEligibility.ts');
   const studentLevels=new Map(base.agents.map(agent=>[agent.id,agent.studentLevel]));
   const expected=base.locations.filter(l=>l.estimatedProfile).map(l=>l.id),seen=new Set();
+  const shoulders={earlyGym:false,earlyStudy:false,lateLunch:false};
   const physicalRooms=new Map(),roomForMeeting=new Map();
   for(const location of Object.values(source.locations))for(const meeting of location.meetings){
     if(meeting.calendarRestricted)continue;
@@ -427,6 +595,9 @@ test('all configured estimated buildings receive weekly activity without adding 
   for(let weekday=0;weekday<7;weekday++) {
     const day=buildSourceDay(base,source,weekday);validate(day);
     assert.equal(day.agents.length,36977);
+    shoulders.earlyGym ||= day.sourceActivities.some(a=>a.kind==='gym'&&a.startSec<17*3600);
+    shoulders.earlyStudy ||= day.sourceActivities.some(a=>a.kind==='library'&&a.startSec<14*3600);
+    shoulders.lateLunch ||= day.sourceActivities.some(a=>a.kind==='dining'&&a.startSec>14.6*3600&&a.startSec<16*3600);
     const roomEvents=new Map();
     for(const assignment of day.sourceAssignments){
       assert.ok(countsTowardDegreeLoad(assignment.courseCode));
@@ -445,6 +616,7 @@ test('all configured estimated buildings receive weekly activity without adding 
     }
   }
   for(const id of expected)assert.ok(seen.has(id),`${id} has a weekly estimated activity`);
+  assert.ok(Object.values(shoulders).every(Boolean),JSON.stringify(shoulders));
 });
 
 test('saved source bundle scales to 36977 weekly students and conserves complete day timelines',()=>{
@@ -464,41 +636,6 @@ test('saved source bundle scales to 36977 weekly students and conserves complete
     assert.equal(day.sourceStats.unroutableTrips,0);assert.equal(day.sourceStats.invalidRoutes,0);
   }
 });
-
-test('dated sections run only on inclusive valid dates within the reference week',()=>{
-  const {base,data}=fixture();
-  const intervals=[0,2,4].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}));
-  data.locations.class.meetings=[
-    meeting('active',0,9*3600,10*3600,{intervals,validFrom:'2026-10-21',validTo:'2026-10-23'}),
-    meeting('ended',0,11*3600,12*3600,{validTo:'2026-10-18'}),
-    meeting('future',0,13*3600,14*3600,{validFrom:'2026-10-26'}),
-  ];
-  const monday=buildSourceDay(base,data,0), wednesday=buildSourceDay(base,data,2), friday=buildSourceDay(base,data,4);
-  assert.equal(monday.sourceAssignments.length,0);
-  assert.ok(wednesday.sourceAssignments.length>0);
-  assert.deepEqual(wednesday.sourceAssignments,friday.sourceAssignments);
-  assert.ok(wednesday.sourceAssignments.every(row=>row.meetingId==='active'));
-  for(const day of [monday,wednesday,friday]) validate(day);
-});
-
-test('database section keys keep same-label sessions as separate enrollment options',()=>{
-  const {base,data}=fixture();
-  data.locations.class.meetings=[
-    meeting('session1',0,9*3600,10*3600,{courseCode:'CAS MA 123',sourceSectionKey:'UGRD:2268:1:A1'}),
-    meeting('session2',0,11*3600,12*3600,{courseCode:'CAS MA 123',sourceSectionKey:'UGRD:2268:2:A1'}),
-  ];
-  const day=buildSourceDay(base,data,0);
-  assert.equal(day.sourceStats.eligibleWeeklySections,2);
-  assert.ok(day.sourceAssignments.length>0);
-  for(const agent of base.agents) assert.equal(day.sourceAssignments.filter(row=>row.agentId===agent.id).length,1);
-  validate(day);
-  const publicData=structuredClone(data);
-  for(const row of publicData.locations.class.meetings) delete row.sourceSectionKey;
-  const publicDay=buildSourceDay(base,publicData,0);
-  assert.equal(publicDay.sourceStats.eligibleWeeklySections,1);
-  for(const agent of base.agents) assert.equal(publicDay.sourceAssignments.filter(row=>row.agentId===agent.id).length,2);
-});
-
 test('Registrar substitute weekday moves attendance without changing class clock time or adding Tuesday classes',()=>{
   const {base,data}=fixture();
   data.term='FALL 2026'; data.referenceWeekStart='2026-10-12';

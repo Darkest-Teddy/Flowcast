@@ -31,9 +31,7 @@ import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
-import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
-import { riderLayers, withRiders } from './layers/riders';
-import { RiderSim } from './sim/riders';
+import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
 import { quality } from './perf/quality';
 import {
@@ -163,8 +161,7 @@ export default function App() {
   const [showTraffic, setShowTraffic] = useState(false);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
-  const [weather, setWeather] = useState<ActiveWeather | null>(null);
-  const weatherRef = useRef<ActiveWeather | null>(null); // read by the frame loop (occupancy nudge)
+  const weatherRef = useRef<ActiveWeather | null>(null);
   const [showBikes, setShowBikes] = useState(true);
   const [bikeFeedError, setBikeFeedError] = useState<string | null>(null);
   const [bikeFeedUpdatedAt, setBikeFeedUpdatedAt] = useState<number | null>(null);
@@ -328,9 +325,7 @@ export default function App() {
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       let last = performance.now();
       let lastOccupancy = 0;
-      let occupancy = adjustOccupancy(playback.occupancyAt(timeRef.current), weatherRef.current);
-      // People getting on and off trains, buses and shuttles at stops near campus.
-      const riders = transitRef.current ? new RiderSim(day, transitRef.current.data, transitRef.current.feed.tracks) : null;
+      let occupancy = playback.occupancyAt(timeRef.current);
       let mobilityKey = '';
       let currentMobility: MobilityView | null = null;
       let buildings: BuildingOccupancy[] = [];
@@ -383,7 +378,7 @@ export default function App() {
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
-          occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
+          occupancy = playback.occupancyAt(t);
           lastOccupancy = now;
           if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
           const ridingByCampus = new Map<string, number>();
@@ -412,7 +407,6 @@ export default function App() {
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
         const source = transit ? transitSourceAt(transit, t, liveRef.current, weekdayRef.current) : null;
-        if (riders && source) riders.step(t, now, source);
         const showBikesNow = bikes && showBikesRef.current;
         // Shown time and day (0 = Sunday), for BU shuttle service hours.
         const serviceTime = liveRef.current ? wallClockSeconds() : t;
@@ -456,8 +450,7 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(nearView(withRiders(walking, riders, showTransitRef.current), basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
-          ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
+          ...agentLayers(nearView(walking, basemap.getCamera().center, q.walkerRadius), models, t, { zoom: basemap.getZoom() }),
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
@@ -511,7 +504,6 @@ export default function App() {
   const getPerfCounts = useCallback(() => perfRef.current, []);
   const onWeather = useCallback((w: ActiveWeather) => {
     weatherRef.current = w;
-    setWeather(w);
   }, []);
 
   const toggleTransit = () => {
@@ -672,7 +664,6 @@ export default function App() {
           {tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
 
-              {weather && <WeatherImpact weather={weather} />}
               <h2>Campus activity</h2>
               <ol>
                 {ranked.slice(0, 8).map((o) => {
@@ -1102,17 +1093,4 @@ function splitSharedTags(
     }
   }
   return out;
-}
-
-function WeatherImpact({ weather }: { weather: ActiveWeather }) {
-  const { note, boost } = weatherImpact(weather.condition);
-  return (
-    <p className="weather-impact">
-      <strong>Weather impact:</strong> {note}.
-      <span className="muted">
-        {weather.sourceLabel}
-        {boost > 0 && ` · dining and library occupancy shown +${Math.round(boost * 100)}%; walking routes unchanged`}
-      </span>
-    </p>
-  );
 }

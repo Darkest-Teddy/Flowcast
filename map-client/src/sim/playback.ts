@@ -51,7 +51,7 @@ export interface CampusLocation {
   campus?: string; // Campus.id
 }
 
-/** One BU campus. Agents live and walk within a single campus; campuses are kilometres apart. */
+/** One BU campus. Cross-campus travel requires a connected pedestrian route. */
 export interface Campus {
   id: string; // "charles-river", "medical", "fenway"
   name: string;
@@ -83,6 +83,7 @@ export interface BuildingOccupancy {
 }
 
 export interface Agent {
+  academicCampus?: string;
   residency?: 'resident' | 'commuter';
   studentLevel?: 'undergraduate' | 'graduate';
   attendance?: 'full-time' | 'part-time';

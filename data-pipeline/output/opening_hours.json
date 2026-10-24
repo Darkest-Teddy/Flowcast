@@ -4,7 +4,7 @@
   "generatedAt": "2026-10-24T17:44:47.685874+00:00",
   "timezone": "America/New_York",
   "status": "ok",
-  "collectedAt": "2026-10-24T17:44:47.683076+00:00",
+  "collectedAt": "2026-10-24T19:32:04.704512+00:00",
   "locations": [
     {
       "locationId": "mugar",
@@ -1130,6 +1130,111 @@
           "weekday": 6,
           "validFrom": "2026-10-19",
           "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Published regular schedule; listed holiday closures reviewed for this week.",
+          "weekday": 0,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Published regular schedule; listed holiday closures reviewed for this week.",
+          "weekday": 1,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Published regular schedule; listed holiday closures reviewed for this week.",
+          "weekday": 2,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Published regular schedule; listed holiday closures reviewed for this week.",
+          "weekday": 3,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              27000,
+              75600
+            ]
+          ],
+          "text": "Monday – Friday 7:30 a.m.-9 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Published regular schedule; listed holiday closures reviewed for this week.",
+          "weekday": 4,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              36000,
+              64800
+            ]
+          ],
+          "text": "Saturday – Sunday 10 a.m.-6 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Published regular schedule; listed holiday closures reviewed for this week.",
+          "weekday": 5,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              36000,
+              64800
+            ]
+          ],
+          "text": "Saturday – Sunday 10 a.m.-6 p.m. ",
+          "sourceUrl": "https://www.bumc.bu.edu/medlib/about-us/hours/",
+          "qualifier": "Published regular schedule; listed holiday closures reviewed for this week.",
+          "weekday": 6,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
         }
       ],
       "reason": null,
@@ -1215,6 +1320,81 @@
           "weekday": 4,
           "validFrom": "2026-10-19",
           "validTo": "2026-10-25"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published regular schedule; source reviewed for this week. No holiday exceptions supplied by cafe.",
+          "weekday": 0,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published regular schedule; source reviewed for this week. No holiday exceptions supplied by cafe.",
+          "weekday": 1,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published regular schedule; source reviewed for this week. No holiday exceptions supplied by cafe.",
+          "weekday": 2,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published regular schedule; source reviewed for this week. No holiday exceptions supplied by cafe.",
+          "weekday": 3,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
+        },
+        {
+          "date": null,
+          "windows": [
+            [
+              25200,
+              54000
+            ]
+          ],
+          "text": "open weekdays from 7 a.m.- 3 p.m. and offers",
+          "sourceUrl": "https://www.bumc.bu.edu/chequers/",
+          "qualifier": "Published regular schedule; source reviewed for this week. No holiday exceptions supplied by cafe.",
+          "weekday": 4,
+          "validFrom": "2026-10-26",
+          "validTo": "2026-11-01"
         }
       ],
       "reason": null,
@@ -1378,6 +1558,139 @@
           ],
           "serviceSourceUrls": [
             "https://bufenway.sodexomyway.com:443/en-us/locations/"
+          ]
+        },
+        {
+          "date": "2026-10-26",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–20:00, 20:00–22:00",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) ",
+            "Dinner",
+            "Light Dinner (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) "
+          ]
+        },
+        {
+          "date": "2026-10-27",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–20:00, 20:00–22:00",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) ",
+            "Dinner",
+            "Light Dinner (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) "
+          ]
+        },
+        {
+          "date": "2026-10-28",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–20:00, 20:00–22:00",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) ",
+            "Dinner",
+            "Light Dinner (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) "
+          ]
+        },
+        {
+          "date": "2026-10-29",
+          "windows": [
+            [
+              25200,
+              79200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–20:00, 20:00–22:00",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) ",
+            "Dinner",
+            "Light Dinner (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss) "
+          ]
+        },
+        {
+          "date": "2026-10-30",
+          "windows": [
+            [
+              25200,
+              70200
+            ]
+          ],
+          "text": "07:00–10:00, 10:00–11:30, 11:30–14:00, 14:00–16:30, 16:30–19:30",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Breakfast",
+            "Continental Breakfast",
+            "Lunch",
+            "Light Lunch (Open Stations: Sizzle, Slices, B'Rito, Spoonful, Mix & Bliss)",
+            "Dinner"
+          ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [
+            [
+              36000,
+              70200
+            ]
+          ],
+          "text": "10:00–13:00, 13:00–16:30, 16:30–19:30",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Brunch",
+            "Light Lunch (Open Stations: Sizzle, Showcase, Spoonful, Mix & Bliss) ",
+            "Dinner"
+          ]
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              36000,
+              70200
+            ]
+          ],
+          "text": "10:00–13:00, 13:00–16:30, 16:30–19:30",
+          "sourceUrl": "https://bufenway.sodexomyway.com:443/en-us/locations/",
+          "qualifier": "Official BU-linked dining provider; regular hours with seasonal overrides. Meal stations vary by service period.",
+          "servicePeriods": [
+            "Brunch",
+            "Light Lunch (Open Stations: Sizzle, Showcase, Spoonful, Mix & Bliss) ",
+            "Dinner"
           ]
         }
       ],
@@ -1646,7 +1959,7 @@
     {
       "url": "https://www.bumc.bu.edu/chequers/",
       "requestedUrl": "https://www.bumc.bu.edu/chequers/",
-      "retrievedAt": "2026-10-24T17:40:24.720722+00:00",
+      "retrievedAt": "2026-10-24T19:31:06.478496+00:00",
       "sha256": "9015406b603742014aece8bc0053010f016e3546e74fc5bd1001f3d27bc11e1e",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/7704c1b302c8bee2e858715aa3ba7c099a30bff0f98cdbb78e9e6befb23ef796.body",
@@ -1655,7 +1968,7 @@
     {
       "url": "https://www.bumc.bu.edu/medlib/about-us/hours/",
       "requestedUrl": "https://www.bumc.bu.edu/medlib/about/hours/",
-      "retrievedAt": "2026-10-24T17:40:25.142755+00:00",
+      "retrievedAt": "2026-10-24T19:31:07.684708+00:00",
       "sha256": "084d0ac28b755d2f60d486c03ebdbbb48652f8016998639fc6447fe8bc3b727f",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/7284d338ec7bfbb24f9fdfcdc3576b5e2529bed7f8c613b45bf03b23be85e4ac.body",
@@ -1676,5 +1989,15 @@
     "unknown": 0,
     "restricted": 2
   },
-  "errors": []
+  "errors": [],
+  "weekExtension": {
+    "weekStart": "2026-10-26",
+    "weekEnd": "2026-11-01",
+    "regularHoursReviewed": true,
+    "locations": [
+      "fenway-dining",
+      "bumc-chequers",
+      "bumc-library"
+    ]
+  }
 }
