@@ -5,7 +5,7 @@ import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPr
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, crowdLevel } from './layers/crowd';
 import { createPlacer } from './layers/placement';
-import { transitLayers, transitTooltip } from './layers/transit';
+import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData } from './transit/mbta';
 
@@ -31,6 +31,7 @@ interface Hud {
 interface Transit {
   data: TransitData;
   feed: MbtaFeed;
+  models: VehicleModels;
 }
 
 export default function App() {
@@ -71,12 +72,13 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
         // Transit is an extra: the campus view must still start if it can't load.
         loadTransit('/data/transit.json').catch(() => null),
+        loadVehicleModels().catch(() => ({})),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -88,7 +90,7 @@ export default function App() {
           setFeedUpdatedAt(state.updatedAt);
         });
         feed.start();
-        transitRef.current = { data: transitData, feed };
+        transitRef.current = { data: transitData, feed, models: vehicleModels };
       }
 
       const playback = new Playback(day);
@@ -150,7 +152,7 @@ export default function App() {
               selectedId: selectedRef.current,
               placer,
             }),
-            ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transit.feed, now, zoom: basemap.getZoom(), placer }) : []),
+            ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transit.feed, now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
             ...agentLayers(walking, models, t),
           ],
         });

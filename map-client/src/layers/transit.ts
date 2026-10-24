@@ -2,7 +2,9 @@
 // blocks at true scale (exaggerated so they read from campus height), and next-arrival labels
 // under each Green Line station.
 import { PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
-import { SimpleMeshLayer } from '@deck.gl/mesh-layers';
+import { ScenegraphLayer, SimpleMeshLayer } from '@deck.gl/mesh-layers';
+import { load } from '@loaders.gl/core';
+import { GLTFLoader } from '@loaders.gl/gltf';
 import { CubeGeometry } from '@luma.gl/engine';
 import type { Color } from '@deck.gl/core';
 import { minutesUntil, type MbtaFeed, type TransitData, type TransitRoute, type TransitStop, type Vehicle } from '../transit/mbta';
@@ -20,6 +22,26 @@ function vehicleScale(zoom: number, kind: 'subway' | 'bus') {
 const HALF_SIZE = { subway: [1.35, 22.5, 1.8], bus: [1.3, 6.1, 1.6] } as const;
 const STATION_LABEL_HEIGHT = 38;
 
+// Real models when public/models has them (metres, Y-up, front +Z, like the Kenney
+// characters); plain blocks otherwise.
+const VEHICLE_MODEL_URLS = { subway: '/models/mbta-green-line-train.glb', bus: '/models/mbta-bus.glb' };
+// Same convention as agents.ts: a model facing +Z, stood upright with a 90° roll.
+const MODEL_YAW_OFFSET = 180;
+
+export type VehicleModels = Partial<Record<'subway' | 'bus', unknown>>;
+
+export async function loadVehicleModels(): Promise<VehicleModels> {
+  const entries = await Promise.all(
+    Object.entries(VEHICLE_MODEL_URLS).map(async ([kind, url]) => {
+      const head = await fetch(url, { method: 'HEAD' }).catch(() => null);
+      // Vite's dev server answers unknown paths with index.html, so check the type too.
+      if (!head?.ok || head.headers.get('content-type')?.includes('text/html')) return [kind, undefined];
+      return [kind, await load(url, GLTFLoader).catch(() => undefined)];
+    }),
+  );
+  return Object.fromEntries(entries);
+}
+
 export function hexToColor(hex: string, alpha = 255): Color {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255, alpha];
@@ -31,6 +53,7 @@ export interface TransitLayerInput {
   now: number; // performance.now(), for easing vehicles
   zoom: number;
   placer: LabelPlacer;
+  models: VehicleModels;
 }
 
 interface RoutePath {
@@ -38,7 +61,7 @@ interface RoutePath {
   path: [number, number][];
 }
 
-export function transitLayers({ data, feed, now, zoom, placer }: TransitLayerInput) {
+export function transitLayers({ data, feed, now, zoom, placer, models }: TransitLayerInput) {
   const routes = new Map(data.routes.map((r) => [r.id, r]));
   const kindOf = (routeId: string) => routes.get(routeId)?.kind ?? 'bus';
   // Buses first so the Green Line draws over them where they share Comm Ave.
@@ -75,7 +98,21 @@ export function transitLayers({ data, feed, now, zoom, placer }: TransitLayerInp
   const labelKey = labelled.map((s) => `${s.id}:${lifts.get(s)}:${texts.get(s)}`).join();
 
   const vehicleLayer = (id: string, kind: 'subway' | 'bus', data: Vehicle[]) =>
-    new SimpleMeshLayer<Vehicle>({
+    models[kind]
+      ? new ScenegraphLayer<Vehicle>({
+          id,
+          data,
+          scenegraph: models[kind] as never,
+          sizeScale: vehicleScale(zoom, kind),
+          _lighting: 'pbr',
+          getPosition: (v) => [v.position[0], v.position[1], 0],
+          getOrientation: (v) => [0, MODEL_YAW_OFFSET - v.bearing, 90],
+          pickable: true,
+          updateTriggers: { getPosition: now, getOrientation: now },
+          // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+          slot: 'middle',
+        })
+      : new SimpleMeshLayer<Vehicle>({
       id,
       data,
       mesh: CUBE,
