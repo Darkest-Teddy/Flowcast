@@ -5,6 +5,7 @@ import type { IControl } from 'mapbox-gl';
 // prefixes don't clash).
 import 'mapbox-gl/dist/mapbox-gl.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import type { WeatherEffect } from '../weather/weather';
 
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -24,6 +25,8 @@ export interface Basemap {
   /** Live traffic needs Mapbox's traffic tiles (a token); the fallback has none. */
   supportsTraffic: boolean;
   setTrafficVisible(visible: boolean): void;
+  /** Rain, snow and fog (Mapbox v3 only; a no-op on the fallback). The screen overlay is drawn by WeatherControls. */
+  setWeather(effect: WeatherEffect): void;
   flyTo(center: [number, number], zoom?: number): void;
   /** Screen pixel position of a lng/lat (ground level). */
   project(lngLat: [number, number]): [number, number];
@@ -272,7 +275,8 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     addTrafficLayer(map);
     // Distance haze: the tilted camera would otherwise show the whole region out to the
     // horizon. Fading out a few km away keeps the eye on campus and central Boston.
-    map.setFog({ range: [0.8, 3.2], 'horizon-blend': 0.25 });
+    const baseFog = { range: [0.8, 3.2] as [number, number], 'horizon-blend': 0.25 };
+    map.setFog(baseFog);
     // Street names stay out of the way: hidden until you zoom in close, then in a muted grey.
     map.setConfigProperty('basemap', 'colorRoadLabels', '#9AA0A8');
     let roadLabels: boolean | null = null;
@@ -337,6 +341,13 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       },
       supportsTraffic: true,
       setTrafficVisible: (visible) => map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', visible ? 'visible' : 'none'),
+      setWeather: ({ rain, snow, fog }) => {
+        map.setRain(rain as import('mapbox-gl').RainSpecification | null);
+        map.setSnow(snow as import('mapbox-gl').SnowSpecification | null);
+        // Weather fog merges into the distance haze and never reaches further out than it.
+        const range = (fog?.range as [number, number] | undefined) ?? baseFog.range;
+        map.setFog({ ...baseFog, ...fog, range: [Math.min(range[0], baseFog.range[0]), Math.min(range[1], baseFog.range[1])] });
+      },
       flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),
       project: (lngLat) => {
         const p = map.project(lngLat);
@@ -372,6 +383,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     clipModels: () => {},
     supportsTraffic: false,
     setTrafficVisible: () => {},
+    setWeather: () => {},
     flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),
     project: (lngLat) => {
       const p = map.project(lngLat);
