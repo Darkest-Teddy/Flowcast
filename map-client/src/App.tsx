@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
-import { createBasemap, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
+import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, crowdLevel } from './layers/crowd';
 import { createPlacer } from './layers/placement';
 import { transitLayers, transitTooltip } from './layers/transit';
-import { Playback, formatClock, loadDay, type Occupancy, type WalkingAgent } from './sim/playback';
+import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData } from './transit/mbta';
 
 const SPEEDS = [1, 30, 120, 600];
@@ -52,6 +52,8 @@ export default function App() {
   const [light, setLight] = useState<LightPreset>('dusk');
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'crowds' | 'transit'>('crowds');
+  const [campuses, setCampuses] = useState<Campus[]>([]);
+  const [campus, setCampus] = useState('charles-river');
   const [showTransit, setShowTransit] = useState(true);
   const [showTraffic, setShowTraffic] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
@@ -91,6 +93,7 @@ export default function App() {
 
       const playback = new Playback(day);
       setRange([playback.startTime, playback.endTime]);
+      setCampuses(day.campuses ?? []);
 
       overlay = new MapboxOverlay({
         interleaved: new URLSearchParams(window.location.search).get('interleaved') !== '0',
@@ -177,6 +180,13 @@ export default function App() {
     basemapRef.current?.setTrafficVisible(showTraffic);
   }, [showTraffic, mapKind]);
 
+  const goToCampus = (c: Campus) => {
+    setCampus(c.id);
+    // The Charles River Campus is long and thin and needs the wide default shot; the others fit closer in.
+    if (c.id === 'charles-river') basemapRef.current?.flyTo(INITIAL_VIEW.center, INITIAL_VIEW.zoom);
+    else basemapRef.current?.flyTo(c.center, 16.4);
+  };
+
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
     setShowTransit(showTransitRef.current);
@@ -199,11 +209,14 @@ export default function App() {
     basemapRef.current?.flyTo(o.location.position);
   };
 
-  const ranked = hud ? [...hud.occupancy].sort((a, b) => b.share - a.share) : [];
+  const currentCampus = campuses.find((c) => c.id === campus);
+  const ranked = hud
+    ? hud.occupancy.filter((o) => (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
+    : [];
   // Re-read every render (the HUD re-renders twice a second), so "N min" counts down live.
   const transit = transitRef.current;
-  const stations = transit?.data.stops.filter((s) => s.kind === 'station') ?? [];
-  const busArrivals = transit ? nextBuses(transit) : [];
+  const stations = transit?.data.stops.filter((s) => s.kind === 'station' && s.area === campus) ?? [];
+  const busArrivals = transit ? nextBuses(transit, campus) : [];
 
   return (
     <div className="app">
@@ -212,8 +225,17 @@ export default function App() {
       <header className="panel title">
         <h1>Flowcast</h1>
         <p>
-          BU campus · Wednesday {hud ? `· ${hud.walking} students walking` : ''}
+          {currentCampus?.name ?? 'BU'} · Wednesday {hud ? `· ${hud.walking} students walking` : ''}
         </p>
+        {campuses.length > 1 && (
+          <div className="campuses" role="group" aria-label="Campus">
+            {campuses.map((c) => (
+              <button key={c.id} onClick={() => goToCampus(c)} aria-pressed={c.id === campus}>
+                {c.name.replace(' Campus', '')}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       {status && <div className="panel status" role="status">{status}</div>}
@@ -274,31 +296,46 @@ export default function App() {
                       {feedError ?? (feedUpdatedAt ? `· updated ${new Date(feedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
                     </span>
                   </h2>
-                  <h3>
-                    <span className="route-badge" style={{ background: '#00843D', color: '#fff' }}>B</span> Green Line
-                  </h3>
-                  <table className="arrivals">
-                    <thead>
-                      <tr>
-                        <th scope="col">Station</th>
-                        <th scope="col">Inbound</th>
-                        <th scope="col">Outbound</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stations.map((s) => {
-                        const next = transit.feed.nextArrivals(s.id);
-                        const at = (direction: 0 | 1) => next.find((a) => a.direction === direction);
-                        return (
-                          <tr key={s.id}>
-                            <th scope="row">{s.short}</th>
-                            <td>{at(1) ? minutesUntil(at(1)!.time) : '—'}</td>
-                            <td>{at(0) ? minutesUntil(at(0)!.time) : '—'}</td>
+                  {stations.length > 0 && (
+                    <>
+                      <h3>
+                        {greenBranches(transit, stations).map((b) => (
+                          <span key={b} className="route-badge" style={{ background: '#00843D', color: '#fff' }}>
+                            {b}
+                          </span>
+                        ))}{' '}
+                        Green Line
+                      </h3>
+                      <table className="arrivals">
+                        <thead>
+                          <tr>
+                            <th scope="col">Station</th>
+                            <th scope="col">Inbound</th>
+                            <th scope="col">Outbound</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        </thead>
+                        <tbody>
+                          {stations.map((s) => {
+                            const next = transit.feed.nextEachWay(s.id);
+                            // Name the branch where several stop (Kenmore: B, C, D).
+                            const cell = (direction: 0 | 1) => {
+                              const a = next[direction];
+                              if (!a) return '—';
+                              const branch = s.routes.length > 1 ? `${a.route.replace('Green-', '')} ` : '';
+                              return `${branch}${minutesUntil(a.time)}`;
+                            };
+                            return (
+                              <tr key={s.id}>
+                                <th scope="row">{s.short}</th>
+                                <td>{cell(1)}</td>
+                                <td>{cell(0)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </>
+                  )}
                   {busArrivals.length > 0 && (
                     <>
                       <h3>Buses</h3>
@@ -306,7 +343,7 @@ export default function App() {
                         {busArrivals.map((b) => (
                           <li key={`${b.route}-${b.direction}`}>
                             <span className="route-badge" style={{ background: b.color, color: b.textColor }}>
-                              {b.route}
+                              {b.name}
                             </span>
                             <span className="bus-text">
                               {b.directionName} at {b.stop}
@@ -380,14 +417,14 @@ export default function App() {
   );
 }
 
-/** Soonest bus per route and direction at any campus stop, for the side panel. */
-function nextBuses({ data, feed }: Transit) {
+/** Soonest bus per route and direction at any of a campus's stops, for the side panel. */
+function nextBuses({ data, feed }: Transit, area: string) {
   const routes = new Map(data.routes.map((r) => [r.id, r]));
   const stops = new Map(data.stops.map((s) => [s.id, s]));
   const now = Date.now();
   const best = new Map<string, { route: string; direction: 0 | 1; time: number; stop: string }>();
   for (const a of feed.state.arrivals) {
-    if (routes.get(a.route)?.kind !== 'bus' || a.time < now - 30_000) continue;
+    if (routes.get(a.route)?.kind !== 'bus' || stops.get(a.stop)?.area !== area || a.time < now - 30_000) continue;
     const key = `${a.route}:${a.direction}`;
     if (!best.has(key) || a.time < best.get(key)!.time) best.set(key, { ...a, stop: stops.get(a.stop)?.short ?? a.stop });
   }
@@ -395,6 +432,12 @@ function nextBuses({ data, feed }: Transit) {
     .sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }) || a.direction - b.direction)
     .map((a) => {
       const route = routes.get(a.route)!;
-      return { ...a, color: route.color, textColor: route.textColor, directionName: route.directions[a.direction] };
+      return { ...a, name: route.name, color: route.color, textColor: route.textColor, directionName: route.directions[a.direction] };
     });
+}
+
+/** Green Line branch letters serving these stations: "B", "C"... */
+function greenBranches({ data }: Transit, stations: { routes: string[] }[]) {
+  const ids = new Set(stations.flatMap((s) => s.routes));
+  return data.routes.filter((r) => r.kind === 'subway' && ids.has(r.id)).map((r) => r.name);
 }
