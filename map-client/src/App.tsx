@@ -32,7 +32,6 @@ import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
-import { calibrateCapacities } from './sim/calibrate';
 import { riderLayers, withRiders } from './layers/riders';
 import { RiderSim } from './sim/riders';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
@@ -247,8 +246,7 @@ export default function App() {
       baseDayRef.current = populationBase;
       setSourceData(snapshot);
       setMobilityData(mobilitySnapshot);
-      // Capacities sized to the loaded day so % full never goes above 100 (sim/calibrate.ts).
-      const playback = new Playback(calibrateCapacities(buildSourceDay(populationBase, snapshot, weekdayRef.current)));
+      const playback = new Playback(buildSourceDay(populationBase, snapshot, weekdayRef.current));
       playbackRef.current = playback;
       setRange([0, 86400]);
       setCampuses(day.campuses ?? []);
@@ -355,7 +353,7 @@ export default function App() {
         if (nextDay !== weekdayRef.current) {
           weekdayRef.current = nextDay;
           setWeekday(nextDay);
-          playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(populationBase, snapshot, nextDay)));
+          playbackRef.current = new Playback(buildSourceDay(populationBase, snapshot, nextDay));
           lastOccupancy = 0;
         }
         const playback = playbackRef.current!;
@@ -565,7 +563,7 @@ export default function App() {
   const changeDay = (value: number) => {
     if (!baseDayRef.current || !sourceData) return;
     leaveLive();
-    playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(baseDayRef.current, sourceData, value)));
+    playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value));
     setWeekday(value);
     weekdayRef.current = value;
     setHud((prev) => ({

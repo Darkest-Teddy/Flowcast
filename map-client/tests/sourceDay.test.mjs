@@ -14,6 +14,20 @@ registerHooks({
 });
 const { buildSourceDay, venueWindows } = await import('../src/sim/sourceDay.ts');
 const { Playback } = await import('../src/sim/playback.ts');
+const { calibrateCapacities } = await import('../src/sim/calibrate.ts');
+
+test('legacy capacity sizing preserves source/model references and remains playable', () => {
+  const warren = {id:'warren',name:'Warren',short:'Warren',kind:'dorm',position:[-71,42],building:'warren',capacity:600,referenceCapacity:600};
+  const zero = {...warren,id:'unknown',capacity:0,referenceCapacity:0};
+  const day = {day:'Monday',buildings:[],locations:[warren,zero],agents:[],trips:[],stays:[]};
+  assert.equal(calibrateCapacities(day),day);
+  assert.doesNotThrow(() => new Playback(calibrateCapacities(day)));
+  const mixed = calibrateCapacities({...day,locations:[...day.locations,{...warren,id:'demo',referenceCapacity:undefined}]});
+  assert.equal(mixed.locations[0],warren);
+  assert.equal(mixed.locations[1],zero);
+  assert.doesNotThrow(() => new Playback(mixed));
+  assert.throws(() => calibrateCapacities({...day,locations:[{...warren,capacity:700}]}),/Capacity differs/);
+});
 
 function location(id, kind, campus = 'main') {
   return { id, name:id, short:id, kind, position:[-71.1,42.35], capacity:100, building:id, campus };
