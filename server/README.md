@@ -1,6 +1,6 @@
 # server (Node.js + TypeScript)
 
-Owner: Realtime Backend Lead (see `.plans/campus-digital-twin-spec.md` Section 2).
+Owner: Simulation & Backend Lead (see `.plans/campus-digital-twin-spec.md` Section 2).
 
 The single authoritative source of live state (Section 8.1). Loads the precomputed week from `/data-pipeline`'s output, runs the live simulation tick loop, and broadcasts to both clients.
 
