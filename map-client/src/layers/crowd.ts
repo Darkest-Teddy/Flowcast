@@ -20,8 +20,8 @@ import { GlowFadeExtension, HALO_Z, HALO_Z_RANGE } from './crowdGlow';
 
 type RGB = readonly [number, number, number];
 
-import { crowdLevel, LEVELS, type CrowdLevel } from './crowdLevels';
-export { crowdLevel, type CrowdLevel };
+import { crowdLevel, type CrowdLevelInfo } from './crowdLevels';
+export { crowdLevel, type CrowdLevelInfo };
 
 /** CSS custom properties for a level (`--lv` is "r, g, b" for rgb()/rgba(); `--lv-text` a colour). */
 export function crowdLevelStyle(share: number): Record<string, string> {
@@ -68,7 +68,7 @@ interface Glow {
   /** Roof height for this ring, metres (see ringTop). */
   top: number;
   share: number;
-  level: CrowdLevel;
+  level: CrowdLevelInfo;
   selected: boolean;
   /** Ground halo: outer ring (fade 0) and inner ring (fade 1), with the fade carried in z. */
   halo: [number, number, number][][];

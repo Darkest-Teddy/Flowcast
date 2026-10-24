@@ -129,6 +129,7 @@ Places open on hover of the model, outline or field itself too, through invisibl
 | `src/map/basemap.ts` | Creates Mapbox or MapLibre; sets the camera, lighting and URL view params |
 | `src/layers/agents.ts` | Character models, facing direction, de-synchronised walk cycles |
 | `src/layers/crowd.ts` | Building glow and trails, plus the shared Quiet/Moderate/Busy/Packed scale (`crowdLevel`, `crowdLevelStyle`) |
+| `src/layers/crowdLevels.ts` | The map's view of `theme/crowd.ts`, the one crowd scale (Moderate from 40%, Busy from 65%, Packed from 85%; a share on a boundary takes the upper level, an unknown one is Quiet), also used by the Ask server |
 | `src/BuildingTags.tsx` | The HTML building tags over the map; clicking one selects the building |
 | `src/TransitTags.tsx`, `src/tags/glassTags.ts` | HTML tags for stations, bus and shuttle stops, Bluebikes docks and the hovered vehicle |
 | `src/PlaceTags.tsx` | HTML tags for monuments, landmarks, public art, open spaces and fields |

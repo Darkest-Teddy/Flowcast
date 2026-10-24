@@ -235,6 +235,7 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   left: 0;
   top: 0;
   --stem: 16px;
+  /* Quiet until crowdLevelStyle sets the level; mirrors theme/crowd.ts (crowdScale.test.mjs checks). */
   --lv: 45, 212, 191;
   --lv-text: #5eead4;
   will-change: transform;

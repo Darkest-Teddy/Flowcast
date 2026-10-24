@@ -1,6 +1,9 @@
 // TypeScript view of theme/tokens.css. Values are CSS variable references, so the CSS file stays
-// the only place a colour or size is defined; use these where a style has to be set from code
-// (inline styles, canvas/deck.gl colours read via resolveToken, chart series).
+// the only place a colour or size is defined (the crowd scale's colours start in theme/crowd.ts
+// and are mirrored there); use these where a style has to be set from code (inline styles,
+// canvas/deck.gl colours read via resolveToken, chart series).
+
+import { CROWD_LEVELS, crowdLevel, type CrowdKey } from './crowd';
 
 export const color = {
   canvas: 'var(--color-canvas)',
@@ -14,6 +17,32 @@ export const color = {
   warn: 'var(--color-warn)',
   bad: 'var(--color-bad)',
   off: 'var(--color-off)',
+} as const;
+
+/** Liquid glass surfaces. Under reduced transparency these resolve to solid surfaces (tokens.css). */
+export const glass = {
+  fill: 'var(--glass-fill)',
+  fillStrong: 'var(--glass-fill-strong)',
+  blur: 'var(--glass-blur)',
+  saturate: 'var(--glass-saturate)',
+  highlight: 'var(--glass-highlight)',
+  border: 'var(--glass-border)',
+  innerShadow: 'var(--glass-inner-shadow)',
+  shadow: 'var(--glass-shadow)',
+  inkTertiary: 'var(--glass-ink-tertiary)',
+  canvas: 'var(--canvas-gradient)',
+} as const;
+
+/** Small radii for dense controls; card, sheet and capsule for glass surfaces. */
+export const radius = {
+  xs: 'var(--radius-xs)',
+  sm: 'var(--radius-sm)',
+  md: 'var(--radius-md)',
+  lg: 'var(--radius-lg)',
+  full: 'var(--radius-full)',
+  card: 'var(--radius-card)',
+  sheet: 'var(--radius-sheet)',
+  capsule: 'var(--radius-capsule)',
 } as const;
 
 export const swatches = [
@@ -32,18 +61,28 @@ export function swatchFor(key: string): string {
   return swatches[h % swatches.length];
 }
 
-export type CrowdLevel = 'quiet' | 'moderate' | 'busy' | 'packed';
+export type CrowdLevel = CrowdKey;
 
-/** The one crowd scale every screen uses. `upTo` is the share of capacity (0–1+) where a level ends. */
-export const crowdScale: { level: CrowdLevel; label: string; upTo: number; color: string }[] = [
-  { level: 'quiet', label: 'Quiet', upTo: 0.4, color: 'var(--crowd-quiet)' },
-  { level: 'moderate', label: 'Moderate', upTo: 0.65, color: 'var(--crowd-moderate)' },
-  { level: 'busy', label: 'Busy', upTo: 0.85, color: 'var(--crowd-busy)' },
-  { level: 'packed', label: 'Packed', upTo: Infinity, color: 'var(--crowd-packed)' },
-];
+/**
+ * The one crowd scale every screen uses, built from theme/crowd.ts (thresholds, words) with its
+ * colours as CSS variables so they follow the theme. `upTo` is the share of capacity (0–1+) where
+ * a level ends (the next level's start). `color` fills bars, dots and meters; `text` is the
+ * level's text colour on surfaces and glass.
+ */
+export const crowdScale: { level: CrowdLevel; label: string; upTo: number; color: string; text: string }[] = CROWD_LEVELS.map(
+  (l, i) => ({
+    level: l.key,
+    label: l.label,
+    upTo: CROWD_LEVELS[i + 1]?.min ?? Infinity,
+    color: `var(--crowd-${l.key})`,
+    text: `var(--crowd-${l.key}-text)`,
+  }),
+);
 
+/** The scale entry for a share; boundaries go up (0.40 is Moderate) and NaN is Quiet (crowd.ts). */
 export function crowdFor(share: number) {
-  return crowdScale.find((s) => share < s.upTo) ?? crowdScale[crowdScale.length - 1];
+  const key = crowdLevel(share).key;
+  return crowdScale.find((s) => s.level === key)!;
 }
 
 /** Resolve a token to its computed value, for libraries that can't take a CSS variable. */
