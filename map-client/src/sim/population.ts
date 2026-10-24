@@ -1,4 +1,4 @@
-import { dateForWeekday, openingHoursForDate, type CampusData } from '../data/campusData';
+import { dateForWeekday, meetingActiveOnDate, openingHoursForDate, type CampusData } from '../data/campusData';
 import type { Agent, DayData, EstimatedActivityProfile, EstimatedHousingProfile } from './playback';
 import { countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
 
@@ -47,7 +47,9 @@ export function campusOfferingWeights(base: DayData, source: CampusData): Record
     weights[campus] ??= { undergraduate: 0, graduate: 0 };
     for (const meeting of location.meetings) {
       if (meeting.calendarRestricted || !countsTowardDegreeLoad(meeting.courseCode)) continue;
-      const key = `${campus}:${meeting.courseCode}:${meeting.section}`;
+      if ((meeting.validFrom || meeting.validTo) && !meeting.intervals.some(interval =>
+        meetingActiveOnDate(meeting, dateForWeekday(source, interval.weekday)))) continue;
+      const key = `${campus}:${meeting.sourceSectionKey ?? `${meeting.courseCode}:${meeting.section}`}`;
       if (!parent.has(key)) parent.set(key, key);
       if (meeting.sharedKey) {
         const signature = `${campus}:${meeting.sharedKey}`;

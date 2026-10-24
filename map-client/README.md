@@ -170,3 +170,27 @@ python3 map-client/scripts/embed_glb_textures.py "<unzipped pack>/Models/GLB for
 - Click-to-inspect building panel with the day's occupancy curve (plan Section 3.3); `Playback.occupancyAt` already gives every point of it.
 - Swap `loadDay()` for the server's Socket.IO stream once `/server` exists.
 - Interior view (Section 6.7): the characters already ship a `sit` animation.
+
+### BU hackathon sources (local, restricted access)
+
+Put `CATALOG_API_KEY` in the ignored `map-client/.env.local` and restart Vite to prefer
+BU's authenticated transit API. The key stays in the Vite server; only an enabled flag
+enters the browser bundle. Without a key the existing public TransLoc integration is
+used. Configured API failures do not switch sources silently. Routes and physical-stop
+arrivals retain the same BU IDs; vehicle freshness uses `reported_at`, never fetch time,
+and stale upstream responses are rejected.
+
+The local server and `vite preview` expose only GET routes, vehicles, and numeric-stop
+arrivals under `/api/bu/transit/bus`. They cache routes/arrivals for five minutes and
+vehicles for one minute, deduplicate concurrent fetches, and limit each server process
+to 80 upstream requests per minute and 8,000 per UTC day. These budgets reset on server
+restart and do not coordinate with other team processes; the shared key still has the
+provider's 100/minute and 10,000/day limits. Arrival predictions can lag by five minutes;
+old vehicle observations still expire under the normal 90-second freshness rule.
+
+If `data-pipeline/.cache/hackathon/campus-data.json` exists, the local server serves that
+private bundle at `/data/campus-data.json` with `Cache-Control: no-store`. It is not copied
+into `dist` or committed. Keep this server on localhost for the team’s hackathon use.
+A static public deployment does not supply this proxy or private bundle: deployment of
+restricted data requires an authenticated server and permission consistent with the
+access terms. Rebuild without the key for the ordinary public-data static app.

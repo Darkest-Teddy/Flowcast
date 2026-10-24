@@ -464,3 +464,37 @@ test('saved source bundle scales to 36977 weekly students and conserves complete
     assert.equal(day.sourceStats.unroutableTrips,0);assert.equal(day.sourceStats.invalidRoutes,0);
   }
 });
+
+test('dated sections run only on inclusive valid dates within the reference week',()=>{
+  const {base,data}=fixture();
+  const intervals=[0,2,4].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}));
+  data.locations.class.meetings=[
+    meeting('active',0,9*3600,10*3600,{intervals,validFrom:'2026-10-21',validTo:'2026-10-23'}),
+    meeting('ended',0,11*3600,12*3600,{validTo:'2026-10-18'}),
+    meeting('future',0,13*3600,14*3600,{validFrom:'2026-10-26'}),
+  ];
+  const monday=buildSourceDay(base,data,0), wednesday=buildSourceDay(base,data,2), friday=buildSourceDay(base,data,4);
+  assert.equal(monday.sourceAssignments.length,0);
+  assert.ok(wednesday.sourceAssignments.length>0);
+  assert.deepEqual(wednesday.sourceAssignments,friday.sourceAssignments);
+  assert.ok(wednesday.sourceAssignments.every(row=>row.meetingId==='active'));
+  for(const day of [monday,wednesday,friday]) validate(day);
+});
+
+test('database section keys keep same-label sessions as separate enrollment options',()=>{
+  const {base,data}=fixture();
+  data.locations.class.meetings=[
+    meeting('session1',0,9*3600,10*3600,{courseCode:'CAS MA 123',sourceSectionKey:'UGRD:2268:1:A1'}),
+    meeting('session2',0,11*3600,12*3600,{courseCode:'CAS MA 123',sourceSectionKey:'UGRD:2268:2:A1'}),
+  ];
+  const day=buildSourceDay(base,data,0);
+  assert.equal(day.sourceStats.eligibleWeeklySections,2);
+  assert.ok(day.sourceAssignments.length>0);
+  for(const agent of base.agents) assert.equal(day.sourceAssignments.filter(row=>row.agentId===agent.id).length,1);
+  validate(day);
+  const publicData=structuredClone(data);
+  for(const row of publicData.locations.class.meetings) delete row.sourceSectionKey;
+  const publicDay=buildSourceDay(base,publicData,0);
+  assert.equal(publicDay.sourceStats.eligibleWeeklySections,1);
+  for(const agent of base.agents) assert.equal(publicDay.sourceAssignments.filter(row=>row.agentId===agent.id).length,2);
+});

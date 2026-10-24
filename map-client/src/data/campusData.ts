@@ -15,11 +15,14 @@ export interface SourceMeeting {
   courseCode: string;
   title: string;
   section: string;
+  sourceSectionKey?: string;
   roomCode: string;
   intervals: { weekday: number; startSec: number; endSec: number }[];
   roomCapacity: number | null;
   notes: string | null;
   calendarRestricted: boolean;
+  validFrom?: string;
+  validTo?: string;
   sharedKey: string | null;
   sourceUrl: string;
 }
@@ -112,4 +115,9 @@ export function dateForWeekday(data: CampusData, weekday: number): string {
   const date = new Date(`${data.referenceWeekStart}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + weekday);
   return date.toISOString().slice(0, 10);
+}
+
+export function meetingActiveOnDate(meeting: SourceMeeting, date: string): boolean {
+  return !meeting.calendarRestricted && (!meeting.validFrom || date >= meeting.validFrom)
+    && (!meeting.validTo || date <= meeting.validTo);
 }

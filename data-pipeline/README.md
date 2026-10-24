@@ -6,7 +6,76 @@ The sources come from the supplied *BU population data sources* guide dated 24 O
 
 ## Use the saved datasets
 
+### BU hackathon sources (restricted, local use)
+
+The DS+X course database and dining/transit API take priority wherever their
+verified fields overlap public evidence. Credentials and restricted results are
+not committed. The API's live OpenAPI reference is
+`https://public.api-nonprod.bu.edu/docs`; its actual routes use `/api/v1/`, unlike
+some examples in the access handout.
+
+For dining, set `CATALOG_API_KEY` in the process environment, then run:
+
+```sh
+python3 data-pipeline/hackathon_dining.py --date 2026-10-24 --date 2026-10-25
+python3 data-pipeline/build_map_data.py \
+  --hackathon-dining data-pipeline/.cache/hackathon/dining.json \
+  --output data-pipeline/.cache/hackathon/campus-data.json
+```
+
+Acquisition reuses the local snapshot unless `--refresh` is requested. Menu
+responses contain dated meal-service hours; those replace only matching hall/date
+records in the map bundle. Adjacent meal windows merge, overnight service retains
+the following-day end time, empty schedules do not establish closure, and stale
+responses fail validation. Other venues, dates, seating/throughput measurements,
+and non-dining datasets retain their public evidence. Menu items stay in the
+private acquisition cache; no menu UI is added.
+
+The restricted bundle can only be written under `data-pipeline/.cache/hackathon`.
+The map's Vite development/preview server serves it locally in preference to the
+public bundle. Ordinary data preparation/builds still generate only public data.
+Do not publish the private cache or redistribute it; the supplied access handout
+limits data use to this hackathon project. Removing the private bundle restores
+the public bundle. Transit API setup is documented in `map-client/README.md`.
+
+The course database requires BU VPN and SSL. Install the optional dependency with
+`data-pipeline/.venv/bin/python -m pip install -r data-pipeline/requirements-hackathon.txt`.
+Set `CATALOG_DB_HOST`, `CATALOG_DB_USER`, and `CATALOG_DB_PASSWORD` in the process
+environment using the access handout. The verified database is `hackathon`
+(`CATALOG_DB_NAME` can override it), with schema `catalog`. Acquisition uses one
+read-only, repeatable-read transaction and a 60-second statement timeout:
+
+```sh
+data-pipeline/.venv/bin/python data-pipeline/hackathon_catalog.py --term-code 2268
+python3 data-pipeline/build_map_data.py \
+  --hackathon-catalog data-pipeline/.cache/hackathon/catalog.json \
+  --hackathon-dining data-pipeline/.cache/hackathon/dining.json \
+  --output data-pipeline/.cache/hackathon/campus-data.json
+```
+
+The importer currently normalizes Fall 2026 (`2268`) only. It replaces courses and
+all schedules for database-covered display codes, including courses whose database
+rows have no usable physical meetings. Courses outside that coverage retain public
+records. Display suffixes remain distinct. Exact room identities retain separately
+published capacities; the database provides neither capacities nor enrollment.
+Section dates constrain simulation days, and database section keys keep distinct
+sessions separate. Existing verified component requirements remain evidence;
+component types alone do not establish registration requirements.
+
+Raw database rows and the resulting bundle stay under the ignored private cache.
+The bundle's `hackathonCatalogCoverage` reports imported, excluded, and fallback
+records plus the upstream refresh timestamp. The October 24 acquisition contains
+5,870 Fall course records, 14,529 sections, and 15,122 meeting rows; the upstream
+snapshot identifies an October 12 refresh. Cached replay needs no VPN or credentials;
+use `--refresh` only to intentionally reacquire data.
+
 The normalized public datasets in [`output/`](output/) are committed. Use them directly; application setup and data analysis do not require another scrape or the scraper dependencies.
+
+The student scenario uses October 26–November 1, selected for the best nearby service-hour coverage. `extend_opening_hours.py --week-start 2026-10-26 --reviewed-regular-hours --offline` replays the reviewed Fenway and medical schedules without discarding earlier dates. The review flag requires checking published holiday notices for the requested week. CRC dining hours for October 31–November 1 and library hours for November 1 remain unknown; the map does not turn those gaps into confirmed closures. The existing weekly housing and activity scenarios were reviewed and retained for this week as estimates.
+
+`build_component_rules.py` preserves explicit lecture/lab/discussion dependencies from the saved catalog; unresolved notes remain unresolved. `build_map_data.py` also exports distinct full-catalog course groups so the planner can estimate mapped course-load coverage without treating repeated sections or component rows as extra courses. Neither field supplies actual enrollment.
+
+`build_cross_campus_routes.py --rebuild-source` rebuilds Fenway–Charles River and DeWolfe pedestrian connections from the compressed OSM extracts in `snapshots/osm/`. It joins shared route coordinates and permitted walkable ways, preserves mapped endpoints, and merges routes into `demo-day.json`; ordinary application builds reuse that saved result.
 
 - [`output/catalog.json`](output/catalog.json): the campus-wide Fall 2026 snapshot, with 8,900 course pages, 8,454 unique course codes, 6,944 physical meeting records, and 437 verified classroom capacities.
 - [`output/manifest.json`](output/manifest.json): checksums and collection status for all six categories.

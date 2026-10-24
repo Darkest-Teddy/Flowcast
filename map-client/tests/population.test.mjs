@@ -75,3 +75,15 @@ test('primary-campus model keeps undergraduate roster outside medical and is ins
   assert.deepEqual(buildPopulation(base,duplicated,population).agents,result.agents);
   assert.equal(result.agents.filter(a => a.campus === 'fenway' && a.residency === 'resident').length,595);
 });
+
+test('campus weights omit sections outside the reference week but retain boundary-day meetings', () => {
+  const base = {campuses:[{id:'charles-river'}], locations:[{id:'crc',campus:'charles-river'}]};
+  const meeting = (courseCode, extra) => ({courseCode, section:'A1', roomCapacity:40, calendarRestricted:false,
+    intervals:[{weekday:0,startSec:32400,endSec:36000}], ...extra});
+  const data = {referenceWeekStart:'2026-10-19', locations:{crc:{id:'crc',meetings:[
+    meeting('CAS MA 123',{validTo:'2026-10-18'}),
+    meeting('CAS MA 124',{validFrom:'2026-10-20'}),
+    meeting('CAS MA 125',{validFrom:'2026-10-19',validTo:'2026-10-19'}),
+  ]}}};
+  assert.deepEqual(campusOfferingWeights(base,data),{'charles-river':{undergraduate:40,graduate:0}});
+});

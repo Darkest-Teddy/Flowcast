@@ -1,11 +1,52 @@
-// BU's own shuttle ("the BUS") from BU's TransLoc feed: routes, stops, live vehicles and
-// arrival estimates. The feed is open to browsers (CORS *), so the map polls it directly.
-// Results are shaped like the MBTA data so the same tracks, snapping and panels handle both.
+// Prefer the authenticated BU hackathon API through the local server when configured.
+// Public TransLoc remains available for builds without hackathon credentials.
 import { parseObservationTime, ShuttleObservationClock } from './liveFreshness';
 import type { Arrival, TransitArea, TransitRoute, TransitStop } from './mbta';
 
 const API = 'https://bu.transloc.com/Services/JSONPRelay.svc';
 const observationClock = new ShuttleObservationClock();
+const useHackathonApi = import.meta.env?.VITE_BU_API_ENABLED === true;
+const HACKATHON_API = '/api/bu/transit/bus';
+
+async function hackathonResponse(path: string) {
+  const response = await fetch(`${HACKATHON_API}${path}`);
+  if (!response.ok) throw new Error(`BU API: ${response.status}`);
+  const value = await response.json();
+  if (value.stale) throw new Error('BU API data is stale');
+  return value;
+}
+
+export function hackathonRoutes(value: { routes: { id: number; name: string; encoded_polyline: string; is_running: boolean; color: string | null; stops: { id: number; physical_stop_id: number; name: string; latitude: number; longitude: number; order: number }[] }[] }): TlRoute[] {
+  return value.routes.map((route) => ({
+    RouteID: route.id, Description: route.name, EncodedPolyline: route.encoded_polyline,
+    IsRunning: route.is_running, IsVisibleOnMap: true, MapLineColor: route.color ?? '',
+    Stops: [...route.stops].sort((a, b) => a.order - b.order).map((stop) => ({
+      AddressID: stop.physical_stop_id, RouteStopID: stop.id, Description: stop.name,
+      Latitude: stop.latitude, Longitude: stop.longitude,
+    })),
+  }));
+}
+
+export function hackathonVehicles(value: { stale?: boolean; vehicles: { id: number; route_id: number; latitude: number; longitude: number; heading: number; ground_speed: number; name: string; reported_at: string | null }[] }): ShuttleVehicleReport[] {
+  if (value.stale) throw new Error('BU API data is stale');
+  return value.vehicles.map((v) => ({
+    observedAt: observationClock.observe(`BU-${v.id}`, parseObservationTime(v.reported_at)),
+    id: `BU-${v.id}`, route: shuttleRouteId(v.route_id), position: [v.longitude, v.latitude],
+    heading: v.heading, speed: v.ground_speed * 0.44704, label: v.name,
+  }));
+}
+
+export function hackathonArrivals(value: { stale?: boolean; groups: { route_id: number; route_stop_id: number; arrivals: { estimate_at: string | null; scheduled_at: string | null; is_departed: boolean }[] }[] }, stopForRouteStop: Map<number, string>): Arrival[] {
+  if (value.stale) throw new Error('BU API data is stale');
+  return value.groups.flatMap((group) => {
+    const stop = stopForRouteStop.get(group.route_stop_id);
+    if (!stop) return [];
+    return group.arrivals.flatMap((arrival) => {
+      const time = parseObservationTime(arrival.estimate_at) ?? parseObservationTime(arrival.scheduled_at);
+      return time && !arrival.is_departed ? [{ stop, route: shuttleRouteId(group.route_id), direction: 0 as const, time }] : [];
+    });
+  });
+}
 export const BU_RED = '#CC0000';
 
 interface TlRouteStop {
@@ -124,9 +165,14 @@ export interface ShuttleData {
  * routes in the day, Night at night, and Thanksgiving / FitRec Snow Day only when they operate.
  */
 export async function loadShuttles(areas: TransitArea[]): Promise<ShuttleData> {
-  const res = await fetch(`${API}/GetRoutesForMapWithScheduleWithEncodedLine`);
-  if (!res.ok) throw new Error(`BU shuttle routes: ${res.status}`);
-  const all: TlRoute[] = await res.json();
+  let all: TlRoute[];
+  if (useHackathonApi) {
+    all = hackathonRoutes(await hackathonResponse('/routes'));
+  } else {
+    const res = await fetch(`${API}/GetRoutesForMapWithScheduleWithEncodedLine`);
+    if (!res.ok) throw new Error(`BU shuttle routes: ${res.status}`);
+    all = await res.json();
+  }
   // Every regular line (each one is shown only during its service hours; see shuttleInService).
   // Seasonal lines (Thanksgiving, FitRec Snow Day) appear only while TransLoc says they're running.
   const shown = all.filter((r) => r.IsVisibleOnMap && r.EncodedPolyline && (r.IsRunning || SHUTTLE_SERVICE[r.RouteID]));
@@ -172,6 +218,7 @@ export async function loadShuttles(areas: TransitArea[]): Promise<ShuttleData> {
 }
 
 export async function pollShuttleVehicles(): Promise<ShuttleVehicleReport[]> {
+  if (useHackathonApi) return hackathonVehicles(await hackathonResponse('/vehicles'));
   const res = await fetch(`${API}/GetMapVehiclePoints`);
   if (!res.ok) throw new Error(`BU shuttle vehicles: ${res.status}`);
   const json: { VehicleID: number; RouteID: number; Latitude: number; Longitude: number; Heading: number; GroundSpeed: number; Name: string; TimeStamp: string | null }[] =
@@ -188,6 +235,15 @@ export async function pollShuttleVehicles(): Promise<ShuttleVehicleReport[]> {
 }
 
 export async function pollShuttleArrivals(stopForRouteStop: Map<number, string>): Promise<Arrival[]> {
+  if (useHackathonApi) {
+    const physicalStops = [...new Set(stopForRouteStop.values())].map((id) => id.replace(/^BU-stop-/, ''));
+    const arrivals: Arrival[] = [];
+    for (const id of physicalStops) {
+      const response = await hackathonResponse(`/stops/${id}/arrivals`);
+      arrivals.push(...hackathonArrivals(response, stopForRouteStop));
+    }
+    return arrivals;
+  }
   const res = await fetch(`${API}/GetStopArrivalTimes`);
   if (!res.ok) throw new Error(`BU shuttle arrivals: ${res.status}`);
   const json: { RouteId: number; RouteStopId: number; Times: { EstimateTime: string | null; ScheduledTime: string | null }[] }[] =

@@ -1,4 +1,4 @@
-import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
+import { dateForWeekday, meetingActiveOnDate, openingHoursForDate, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
 import { courseLevel, countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
 import type { Agent, CampusLocation, DayData, EstimatedActivityProfile, Trip } from './playback';
 
@@ -329,10 +329,11 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     if (!locations.has(source.id)) continue;
     for (const meeting of [...source.meetings].sort((a, b) => a.id.localeCompare(b.id))) {
       if (meeting.calendarRestricted) { stats.skippedCalendar++; continue; }
-      const id = `${meeting.courseCode}:${meeting.section}`;
+      const id = meeting.sourceSectionKey ?? `${meeting.courseCode}:${meeting.section}`;
       if (!countsTowardDegreeLoad(meeting.courseCode)) { excludedNonDegree.add(id); continue; }
       const section: Section = sections.get(id) ?? { id, course: meeting.courseCode, campus: campusOf(locations.get(source.id)!), stops: [], aliases: [] };
       for (const interval of meeting.intervals) {
+        if (!meetingActiveOnDate(meeting, dates[interval.weekday])) continue;
         const weekday = interval.weekday, start = interval.startSec - weekday * DAY, end = interval.endSec - weekday * DAY;
         if (weekday < 0 || weekday > 6 || start < 0 || start >= end || end > DAY || !Number.isFinite(start + end)) continue;
         const pool = `${meeting.sharedKey ?? meeting.id}:${weekday}:${start}:${end}`;

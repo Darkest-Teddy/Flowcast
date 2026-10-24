@@ -59,6 +59,39 @@ def calendar_restricted(notes):
     return False
 
 
+def catalog_course_coverage(catalog, week_start=None):
+    """Count offerings, never seats, enrollment, components, or meeting frequency."""
+    signatures = defaultdict(set)
+    restricted = 0
+    for row in catalog.get("meetings", []):
+        if calendar_restricted(row.get("notes")):
+            restricted += 1
+            continue
+        if not row.get("buildingCode") or not row.get("intervals"):
+            continue
+        for interval in row["intervals"]:
+            if week_start is not None:
+                stamp = (week_start + timedelta(days=interval["weekday"])).isoformat()
+                if row.get("validFrom", stamp) > stamp or row.get("validTo", stamp) < stamp:
+                    continue
+            signatures[row["courseCode"]].add((row["buildingCode"], row.get("roomCode", ""),
+                interval["weekday"], interval["startSec"], interval["endSec"]))
+    equivalent = defaultdict(list)
+    for code, signature in signatures.items():
+        # Only a complete matching timetable is an alias candidate. One shared
+        # classroom period does not make two otherwise different courses aliases.
+        equivalent[tuple(sorted(signature))].append(code)
+    groups = sorted((sorted(codes) for codes in equivalent.values()), key=lambda codes: codes[0])
+    return {
+        "courseCodes": sorted(signatures),
+        "courseGroups": groups,
+        "basis": "Distinct physical course offerings with ordinary weekly schedules in the saved catalog; matching complete room/time timetables count once. Degree-level eligibility is applied at runtime. This is an equal-offering coverage proxy, not measured enrollment probability.",
+        "excludedCalendarRestrictedRows": restricted,
+        "excludedUnscheduledOrNonphysicalRows": len(catalog.get("excludedMeetings", [])),
+        "sourceUrls": sorted({source_url(row) for row in catalog.get("meetings", []) if source_url(row)}),
+    }
+
+
 def seconds(clock):
     match = re.fullmatch(r"(\d{1,2}):(\d{2})", clock)
     if not match or not 0 <= int(match[1]) < 24 or not 0 <= int(match[2]) < 60:
@@ -164,6 +197,14 @@ def build_bundle(datasets, day, input_files=None):
             "notes": row.get("notes"), "calendarRestricted": calendar_restricted(row.get("notes")),
             "sharedKey": None, "sourceUrl": source_url(row),
         }
+        for key in ("validFrom", "validTo"):
+            if row.get(key):
+                datetime.strptime(row[key], "%Y-%m-%d")
+                meeting[key] = row[key]
+        if row.get("sourceSectionKey"):
+            meeting["sourceSectionKey"] = row["sourceSectionKey"]
+        if row.get("validFrom") and row.get("validTo") and row["validFrom"] > row["validTo"]:
+            raise ValueError(f"Reversed course session dates: {row['id']}")
         locations[target]["meetings"].append(meeting)
         locations[target]["buildingCodes"].append(code)
         signature = (code, row["roomCode"], tuple((i["weekday"], i["startSec"], i["endSec"]) for i in meeting["intervals"]))
@@ -287,6 +328,9 @@ def build_bundle(datasets, day, input_files=None):
     return {
         "schemaVersion": 1, "term": catalog.get("term", "FALL 2026"), "collectedAt": collected_at,
         "referenceWeekStart": week_start.isoformat(),
+        "catalogCourseCodes": catalog_course_coverage(catalog, week_start)["courseCodes"],
+        "catalogCourseCoverage": catalog_course_coverage(catalog, week_start),
+        **({"hackathonCatalogCoverage": catalog["hackathonCoverage"]} if "hackathonCoverage" in catalog else {}),
         "coverage": {"coursePages": counts.get("coursePagesParsed", len(catalog.get("courses", []))),
                      "uniqueCourses": counts.get("uniqueCourseCodes", len({m['courseCode'] for m in catalog['meetings']})),
                      "sourceMeetings": len(catalog["meetings"]), "mappedMeetings": len(mapped),
@@ -315,8 +359,12 @@ def build_bundle(datasets, day, input_files=None):
     }
 
 
-def build(input_dir=DEFAULT_INPUT, map_file=DEFAULT_MAP, output=DEFAULT_OUTPUT):
+def build(input_dir=DEFAULT_INPUT, map_file=DEFAULT_MAP, output=DEFAULT_OUTPUT, hackathon_dining=None, hackathon_catalog=None):
     input_dir, map_file, output = Path(input_dir), Path(map_file), Path(output)
+    if hackathon_dining or hackathon_catalog:
+        from hackathon_dining import PRIVATE
+        if not output.resolve().is_relative_to(PRIVATE.resolve()):
+            raise ValueError("Restricted hackathon bundles must stay in data-pipeline/.cache/hackathon")
     snapshots, inputs = {}, []
     manifest_path = input_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
@@ -330,6 +378,18 @@ def build(input_dir=DEFAULT_INPUT, map_file=DEFAULT_MAP, output=DEFAULT_OUTPUT):
         snapshots[name] = json.loads(body)
         relative = path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else path.name
         inputs.append({"path": relative, "sha256": checksum})
+    if hackathon_catalog:
+        from hackathon_catalog import merge
+        path = Path(hackathon_catalog)
+        body = path.read_bytes()
+        snapshots["catalog"] = merge(snapshots["catalog"], json.loads(body))
+        inputs.append({"path": "hackathon/" + path.name, "sha256": hashlib.sha256(body).hexdigest()})
+    if hackathon_dining:
+        from hackathon_dining import overlay
+        path = Path(hackathon_dining)
+        body = path.read_bytes()
+        snapshots = overlay(snapshots, json.loads(body))
+        inputs.append({"path": path.name, "sha256": hashlib.sha256(body).hexdigest()})
     body = map_file.read_bytes()
     inputs.append({"path": map_file.relative_to(ROOT).as_posix() if map_file.is_relative_to(ROOT) else map_file.name,
                    "sha256": hashlib.sha256(body).hexdigest()})
@@ -347,9 +407,11 @@ def main():
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--map-data", type=Path, default=DEFAULT_MAP)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--hackathon-dining", type=Path, help="Restricted dining snapshot; requires a private --output path")
+    parser.add_argument("--hackathon-catalog", type=Path, help="Restricted catalog snapshot; requires a private --output path")
     args = parser.parse_args()
     try:
-        bundle, size = build(args.input_dir, args.map_data, args.output)
+        bundle, size = build(args.input_dir, args.map_data, args.output, args.hackathon_dining, args.hackathon_catalog)
     except (OSError, ValueError, KeyError) as error:
         parser.exit(1, f"Cannot build map data: {error}\n")
     summary = {**bundle["coverage"]}

@@ -8,7 +8,7 @@ export const PDP_NONCREDIT_SOURCE = 'https://www.bu.edu/fitrec/2024/02/27/fall-2
 export function courseLevel(courseCode: string): CourseLevel {
   const code = courseCode.trim().toUpperCase().replace(/\s+/g, ' ');
   if (/^PDP\b/.test(code)) return 'nondegree';
-  const number = /\b(\d{3})[A-Z]?$/.exec(code);
+  const number = /\b(\d{3})[A-Z]*$/.exec(code);
   if (!number) return 'unknown';
   const value = Number(number[1]);
   if (value < 100) return 'nondegree';
