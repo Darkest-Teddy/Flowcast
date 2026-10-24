@@ -42,10 +42,21 @@ Mapbox GL JS (Standard) or MapLibre ──── base map, real 3D buildings
        │                                  corner edges, by % full (never hides the building models)
        ├─ TripsLayer     flow-trails      fading trails behind walkers = flows between buildings
        └─ ScenegraphLayer agents-*        Kenney Mini Characters, GPU-instanced, walk animation
-HTML overlay (BuildingTags.tsx) ─────────  "CDS · 87% · Packed" tags (number and word, never colour alone)
+HTML overlays (BuildingTags.tsx, TransitTags.tsx)  glass tags for buildings, stations, stops, docks, vehicles
 ```
 
-**The crowd look.** Each tracked building gets: a soft pool of light on the ground whose reach and brightness grow with how full it is (`crowd-halo`; the fade is a tiny shader extension in `crowdGlow.ts`); a crisp neon rim with a bloom along the top of the building's model, plus a faint roof wash where the model has a flat top; hairline light edges up its sharp corners, fading out towards the street. Packed buildings breathe and send a slow ring out across the ground. The selected building's rim and edges turn white. All of it sits at the **detailed model's** height (`building-models.json`) and uses the models' depth bias, so models can't swallow it. The tags are HTML: a glass card with a kind icon, the short name, "87% · Packed" and a fill bar, on a stem standing on the roof. React renders only their container; the frame loop moves them with transforms and runs them through the same screen-space placer as the station labels (tags first).
+**The crowd look.** Each tracked building gets: a soft pool of light on the ground whose reach and brightness grow with how full it is (`crowd-halo`; the fade is a tiny shader extension in `crowdGlow.ts`); a crisp neon rim with a bloom along the top of the building's model, plus a faint roof wash where the model has a flat top; hairline light edges up its sharp corners, fading out towards the street. Packed buildings breathe and send a slow ring out across the ground. The selected building's rim and edges turn white. All of it sits at the **detailed model's** height (`building-models.json`) and uses the models' depth bias, so models can't swallow it. The tags are HTML, on a stem standing on the roof. By default each is a small pill: a level dot, the short name and the %, so never colour alone. Hovering the pill, its roof dot or the building on the map (deck.gl `onHover`), focusing it (Tab), tapping it, or selecting the building expands it into the full glass card: kind icon, name, "87% · Packed" and a fill bar. React renders only their container; the frame loop moves them with transforms and runs them through the shared screen-space placer.
+
+**Transit and Bluebikes tags** (`TransitTags.tsx` on the shared engine in `tags/glassTags.ts`) work the same way, each a pill that expands on hover, focus or tap of the pill or its dot on the map:
+
+| Tag | Pill | Card |
+|---|---|---|
+| Green Line station (from zoom 16.2) | T roundel and name | Branch badges and the next train each way ("Inbound B 2 min · Outbound 7 min"); pulses while one is arriving |
+| Bus / BU shuttle stop (zoom 17+, on screen, with predictions) | Route badges in route colours ("BU" red) | The stop and the next arrival per route |
+| Bluebikes dock (zoom 16+) | Bikes, plus EMPTY / FULL | Bikes, empty docks, e-bikes, "Est." at playback times |
+| Vehicle (hover or click) | (none) | Route, direction, status |
+
+Placement order through the one placer is building tags, stations, stops, docks, then the monument labels.
 
 | File | What it does |
 |---|---|
@@ -53,7 +64,9 @@ HTML overlay (BuildingTags.tsx) ─────────  "CDS · 87% · Pack
 | `src/layers/agents.ts` | Character models, facing direction, de-synchronised walk cycles |
 | `src/layers/crowd.ts` | Building glow and trails, plus the shared Quiet/Moderate/Busy/Packed scale (`crowdLevel`, `crowdLevelStyle`) |
 | `src/BuildingTags.tsx` | The HTML building tags over the map; clicking one selects the building |
+| `src/TransitTags.tsx`, `src/tags/glassTags.ts` | HTML tags for stations, bus and shuttle stops, Bluebikes docks and the hovered vehicle |
 | `src/sim/playback.ts` | Where everyone is at time *t* and how full each place is. The server takes this over later (plan Section 8.1) |
+| `src/sim/riders.ts`, `src/layers/riders.ts` | People at Green Line stations and bus / shuttle stops: queues that grow with the time of day, boarding when a train or bus (live, or scheduled when playing back) stops, and riders getting off and walking to buildings along `stopRoutes`. Walking riders share the students' walk layers; people waiting get 12 idle layers |
 | `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
 | `src/App.tsx` | The frame loop, dashboard panel and timeline |
 
@@ -103,7 +116,10 @@ The **Bikes** tab and the blue riders are the only *measured* movement on the ma
   // Each walk route once; a trip names its route by "from>to". The map rebuilds
   // timestamps = depart + metres / speed (seconds since midnight, one per point).
   "walkRoutes": { "warren>cds": { "path": [[lng, lat], …], "cumulative": [0, 12.4, …] } },
-  "trips":     [{ "agent": "a0000", "from": "warren", "to": "cds", "depart": 32400.0, "speed": 1.31 }]
+  "trips":     [{ "agent": "a0000", "from": "warren", "to": "cds", "depart": 32400.0, "speed": 1.31 }],
+  // Riders: from each Green Line station / bus / BU Shuttle stop near a campus to its 8 nearest
+  // locations (within 1.2 km), same form as walkRoutes; path[0] is the stop itself.
+  "stopRoutes": { "place-bucen>cas": { "path": [[lng, lat], …], "cumulative": [0, 9.8, …] } }
 }
 ```
 
