@@ -158,25 +158,14 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
     });
 
   return [
-    // A light casing under every bus line, so dark ones (BU's black Albany St line) still read.
-    new PathLayer<RoutePath>({
-      id: 'transit-bus-casing',
-      data: busPaths,
-      getPath: (d) => d.path,
-      getColor: [255, 255, 255, 150],
-      getWidth: (d) => (d.route.id === '57' ? 7 : 5.5),
-      widthUnits: 'pixels',
-      capRounded: true,
-      jointRounded: true,
-      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
-      slot: 'middle',
-    }),
     new PathLayer<RoutePath>({
       id: 'transit-bus-routes',
       data: busPaths,
       getPath: (d) => d.path,
-      getColor: (d) => hexToColor(d.route.color, d.route.id === '57' ? 255 : 210),
-      getWidth: (d) => (d.route.id === '57' ? 5 : 3.5),
+      // Thin and slightly translucent, so routes read as a quiet layer under the traffic and
+      // vehicles; the 57 (the main Comm Ave line) is a touch stronger.
+      getColor: (d) => hexToColor(d.route.color, d.route.id === '57' ? 230 : 170),
+      getWidth: (d) => (d.route.id === '57' ? 3 : 2),
       widthUnits: 'pixels',
       capRounded: true,
       jointRounded: true,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
@@ -6,6 +6,7 @@ import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/ag
 import { crowdLayers, crowdLevel } from './layers/crowd';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
+import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
@@ -18,6 +19,9 @@ import { buildSourceDay } from './sim/sourceDay';
 import { SourceDataPanel } from './SourceDataPanel';
 import type { DayData, CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
+import { PerfMonitor, type PerfCounts } from './PerfMonitor';
+import { WeatherControls } from './WeatherControls';
+import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
@@ -67,6 +71,7 @@ export default function App() {
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
   const transitRef = useRef<Transit | null>(null);
+  const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
 
   const [status, setStatus] = useState('Loading campus…');
@@ -91,6 +96,8 @@ export default function App() {
   const [showTraffic, setShowTraffic] = useState(true);
   const [feedError, setFeedError] = useState<string | null>(null);
   const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
+  const [weather, setWeather] = useState<ActiveWeather | null>(null);
+  const weatherRef = useRef<ActiveWeather | null>(null); // read by the frame loop (occupancy nudge)
 
   useEffect(() => {
     let cancelled = false;
@@ -104,7 +111,7 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
@@ -115,10 +122,17 @@ export default function App() {
         loadBuildings().catch(() => null),
         loadStreet().catch(() => null),
         loadCampusData().catch(() => { setSourceError("Could not load campus data. Showing the demo."); return null; }),
+        loadMonuments().catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
+      const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
+      const plainFootprints = day.buildings.filter((f) => !modelled.has(f.id));
+      if (detailedBuildings) {
+        // Our detailed models replace Mapbox's own copies of those buildings.
+        basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])));
+      }
 
       if (transitData) {
         // BU's own shuttles join the MBTA data: same tracks, snapping and panels.
@@ -191,32 +205,39 @@ export default function App() {
         const t = timeRef.current;
         const walking = playback.walkingAt(t);
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
-          occupancy = playback.occupancyAt(t);
+          occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
           lastOccupancy = now;
           setHud({ time: t, walking: walking.length, occupancy });
         }
         // One placer per frame, shared by every label layer: building labels first, then stations.
         const placer = createPlacer(basemap.project);
         const transit = transitRef.current;
-        overlay!.setProps({
-          layers: [
-            ...(detailedBuildings
-              ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
-              : []),
-            ...crowdLayers({
-              footprints: day.buildings,
-              buildings: playback.byBuilding(occupancy),
-              trips: playback.data.trips,
-              time: t,
-              speed: speedRef.current,
-              selectedId: selectedRef.current,
-              placer,
-            }),
-            ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
-            ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
-            ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
-          ],
-        });
+        const frameLayers = [
+          ...(detailedBuildings
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
+            : []),
+          ...crowdLayers({
+            // Buildings with detailed models skip the old extruded crowd box: it cut through
+            // their real shape (CDS's offset blocks) and flickered on zoom. Their tags remain.
+            footprints: plainFootprints,
+            buildings: playback.byBuilding(occupancy),
+            trips: playback.data.trips,
+            time: t,
+            speed: speedRef.current,
+            selectedId: selectedRef.current,
+            placer,
+          }),
+          ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
+          ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+          ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
+          ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+        ];
+        overlay!.setProps({ layers: frameLayers });
+        perfRef.current = {
+          walkers: walking.length,
+          vehicles: transit ? (liveRef.current ? transit.feed.positionsAt(now) : transit.schedule.positionsAt()).length : 0,
+          layers: frameLayers.length,
+        };
         frame = requestAnimationFrame(tick);
       };
       frame = requestAnimationFrame(tick);
@@ -250,6 +271,8 @@ export default function App() {
     if (c.id === 'charles-river') basemapRef.current?.flyTo(INITIAL_VIEW.center, INITIAL_VIEW.zoom);
     else basemapRef.current?.flyTo(c.center, 16.4);
   };
+
+  const getPerfCounts = useCallback(() => perfRef.current, []);
 
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
@@ -338,7 +361,9 @@ export default function App() {
 
       {status && <div className="panel status" role="status">{status}</div>}
 
+      <PerfMonitor counts={getPerfCounts} />
       {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
+      {mapKind && <WeatherControls basemap={basemapRef.current} light={light} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
 
       {hud && (
         <aside className="panel side">
@@ -353,6 +378,7 @@ export default function App() {
           </div>
           {tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
+              {weather && <WeatherImpact weather={weather} />}
               <h2>Campus activity</h2>
               <ol>
                 {ranked.slice(0, 8).map((o) => {
@@ -545,6 +571,20 @@ export default function App() {
 
 
     </div>
+  );
+}
+
+/** One line on how the weather changes campus routines (plan Section 5.6), and what the map adjusts for it. */
+function WeatherImpact({ weather }: { weather: ActiveWeather }) {
+  const { note, boost } = weatherImpact(weather.condition);
+  return (
+    <p className="weather-impact">
+      <strong>Weather impact:</strong> {note}.
+      <span className="muted">
+        {weather.live ? 'Live weather' : 'Simulated weather'}
+        {boost > 0 && ` · dining and library activity +${Math.round(boost * 100)}%`}
+      </span>
+    </p>
   );
 }
 
