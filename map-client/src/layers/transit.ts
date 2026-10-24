@@ -128,7 +128,9 @@ function staticTransit(data: TransitData, routes: Map<string, TransitRoute>): St
 
 export function transitLayers({ data, feed, now, zoom, models, time, weekday }: TransitLayerInput) {
   // BU shuttle lines appear only during their service hours (the Night line in the evening).
-  const running = (r: TransitRoute) => r.kind !== 'shuttle' || time === undefined || weekday === undefined || shuttleInService(r, time, weekday);
+  // A published timetable decides when it has one for the line; otherwise the estimated service window.
+  const running = (r: TransitRoute) => r.kind !== 'shuttle' || (feed.inService?.(r.id)
+    ?? (time === undefined || weekday === undefined || shuttleInService(r, time, weekday)));
   const routes = new Map(data.routes.filter(running).map((r) => [r.id, r]));
   const kindOf = (routeId: string) => routes.get(routeId)?.kind ?? 'bus';
   const cached = staticTransit(data, routes);

@@ -67,14 +67,14 @@ const ARRIVING = [0.3, 0.3, 0.3, 0.3, 0.4, 0.8, 1.2, 1.5, 1.6, 1.5, 1.3, 1.1, 1,
 type KindWeights = Record<LocationKind, number>;
 // Where people getting off head, and where people catching one come from, by time of day.
 const GOING_TO: [number, KindWeights][] = [
-  [11, { classroom: 3, library: 1.5, dining: 1, gym: 0.5, dorm: 0.4, 'off-campus': 0 }],
-  [16, { classroom: 2, library: 1.5, dining: 2, gym: 0.8, dorm: 0.8, 'off-campus': 0 }],
-  [24, { classroom: 0.6, library: 1.2, dining: 2, gym: 1, dorm: 3, 'off-campus': 0 }],
+  [11, { classroom: 3, library: 1.5, dining: 1, gym: 0.5, dorm: 0.4, outdoor: 0, 'off-campus': 0 }],
+  [16, { classroom: 2, library: 1.5, dining: 2, gym: 0.8, dorm: 0.8, outdoor: 0, 'off-campus': 0 }],
+  [24, { classroom: 0.6, library: 1.2, dining: 2, gym: 1, dorm: 3, outdoor: 0, 'off-campus': 0 }],
 ];
 const COMING_FROM: [number, KindWeights][] = [
-  [11, { classroom: 0.6, library: 0.8, dining: 1, gym: 0.5, dorm: 3, 'off-campus': 0 }],
-  [16, { classroom: 2, library: 1.5, dining: 2, gym: 0.8, dorm: 0.8, 'off-campus': 0 }],
-  [24, { classroom: 2.5, library: 2, dining: 1.2, gym: 1, dorm: 0.6, 'off-campus': 0 }],
+  [11, { classroom: 0.6, library: 0.8, dining: 1, gym: 0.5, dorm: 3, outdoor: 0, 'off-campus': 0 }],
+  [16, { classroom: 2, library: 1.5, dining: 2, gym: 0.8, dorm: 0.8, outdoor: 0, 'off-campus': 0 }],
+  [24, { classroom: 2.5, library: 2, dining: 1.2, gym: 1, dorm: 0.6, outdoor: 0, 'off-campus': 0 }],
 ];
 
 const METRES_PER_DEG_LAT = 110_540;
