@@ -154,19 +154,20 @@ function viewFromUrl() {
 
 export const INITIAL_VIEW = viewFromUrl();
 
-// Keep the camera (and so tile loading) to Boston: every campus with room to spare, from
-// Brighton/Allston to the Seaport and Cambridge to Roxbury. No need to render the world.
+// Keep the camera (and so tile loading) to the campuses and central Boston: West Campus /
+// Nickerson to downtown and the Seaport edge, the Cambridge riverbank to the Medical Campus.
 const BOSTON_LIMITS = {
   maxBounds: [
-    [-71.19, 42.3],
-    [-71.0, 42.4],
+    [-71.135, 42.325],
+    [-71.045, 42.368],
   ] as [[number, number], [number, number]],
-  minZoom: 12,
+  minZoom: 13.5,
 };
 
 // Mapbox's live traffic tiles (refreshed every few minutes). Congestion is shown by width as
 // well as colour, so it doesn't rely on colour alone (plan Section 10.3).
 const TRAFFIC_LAYER = 'flowcast-traffic';
+const ROAD_LABEL_MIN_ZOOM = 17.2;
 // Google Maps-style live traffic: every main road carries a continuous line coloured by speed.
 // Thickness follows the road's size; heavier traffic is also slightly thicker, so the overlay
 // never relies on colour alone.
@@ -262,6 +263,18 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     tameInteractions(map);
     await new Promise<void>((resolve) => map.once('style.load', () => resolve()));
     addTrafficLayer(map);
+    // Distance haze: the tilted camera would otherwise show the whole region out to the
+    // horizon. Fading out a few km away keeps the eye on campus and central Boston.
+    map.setFog({ range: [0.8, 3.2], 'horizon-blend': 0.25 });
+    // Street names stay out of the way: hidden until you zoom in close, then in a muted grey.
+    map.setConfigProperty('basemap', 'colorRoadLabels', '#9AA0A8');
+    let roadLabels: boolean | null = null;
+    const updateRoadLabels = () => {
+      const show = map.getZoom() >= ROAD_LABEL_MIN_ZOOM;
+      if (show !== roadLabels) map.setConfigProperty('basemap', 'showRoadLabels', (roadLabels = show));
+    };
+    updateRoadLabels();
+    map.on('zoom', updateRoadLabels);
     return {
       kind: 'mapbox',
       addControl: (control) => map.addControl(control),
