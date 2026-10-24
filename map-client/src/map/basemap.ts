@@ -33,6 +33,8 @@ export interface Basemap {
   /** Screen pixel position of a lng/lat (ground level). */
   project(lngLat: [number, number]): [number, number];
   getZoom(): number;
+  /** [west, south, east, north] of the ground in view (lng/lat). */
+  visibleBounds(): [number, number, number, number];
   /** True once every tile the current view needs has loaded (the loading screen waits on it). */
   tilesLoaded(): boolean;
   remove(): void;
@@ -410,6 +412,10 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         return [p.x, p.y];
       },
       getZoom: () => map.getZoom(),
+      visibleBounds: () => {
+        const b = map.getBounds();
+        return b ? [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] : [-180, -90, 180, 90];
+      },
       tilesLoaded: () => map.areTilesLoaded(),
       remove: () => {
         stopQuality();
@@ -452,6 +458,10 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       return [p.x, p.y];
     },
     getZoom: () => map.getZoom(),
+    visibleBounds: () => {
+      const b = map.getBounds();
+      return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+    },
     tilesLoaded: () => map.areTilesLoaded(),
     remove: () => map.remove(),
     ...cameraApi(map as unknown as CameraMap, 85),

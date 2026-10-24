@@ -8,6 +8,28 @@ import type { BuildingVolume } from './buildings';
 
 type XY = [number, number];
 
+/** The fields of a building-models.json entry the glow reads. Context entries are scenery (the
+ *  city around campus, Fenway Park): they have models but never glow, tags or occupancy. */
+interface ManifestEntry { osm: string; height: number; volumes?: BuildingVolume[]; context?: boolean }
+type Manifest = { campuses: { buildings: ManifestEntry[] }[] } | null | undefined;
+const tracked = (manifest: Manifest) => manifest?.campuses.flatMap((c) => c.buildings.filter((b) => !b.context)) ?? [];
+
+/** Top of each building's detailed model, by OSM id (building-models.json). */
+export type RoofHeights = ReadonlyMap<string, number>;
+
+/** Reads model heights from the building-model manifest (any object of that shape), BU's only. */
+export function modelRoofHeights(manifest?: Manifest): RoofHeights {
+  return new Map(tracked(manifest).map((b) => [b.osm, b.height] as const));
+}
+
+/** The massing of each multi-volume model, by OSM id (building-models.json `volumes`). */
+export type ModelVolumes = ReadonlyMap<string, readonly BuildingVolume[]>;
+
+/** Reads the models' volumes from the building-model manifest (any object of that shape), BU's only. */
+export function modelVolumes(manifest?: Manifest): ModelVolumes {
+  return new Map(tracked(manifest).flatMap((b) => (b.volumes?.length ? [[b.osm, b.volumes] as const] : [])));
+}
+
 const M_PER_DEG_LAT = 110_540;
 const M_PER_DEG_LNG = 111_320;
 

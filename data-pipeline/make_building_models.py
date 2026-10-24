@@ -8,6 +8,11 @@ rooftop plant, mansard roofs, bay fronts and stoops on the Bay State Road browns
 hand-tuned shapes for the iconic buildings (CDS, Marsh Chapel, Warren Towers, StuVi, Agganis,
 CAS, Mugar, GSU).
 
+The streets around campus get the same treatment as scenery ("context" buildings, see
+CONTEXT_AREAS): every building fronting Comm Ave from Kenmore out to 1019 Comm Ave / New Balance
+Field, the Kenmore Square blocks, Lansdowne Street and Fenway Park (landmark_ballpark), in the
+same campus GLBs, so they add vertices but no draws. The app never gives them crowd data.
+
 Output (one draw-friendly GLB per campus, geometry merged per material):
     map-client/public/models/buildings-<campus>.glb
     map-client/public/data/building-models.json   (manifest; see map-client/src/layers/buildings.ts)
@@ -87,9 +92,35 @@ EXTRA_IDS = {"way/29827118", "way/29932285"}
 # Medical Campus: the OSM campus area also holds BMC's hospital, a hotel and private housing, so
 # there only university buildings, named BU buildings and these are kept.
 MEDICAL_EXTRA = {"way/484824710"}  # Crosstown Center (801 Mass Ave): BU School of Public Health
-# Not BU's, but set in a row of BU buildings: modelled generically (same street style as their
-# neighbours) so the row has no plain grey box in it. They get a model, never crowd data.
+# Context buildings: not BU's, modelled generically (in their street's style) so the streets around
+# campus have no plain grey boxes in them. Scenery only: the manifest marks them "context": true
+# and the app never gives them crowd glow, tags or occupancy.
+#
+# FILL_IN_IDS: single buildings set in a row of BU buildings.
 FILL_IN_IDS = {"way/697017309"}  # 165 Bay State Road (MIT's ΣΑΕ house, backs onto Back Street)
+# CONTEXT_AREAS: every OSM building whose centroid falls inside one of these rings ([lng, lat]) is
+# modelled, whoever owns it, except the SKIP_TYPES / SKIP_AMENITY ones, building=roof canopies and
+# anything under CONTEXT_MIN_AREA. They go into `campus`'s GLB (no new files, no new draws).
+CONTEXT_AREAS = [
+    # Both block faces of Comm Ave from 1019 Comm Ave / Langsam Garage (New Balance Field) east to
+    # Kenmore: the Allston / Brookline side across from West Campus, Agganis, FitRec, CGS and CFA
+    # (first row of buildings only, not the side streets behind), the infill on the north side
+    # between 957 and 989, and on to the BU Bridge and Kenmore.
+    {"name": "Commonwealth Avenue", "campus": "charles-river", "ring": [
+        (-71.12185, 42.35300), (-71.11800, 42.35300), (-71.11180, 42.35200), (-71.10800, 42.35100),
+        (-71.10300, 42.35040), (-71.10030, 42.35000), (-71.10030, 42.34850), (-71.10300, 42.34880),
+        (-71.10800, 42.34940), (-71.11180, 42.34990), (-71.11500, 42.35000), (-71.11750, 42.35010),
+        (-71.11850, 42.35090), (-71.12185, 42.35105)]},
+    # Kenmore Square: Bay State Road, Beacon Street and Comm Ave around Myles Standish Hall (610
+    # Beacon) east to Charlesgate, and the Beacon Street / Brookline Avenue blocks down to the Pike.
+    {"name": "Kenmore Square", "campus": "charles-river", "ring": [
+        (-71.10030, 42.35080), (-71.09180, 42.35080), (-71.09180, 42.34790), (-71.10030, 42.34790)]},
+    # Fenway Park (its own landmark model) and Lansdowne Street, Brookline Avenue to MGM Music Hall.
+    {"name": "Fenway Park", "campus": "charles-river", "ring": [
+        (-71.09950, 42.34785), (-71.09430, 42.34785), (-71.09430, 42.34660), (-71.09600, 42.34570),
+        (-71.09850, 42.34570), (-71.09950, 42.34660)]},
+]
+CONTEXT_MIN_AREA = 40.0  # m²: kiosks, ticket booths and sheds stay as the base map draws them
 
 METRES_PER_LEVEL = 3.6
 # True heights where OSM's tags are missing or misleading (from the reference research).
@@ -1338,6 +1369,7 @@ for fam, band in FAMILY_BAND.items():
     PLAIN["wall_" + fam] = band_average(band)
 PLAIN["wall_glass"] = (84, 104, 122)
 PLAIN["wall_modern"] = band_average(B_MODERN, 0, 128)
+PLAIN["grass"] = (92, 150, 66)  # ballpark turf (last, so the existing materials keep their order)
 CORNICE_MAT = {"stone": "trim_stone", "brown": "trim_brown", "white": "trim_white", "metal": "trim_metal",
                "concrete": "trim_concrete"}
 # Textured facade materials share the atlas; small tints vary neighbouring buildings.
@@ -1532,6 +1564,8 @@ class Building:
         self.campus = campus
         self.rings_ll = element_rings(el)
         self.parts = []
+        self.context = False  # scenery (FILL_IN_IDS / CONTEXT_AREAS), not one of BU's buildings
+        self.area = None      # the CONTEXT_AREAS entry it was picked for
 
 
 def is_bu_tagged(tags):
@@ -1541,6 +1575,17 @@ def is_bu_tagged(tags):
 def foreign_operator(tags):
     op = tags.get("operator") or tags.get("owner")
     return bool(op) and not BU_NAME.search(op)
+
+
+def context_area(pt):
+    """The CONTEXT_AREAS entry holding this [lng, lat] point, if any."""
+    return next((a for a in CONTEXT_AREAS if point_in_ring(pt, a["ring"])), None)
+
+
+def footprint_area(ring_ll):
+    """Approximate area (m²) of a [lng, lat] ring."""
+    k = math.cos(math.radians(ring_ll[0][1]))
+    return abs(signed_area([(p[0] * 111320 * k, p[1] * 110540) for p in ring_ll]))
 
 
 def select_buildings(charles, medical, areas):
@@ -1582,21 +1627,26 @@ def select_buildings(charles, medical, areas):
             else:
                 in_fenway = any(inside(a, c) for a in FENWAY_AREAS)
                 in_main = inside(BU_MAIN, c)
-                if not (in_fenway or in_main or is_bu_tagged(tags) or ref in EXTRA_IDS or ref in FILL_IN_IDS):
-                    continue
-                if foreign_operator(tags) and ref not in FILL_IN_IDS:
-                    continue
-                if btype in HOUSE_TYPES and "Bay State Road" not in tags.get("addr:street", ""):
-                    continue
-                campus = "fenway" if in_fenway else "charles-river"
+                bu = ((in_fenway or in_main or is_bu_tagged(tags) or ref in EXTRA_IDS) and not foreign_operator(tags)
+                      and not (btype in HOUSE_TYPES and "Bay State Road" not in tags.get("addr:street", "")))
+                area = None
+                if not bu and ref not in FILL_IN_IDS:
+                    area = context_area(c)
+                    if area is None or btype == "roof" or footprint_area(rings[0][0]) < CONTEXT_MIN_AREA:
+                        continue
+                campus = area["campus"] if area else "fenway" if in_fenway else "charles-river"
             if btype in SKIP_TYPES or tags.get("amenity") in SKIP_AMENITY:
                 continue
-            chosen.setdefault(ref, Building(el, campus))
-    # building:part pieces belong to the building whose outline holds their centre.
+            if ref not in chosen:
+                b = chosen[ref] = Building(el, campus)
+                if region == "charles" and not bu:
+                    b.context, b.area = True, area
+    # building:part pieces belong to the building whose outline holds their centre (BU's first).
+    owners = sorted(chosen.values(), key=lambda b: b.context)
     for el in parts:
         rings = element_rings(el)
         c = ring_centroid(rings[0][0])
-        for b in chosen.values():
+        for b in owners:
             if b.rings_ll and any(point_in_ring(c, o) for o, _ in b.rings_ll):
                 b.parts.append(el)
                 break
@@ -1674,6 +1724,7 @@ LANDMARKS = {
     "way/29927783": "stuvi", "way/155291470": "stuvi", "way/102384832": "arena",
     "way/256604722": "questrom", "way/1026274040": "garage", "way/29887049": "castle", "way/1007090933": "theology",
     "way/1007090939": "cas", "way/130209089": "mugar", "way/130209090": "gsu", "way/485223499": "lawtower",
+    "relation/18354422": "ballpark",  # Fenway Park (a context building: scenery)
 }
 ROWHOUSE_STREETS = ("Bay State Road", "Buswell Street", "Park Drive", "Mountfort Street", "Beacon Street",
                     "Euston Street", "Ivy Street", "Saint Mary's Street", "Raleigh Street", "Deerfield Street",
@@ -1723,6 +1774,15 @@ def style_for(b, area, levels):
         return "brownstone" if k < 4 else "rowbrick"
     if b.campus == "medical":
         return ("brick", "concrete", "buff", "brick", "glass")[h32(b.ref) % 5]
+    if b.context:
+        # The city around campus: mostly brick, some buff brick, limestone and precast; taller
+        # blocks lean to buff, concrete and the odd glass front.
+        k = h32(b.ref + "s") % 20
+        if tags.get("building") == "parking":
+            return "concrete"
+        if levels >= 7:
+            return "buff" if k < 6 else "brick" if k < 12 else "concrete" if k < 16 else "limestone" if k < 19 else "glass"
+        return "brick" if k < 11 else "buff" if k < 15 else "limestone" if k < 18 else "concrete"
     if tags.get("building") in ("retail", "commercial"):
         return "brick"
     return "brick" if h32(b.ref) % 7 else "buff"
@@ -1775,6 +1835,9 @@ class Ctx:
         # parapet), one per volume or tower. Written to the manifest as `volumes` so the app's
         # crowd glow can trace the model's real shape (see massing_entries).
         self.massing = []
+        # A landmark that replaces one of the base map's own 3D models sets the ring (local metres)
+        # to hide that model under (written to the manifest as `clip`).
+        self.clip = None
 
     def record(self, ring, base, top):
         self.massing.append((ring, max(0.0, base), top))
@@ -3315,9 +3378,225 @@ def landmark_garage(mesh, b, ctx, rng, vols):
     return top
 
 
+def _ray_hit(ring, p, d, max_t=400.0):
+    """Distance along the unit ray p + t*d to the first edge of the ring (max_t if none)."""
+    best = max_t
+    n = len(ring)
+    for i in range(n):
+        a, c = ring[i], ring[(i + 1) % n]
+        ex, ey = c[0] - a[0], c[1] - a[1]
+        den = d[0] * ey - d[1] * ex
+        if abs(den) < 1e-12:
+            continue
+        wx, wy = a[0] - p[0], a[1] - p[1]
+        t = (wx * ey - wy * ex) / den
+        s = (wx * d[1] - wy * d[0]) / den
+        if 1e-6 < t < best and 0.0 <= s <= 1.0:
+            best = t
+    return best
+
+
+def convex_hull(pts):
+    """Counter-clockwise convex hull (monotone chain)."""
+    pts = sorted(set(pts))
+    if len(pts) < 3:
+        return pts
+
+    def half(seq):
+        out = []
+        for p in seq:
+            while len(out) >= 2 and ((out[-1][0] - out[-2][0]) * (p[1] - out[-2][1]) - (out[-1][1] - out[-2][1]) * (p[0] - out[-2][0])) <= 0:
+                out.pop()
+            out.append(p)
+        return out
+    lower, upper = half(pts), half(reversed(pts))
+    return lower[:-1] + upper[:-1]
+
+
+def _face_up(mesh, mat, pts):
+    """A planar quad / polygon, wound so it faces up (or towards +y-ish for steep ones)."""
+    nx = ny = nz = 0.0
+    n = len(pts)
+    for i in range(n):
+        x1, y1, z1 = pts[i]
+        x2, y2, z2 = pts[(i + 1) % n]
+        ny += (z1 - z2) * (x1 + x2)
+    mesh.face(mat, pts if ny >= 0 else pts[::-1])
+
+
+def landmark_ballpark(mesh, b, ctx, rng, vols):
+    """Fenway Park (1912), modest. OSM maps the stands as one ring wrapped round the field (open to
+    the outside through a narrow gap in right-centre). From the field's edge a raked seating bowl
+    (green seats, a concourse aisle) climbs from the padded wall to the concourse roof at 11.5 m;
+    where the stand is too thin for seats (left field, along Lansdowne Street) the bowl is a sheer
+    wall instead: the Green Monster, 37 ft (11.3 m). The deep grandstands behind home plate and down
+    the lines carry a roofed upper deck (suites and press box under an overhanging metal roof) and
+    the light towers. Outside: red brick, three storeys, the ground floor arcaded. The field gets
+    grass, the infield dirt and the mound.
+    Mapbox Standard draws its own (white) Fenway Park; the manifest's `clip` hides it."""
+    b.name = b.name or "Fenway Park"
+    ring = local_rings(ctx.frame, *b.rings_ll[0])[0]
+    n = len(ring)
+    H, H_UP, WALL_H, TOWER = 11.5, 20.5, 1.2, 42.0
+    dirs = [(math.cos(k * math.pi / 12), math.sin(k * math.pi / 12)) for k in range(24)]
+    # 1. Edges facing the field: every ray ahead lands on the stands again, most of them far away
+    #    (the gap between the bleachers and the right-field deck has only very short ones).
+    field = []
+    for i in range(n):
+        a, c = ring[i], ring[(i + 1) % n]
+        nrm = right_normal(a, c)
+        mid = ((a[0] + c[0]) / 2, (a[1] + c[1]) / 2)
+        probe = (mid[0] + nrm[0], mid[1] + nrm[1])
+        ahead = sorted(_ray_hit(ring, probe, d) for d in dirs if d[0] * nrm[0] + d[1] * nrm[1] > 0.05)
+        field.append(dist(a, c) > 0.3 and ahead[-1] < 400 and ahead[len(ahead) // 2] > 8)
+    best, run = [], []
+    for i in list(range(n)) * 2:
+        run = run + [i] if field[i] else []
+        if len(best) < len(run) <= n - 2:
+            best = list(run)
+    if len(best) < 3:  # not a bowl after all: a plain block
+        top = 0
+        for v in vols:
+            top = max(top, build_volume(mesh, v, ctx, {b.ref}, rng))
+        return top
+    F = [ring[i] for i in best] + [ring[(best[-1] + 1) % n]]           # field edge, stands on its left
+    inner = set(best[1:])
+    outline = [ring[i] for i in range(n) if i not in inner]           # stands + field (the gap closed)
+    chord = (F[0], F[-1])                                              # across the field's mouth
+    m = len(F)
+    rn = [right_normal(F[k], F[k + 1]) for k in range(m - 1)]          # into the field
+    # 2. Per field-edge vertex: the way into the stands, how deep the stand is, the seats' depth.
+    into, slant, thick = [], [], []
+    for k in range(m):
+        e = [rn[j] for j in (k - 1, k) if 0 <= j < m - 1]
+        sx, sy = -sum(v[0] for v in e), -sum(v[1] for v in e)
+        L = math.hypot(sx, sy) or 1.0
+        u = (sx / L, sy / L)
+        into.append(u)
+        slant.append(1.0 / max(0.6, -(u[0] * e[-1][0] + u[1] * e[-1][1])))
+        thick.append(_ray_hit(ring, (F[k][0] + u[0] * 0.05, F[k][1] + u[1] * 0.05), u))
+    seg = [dist(F[k], F[k + 1]) for k in range(m - 1)]
+
+    def smooth(d, cap):
+        d[0] = d[-1] = 0.0
+        for _ in range(4):
+            for k in range(1, m - 1):
+                d[k] = min(d[k], d[k - 1] + cap * seg[k - 1], d[k + 1] + cap * seg[k])
+        return d
+
+    def push(base, d, sign=1.0):
+        pts = []
+        for k in range(m):
+            dk = d[k]
+            while True:
+                p = (base[k][0] + into[k][0] * dk * slant[k] * sign, base[k][1] + into[k][1] * dk * slant[k] * sign)
+                if dk <= 0.0 or poly_contains([outline], p):
+                    break
+                dk = dk * 0.5 if dk > 0.5 else 0.0
+            d[k] = dk
+            pts.append(p)
+        return pts
+    depth = smooth([0.0 if t < 14 else min(30.0, 0.62 * t) for t in thick], 0.8)
+    back = push(F, depth)  # back of the seats, at the concourse roof
+    # the hole's two ends sit just inside the field, so it never touches the outline
+    for k, j in ((0, 0), (m - 1, m - 2)):
+        back[k] = (F[k][0] + rn[j][0] * 0.3, F[k][1] + rn[j][1] * 0.3)
+    width = smooth([min(14.0, t - d - 8.0) if t >= 40 else 0.0 for t, d in zip(thick, depth)], 0.6)
+    width = [w if w > 1.0 else 0.0 for w in width]
+    rear = push(back, width)  # back of the upper deck
+    facade = f"facade_{h32(b.ref) % len(FACADE_TINTS)}"
+    # 3. Outside: red brick, an arcaded ground floor, two storeys of windows, a stone cornice.
+    ys = [-0.2, 4.4, 8.0, H - 0.7]
+    on = len(outline)
+    outline_o = offset_ring_var(outline, [0.0 if {outline[i], outline[(i + 1) % on]} == set(chord) else WALL_OUT
+                                          for i in range(on)])
+    for i in range(on):
+        if {outline[i], outline[(i + 1) % on]} == set(chord):
+            continue
+        a, c = outline_o[i], outline_o[(i + 1) % on]
+        L = dist(a, c)
+        if L < 0.05:
+            continue
+        u0, u1 = (0.0, float(max(1, round(L / 3.3)))) if L > 1.8 else BLANK_U
+        for k, band in enumerate((B_BRICK_GROUND, B_BRICK, B_BRICK)):
+            vb, vt = band_v(band)
+            mesh.wall(facade, a, c, ys[k], ys[k + 1], (u0, u1, vb, vt))
+        mesh.wall("trim_stone", a, c, H - 0.7, H)
+    # 4. The bowl: padded wall, then seats (or the Monster) up to the concourse roof.
+    for k in range(m - 1):
+        a, c, sa, sc = F[k], F[k + 1], back[k], back[k + 1]
+        mesh.wall("roof_green", a, c, -0.2, WALL_H)
+        if depth[k] < 1.0 and depth[k + 1] < 1.0:
+            mesh.wall("roof_green", a, c, WALL_H, H)  # the Green Monster
+
+            continue
+
+        def at(t, p, q):
+            return (p[0] + (q[0] - p[0]) * t, WALL_H + (H - WALL_H) * t, -(p[1] + (q[1] - p[1]) * t))
+        for t0, t1, mat in ((0.0, 0.55, "copper_green"), (0.55, 0.6, "trim_concrete"), (0.6, 1.0, "copper_green")):
+            _face_up(mesh, mat, [at(t0, a, sa), at(t0, c, sc), at(t1, c, sc), at(t1, a, sa)])
+    mesh.flat("roof_gravel", [oriented(outline_o, True), oriented(back, False)], H, True)
+    # 5. Upper deck: glazed suites and press box facing the field, brick behind, a metal roof
+    #    overhanging the upper rows.
+    vb, vt = band_v(B_BRICK)
+    for k in range(m - 1):
+        if not (width[k] and width[k + 1]):
+            continue
+        fa, fc, ba, bc = back[k], back[k + 1], rear[k], rear[k + 1]
+        mesh.wall("glass_dark", fa, fc, H, H + 3.6)
+        mesh.wall("trim_concrete", fa, fc, H + 3.6, H_UP)
+        mesh.wall(facade, bc, ba, H, H_UP, (0.0, float(max(1, round(dist(ba, bc) / 3.3))), vb, vt))
+        _face_up(mesh, "roof_metal", [(fa[0], H_UP, -fa[1]), (fc[0], H_UP, -fc[1]), (bc[0], H_UP, -bc[1]), (ba[0], H_UP, -ba[1])])
+        oa = (fa[0] + rn[k][0] * 4.0, fa[1] + rn[k][1] * 4.0)
+        oc = (fc[0] + rn[k][0] * 4.0, fc[1] + rn[k][1] * 4.0)
+        _face_up(mesh, "roof_metal", [(oa[0], H_UP, -oa[1]), (oc[0], H_UP, -oc[1]), (fc[0], H_UP, -fc[1]), (fa[0], H_UP, -fa[1])])
+        mesh.wall("trim_metal", oa, oc, H_UP - 0.4, H_UP)
+        for j, other in ((k, k - 1), (k + 1, k + 1)):  # end walls where the deck stops
+            if not (0 <= other < m - 1 and width[other] and width[other + 1]):
+                mesh.wall(facade, back[j], rear[j], H, H_UP)
+                mesh.wall(facade, rear[j], back[j], H, H_UP)
+    # 6. Light towers on the deep stands, spread round the bowl.
+    towers = []
+    for k in sorted((k for k in range(1, m - 1) if depth[k] > 8), key=lambda k: -thick[k]):
+        if len(towers) < 6 and all(dist(back[k], back[j]) > 55 for j in towers):
+            towers.append(k)
+    for k in towers:
+        u = into[k]
+        eu = (-u[1], u[0])
+        q = (back[k][0] + u[0] * 1.5, back[k][1] + u[1] * 1.5)
+        base = H_UP if width[k] else H
+        mesh.box("trim_metal", q, eu, 0.45, 0.45, base, TOWER - 3.0)
+        mesh.box("trim_metal", (q[0] - u[0] * 0.6, q[1] - u[1] * 0.6), eu, 4.0, 0.35, TOWER - 4.5, TOWER, top_mat="trim_metal")
+        mesh.box("trim_white", (q[0] - u[0] * 1.0, q[1] - u[1] * 1.0), eu, 3.7, 0.08, TOWER - 4.2, TOWER - 0.3)
+    # 7. The field. Home plate is in the south-west corner (Jersey and Van Ness Streets); the
+    #    diamond points out between the foul poles.
+    mesh.flat("grass", [oriented(F, True)], 0.1, True)
+    home = min(F, key=lambda p: p[0] + p[1])
+    lf = max(F, key=lambda p: p[1] - p[0])
+    rf = max(F, key=lambda p: p[0] - p[1])
+    ul = ((lf[0] - home[0]) / dist(home, lf), (lf[1] - home[1]) / dist(home, lf))
+    ur = ((rf[0] - home[0]) / dist(home, rf), (rf[1] - home[1]) / dist(home, rf))
+    ax = (ul[0] + ur[0], ul[1] + ur[1])
+    ax = (ax[0] / math.hypot(*ax), ax[1] / math.hypot(*ax))
+    pp = (-ax[1], ax[0])
+    hp = (home[0] + ax[0] * 17.0, home[1] + ax[1] * 17.0)
+
+    def rhombus(d0, d1, half):
+        mid = (d0 + d1) / 2
+        return oriented([(hp[0] + ax[0] * d0, hp[1] + ax[1] * d0), (hp[0] + ax[0] * mid + pp[0] * half, hp[1] + ax[1] * mid + pp[1] * half),
+                         (hp[0] + ax[0] * d1, hp[1] + ax[1] * d1), (hp[0] + ax[0] * mid - pp[0] * half, hp[1] + ax[1] * mid - pp[1] * half)], True)
+    mesh.flat("fin_rust", [rhombus(-4.0, 42.0, 23.0)], 0.22, True)
+    mesh.flat("grass", [rhombus(3.5, 35.5, 16.0)], 0.34, True)
+    mound = (hp[0] + ax[0] * 18.4, hp[1] + ax[1] * 18.4)
+    mesh.flat("fin_rust", [[(mound[0] + 2.7 * math.cos(k * math.pi / 4), mound[1] + 2.7 * math.sin(k * math.pi / 4)) for k in range(8)]], 0.46, True)
+    ctx.record(ring, 0.0, H)
+    ctx.clip = offset_ring(convex_hull(ring), 3.0)
+    return TOWER
+
+
 LANDMARK_FN = {"castle": landmark_castle, "theology": landmark_theology, "questrom": landmark_questrom, "garage": landmark_garage, "chapel": landmark_chapel, "cas": landmark_cas, "warren": landmark_warren, "stuvi": landmark_stuvi,
                "arena": landmark_arena, "mugar": landmark_modern, "gsu": landmark_modern, "lawtower": landmark_lawtower,
-               "cds": landmark_cds}
+               "cds": landmark_cds, "ballpark": landmark_ballpark}
 
 
 # ------------------------------------------------------------------------------------------------
@@ -3463,6 +3742,39 @@ def configure(b, v, area):
         v.merlons = True
     if style == "modern":
         v.fascia = True
+    if b.context:
+        configure_context(b, v, area)
+
+
+# Context buildings on these streets with no residential tag have shops at street level.
+SHOP_STREETS = ("Commonwealth Avenue", "Beacon Street", "Brookline Avenue", "Lansdowne Street", "Newbury Street")
+SHOP_TYPES = {"retail", "commercial", "industrial", "restaurant", "kiosk", "supermarket"}
+SHOP_AMENITY = {"restaurant", "cafe", "fast_food", "bar", "pub", "bank", "pharmacy", "ice_cream", "nightclub"}
+
+
+def configure_context(b, v, area):
+    """Context buildings (scenery): parking garages get garage openings; commercial blocks (shops at
+    street level, flats or offices above) get shopfronts, some with a canopy."""
+    tags = b.tags
+    btype = tags.get("building", "")
+    street = tags.get("addr:street", "")
+    if btype == "parking":
+        v.bands = (B_GARAGE, B_GARAGE, 6.0)
+        v.door = v.mech = v.cornice = False
+        v.use = "none"
+        return
+    shop = (btype in SHOP_TYPES or tags.get("shop") or tags.get("amenity") in SHOP_AMENITY
+            or (btype in ("yes", "office", "hotel") and area >= 90
+                and (any(s in street for s in SHOP_STREETS) or (not street and b.area is not None))))
+    if shop and v.ground and v.style != "glass":
+        upper, _, bay, _, _ = STYLES[v.style]
+        if v.bands:
+            upper, bay = v.bands[0], v.bands[2] if len(v.bands) > 2 else bay
+        v.bands = (upper, B_SHOP, bay)
+        v.stoop = v.bays = False
+        v.canopy = h32(b.ref + "c") % 3 == 0
+        if btype not in HOUSING:
+            v.use = "retail"  # shops lit in the evening; the floors above like flats
 
 
 def build_canopy(mesh, v):
@@ -3651,7 +3963,8 @@ def main():
     for campus in CAMPUSES:
         cid = campus["id"]
         frame = frames[cid]
-        mine = sorted((b for b in buildings if b.campus == cid), key=lambda b: b.ref)
+        # BU's buildings first, then the context ones: BU's geometry comes out exactly as without them.
+        mine = sorted((b for b in buildings if b.campus == cid), key=lambda b: (b.context, b.ref))
         # every OSM footprint near the campus, for party-wall detection
         footprints = []
         for el in (medical if cid == "medical" else charles):
@@ -3673,7 +3986,11 @@ def main():
         ctx.floor_plans = {}
         mesh = Mesh()
         entries = []
+        bu_verts = bu_lit = None
+        context_counts = {}
         for b in mine:
+            if b.context and bu_verts is None:
+                bu_verts, bu_lit = mesh.vert_count(), ctx.lit.vert_count()
             rng = random.Random(h32(b.ref))
             vols = volumes_for(b, frame, floors)
             if not vols:
@@ -3702,6 +4019,15 @@ def main():
                 entries[-1]["volumes"] = vols_out
             if kind == "garage":
                 entries[-1]["deck"] = 3.5  # roof deck under New Balance Field; "height" includes the parapet
+            if b.context:
+                entries[-1]["context"] = True
+                label = b.area["name"] if b.area else "fill-in"
+                context_counts[label] = context_counts.get(label, 0) + 1
+            if ctx.clip:
+                # The base map's own model of this landmark (Mapbox Standard's Fenway Park), hidden
+                # by the app's clip layer so the two never overlap.
+                entries[-1]["clip"] = [[round(lng, 7), round(lat, 7)] for lng, lat in (frame.to_lnglat(x, y) for x, y in ctx.clip)]
+                ctx.clip = None
             # Pieces Mapbox's vector tiles carry as separate features: building:part ways and a
             # relation's member ways. Listed so the app's city layer leaves them out too.
             extra = [f"{p['type']}/{p['id']}" for p in b.parts]
@@ -3709,7 +4035,7 @@ def main():
             for ref in dict.fromkeys(extra):
                 if ref != b.ref:
                     entries.append({"osm": ref, "name": None, "center": [round(c[0], 6), round(c[1], 6)],
-                                    "height": round(top, 1), "partOf": b.ref})
+                                    "height": round(top, 1), "partOf": b.ref, **({"context": True} if b.context else {})})
         out = MODELS_DIR / f"buildings-{cid}.glb"
         size = write_glb(out, mesh, png)
         for old in MODELS_DIR.glob(f"buildings-{cid}-lights-*.glb"):
@@ -3724,6 +4050,10 @@ def main():
         })
         nlit = ctx.lit.vert_count() // 4
         print(f"  {campus['name']}: {sum(1 for e in entries if 'partOf' not in e)} buildings ({len(entries)} OSM ids), {mesh.vert_count():,} vertices, {nlit:,} lit windows, {size / 1e6:.2f} MB")
+        if bu_verts is not None:
+            print(f"    of which context (scenery): {sum(context_counts.values())} buildings "
+                  f"({', '.join(f'{k} {n}' for k, n in context_counts.items())}), "
+                  f"{mesh.vert_count() - bu_verts:,} vertices, {(ctx.lit.vert_count() - bu_lit) // 4:,} lit windows")
     MANIFEST.write_text(manifest_json(manifest))
     print(f"Total {total / 1e6:.2f} MB. Manifest -> {MANIFEST.relative_to(ROOT)}")
 

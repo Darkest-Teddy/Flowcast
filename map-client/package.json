@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "prepare:data": "python3 ../data-pipeline/build_map_data.py && python3 ../data-pipeline/build_runtime_data.py && python3 ../data-pipeline/build_mobility_data.py",
+    "prepare:data": "python3 ../data-pipeline/build_map_data.py && python3 ../data-pipeline/build_runtime_data.py && python3 ../data-pipeline/build_mobility_data.py && python3 ../data-pipeline/build_shuttle_schedule.py",
     "prebuild": "npm run prepare:data",
     "test": "node --test tests/*.test.mjs"
   },

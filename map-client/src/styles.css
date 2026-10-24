@@ -46,6 +46,38 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 }
 .tabs button[aria-selected='true'] { background: rgba(255, 255, 255, 0.14); color: var(--text); }
 .tabs button:focus-visible { outline: 2px solid var(--accent); }
+.mobility-tabs { flex-wrap: wrap; }
+.incident-panel form, .incident-panel label { display: grid; gap: 8px; }
+.incident-panel form { gap: 14px; margin-top: 16px; }
+.incident-panel label, .incident-result { font-size: 13px; }
+.incident-panel select, .incident-panel button {
+  min-height: 36px;
+  padding: 8px;
+  border: 1px solid var(--muted);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  max-width: 100%;
+  min-width: 0;
+}
+.incident-panel button { cursor: pointer; }
+.incident-panel button[type='submit'] { border-color: var(--accent); }
+.incident-panel button:disabled { opacity: 0.5; cursor: default; }
+.incident-panel :is(button, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.incident-result h3 { font-size: 15px; color: var(--accent); }
+.incident-result dl { display: grid; gap: 6px; }
+.incident-result dt { color: var(--muted); }
+.incident-result dd { margin: 0 0 8px; }
+.incident-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.incident-result .incident-counts { grid-template-columns: 1fr 1fr; gap: 12px; }
+.incident-counts dd { margin: 4px 0 0; font-size: 18px; font-variant-numeric: tabular-nums; }
+.incident-decisions { margin: 16px 0; }
+.incident-decisions summary { cursor: pointer; line-height: 1.5; }
+.incident-decisions ul { list-style: none; padding: 0; display: grid; gap: 16px; }
+.incident-decisions li { border-left: 2px solid var(--muted); padding-left: 10px; }
+.incident-decisions li p { margin: 6px 0; color: var(--muted); line-height: 1.5; }
+.incident-decisions summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .row {
   display: grid;
   grid-template-columns: 1fr auto;
