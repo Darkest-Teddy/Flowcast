@@ -56,9 +56,15 @@ export function offsetPath(points: [number, number][], metres: number): [number,
 /** Half the distance between the two tracks' centres (Green Line track centres are ~3.9 m apart). */
 export const TRACK_HALF_SPACING = 1.95;
 const PAIR_MAX_METRES = 9; // the two directions count as running together when closer than this
-const FULL_SNAP_METRES = 4; // ...and are fully rebuilt this close to the shared centreline
-const BLEND_END_METRES = 6.5; // blended back to their own path out to here
-const CENTRELINE_TOLERANCE = 0.5; // metres: wobble straightened out of the centreline
+const FULL_SNAP_METRES = PAIR_MAX_METRES / 2 + 0.5; // ...fully rebuilt this close to the shared centreline
+const BLEND_END_METRES = FULL_SNAP_METRES + 2.5; // blended back to their own path out to here
+const CENTRELINE_TOLERANCE = 1.8; // metres: shifts this small are straightened out of the centreline
+// Only midpoints where the two tracks are a normal distance apart shape the centreline. At
+// crossovers (0 m apart) the midpoint sits on one track, and where one track swings out past a
+// platform (~6 m apart) it's pulled sideways; both made the tracks jog and come back.
+const GOOD_SEPARATION: [number, number] = [2.5, 5.5];
+const SMOOTH_HALF_WINDOW = 10; // metres: moving average over the centreline (keeps real curves)
+const RESAMPLE_STEP = 2; // metres
 
 type XY = [number, number];
 
@@ -106,6 +112,41 @@ function simplify(line: XY[], tolerance: number): XY[] {
   return line.filter((_, i) => keep[i]);
 }
 
+/** The line resampled every `step` metres (ends kept). */
+function resample(line: XY[], step: number): XY[] {
+  const out: XY[] = [line[0]];
+  let carry = 0;
+  for (let i = 1; i < line.length; i++) {
+    const [ax, ay] = line[i - 1];
+    const dx = line[i][0] - ax;
+    const dy = line[i][1] - ay;
+    const len = Math.hypot(dx, dy);
+    let at = step - carry;
+    while (at <= len) {
+      out.push([ax + (dx * at) / len, ay + (dy * at) / len]);
+      at += step;
+    }
+    carry = len - (at - step);
+  }
+  const last = line[line.length - 1];
+  if (Math.hypot(last[0] - out[out.length - 1][0], last[1] - out[out.length - 1][1]) > step / 4) out.push(last);
+  return out;
+}
+
+/** Moving average over +-`half` samples, the window shrinking at the ends so they stay put. */
+function movingAverage(line: XY[], half: number): XY[] {
+  return line.map((_, i) => {
+    const h = Math.min(half, i, line.length - 1 - i);
+    let x = 0;
+    let y = 0;
+    for (let k = i - h; k <= i + h; k++) {
+      x += line[k][0];
+      y += line[k][1];
+    }
+    return [x / (2 * h + 1), y / (2 * h + 1)] as XY;
+  });
+}
+
 /** Chaikin corner cutting: rounds the simplified line's corners into curves (ends stay put). */
 function smooth(line: XY[], rounds = 2): XY[] {
   let out = line;
@@ -140,20 +181,31 @@ export function alignTrackPair(
   const a = path0.map(toXY);
   const b = path1.map(toXY);
 
-  // The shared centreline: midway between the two directions wherever they run together.
+  // The shared centreline: midway between the two directions wherever they run together, from
+  // the midpoints where they're a normal distance apart (bridging straight across the others),
+  // then smoothed and straightened.
   const runs: XY[][] = [];
   let run: XY[] = [];
+  let paired = 0;
+  const close = () => {
+    if (run.length > 1 && paired > 1) runs.push(run);
+    run = [];
+    paired = 0;
+  };
   for (const p of a) {
     const q = nearestOnPolyline(p, b);
-    if (q.distance < PAIR_MAX_METRES) {
-      run.push([(p[0] + q.point[0]) / 2, (p[1] + q.point[1]) / 2]);
-    } else {
-      if (run.length > 1) runs.push(run);
-      run = [];
+    if (q.distance >= PAIR_MAX_METRES) {
+      close();
+      continue;
     }
+    paired++;
+    if (q.distance >= GOOD_SEPARATION[0] && q.distance <= GOOD_SEPARATION[1]) run.push([(p[0] + q.point[0]) / 2, (p[1] + q.point[1]) / 2]);
   }
-  if (run.length > 1) runs.push(run);
-  const centrelines = runs.map((r) => smooth(simplify(r, CENTRELINE_TOLERANCE)));
+  close();
+  const centrelines = runs.map((r) => {
+    const even = resample(r, RESAMPLE_STEP);
+    return smooth(simplify(movingAverage(even, Math.round(SMOOTH_HALF_WINDOW / RESAMPLE_STEP)), CENTRELINE_TOLERANCE), 4);
+  });
   if (!centrelines.length) return [path0, path1];
 
   const place = (path: XY[]): [number, number][] =>
