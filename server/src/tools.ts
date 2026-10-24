@@ -83,6 +83,7 @@ export function mapOutput(log: ToolLog): { show: MapShow | null; rows: AnswerRow
 
 const percent = (share: number | null) => (share === null ? null : Math.round(share * 100));
 const MAX_ROWS = 10;
+const MAX_EVENTS = 10;
 
 /** "HH:MM" or "H:MM" (24-hour) to seconds since midnight; null for anything else. */
 function parseClock(value: string | null, fallback: number): number | null {
@@ -146,8 +147,6 @@ export function nextHoursChange(data: CampusData, locationId: string, weekday: n
 
 const dayDate = (ctx: AskContext, weekday: number) => ({ day: WEEKDAYS[weekday], date: ctx.data ? dateForWeekday(ctx.data, weekday) : null });
 
-const MAX_EVENTS = 10;
-
 export function createTools(ctx: ServerAskContext, log: ToolLog) {
   const byId = new Map(ctx.locations.map((l) => [l.id, l]));
   const called = (name: string) => log.calls.push(name);
@@ -175,7 +174,7 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
         && (!q || l.name.toLowerCase().includes(q) || l.short.toLowerCase().includes(q)));
       return result({
         places: matches.slice(0, 12).map((l) => ({ id: l.id, name: l.name, ...(l.short !== l.name ? { short: l.short } : {}), kind: l.kind, campus: l.campus ?? 'charles-river', hoursStatus: hoursStatus(l.id) })),
-        ...(matches.length > MAX_EVENTS ? { more: matches.length - MAX_EVENTS } : {}),
+        ...(matches.length > 12 ? { more: matches.length - 12 } : {}),
       });
     },
   });
@@ -510,7 +509,6 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
       return result({
         scope: weekday === null ? `reference week ${week[0]} to ${week[6]}` : `${WEEKDAYS[weekday]} ${week[weekday]}`,
         ...(p ? { place: p.location.name } : {}),
-        // At most 10 events keeps the output under ~2 KB (the agent's per-tool budget).
         events: matches.slice(0, MAX_EVENTS).map(({ e, start, end }) => ({
           name: clip(e.name, 60),
           day: WEEKDAYS[week.indexOf(start.date)],
@@ -588,7 +586,8 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
       'These are published counts from their own period. Never mix them with simulated figures or call them simulated.',
     parameters: z.object({
       source: z.enum(['fitrec_visits', 'pedestrian_counts']),
-      weekday: z.number().int().min(0).max(6).nullable().describe('0 = Monday … 6 = Sunday, or null for the day shown on the map.'),
+      weekday: z.number().int().min(0).max(6).nullable()
+        .describe('0 = Monday … 6 = Sunday for that weekday of the published period; null for the hourly average over every published day (FitRec) or the shown day (pedestrians).'),
     }),
     execute: ({ source, weekday }) => {
       called('published_counts');
@@ -597,19 +596,23 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
       if (source === 'fitrec_visits') {
         const usage = ctx.data?.fitrecUsage;
         if (!usage) return noFacts();
-        const rows = usage.observations.filter((o) => weekdayOf(o.date) === w).sort((a, b) => a.hour - b.hour);
-        const date = rows[0]?.date ?? null;
+        const chosen = weekday === null ? usage.observations : usage.observations.filter((o) => weekdayOf(o.date) === weekday);
+        // Per hour: that day's count, or the mean over the days that reported the hour.
+        const byHour = new Map<number, number[]>();
+        for (const o of chosen) byHour.set(o.hour, [...(byHour.get(o.hour) ?? []), o.visits]);
+        const rows = [...byHour].sort(([a], [b]) => a - b).map(([hour, v]) => ({ hour, visits: Math.round(v.reduce((a, b) => a + b, 0) / v.length) }));
         const extreme = (better: (a: number, b: number) => boolean) => {
           let best: (typeof rows)[number] | null = null;
           for (const o of rows) if (!best || better(o.visits, best.visits)) best = o;
-          return best && { time: formatClock(best.hour * 3600), visits: best.visits };
+          return best && { time: formatClock(best.hour * 3600), hour: best.hour, visits: best.visits };
         };
         return result({
           kind: 'published count',
           source: 'FitRec hourly entry counts',
           period: `${usage.periodStart} to ${usage.periodEnd}`,
-          day: WEEKDAYS[w],
-          observedDate: date,
+          ...(weekday === null
+            ? { scope: 'average entries per hour over the published days', days: new Set(chosen.map((o) => o.date)).size }
+            : { day: WEEKDAYS[weekday], observedDate: chosen[0]?.date ?? null }),
           hours: { columns: ['hour', 'visits'], rows: rows.map((o) => [o.hour, o.visits]) },
           busiestHour: extreme((a, b) => a > b),
           quietestHour: extreme((a, b) => a < b),

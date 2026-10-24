@@ -307,11 +307,18 @@ test('model_basis, published_counts and find_places', async () => {
     assert.ok(out.basis.length >= 1 && out.basis.length <= 3, topic);
     assert.ok(log.outputs[0].length < 1200, `${topic} ${log.outputs[0].length}`);
   }
-  const fit = (await call('published_counts', { source: 'fitrec_visits', weekday: null })).out;
+  const fit = (await call('published_counts', { source: 'fitrec_visits', weekday: 2 })).out;
   assert.equal(fit.kind, 'published count');
   assert.equal(fit.observedDate, '2026-10-21'); // the Wednesday of the published week
   assert.deepEqual(fit.hours.columns, ['hour', 'visits']);
   assert.ok(fit.busiestHour.visits >= fit.quietestHour.visits);
+  const usual = (await call('published_counts', { source: 'fitrec_visits', weekday: null })).out;
+  assert.equal(usual.observedDate, undefined);
+  assert.equal(usual.days, 7);
+  const usage = ctx.data!.fitrecUsage!;
+  const at = (h: number) => usage.observations.filter((o) => o.hour === h);
+  const avg = (h: number) => Math.round(at(h).reduce((a, o) => a + o.visits, 0) / at(h).length);
+  assert.equal(usual.busiestHour.visits, avg(Number(usual.busiestHour.hour)));
   const ped = (await call('published_counts', { source: 'pedestrian_counts', weekday: 2 })).out;
   assert.equal(ped.kind, 'published count');
   assert.ok(ped.sites.length >= 1 && ped.sites[0].counts.length >= 1);
@@ -401,6 +408,7 @@ test('an empty answer or the turn limit gives the friendly fallback with what wa
 test('answers are reworded away from predictions and live counts; unsupported numbers are counted, not blocked', async () => {
   assert.equal(rewordAnswer('Our prediction: Mugar is quiet. Predicted 40%.'), 'Our projection: Mugar is quiet. Projected 40%.');
   assert.equal(rewordAnswer('The live count is 12.'), 'The simulated count is 12.');
+  assert.equal(rewordAnswer('These are simulated, not live counts.'), 'These are simulated, not measured counts.');
   assert.equal(rewordAnswer('This is accurate.'), null);
   assert.equal(rewordAnswer('It is unpredictable.'), null);
   const accurate = await askAgent('q', ctx, undefined, new ScriptedModel([[assistantMessage('Very accurate: 12 people.')]]));

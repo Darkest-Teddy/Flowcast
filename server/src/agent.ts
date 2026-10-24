@@ -39,7 +39,7 @@ function instructions(ctx: ServerAskContext): string {
     '- Published counts (published_counts, evidence items) are observed data from their own period. Call them published counts, give their period, and never mix them with simulated figures.',
     '- If a tool gives afterMidnightNote, say the place is open then but the simulation doesn’t model visits after midnight; never call it empty.',
     '- For another day, pass the weekday parameter (0 = Monday). If a tool returns available=false, say that day is still being simulated and to try again shortly.',
-    '- For "why" questions about crowding or numbers, use model_basis or place_info and explain from what they return.',
+    '- For "why is X busy/full/quiet": get the simulated figure (place_day) and the driving assumption (model_basis: meals_study_gym for libraries, dining and gyms; enrollment for classrooms; housing for dorms; capacity for the percentage), then explain from both.',
     '- Crowd figures are simulated students over each place’s stated capacity. Call them "simulated" or "modeled". Never call them predictions, measurements or live counts.',
     '- If a tool says modeled=false, say the simulation doesn’t model that place on this day. If percent is null, give the student count and say the capacity isn’t comparable.',
     '- If a walk has isEstimate=true, say it is a straight-line estimate because no footpath is mapped.',
@@ -63,6 +63,8 @@ export function rewordAnswer(answer: string): string | null {
   const keepCase = (word: string, like: string) => (like[0] === like[0].toUpperCase() ? word[0].toUpperCase() + word.slice(1) : word);
   const out = answer
     .replace(/\bpredict(ed|s|ing|ion|ions)?\b/gi, (m, end = '') => keepCase(`project${end.toLowerCase()}`, m))
+    // "not live counts" says the right thing; "not simulated counts" would not.
+    .replace(/\b(not|no|aren[’']t|isn[’']t) (?:live|real-time|realtime) (counts?)\b/gi, (_m, neg: string, noun: string) => `${neg} measured ${noun}`)
     .replace(/\b(?:live|real-time|realtime) counts?\b/gi, (m) => keepCase(m.toLowerCase().endsWith('s') ? 'simulated counts' : 'simulated count', m));
   return RULED_OUT.test(out) ? null : out;
 }
