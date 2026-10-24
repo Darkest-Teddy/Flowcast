@@ -55,7 +55,7 @@ export const minimumUseful = (kind: IncidentActivity): number =>
 type Interval = { agentId: string; locationId: string; startSec: number; endSec: number };
 type SourceMatches = {
   sourceAssignments?: (Interval & { meetingId: string; courseCode: string })[];
-  sourceActivities?: (Interval & { kind: string; purpose?: string })[];
+  sourceActivities?: (Interval & { kind: string; purpose?: string; eventId?: string })[];
 };
 const intervalKey = (agent: string, location: string, start: number, end: number) => `${agent}\u0000${location}\u0000${start}\u0000${end}`;
 
@@ -67,6 +67,7 @@ export function purposeResolver(day: DayData): (stay: Stay) => StayPurpose | und
     let purpose: StayPurpose | undefined;
     if (a.kind === 'dining' || a.kind === 'library' || a.kind === 'gym') purpose = { kind: a.kind, fixed: false };
     else if (a.kind === 'off-campus-meal' || a.kind === 'off-campus-outing' || a.kind === 'unmapped-academic') purpose = { kind: a.kind, fixed: false };
+    else if (a.kind === 'gathering' && a.eventId) purpose = { kind: 'gathering', fixed: false, eventId: a.eventId };
     else if (a.kind === 'estimated' && a.purpose && a.purpose !== 'unmapped-academic')
       purpose = { kind: 'estimated', fixed: false, purpose: a.purpose as Extract<StayPurpose, { kind: 'estimated' }>['purpose'] };
     if (purpose) matches.set(intervalKey(a.agentId, a.locationId, a.startSec, a.endSec), purpose);

@@ -1,0 +1,26 @@
+# Tasks: real campus events
+
+- [x] 1. Collect all public upcoming events (Req 1)
+  - [x] 1.1 Raise default discovery limits in `scrape_events.py` and `scrape_population_data.py`
+  - [x] 1.2 Skip private (sign-in) events with a warning
+  - [x] 1.3 Parse JSON-LD with raw newlines and stray backslashes; unit tests
+  - [x] 1.4 Re-scrape; update `output/events.json` and its manifest entry (88 public events, 4 private skipped)
+- [x] 2. Resolve venues (Req 2)
+  - [x] 2.1 Name-first resolution, Agganis Arena pattern, venue address table; tests
+  - [x] 2.2 Room code and published seats per event
+  - [x] 2.3 Rebuild `campus-data.json` (33 of 88 events on mapped buildings)
+- [x] 3. Gathering behavior in sim-core (Req 3)
+  - [x] 3.1 `gatherings.ts`: events for a date, exclusions, projection, assumptions
+  - [x] 3.2 `buildSourceDay(..., { eventDate })`, gathering planning step, seat caps, outputs
+  - [x] 3.3 Event venues share the day's minute capacity ledger (found by the property test)
+  - [x] 3.4 Unit and property tests (`tests/gatherings.test.mjs`, 100 generated days)
+- [x] 4. Map integration (Req 3.8)
+  - [x] 4.1 Event date from `App.tsx`: Clock mode uses today; playback uses the representative week; `?date=` and the panel pick a date; `?events=0` shows the baseline
+  - [x] 4.2 Events panel in the Crowds tab: toggle, date picker, attendees per event, off-map reasons
+- [x] 5. Event-impact bundle
+  - [x] 5.1 `scripts/build-event-impact.mjs` -> `public/data/event-impact.json`; in `prepare:data` with `--if-stale`
+- [x] 6. Dashboard (Req 4, 5)
+  - [x] 6.1 `api.ts` reads real events and impact data; types
+  - [x] 6.2 Events page on real data, with on-map / off-map filters
+  - [x] 6.3 Event impact tab: calendar date picker, events of the day, before/after charts, every-place table, assumptions
+- [x] 7. Verify (Req 6.1): 161 Python tests, 114 map tests, map build, web typecheck and build; pages checked in headless Chrome

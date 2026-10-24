@@ -110,6 +110,7 @@ export type StayPurpose =
   | { kind: 'dining' | 'library' | 'gym'; fixed: false }
   | { kind: 'estimated'; fixed: false; purpose: EstimatedActivityProfile['purpose'] }
   | { kind: 'off-campus-meal' | 'off-campus-outing' | 'unmapped-academic'; fixed: false }
+  | { kind: 'gathering'; fixed: false; eventId: string }
   | { kind: 'wait'; fixed: false; before: 'class' | 'activity' }
   | { kind: 'home'; fixed: false };
 export interface Stay { agent: string; location: string; start: number; end: number; purpose?: StayPurpose }

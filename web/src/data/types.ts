@@ -83,13 +83,55 @@ export interface Club {
   description: string;
 }
 
+/** Why an event can or can't change crowding on the map. */
+export type EventMapStatus = 'simulated' | 'location-hidden' | 'location-unmapped' | 'multi-day' | 'invalid-time';
+
 export interface CampusEvent {
   id: string;
   title: string;
-  locationId: string;
+  locationId: string | null; // mapped Flowcast place, null when the venue isn't on the map
+  venue: string | null; // venue as published ("Sargent 101"); null when only signed-in students can see it
   start: string; // ISO
-  clubId: string | null; // null for university events
-  source: 'club-ics' | 'university' | 'manual';
+  end: string | null;
+  organizer: string | null;
+  clubId: string | null; // null for events not uploaded by a Flowcast-verified club
+  source: 'club-ics' | 'university' | 'manual' | 'terrier-central';
+  sourceUrl?: string;
+  mapStatus: EventMapStatus;
+}
+
+export interface ImpactPlace {
+  id: string;
+  name: string;
+  short: string;
+  kind: string;
+  campus: string;
+  capacity: number;
+}
+
+export interface ImpactGathering {
+  eventId: string;
+  name: string;
+  locationId: string;
+  startSec: number;
+  endSec: number;
+  attendees: number;
+  capacity: number;
+  roomCode: string | null;
+  endEstimated: boolean;
+}
+
+/** Precomputed simulation output: hourly mean head counts per place, with and without a date's events. */
+export interface EventImpactData {
+  referenceWeekStart: string;
+  attendanceProbability: number;
+  measure: string;
+  assumptions: string[];
+  places: ImpactPlace[];
+  /** Weekday (Monday = 0) to place id to 24 hourly counts, without events. */
+  baseline: Record<string, Record<string, number[]>>;
+  /** Date to that day's simulated events and the places they changed (24 hourly counts). */
+  dates: Record<string, { weekday: number; projected: boolean; occupancy: Record<string, number[]>; gatherings: ImpactGathering[] }>;
 }
 
 export type ApplicationStatus = 'pending' | 'approved' | 'rejected';

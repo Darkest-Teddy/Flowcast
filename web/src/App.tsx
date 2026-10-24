@@ -8,6 +8,7 @@ import Welcome from './pages/Welcome';
 import Schedule from './pages/Schedule';
 import Forecasts from './pages/Forecasts';
 import Events from './pages/Events';
+import EventImpact from './pages/EventImpact';
 import Clubs from './pages/Clubs';
 import Profile from './pages/Profile';
 import Calendars from './pages/Calendars';
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
       { path: 'schedule', element: <Schedule /> },
       { path: 'forecasts', element: <Forecasts /> },
       { path: 'events', element: <Events /> },
+      { path: 'event-impact', element: <EventImpact /> },
       { path: 'clubs', element: <Clubs /> },
       { path: 'profile', element: <Profile /> },
       { path: 'calendars', element: <Calendars /> },

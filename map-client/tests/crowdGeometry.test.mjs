@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { volumeGeometry } from '../src/layers/crowdGeometry.ts';
+import { modelRoofHeights, modelVolumes, volumeGeometry } from '../src/layers/crowdGeometry.ts';
 
 const LNG0 = -71.1;
 const LAT0 = 42.35;
@@ -70,4 +70,23 @@ test("CDS's stacked pieces come from the model manifest", () => {
   const listed = entries.filter((b) => b.volumes);
   assert.ok(listed.length < entries.filter((b) => !b.partOf).length / 2);
   assert.ok(listed.every((b) => !b.partOf && b.volumes.every((v) => v.ring.length >= 3 && v.top > v.base)));
+});
+
+test('context buildings (the city around campus, Fenway Park) are scenery: no glow, tags or occupancy', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../public/data/building-models.json', import.meta.url), 'utf8'));
+  const day = JSON.parse(readFileSync(new URL('../public/data/demo-day.json', import.meta.url), 'utf8'));
+  const entries = manifest.campuses.flatMap((c) => c.buildings);
+  const context = entries.filter((b) => b.context);
+  assert.ok(context.filter((b) => !b.partOf).length >= 100, 'Comm Ave, Kenmore Square and Fenway Park are modelled');
+  const fenway = entries.find((b) => b.osm === 'relation/18354422');
+  assert.ok(fenway?.context && fenway.landmark === 'ballpark' && fenway.clip?.length >= 3, "Fenway Park hides Mapbox's own model");
+  // Never tracked: no occupancy in the day, and the glow and tags never see their heights or volumes.
+  const tracked = new Set(day.buildings.map((b) => b.id));
+  assert.ok(context.every((b) => !tracked.has(b.osm)));
+  const roofs = modelRoofHeights(manifest);
+  const volumes = modelVolumes(manifest);
+  // (A relation's member ways can be shared with a BU neighbour, e.g. a party wall in a row of
+  // rowhouses; those keep the BU building's height.)
+  assert.ok(context.filter((b) => !b.partOf).every((b) => !roofs.has(b.osm) && !volumes.has(b.osm)));
+  assert.equal(roofs.get('way/277434241'), entries.find((b) => b.osm === 'way/277434241').height, "BU's are still there");
 });

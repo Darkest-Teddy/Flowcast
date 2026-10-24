@@ -91,6 +91,8 @@ HTML overlays (BuildingTags.tsx, TransitTags.tsx)  glass tags for buildings, sta
 
 **The crowd look.** Each tracked building gets: a soft pool of light on the ground whose reach and brightness grow with how full it is (`crowd-halo`; the fade is a tiny shader extension in `crowdGlow.ts`); a crisp neon rim with a bloom along the top of the building's model, plus a faint roof wash where the model has a flat top; hairline light edges up its sharp corners, fading out towards the street. Packed buildings breathe and send a slow ring out across the ground. The selected building's rim and edges turn white. All of it sits at the **detailed model's** height (`building-models.json`) and uses the models' depth bias, so models can't swallow it. Where the model is several volumes or its walls stop well below its top (CDS's stacked pieces, Warren's towers on their podium, CAS's tower, pitched roofs, the Law Tower's mast), the manifest lists its `volumes` and the rim and edges trace each volume's open roof edges and corners instead of one box over the footprint (`volumeGeometry` in `crowdGeometry.ts`; same layers, more paths). The tags are HTML, on a stem standing on the roof. By default each is a small pill: a level dot, the short name and the %, so never colour alone. Hovering the pill, its roof dot or the building on the map (deck.gl `onHover`), focusing it (Tab), tapping it, or selecting the building expands it into the full glass card: kind icon, name, "87% · Packed" and a fill bar. React renders only their container; the frame loop moves them with transforms and runs them through the shared screen-space placer.
 
+**Context buildings.** The building models also cover the city along campus so it isn't plain grey boxes: both sides of Comm Ave from Kenmore out to 1019 Comm Ave / New Balance Field, the Kenmore Square blocks round Myles Standish, Lansdowne Street and Fenway Park (`CONTEXT_AREAS` in `data-pipeline/make_building_models.py`). They're in the same campus GLBs (more vertices, no more draws), marked `"context": true` in `building-models.json`, and are scenery only: `modelRoofHeights` / `modelVolumes` leave them out, and they never get glow, tags or occupancy. Fenway Park's entry carries a `clip` ring that hides Mapbox Standard's own Fenway model under ours (`landmarkClips`, the same clip layer that keeps trees off the Green Line).
+
 **Transit and Bluebikes tags** (`TransitTags.tsx` on the shared engine in `tags/glassTags.ts`) work the same way, each a pill that expands on hover, focus or tap of the pill or its dot on the map:
 
 | Tag | Pill | Card |
@@ -192,6 +194,10 @@ The **Bikes** tab replays measured dock departures and arrivals. Blue riders fol
 ```
 
 Trips (a path plus timestamps) are what deck.gl's TripsLayer reads natively. They're also far smaller than minute-by-minute positions, and the client interpolates between points. When the Simulation Lead's `simulate_week.py` exists, it should emit this shape (one file per day). The live server can then broadcast the same objects.
+
+## Margin of error
+
+Every building figure is shown as an estimate with a 90% range (`src/sim/uncertainty.ts`): "42% ±9", or "≤3%" when the simulation has nobody there, because no building is truly empty. The band combines day-to-day variation (±1.645·√count), uncertainty in the behaviour assumptions (±15%), and people the model doesn't simulate (staff, visitors, non-students: at least 2 people or 3% of capacity, upper end only). It's display only: counts, occupancy, the crowd colours and every total stay the simulation's central numbers.
 
 ## Performance (keep it smooth)
 

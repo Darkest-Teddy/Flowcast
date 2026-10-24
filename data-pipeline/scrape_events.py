@@ -32,9 +32,17 @@ def parse_event(source):
     page = soup(source)
     event = None
     for tag in page.select('script[type="application/ld+json"]'):
+        text = tag.string or tag.get_text()
         try:
-            data = json.loads(tag.string or tag.get_text())
-        except (json.JSONDecodeError, TypeError):
+            # Organizer descriptions can contain raw newlines inside JSON strings.
+            data = json.loads(text, strict=False)
+        except json.JSONDecodeError:
+            try:
+                # ...and stray backslashes before HTML entities ("\&quot;"), which JSON rejects.
+                data = json.loads(re.sub(r'\\(?!["\\/bfnrtu])', r"\\\\", text), strict=False)
+            except json.JSONDecodeError:
+                continue
+        except TypeError:
             continue
         candidates = data if isinstance(data, list) else [data]
         for candidate in candidates:
@@ -124,7 +132,7 @@ def parse_listing(source):
     return list(dict.fromkeys(urls))
 
 
-def collect(fetcher, event_urls=None, max_events=20, max_pages=3):
+def collect(fetcher, event_urls=None, max_events=500, max_pages=25):
     """Discover bounded public Terrier Central events or fetch explicit event URLs."""
     if max_events < 1 or max_pages < 1:
         raise ScrapeError("max_events and max_pages must be positive")
@@ -161,7 +169,7 @@ def collect(fetcher, event_urls=None, max_events=20, max_pages=3):
         warnings.append("Public listing discovery is bounded; output is not a complete campus event inventory.")
     if len(set(urls)) > max_events:
         warnings.append(f"Event details truncated to the configured maximum of {max_events}.")
-    records = []
+    records, private = [], 0
     for url in list(dict.fromkeys(urls))[:max_events]:
         try:
             parts = urlsplit(url)
@@ -169,9 +177,15 @@ def collect(fetcher, event_urls=None, max_events=20, max_pages=3):
                 raise ScrapeError(f"Expected a public HTTPS Terrier Central event URL, got {url}")
             source = fetcher.get(url)
             sources.append(source.provenance)
+            # Private events redirect to a sign-in page; they are expected, not a parser failure.
+            if parse_qs(urlsplit(source.url).query).get("private_event") == ["1"]:
+                private += 1
+                continue
             records.append(parse_event(source))
         except ScrapeError as error:
             failures.append(str(error))
+    if private:
+        warnings.append(f"{private} listed events are private (sign-in required) and were not collected.")
     if not records:
         raise ScrapeError("No public events collected: " + "; ".join(failures))
     return {"events": records, "sources": sources, "warnings": warnings, "errors": failures}
@@ -179,8 +193,8 @@ def collect(fetcher, event_urls=None, max_events=20, max_pages=3):
 
 def add_arguments(parser):
     parser.add_argument("--event-url", dest="event_urls", action="append", help="Known public event URL; repeatable")
-    parser.add_argument("--max-events", type=int, default=20)
-    parser.add_argument("--max-pages", type=int, default=3, help="Maximum 40-entry listing requests")
+    parser.add_argument("--max-events", type=int, default=500)
+    parser.add_argument("--max-pages", type=int, default=25, help="Maximum 40-entry listing requests")
 
 
 if __name__ == "__main__":

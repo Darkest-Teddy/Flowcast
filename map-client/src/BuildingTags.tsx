@@ -9,6 +9,7 @@
 // so nothing here re-renders per frame. Placement goes through the shared label placer first
 // (building tags, then station labels), exactly as the old TextLayer did.
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { countInterval } from './sim/uncertainty';
 import { TagProjection } from './tags/projection';
 import type { CameraState } from './map/basemap';
 import type { LabelPlacer, Projector } from './layers/placement';
@@ -295,7 +296,17 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind 
   const percent = hasPercentage ? Math.round(share * 100) : 0;
   const seats = capacityBasis?.includes('classroom_seats') || (!capacityBasis && kind === 'classroom');
   const level = crowdLevel(share);
-  const primary = modeled === false ? 'Not modeled' : hasPercentage ? `${percent}%${seats ? ' seats' : ''}` : `${count.toLocaleString()} ${count === 1 ? 'student' : 'students'}`;
+  // A margin of error, never a bare "0%" (sim/uncertainty.ts): "42% ±9", or "≤3%" when the
+  // simulation has nobody there. The level and colour still follow the central estimate.
+  const band = countInterval(count, capacity);
+  const pct = (people: number) => Math.round((people / capacity) * 100);
+  const unit = seats ? ' seats' : '';
+  const people = (n: number) => `${n === 1 ? 'student' : 'students'}`;
+  const primary = modeled === false ? 'Not modeled'
+    : hasPercentage
+      ? count === 0 ? `≤${Math.max(1, pct(band.high))}%${unit}` : `${percent}% ±${Math.max(1, Math.round((pct(band.high) - pct(band.low)) / 2))}${unit}`
+      : count === 0 ? `≤${band.high} ${people(band.high)}` : `${count.toLocaleString()} ±${Math.round((band.high - band.low) / 2).toLocaleString()} ${people(count)}`;
+  const range = hasPercentage ? `likely ${pct(band.low)}–${pct(band.high)}%` : `likely ${band.low.toLocaleString()}–${band.high.toLocaleString()} people`;
   const secondary = hasPercentage ? level.label : '';
   return {
     primary,
@@ -304,7 +315,8 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind 
     hasPercentage,
     level: hasPercentage ? level.key : 'unmodeled',
     style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1' },
-    description: hasPercentage ? `${percent}% of ${seats ? 'classroom seats' : 'capacity'}, ${secondary}` : primary,
+    description: modeled === false ? primary : hasPercentage ? `${percent}% of ${seats ? 'classroom seats' : 'capacity'}, ${secondary} (${range}, 90% range)` : `${primary} (${range}, 90% range)`,
+    range: modeled === false ? '' : range,
   };
 }
 

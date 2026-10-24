@@ -1,6 +1,7 @@
 import {
   BadgeCheck,
   CalendarDays,
+  CalendarRange,
   CalendarSync,
   Gauge,
   Home,
@@ -29,6 +30,7 @@ export function StudentLayout() {
         { to: '/schedule', label: 'Schedule', icon: CalendarDays },
         { to: '/forecasts', label: 'Forecasts', icon: Gauge },
         { to: '/events', label: 'Events', icon: Ticket },
+        { to: '/event-impact', label: 'Event impact', icon: CalendarRange },
         { to: '/clubs', label: 'Clubs', icon: Users },
       ],
     },

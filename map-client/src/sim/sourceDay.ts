@@ -2,6 +2,7 @@ import { carriedForwardHours, CARRY_FORWARD_DAYS, dateForWeekday, openingHoursFo
 import { fitrecVisitStart } from '../data/fitrecUsage';
 import { effectiveMeetingIntervals } from '../data/academicCalendar';
 import { courseLevel, countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
+import { GATHERING_ASSUMPTIONS, gatheringsOnDate, weekdayOf, type Gathering, type GatheringOutcome } from './gatherings';
 import type { Agent, CampusLocation, DayData, EstimatedActivityProfile, StayPurpose, TransitRide, Trip } from './playback';
 import { ALIGHT_SECONDS, lastAtOrBefore, MAX_EARLY_ARRIVAL_SECONDS, MAX_STOP_PAIR_METRES, MAX_STOP_WAIT_SECONDS, MIN_WEEKLY_TRIPS,
   routeKind, TRANSIT_COMMUTER_SHARE, VEHICLE_PEAK_MAX_LOAD, type TransitService } from './transitService';
@@ -9,7 +10,9 @@ import { ALIGHT_SECONDS, lastAtOrBefore, MAX_EARLY_ARRIVAL_SECONDS, MAX_STOP_PAI
 const DAY = 86400;
 const WALK_SPEED = 1.4;
 const NO_TRANSIT = {};
-const weeklyCache = new WeakMap<DayData, WeakMap<CampusData, WeakMap<object, (weekday: number) => SourceDay>>>();
+const weeklyCache = new WeakMap<DayData, WeakMap<CampusData, WeakMap<object, (weekday: number, eventDate: string | null) => SourceDay>>>();
+/** Built days kept per weekly plan; event dates add variants, and each day holds every student's trips. */
+const CACHED_DAYS = 4;
 const HOME_BREAK = 15 * 60;
 const OFF_CAMPUS_BREAK = 30 * 60;
 export const MODELED_OFF_CAMPUS_MEAL_SHARE = 0.35;
@@ -104,6 +107,7 @@ interface Stop {
   attendanceLimit?: number;
   activity?: SourceActivity['kind'];
   estimatedProfile?: EstimatedActivityProfile;
+  gathering?: Gathering;
   component?: string;
   unmappedAcademic?: true;
 }
@@ -171,13 +175,16 @@ export interface SourceActivity {
   locationId: string;
   startSec: number;
   endSec: number;
-  kind: 'dining' | 'library' | 'gym' | 'off-campus-meal' | 'off-campus-outing' | 'estimated' | 'unmapped-academic';
+  kind: 'dining' | 'library' | 'gym' | 'off-campus-meal' | 'off-campus-outing' | 'estimated' | 'unmapped-academic' | 'gathering';
   estimated?: true;
   purpose?: EstimatedActivityProfile['purpose'] | 'unmapped-academic';
   basis?: string;
   confidence?: 'low';
   note?: string;
   proxy?: string;
+  /** Gathering visits: the source event and whether its date was projected onto this weekday. */
+  eventId?: string;
+  projected?: boolean;
 }
 
 export interface SourceDay extends DayData {
@@ -185,6 +192,9 @@ export interface SourceDay extends DayData {
   sourceStats: SourceDayStats;
   sourceAssignments: SourceAssignment[];
   sourceActivities: SourceActivity[];
+  /** Date whose campus events were simulated, or null for the no-event baseline. */
+  eventDate: string | null;
+  gatherings: GatheringOutcome[];
 }
 
 function fraction(key: string): number {
@@ -245,19 +255,25 @@ function validRoute(route: Route): boolean {
  * Cached synthetic weekly enrollment; source seats are upper bounds, never actual enrollment.
  * With a published `transit` timetable, a modeled share of commuters ride real scheduled trips
  * to and from their gateway stop; without it every gateway is only a walking access point.
+ * Without `eventDate` this is the no-event baseline. With it, that Boston date's mapped campus
+ * events run as Gathering scenarios on this weekday (the date must fall on the same weekday).
  */
-export function buildSourceDay(base: DayData, data: CampusData, weekday: number, transit?: TransitService): SourceDay {
+export function buildSourceDay(base: DayData, data: CampusData, weekday: number, transit?: TransitService, options: { eventDate?: string | null } = {}): SourceDay {
   if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) throw new Error('Weekday must be Monday=0 through Sunday=6');
+  const eventDate = options.eventDate ?? null;
+  if (eventDate !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate) || weekdayOf(eventDate) !== weekday)) {
+    throw new Error(`Event date ${eventDate} does not fall on weekday ${weekday}`);
+  }
   let cache = weeklyCache.get(base);
   if (!cache) { cache = new WeakMap(); weeklyCache.set(base, cache); }
   let byTransit = cache.get(data);
   if (!byTransit) { byTransit = new WeakMap(); cache.set(data, byTransit); }
   let makeDay = byTransit.get(transit ?? NO_TRANSIT);
   if (!makeDay) { makeDay = buildWeek(base, data, transit); byTransit.set(transit ?? NO_TRANSIT, makeDay); }
-  return makeDay(weekday);
+  return makeDay(weekday, eventDate);
 }
 
-function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (weekday: number) => SourceDay {
+function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (weekday: number, eventDate: string | null) => SourceDay {
   const locations = new Map(base.locations.map((location) => [location.id, location]));
   for (const agent of base.agents) {
     if (agent.home !== 'off-campus' && !locations.has(agent.home)) throw new Error(`Student ${agent.id} has an unknown home ${agent.home}`);
@@ -547,6 +563,8 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
   };
   const isOpen = (stop: WeeklyStop): boolean => {
     if (stop.meeting || stop.location === 'off-campus') return true;
+    // The event's published time is the access evidence; planning keeps attendance inside it.
+    if (stop.gathering) return stop.gathering.startSec <= stop.start && stop.end <= stop.gathering.endSec;
     if (stop.estimatedProfile) {
       const profile = stop.estimatedProfile;
       const source = data.locations[stop.location];
@@ -810,7 +828,8 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     let purpose: StayPurpose;
     if (stop.meeting) purpose = { kind: 'class', fixed: true, meetingId: stop.meeting.id, courseCode: stop.meeting.courseCode };
     else if (stop.estimatedProfile) purpose = { kind: 'estimated', fixed: false, purpose: stop.estimatedProfile.purpose };
-    else if (stop.activity && stop.activity !== 'estimated') purpose = { kind: stop.activity, fixed: false };
+    else if (stop.gathering) purpose = { kind: 'gathering', fixed: false, eventId: stop.gathering.eventId };
+    else if (stop.activity && stop.activity !== 'estimated' && stop.activity !== 'gathering') purpose = { kind: stop.activity, fixed: false };
     else throw new Error('Planned stop has neither a meeting nor an activity');
     purposeCache.set(stop, purpose); return purpose;
   };
@@ -999,10 +1018,17 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     const favorite = options.find(option => { choice -= option.weight; return choice < 0; })?.id;
     favorites.set(key, favorite); return favorite;
   };
-  const days = new Map<number, SourceDay>();
-  return (weekday) => {
-    const cached = days.get(weekday);
-    if (cached) return cached;
+  const days = new Map<string, SourceDay>();
+  return (weekday, eventDate) => {
+    const cacheKey = `${weekday}:${eventDate ?? 'baseline'}`;
+    const cached = days.get(cacheKey);
+    if (cached) { days.delete(cacheKey); days.set(cacheKey, cached); return cached; }
+    const gatherings = eventDate ? gatheringsOnDate(data, eventDate).filter(g => locations.has(g.locationId)) : [];
+    const gatheringAttendees = new Map(gatherings.map(g => [g.id, 0]));
+    const gatheringCapacity = (g: Gathering) => {
+      const venue = locations.get(g.locationId)!;
+      return Math.max(0, Math.floor(Math.min(venue.capacity, estimatedProfile(venue)?.capacity ?? Infinity, g.roomSeats ?? Infinity)));
+    };
     const trips: Trip[] = [];
     const transitRides: TransitRide[] = [];
     tripLoad = new Map();
@@ -1014,12 +1040,26 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     let composedTrips = 0, scheduledStudents = 0, campusAccessTrips = 0, modeledActivities = 0, modeledOffCampusMeals = 0, modeledOffCampusOutings = 0, unavailableActivities = 0, optionalCapacityRejected = 0, estimatedActivities = 0;
     let unmappedAcademicBlocks = 0, behaviorRejectedCandidates = 0, optionalTravelRejectedCandidates = 0;
     const estimatedLocationCounts: Record<string, number> = {};
-    const capacityLedger = new Int32Array(resourceLocations.length * bucketsPerDay);
+    // Event venues that are not already optional-visit resources (classrooms) join this day's
+    // minute ledger, so classes, waits and every overlapping event share the venue's capacity.
+    const dayResources = [...resourceLocations, ...[...new Set(gatherings.map(g => g.locationId))]
+      .filter(id => !resourceIndex.has(id)).map(id => locations.get(id)!)];
+    const dayIndex = new Map(dayResources.map((location, index) => [location.id, index]));
+    const dayPresenceKeys = (plan: DayPlan): Set<number> => {
+      const keys = new Set<number>();
+      for (const stay of plan.stays) {
+        const index = dayIndex.get(stay.location);
+        if (index === undefined) continue;
+        for (let minute = Math.floor(stay.start / OPTIONAL_CAPACITY_BUCKET_SECONDS); minute < Math.ceil(stay.end / OPTIONAL_CAPACITY_BUCKET_SECONDS); minute++) keys.add(index * bucketsPerDay + minute);
+      }
+      return keys;
+    };
+    const capacityLedger = new Int32Array(dayResources.length * bucketsPerDay);
     const baselinePresence = new Map<string, Set<number>>();
     for (const agent of base.agents) {
       const plan = planDay(agent, enrollment.get(agent.id)!.filter(stop => stop.weekday === weekday));
       if (!plan) throw new Error(`Published schedule has no feasible itinerary for ${agent.id}`);
-      const keys = presenceKeys(plan);
+      const keys = dayPresenceKeys(plan);
       baselinePresence.set(agent.id, keys);
       for (const key of keys) capacityLedger[key]++;
     }
@@ -1035,10 +1075,10 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         const plan = planDay(agent, proposed);
         if (!plan) { behaviorRejectedCandidates++; return undefined; }
         if (plan.walkingSeconds - currentPlan.walkingSeconds > activitySeconds + 1e-7) { optionalTravelRejectedCandidates++; return undefined; }
-        const keys = presenceKeys(plan);
+        const keys = dayPresenceKeys(plan);
         for (const key of baseline) keys.delete(key);
         for (const key of keys) {
-          const location = resourceLocations[Math.floor(key / bucketsPerDay)];
+          const location = dayResources[Math.floor(key / bucketsPerDay)];
           const limit = Math.max(0, Math.floor(Math.min(location.capacity, estimatedProfile(location)?.capacity ?? Infinity)));
           if (capacityLedger[key] - (reserved.has(key) ? 1 : 0) + 1 > limit) { optionalCapacityRejected++; return undefined; }
         }
@@ -1092,6 +1132,22 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
           reserve(site.keys); stops = site.proposed; currentPlan = planDay(agent, stops)!; unmappedAcademicBlocks++; modeledActivities++;
           break;
         }
+      }
+      // Gatherings rank after fixed commitments and before discretionary visits (plan Section 5.3).
+      // Choices are keyed by student and event, so adding an event never reshuffles anyone else's draws.
+      if (resident || fixedClasses > 0) for (const gathering of gatherings) {
+        if (gatheringAttendees.get(gathering.id)! >= gatheringCapacity(gathering)) continue;
+        if (!activityCampuses.has(campusOf(locations.get(gathering.locationId)!))) continue;
+        if (fraction(`${agent.id}:${gathering.eventId}:gathering-attend`) >= gathering.attendanceProbability) continue;
+        const stop: WeeklyStop = { location: gathering.locationId, start: gathering.startSec, end: gathering.endSec,
+          weekday, pool: '', activity: 'gathering', gathering };
+        const proposed = [...stops, stop].sort((a, b) => a.start - b.start);
+        if (!feasible(proposed, agent)) continue;
+        const keys = capacityFor(proposed, gathering.endSec - gathering.startSec);
+        if (!keys) continue;
+        reserve(keys); stops = proposed; currentPlan = planDay(agent, stops)!; modeledActivities++;
+        gatheringAttendees.set(gathering.id, gatheringAttendees.get(gathering.id)! + 1);
+        break;
       }
       const estimates: { proposed: WeeklyStop[]; keys: Set<number>; location: string; weight: number }[] = [];
       const sourceCovered = enrollment.get(agent.id)!.length > 0;
@@ -1195,7 +1251,10 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
           ...(stop.estimatedProfile ? { estimated: true as const, purpose: stop.estimatedProfile.purpose, basis: stop.estimatedProfile.basis,
             confidence: stop.estimatedProfile.confidence, note: stop.estimatedProfile.note, proxy: stop.estimatedProfile.proxy } : {}),
           ...(stop.unmappedAcademic ? { estimated: true as const, purpose: 'unmapped-academic' as const, basis: 'modeled_unmapped_academic_time',
-            confidence: 'low' as const, note: 'Estimated academic/study commitment for a course not on the map, placed on campus when a library or the student’s own academic building fits; actual course, location and schedule are unknown.', proxy: 'Eligible mapped/full catalog offering coverage and a 120-minute weekly scenario per uncovered course slot' } : {}) });
+            confidence: 'low' as const, note: 'Estimated academic/study commitment for a course not on the map, placed on campus when a library or the student’s own academic building fits; actual course, location and schedule are unknown.', proxy: 'Eligible mapped/full catalog offering coverage and a 120-minute weekly scenario per uncovered course slot' } : {}),
+          ...(stop.gathering ? { estimated: true as const, basis: 'modeled_event_gathering', confidence: 'low' as const,
+            eventId: stop.gathering.eventId, projected: stop.gathering.projected,
+            note: 'Modeled attendance at a published campus event; real attendance is unknown.' } : {}) });
       }
     }
     const residentLocations = new Set(base.agents.filter(agent => agent.residency === 'resident').map(agent => agent.home));
@@ -1212,8 +1271,12 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       sourceStats: { ...stats, eligibleMeetings: [...occurrences].filter((key) => Number(key.split(':').at(-3)) === weekday).length,
         assignedClasses: assignments.length, scheduledStudents, composedTrips, campusAccessTrips, modeledActivities, modeledOffCampusMeals, modeledOffCampusOutings, unavailableActivities, optionalCapacityRejected, estimatedActivities, unmappedAcademicBlocks, behaviorRejectedCandidates, optionalTravelRejectedCandidates, estimatedLocationCounts,
         transitCommuters: riders.size, transitAlightings: transitRides.filter((ride) => ride.kind === 'alight').length,
-        transitBoardings: transitRides.filter((ride) => ride.kind === 'board').length, transitUnmatchedLegs }, sourceAssignments: assignments, sourceActivities: activities };
-    days.set(weekday, result);
+        transitBoardings: transitRides.filter((ride) => ride.kind === 'board').length, transitUnmatchedLegs,
+        assumptions: gatherings.length ? [...stats.assumptions, ...GATHERING_ASSUMPTIONS] : stats.assumptions },
+      sourceAssignments: assignments, sourceActivities: activities, eventDate,
+      gatherings: gatherings.map(g => ({ ...g, attendees: gatheringAttendees.get(g.id)!, capacity: gatheringCapacity(g) })) };
+    days.set(cacheKey, result);
+    while (days.size > CACHED_DAYS) days.delete(days.keys().next().value!);
     return result;
   };
 }

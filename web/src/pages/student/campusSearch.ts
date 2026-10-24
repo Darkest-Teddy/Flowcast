@@ -55,8 +55,8 @@ export function searchCampus(query: string, d: CampusData): SearchResult[] {
     results.push({ id: `day-${item.id}`, kind: 'Your day', title: item.title, detail: formatDayTime(item.start), to: '/schedule' });
   }
   for (const ev of d.events) {
-    if (!has(ev.title, locationName(d.locations, ev.locationId, false))) continue;
-    results.push({ id: `event-${ev.id}`, kind: 'Event', title: ev.title, detail: formatDayTime(ev.start), to: '/events' });
+    if (!has(ev.title, ev.venue ?? '', ev.organizer ?? '')) continue;
+    results.push({ id: `event-${ev.id}`, kind: 'Event', title: ev.title, detail: formatDayTime(ev.start), to: `/event-impact?date=${ev.start.slice(0, 10)}` });
   }
   for (const club of d.clubs) {
     if (!club.verified || !has(club.name, club.description)) continue;
