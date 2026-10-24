@@ -13,9 +13,13 @@ export interface Basemap {
   addControl(control: IControl): void;
   /** Only Mapbox Standard has time-of-day lighting; a no-op on the fallback. */
   setLightPreset(preset: LightPreset): void;
+  /** Live traffic needs Mapbox's traffic tiles (a token); the fallback has none. */
+  supportsTraffic: boolean;
+  setTrafficVisible(visible: boolean): void;
   flyTo(center: [number, number], zoom?: number): void;
   /** Screen pixel position of a lng/lat (ground level). */
   project(lngLat: [number, number]): [number, number];
+  getZoom(): number;
   remove(): void;
 }
 
@@ -44,6 +48,45 @@ function viewFromUrl() {
 
 export const INITIAL_VIEW = viewFromUrl();
 
+// Mapbox's live traffic tiles (refreshed every few minutes). Congestion is shown by width as
+// well as colour, so it doesn't rely on colour alone (plan Section 10.3).
+const TRAFFIC_LAYER = 'flowcast-traffic';
+export const TRAFFIC_LEVELS = [
+  { key: 'low', label: 'Moving', color: '#2e9d5b', width: 1.5 },
+  { key: 'moderate', label: 'Slow', color: '#f2b705', width: 2.5 },
+  { key: 'heavy', label: 'Heavy', color: '#e8590c', width: 3.5 },
+  { key: 'severe', label: 'Stopped', color: '#b0122b', width: 4.5 },
+] as const;
+
+function addTrafficLayer(map: import('mapbox-gl').Map) {
+  map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
+  const byLevel = (pick: (level: (typeof TRAFFIC_LEVELS)[number]) => string | number, fallback: string | number) =>
+    ['match', ['get', 'congestion'], ...TRAFFIC_LEVELS.flatMap((l) => [l.key, pick(l)]), fallback];
+  map.addLayer({
+    id: TRAFFIC_LAYER,
+    type: 'line',
+    source: 'mapbox-traffic',
+    'source-layer': 'traffic',
+    slot: 'middle',
+    // Free-flowing traffic only on main roads; any congestion everywhere. Otherwise every side
+    // street is outlined green and the map turns to noise.
+    filter: [
+      'any',
+      ['!=', ['get', 'congestion'], 'low'],
+      ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false],
+    ],
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': byLevel((l) => l.color, '#888888') as never,
+      // Grows with zoom; heavier traffic is always drawn thicker.
+      'line-width': ['interpolate', ['linear'], ['zoom'], 13, byLevel((l) => l.width * 0.6, 1), 18, byLevel((l) => l.width * 2.5, 3)] as never,
+      // Each direction is its own feature; nudge them apart so both show.
+      'line-offset': ['interpolate', ['linear'], ['zoom'], 13, 1, 18, 5] as never,
+      'line-opacity': 0.9,
+    },
+  });
+}
+
 export async function createBasemap(container: HTMLElement, lightPreset: LightPreset): Promise<Basemap> {
   const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
@@ -64,15 +107,19 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     });
     map.setPadding(VIEW_PADDING);
     await new Promise<void>((resolve) => map.once('style.load', () => resolve()));
+    addTrafficLayer(map);
     return {
       kind: 'mapbox',
       addControl: (control) => map.addControl(control),
       setLightPreset: (preset) => map.setConfigProperty('basemap', 'lightPreset', preset),
+      supportsTraffic: true,
+      setTrafficVisible: (visible) => map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', visible ? 'visible' : 'none'),
       flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),
       project: (lngLat) => {
         const p = map.project(lngLat);
         return [p.x, p.y];
       },
+      getZoom: () => map.getZoom(),
       remove: () => map.remove(),
     };
   }
@@ -94,11 +141,14 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     // MapboxOverlay implements MapLibre's IControl too; the two interfaces only differ in typings.
     addControl: (control) => map.addControl(control as unknown as maplibregl.IControl),
     setLightPreset: () => {},
+    supportsTraffic: false,
+    setTrafficVisible: () => {},
     flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),
     project: (lngLat) => {
       const p = map.project(lngLat);
       return [p.x, p.y];
     },
+    getZoom: () => map.getZoom(),
     remove: () => map.remove(),
   };
 }

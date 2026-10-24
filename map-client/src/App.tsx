@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
-import { createBasemap, type Basemap, type LightPreset } from './map/basemap';
+import { createBasemap, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, crowdLevel } from './layers/crowd';
+import { createPlacer } from './layers/placement';
+import { transitLayers, transitTooltip } from './layers/transit';
 import { Playback, formatClock, loadDay, type Occupancy, type WalkingAgent } from './sim/playback';
+import { MbtaFeed, loadTransit, minutesUntil, type TransitData } from './transit/mbta';
 
 const SPEEDS = [1, 30, 120, 600];
 
@@ -25,6 +28,11 @@ interface Hud {
   occupancy: Occupancy[];
 }
 
+interface Transit {
+  data: TransitData;
+  feed: MbtaFeed;
+}
+
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const basemapRef = useRef<Basemap | null>(null);
@@ -32,6 +40,8 @@ export default function App() {
   const speedRef = useRef(START_SPEED);
   const playingRef = useRef(true);
   const selectedRef = useRef<string | null>(null);
+  const transitRef = useRef<Transit | null>(null);
+  const showTransitRef = useRef(true);
 
   const [status, setStatus] = useState('Loading campus…');
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
@@ -41,6 +51,11 @@ export default function App() {
   const [playing, setPlaying] = useState(true);
   const [light, setLight] = useState<LightPreset>('dusk');
   const [selected, setSelected] = useState<string | null>(null);
+  const [tab, setTab] = useState<'crowds' | 'transit'>('crowds');
+  const [showTransit, setShowTransit] = useState(true);
+  const [showTraffic, setShowTraffic] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
+  const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,14 +69,25 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models] = await Promise.all([
+      const [basemap, day, models, transitData] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
+        // Transit is an extra: the campus view must still start if it can't load.
+        loadTransit('/data/transit.json').catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
+
+      if (transitData) {
+        const feed = new MbtaFeed(transitData, (state) => {
+          setFeedError(state.error);
+          setFeedUpdatedAt(state.updatedAt);
+        });
+        feed.start();
+        transitRef.current = { data: transitData, feed };
+      }
 
       const playback = new Playback(day);
       setRange([playback.startTime, playback.endTime]);
@@ -69,21 +95,25 @@ export default function App() {
       overlay = new MapboxOverlay({
         interleaved: new URLSearchParams(window.location.search).get('interleaved') !== '0',
         _animate: true, // keeps the walk cycles ticking between data updates
-        // Building footprints and labels both carry the building id; clicking empty map clears.
+        // Building footprints and labels both carry the building id; anything else clears.
         onClick: ({ object }: PickingInfo) => {
-          const id = object && !('bearing' in object) ? (object as { id: string }).id : null;
+          const isBuilding = object && ('polygon' in object || 'share' in object);
+          const id = isBuilding ? (object as { id: string }).id : null;
           selectedRef.current = id;
           setSelected(id);
         },
         getTooltip: ({ object }: PickingInfo) => {
-          if (!object || !('bearing' in object)) return null;
+          const transit = transitRef.current;
+          const text = transit ? transitTooltip(object, transit.data, transit.feed) : null;
+          if (text) return text;
+          if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
           return `Student ${agent.id} → ${playback.locations.find((l) => l.id === agent.to)?.name}`;
         },
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, playback } });
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, playback, transitRef } });
       setStatus('');
 
       let last = performance.now();
@@ -103,6 +133,9 @@ export default function App() {
           lastOccupancy = now;
           setHud({ time: t, walking: walking.length, occupancy });
         }
+        // One placer per frame, shared by every label layer: building labels first, then stations.
+        const placer = createPlacer(basemap.project);
+        const transit = transitRef.current;
         overlay!.setProps({
           layers: [
             ...crowdLayers({
@@ -112,8 +145,9 @@ export default function App() {
               time: t,
               speed: speedRef.current,
               selectedId: selectedRef.current,
-              project: basemap.project,
+              placer,
             }),
+            ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transit.feed, now, zoom: basemap.getZoom(), placer }) : []),
             ...agentLayers(walking, models, t),
           ],
         });
@@ -125,6 +159,8 @@ export default function App() {
     return () => {
       cancelled = true;
       cancelAnimationFrame(frame);
+      transitRef.current?.feed.stop();
+      transitRef.current = null;
       basemapRef.current?.remove();
       basemapRef.current = null;
       mapElement.remove();
@@ -136,6 +172,15 @@ export default function App() {
   useEffect(() => {
     basemapRef.current?.setLightPreset(light);
   }, [light]);
+
+  useEffect(() => {
+    basemapRef.current?.setTrafficVisible(showTraffic);
+  }, [showTraffic, mapKind]);
+
+  const toggleTransit = () => {
+    showTransitRef.current = !showTransitRef.current;
+    setShowTransit(showTransitRef.current);
+  };
 
   const changeSpeed = (s: number) => {
     speedRef.current = s;
@@ -155,6 +200,10 @@ export default function App() {
   };
 
   const ranked = hud ? [...hud.occupancy].sort((a, b) => b.share - a.share) : [];
+  // Re-read every render (the HUD re-renders twice a second), so "N min" counts down live.
+  const transit = transitRef.current;
+  const stations = transit?.data.stops.filter((s) => s.kind === 'station') ?? [];
+  const busArrivals = transit ? nextBuses(transit) : [];
 
   return (
     <div className="app">
@@ -170,30 +219,121 @@ export default function App() {
       {status && <div className="panel status" role="status">{status}</div>}
 
       {hud && (
-        <aside className="panel busiest" aria-label="Busiest places right now">
-          <h2>Busiest right now</h2>
-          <ol>
-            {ranked.slice(0, 8).map((o) => {
-              const level = crowdLevel(o.share);
-              return (
-                <li key={o.location.id}>
-                  <button
-                    className={o.location.building === selected ? 'row selected' : 'row'}
-                    onClick={() => select(o)}
-                    aria-pressed={o.location.building === selected}
-                  >
-                    <span className="name">{o.location.name}</span>
-                    <span className="bar" aria-hidden="true">
-                      <span style={{ width: `${Math.min(100, o.share * 100)}%`, background: `rgb(${level.glow.slice(0, 3).join(',')})` }} />
-                    </span>
-                    <span className="value">
-                      {Math.round(o.share * 100)}% · {level.label}
-                    </span>
+        <aside className="panel side">
+          <div className="tabs" role="tablist" aria-label="Side panel">
+            <button role="tab" id="tab-crowds" aria-selected={tab === 'crowds'} aria-controls="panel-crowds" onClick={() => setTab('crowds')}>
+              Crowds
+            </button>
+            <button role="tab" id="tab-transit" aria-selected={tab === 'transit'} aria-controls="panel-transit" onClick={() => setTab('transit')}>
+              Transit &amp; traffic
+            </button>
+          </div>
+          {tab === 'crowds' ? (
+            <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
+              <h2>Busiest right now</h2>
+              <ol>
+                {ranked.slice(0, 8).map((o) => {
+                  const level = crowdLevel(o.share);
+                  return (
+                    <li key={o.location.id}>
+                      <button
+                        className={o.location.building === selected ? 'row selected' : 'row'}
+                        onClick={() => select(o)}
+                        aria-pressed={o.location.building === selected}
+                      >
+                        <span className="name">{o.location.name}</span>
+                        <span className="bar" aria-hidden="true">
+                          <span style={{ width: `${Math.min(100, o.share * 100)}%`, background: `rgb(${level.glow.slice(0, 3).join(',')})` }} />
+                        </span>
+                        <span className="value">
+                          {Math.round(o.share * 100)}% · {level.label}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ) : (
+            <section id="panel-transit" role="tabpanel" aria-labelledby="tab-transit">
+              <div className="toggles" role="group" aria-label="Map layers">
+                <button onClick={toggleTransit} aria-pressed={showTransit}>
+                  MBTA
+                </button>
+                {mapKind === 'mapbox' && (
+                  <button onClick={() => setShowTraffic((v) => !v)} aria-pressed={showTraffic}>
+                    Traffic
                   </button>
-                </li>
-              );
-            })}
-          </ol>
+                )}
+              </div>
+              {transit && showTransit && (
+                <>
+                  <h2>
+                    Live MBTA{' '}
+                    <span className="muted">
+                      {feedError ?? (feedUpdatedAt ? `· updated ${new Date(feedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
+                    </span>
+                  </h2>
+                  <h3>
+                    <span className="route-badge" style={{ background: '#00843D', color: '#fff' }}>B</span> Green Line
+                  </h3>
+                  <table className="arrivals">
+                    <thead>
+                      <tr>
+                        <th scope="col">Station</th>
+                        <th scope="col">Inbound</th>
+                        <th scope="col">Outbound</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stations.map((s) => {
+                        const next = transit.feed.nextArrivals(s.id);
+                        const at = (direction: 0 | 1) => next.find((a) => a.direction === direction);
+                        return (
+                          <tr key={s.id}>
+                            <th scope="row">{s.short}</th>
+                            <td>{at(1) ? minutesUntil(at(1)!.time) : '—'}</td>
+                            <td>{at(0) ? minutesUntil(at(0)!.time) : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {busArrivals.length > 0 && (
+                    <>
+                      <h3>Buses</h3>
+                      <ul className="buses">
+                        {busArrivals.map((b) => (
+                          <li key={`${b.route}-${b.direction}`}>
+                            <span className="route-badge" style={{ background: b.color, color: b.textColor }}>
+                              {b.route}
+                            </span>
+                            <span className="bus-text">
+                              {b.directionName} at {b.stop}
+                            </span>
+                            <strong>{minutesUntil(b.time)}</strong>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
+              )}
+              {mapKind === 'mapbox' && showTraffic && (
+                <>
+                  <h3>Traffic</h3>
+                  <ul className="legend" aria-label="Traffic legend">
+                    {TRAFFIC_LEVELS.map((l) => (
+                      <li key={l.key}>
+                        <span className="swatch" style={{ background: l.color, height: l.width + 1 }} aria-hidden="true" />
+                        {l.label}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+          )}
         </aside>
       )}
 
@@ -238,4 +378,23 @@ export default function App() {
       )}
     </div>
   );
+}
+
+/** Soonest bus per route and direction at any campus stop, for the side panel. */
+function nextBuses({ data, feed }: Transit) {
+  const routes = new Map(data.routes.map((r) => [r.id, r]));
+  const stops = new Map(data.stops.map((s) => [s.id, s]));
+  const now = Date.now();
+  const best = new Map<string, { route: string; direction: 0 | 1; time: number; stop: string }>();
+  for (const a of feed.state.arrivals) {
+    if (routes.get(a.route)?.kind !== 'bus' || a.time < now - 30_000) continue;
+    const key = `${a.route}:${a.direction}`;
+    if (!best.has(key) || a.time < best.get(key)!.time) best.set(key, { ...a, stop: stops.get(a.stop)?.short ?? a.stop });
+  }
+  return [...best.values()]
+    .sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }) || a.direction - b.direction)
+    .map((a) => {
+      const route = routes.get(a.route)!;
+      return { ...a, color: route.color, textColor: route.textColor, directionName: route.directions[a.direction] };
+    });
 }

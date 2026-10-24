@@ -17,6 +17,7 @@
     "@deck.gl/mesh-layers": "^9.4.0",
     "@loaders.gl/core": "^4.5.4",
     "@loaders.gl/gltf": "^4.5.4",
+    "@luma.gl/engine": "^9.4.2",
     "mapbox-gl": "^3.33.0",
     "maplibre-gl": "^5.24.0",
     "react": "^19.3.1",

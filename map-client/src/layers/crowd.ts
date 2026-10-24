@@ -8,6 +8,7 @@ import { PolygonLayer, TextLayer } from '@deck.gl/layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
 import type { Color } from '@deck.gl/core';
 import type { BuildingFootprint, BuildingOccupancy, Trip } from '../sim/playback';
+import { labelWidth, type LabelPlacer } from './placement';
 
 // One scale for the whole UI: the glow, the label and the dashboard bar always agree.
 // Label backgrounds keep white text above 4.5:1 contrast; glows are the brighter twin.
@@ -23,34 +24,6 @@ export function crowdLevel(share: number) {
 }
 
 const LABEL_HEIGHT = 40; // px, two lines plus padding
-const MAX_LIFT = 2;
-
-/**
- * Screen-space label placement, busiest (and selected) first: each label sits at its building,
- * or is lifted up to MAX_LIFT label-heights to clear neighbours; if it still overlaps, it's
- * hidden — the dashboard list always has every building. Not CollisionFilterExtension: like
- * HeatmapLayer, it renders nothing in interleaved mode.
- */
-function placeLabels(buildings: BuildingOccupancy[], selectedId: string | null, project: Projector) {
-  const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
-  const lifts = new Map<string, number>();
-  const order = [...buildings].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.share - a.share);
-  for (const b of order) {
-    const [x, y] = project(b.position);
-    const half = (Math.max(b.short.length, 16) * 7.5 + 16) / 2;
-    for (let lift = 0; lift <= MAX_LIFT; lift++) {
-      const box = { x0: x - half, x1: x + half, y0: y - (lift + 1) * LABEL_HEIGHT, y1: y - lift * LABEL_HEIGHT };
-      if (!placed.some((p) => box.x0 < p.x1 && p.x0 < box.x1 && box.y0 < p.y1 && p.y0 < box.y1)) {
-        placed.push(box);
-        lifts.set(b.id, lift);
-        break;
-      }
-    }
-  }
-  return lifts;
-}
-
-export type Projector = (lngLat: [number, number]) => [number, number];
 
 export interface CrowdLayerInput {
   footprints: BuildingFootprint[];
@@ -59,15 +32,24 @@ export interface CrowdLayerInput {
   time: number;
   speed: number;
   selectedId: string | null;
-  project: Projector;
+  /** Shared with the other label layers so no two labels overlap. */
+  placer: LabelPlacer;
 }
 
-export function crowdLayers({ footprints, buildings, trips, time, speed, selectedId, project }: CrowdLayerInput) {
+export function crowdLayers({ footprints, buildings, trips, time, speed, selectedId, placer }: CrowdLayerInput) {
   const byId = new Map(buildings.map((b) => [b.id, b]));
   const countsKey = buildings.map((b) => b.count).join();
-  const lifts = placeLabels(buildings, selectedId, project);
-  const visible = buildings.filter((b) => lifts.has(b.id));
-  const liftKey = visible.map((b) => `${b.id}:${lifts.get(b.id)}`).join();
+  // Selected first, then busiest: if labels must be dropped, the quiet ones go (the dashboard
+  // list still has every building).
+  const order = [...buildings].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.share - a.share);
+  const lifts = placer.place(order, {
+    position: (d) => d.position,
+    width: (d) => labelWidth(`${d.short}\n100% · Moderate`, 13),
+    height: LABEL_HEIGHT,
+    direction: -1,
+  });
+  const visible = order.filter((b) => lifts.has(b));
+  const liftKey = visible.map((b) => `${b.id}:${lifts.get(b)}`).join();
 
   return [
     new PolygonLayer<BuildingFootprint>({
@@ -129,7 +111,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       pickable: true,
       // Draw over buildings rather than being hidden behind them.
       parameters: { depthCompare: 'always' },
-      getPixelOffset: (d) => [0, -LABEL_HEIGHT * (lifts.get(d.id) ?? 0) - 6],
+      getPixelOffset: (d) => [0, -LABEL_HEIGHT * (lifts.get(d) ?? 0) - 6],
       updateTriggers: {
         getText: [countsKey, liftKey],
         getBackgroundColor: [countsKey, liftKey],
