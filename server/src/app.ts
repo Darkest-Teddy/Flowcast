@@ -4,10 +4,10 @@
 import { isIP } from 'node:net';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
-import type { AskContext } from '../../map-client/src/insights';
 import { WEEKDAYS } from '../../map-client/src/data/campusData';
 import type { CampusModel } from './campus';
 import type { AskResult } from './agent';
+import type { ServerAskContext } from './facts';
 
 export const AskRequest = z.object({
   question: z.string().trim().min(1).max(300),
@@ -18,7 +18,7 @@ export const AskRequest = z.object({
 
 export interface AppOptions {
   campus: CampusModel;
-  ask: (question: string, ctx: AskContext, signal: AbortSignal) => Promise<AskResult>;
+  ask: (question: string, ctx: ServerAskContext, signal: AbortSignal) => Promise<AskResult>;
   keyConfigured: boolean;
   model: string;
   /** Per client address, per minute. */
@@ -128,7 +128,7 @@ export function createApp(options: AppOptions) {
     const disconnect = new AbortController();
     res.on('close', () => { if (!res.writableFinished) disconnect.abort(); });
     const signal = AbortSignal.any([timeout, disconnect.signal]);
-    const ctx: AskContext = {
+    const ctx: ServerAskContext = {
       locations: campus.locations,
       walkRoutes: campus.walkRoutes,
       meetings: campus.meetings,
@@ -136,6 +136,8 @@ export function createApp(options: AppOptions) {
       time,
       weekday,
       campus: campusId,
+      data: campus.facts.data,
+      facts: campus.facts,
     };
     try {
       const result = await ask(question, ctx, signal);

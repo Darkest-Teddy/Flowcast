@@ -59,7 +59,11 @@ import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
 import { IncidentPanel, type IncidentRun } from './IncidentPanel';
 import { applyIncident, type IncidentKind } from './sim/incidents';
+import { damageAt } from './sim/disasterDamage';
+import { damageExclusionAreas, fallbackDamageLayers } from './layers/damageFallback';
 import { incidentLayers } from './layers/incidents';
+import { planFireResponse as planDisasterFireResponse, fireResponseAt } from './sim/disasterFireResponse';
+import { fireResponseLayers } from './layers/fireResponse';
 import { AskPanel, type AskShow } from './AskPanel';
 import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
@@ -302,7 +306,9 @@ export default function App() {
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
       // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
       // Standard's own 3D buildings are off).
-      basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])).concat(fields ? fieldBuildingIds(fields) : []));
+      const baselineExcludedBuildings = [...modelled].map((ref) => Number(ref.split('/')[1])).concat(fields ? fieldBuildingIds(fields) : []);
+      basemap.excludeBuildings(baselineExcludedBuildings);
+      let damageExclusionKey = '';
       // And by geometry: base-map buildings, labels and trees wherever our models stand.
       fetch('/data/building-footprints.json').then((r) => (r.ok ? r.json() : null)).then((fp) => fp && basemap.hideUnderModels(fp)).catch(() => {});
       // The base map's own 3D models hidden under ours (Standard's Fenway Park), plus, once the
@@ -456,6 +462,7 @@ export default function App() {
       loadDeferredRef.current = (id: string) => { if (detailedBuildings) void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id); };
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       const volumes = modelVolumes(detailedBuildings?.manifest);
+      const damageFootprints = day.buildings.map(footprint => ({ ...footprint, height: roofHeights.get(footprint.id) ?? footprint.height }));
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
@@ -531,7 +538,16 @@ export default function App() {
         }
         // Reserve the active assembly label before placing building and transit tags.
         const placer = createPlacer(basemap.project);
-        const incidentFrameLayers = incidentLayers(incidentRunRef.current, t, occupancy, day.buildings, placer);
+        const damage = damageAt(incidentRunRef.current, t, damageFootprints);
+        const damagedIds = new Set(damage.map(building => building.id));
+        const damageKey = damage.map(building => building.id).join(',');
+        if (damageKey !== damageExclusionKey) {
+          basemap.excludeBuildings([...baselineExcludedBuildings, ...damage.map(building => Number(building.id.split('/')[1])).filter(Number.isFinite)], damageExclusionAreas(damage, detailedBuildings?.manifest));
+          damageExclusionKey = damageKey;
+        }
+        const response = incidentRunRef.current?.fireResponse;
+        const fireTrucks = response ? fireResponseAt(response, t) : [];
+        const incidentFrameLayers = incidentLayers(incidentRunRef.current, t, occupancy, day.buildings, placer, damage);
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
         if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
           buildingOccupancy = playback.byBuilding(occupancy);
@@ -540,7 +556,7 @@ export default function App() {
           buildingsPlayback = playback;
         }
         tagsRef.current?.update({
-          buildings,
+          buildings: buildings.filter(building => !damagedIds.has(building.id.split('#')[0])),
           footprints: day.buildings,
           locations: populationBase.locations,
           selectedId: selectedRef.current,
@@ -596,12 +612,16 @@ export default function App() {
           if (!detailedBuildings!.models[d.id] && (camera.zoom < 14.5 || metresToBox(camera.center, d.bounds) < DEFERRED_LOAD_METRES)) loadDeferredRef.current?.(d.id);
         }
         const frameLayers = [
+          ...fallbackDamageLayers(damage, new Set(detailedBuildings?.manifest.campuses
+            .filter(campus => detailedBuildings.models[campus.id])
+            .flatMap(campus => campus.buildings.map(building => building.osm)) ?? [])),
+          ...fireResponseLayers(fireTrucks, t, basemap.getZoom()),
           ...(detailedBuildings
-            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows })
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows, damage, footprints: damageFootprints })
             : []),
           ...crowdLayers({
             footprints: day.buildings,
-            buildings: buildingOccupancy.filter((building) => building.modeled !== false),
+            buildings: buildingOccupancy.filter((building) => building.modeled !== false && !damagedIds.has(building.id)),
             trips: playback.trailsAt(t, Math.min(600, Math.max(20, speedRef.current * 3))),
             time: t,
             speed: speedRef.current,
@@ -809,18 +829,23 @@ export default function App() {
       waiting: playback.waitingAt(timeRef.current).length,
     }));
   };
-  const startIncident = (kind: IncidentKind, locationId: string, duration: number) => {
+  const startIncident = (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number) => {
     const baseline = playbackRef.current;
     if (!baseline || baselinePlaybackRef.current) throw new Error('Reset the current scenario before starting another incident.');
     if (timeRef.current + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
-    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration };
+    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration, radiusMetres };
     const result = applyIncident(baseline.data, incident, sourceData ? { sourceData, weekday: weekdayRef.current } : undefined);
+    const location = baseline.locations.find((entry) => entry.id === locationId)!;
+    const responsePlan = kind === 'fire' ? (transitRef.current
+      ? planDisasterFireResponse({ incident, location, hazard: result.hazard }, transitRef.current.data, baseline.data.buildings)
+      : { plan: null, reason: 'no-road-data' as const }) : null;
+    const fireResponse = responsePlan?.plan ?? null;
     const playback = new Playback(result.day);
     baselinePlaybackRef.current = baseline;
     playbackRef.current = playback;
     leaveLive();
-    const run = { incident, location: baseline.locations.find((location) => location.id === locationId)!,
-      assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants };
+    const run = { incident, location, fireResponse, fireResponseUnavailable: responsePlan?.reason,
+      hazard: result.hazard, casualties: result.casualties, assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants };
     incidentRunRef.current = run;
     setIncidentRun(run);
     refreshIncidentHud();
@@ -882,6 +907,7 @@ export default function App() {
         time: Math.floor(hud.time / 60) * 60,
         weekday,
         campus,
+        data: sourceData ?? undefined,
       }
     : null;
   const showAsk = (show: AskShow | null) => {

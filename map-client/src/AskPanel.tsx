@@ -66,9 +66,9 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       if (!ranked.length) return { text: `There are no ${PLURAL[placeKind]} on this campus in the model.`, rows: [], show: null };
       const rows = ranked.map((r: RankedPlace) => ({
         location: r.location,
-        primary: !r.modeled ? 'Not modeled' : r.share === null ? `${r.count.toLocaleString()} students` : `${pct(r.share)} ${crowdLevel(r.share).label}`,
-        secondary: r.walk ? (r.walk.meters === 0 ? 'here' : `${r.walk.basis === 'estimate' ? '~' : ''}${r.walk.minutes} min walk`) : '',
-        share: r.share,
+        primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.share === null ? `${r.count.toLocaleString()} students` : `${pct(r.share)} ${crowdLevel(r.share).label}`,
+        secondary: [r.modeled && r.open === null ? 'Hours not published' : '', r.walk ? (r.walk.meters === 0 ? 'here' : `${r.walk.basis === 'estimate' ? '~' : ''}${r.walk.minutes} min walk`) : ''].filter(Boolean).join(' · '),
+        share: r.open === false ? null : r.share,
       }));
       const best = ranked[0];
       const fromLoc = from ? byId.get(from.locationId) ?? null : null;
@@ -80,12 +80,16 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       if (!best.modeled) {
         return { text: `The simulation doesn't model the ${PLURAL[placeKind]} on ${WEEKDAYS[ctx.weekday]}, so the map can't say which is least crowded. Try another day in the day picker.`, rows, show: { ...show, route: null, select: null } };
       }
+      if (best.open === false) {
+        return { text: `By their published hours, all the ${PLURAL[placeKind]} here are closed ${when(time)}.`, rows, show: { ...show, route: null, select: null } };
+      }
+      const hoursNote = best.open === null ? ` Its opening hours aren't published for ${WEEKDAYS[ctx.weekday]}, so check before going.` : '';
       if (best.share === null) {
-        return { text: `None of the ${PLURAL[placeKind]} here has a capacity the model can compare, so they're listed by simulated headcount ${when(time)}. ${best.location.short} has the fewest: ${best.count.toLocaleString()}.`, rows, note: MODEL_NOTE, show };
+        return { text: `None of the ${PLURAL[placeKind]} here has a capacity the model can compare, so they're listed by simulated headcount ${when(time)}. ${best.location.short} has the fewest: ${best.count.toLocaleString()}.${hoursNote}`, rows, note: MODEL_NOTE, show };
       }
       const walk = from && best.walk && best.walk.meters > 0 ? `, ${walkText(best.walk)} from ${from.label}` : '';
       return {
-        text: `${best.location.name} is the least crowded ${SINGULAR[placeKind]} ${when(time)}: ${pct(best.share)} of capacity (${level(best.share)})${walk}.`,
+        text: `${best.location.name} is the least crowded ${SINGULAR[placeKind]} ${when(time)}: ${pct(best.share)} of capacity (${level(best.share)})${walk}.${hoursNote}`,
         rows,
         note: MODEL_NOTE,
         show,
@@ -117,19 +121,29 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       };
     }
     case 'busy': {
-      const { location, modeled, now, quiet, busy, time } = insight;
+      const { location, modeled, now, quiet, busy, time, openNow } = insight;
       const show = { route: null, select: location, points: [location.position] };
       if (!modeled) {
         return { text: `The simulation doesn't model ${location.name} on ${WEEKDAYS[ctx.weekday]}, so the map has no crowd level for it.`, rows: [], show };
       }
+      if (openNow?.open === false) {
+        const later = quiet && busy && quiet.time !== busy.time
+          ? ` Later while it's open, it's quietest at ${formatClock(quiet.time)} (${pct(quiet.share)}) and busiest at ${formatClock(busy.time)} (${pct(busy.share)}).`
+          : '';
+        return { text: `${location.name} is closed ${when(time)}${openNow.hoursText ? ` (published hours: ${openNow.hoursText})` : ''}.${later}`, rows: [], note: MODEL_NOTE, show };
+      }
+      if (openNow?.open && openNow.fromPreviousDay) {
+        return { text: `${location.name} is open ${when(time)} (published hours: ${openNow.hoursText}), but the simulation doesn't model visits after midnight.`, rows: [], show };
+      }
+      const hoursNote = openNow?.open === null ? ' Its opening hours for this day aren’t published.' : '';
       if (now === null) {
         const count = ctx.occupancyAt(time).find((o) => o.location.id === location.id)?.count ?? 0;
-        return { text: `${location.name} has ${count.toLocaleString()} simulated students ${when(time)}. Its capacity isn't comparable, so the map shows a headcount rather than a percentage.`, rows: [], note: MODEL_NOTE, show };
+        return { text: `${location.name} has ${count.toLocaleString()} simulated students ${when(time)}. Its capacity isn't comparable, so the map shows a headcount rather than a percentage.${hoursNote}`, rows: [], note: MODEL_NOTE, show };
       }
       const later = quiet && busy && quiet.time !== busy.time
         ? ` For the rest of ${WEEKDAYS[ctx.weekday]}, it's quietest at ${formatClock(quiet.time)} (${pct(quiet.share)}) and busiest at ${formatClock(busy.time)} (${pct(busy.share)}).`
         : '';
-      return { text: `${location.name} is ${pct(now)} full ${when(time)} (${level(now)}).${later}`, rows: [], note: MODEL_NOTE, show };
+      return { text: `${location.name} is ${pct(now)} full ${when(time)} (${level(now)}).${later}${hoursNote}`, rows: [], note: MODEL_NOTE, show };
     }
     case 'personal':
       return {

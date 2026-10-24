@@ -5,25 +5,34 @@ import { RunContext } from '@openai/agents';
 import { ScriptedModel, assistantMessage, functionCall } from '@openai/agents/testing';
 import { BuildCache, chooseBundle, daysCachedFrom, loadCampusModel, PRIVATE_BUNDLE, PUBLIC_BUNDLE, type CampusModel } from '../src/campus';
 import { askMeetings } from '../../map-client/src/insights';
-import { createTools, mapOutput, newToolLog, resolvePlace } from '../src/tools';
-import { askAgent, FALLBACK_ANSWER, rewordAnswer, unsupportedNumberCount, unsupportedNumbers } from '../src/agent';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { createTools, mapOutput, newToolLog, nextHoursChange, resolvePlace } from '../src/tools';
+import { askAgent, FALLBACK_ANSWER, rewordAnswer, supportedNumbers, unsupportedNumberCount, unsupportedNumbers } from '../src/agent';
+import { BASIS_TOPICS, dayFrom, type AskFacts, type ServerAskContext } from '../src/facts';
 import { clientKey, createApp, limiter } from '../src/app';
 import type { AskContext } from '../../map-client/src/insights';
 import type { Playback } from '../../map-client/src/sim/playback';
 import type { CampusData, SourceMeeting } from '../../map-client/src/data/campusData';
 
 // The real public bundle and simulation, Wednesday 12:30 on the Charles River campus. The day is
-// built once for the whole suite; app tests use a fake CampusModel around it.
+// built once for the whole suite; app tests use a fake CampusModel around it. Other days are never
+// built here: the tools' facts report them as still being simulated.
 let campus: CampusModel;
 let wednesday: Playback;
-let ctx: AskContext;
+let facts: AskFacts;
+let ctx: ServerAskContext;
 before(async () => {
   campus = loadCampusModel({});
   wednesday = await campus.playback(2);
-  ctx = { locations: campus.locations, walkRoutes: campus.walkRoutes, meetings: campus.meetings, occupancyAt: (t) => wednesday.occupancyAt(t), time: 12.5 * 3600, weekday: 2, campus: 'charles-river' };
+  facts = { ...campus.facts, day: (d) => (d === 2 ? { playback: wednesday } : { available: false, reason: `day ${d} is still being simulated`, retryAfterSec: 10 }) };
+  ctx = {
+    locations: campus.locations, walkRoutes: campus.walkRoutes, meetings: campus.meetings, occupancyAt: (t) => wednesday.occupancyAt(t),
+    time: 12.5 * 3600, weekday: 2, campus: 'charles-river', data: campus.facts.data, facts,
+  };
 });
 
-async function call(name: string, args: object, c: AskContext = ctx) {
+async function call(name: string, args: object, c: ServerAskContext = ctx) {
   const log = newToolLog();
   const t = createTools(c, log).find((x) => x.name === name)!;
   const out = await t.invoke(new RunContext(), JSON.stringify(args));
@@ -76,29 +85,34 @@ test('places resolve by id, name, short name and course code', () => {
 });
 
 test('ranking uses the simulation and records rows and a map selection from the same call', async () => {
-  const { out, map, log } = await call('rank_places_by_crowd', { kind: 'dining', time: null, near: 'CAS' });
+  const { out, map, log } = await call('rank_places_by_crowd', { kind: 'dining', weekday: null, time: null, near: 'CAS', order: null, openOnly: null });
   assert.equal(out.day, 'Wednesday');
   assert.equal(out.time, '12:30 PM');
-  const shares = out.places.filter((p: any) => p.percent !== null).map((p: any) => p.percent);
+  const shares = out.places.filter((p: any) => p.open === true && p.percent !== null).map((p: any) => p.percent);
   assert.deepEqual(shares, [...shares].sort((a: number, b: number) => a - b));
   // Same numbers as the playback itself.
   const gsu = ctx.occupancyAt(ctx.time).find((o) => o.location.id === 'gsu')!;
   assert.equal(out.places.find((p: any) => p.id === 'gsu').students, gsu.count);
-  assert.equal(map.rows.length, out.places.length);
-  assert.equal(map.show?.select, out.places[0].id);
+  assert.deepEqual(map.rows.slice(0, out.places.length).map((r) => r.id), out.places.map((p: any) => p.id));
+  assert.equal(map.show?.select, out.places.find((p: any) => p.name === out.leastCrowded).id);
   assert.deepEqual(log.calls, ['rank_places_by_crowd']);
 });
 
 test('ranking names the least crowded place by exact share, matching the map selection', async () => {
-  const { out, map } = await call('rank_places_by_crowd', { kind: 'dining', time: '18:00', near: null });
+  const { out, map } = await call('rank_places_by_crowd', { kind: 'dining', weekday: null, time: '18:00', near: null, order: null, openOnly: null });
   const first = out.places[0];
+  assert.equal(first.open, true);
   assert.equal(out.leastCrowded, first.name);
   assert.equal(map.show?.select, first.id);
   const share = (id: string) => {
     const o = ctx.occupancyAt(18 * 3600).find((x) => x.location.id === id)!;
     return o.count / o.location.capacity;
   };
-  for (const p of out.places.slice(1).filter((p: any) => p.percent !== null)) assert.ok(share(first.id) <= share(p.id), p.id);
+  for (const p of out.places.slice(1).filter((p: any) => p.open === true && p.percent !== null)) assert.ok(share(first.id) <= share(p.id), p.id);
+  const most = await call('rank_places_by_crowd', { kind: 'dining', weekday: null, time: '18:00', near: null, order: 'most', openOnly: null });
+  assert.equal(most.out.leastCrowded, undefined);
+  assert.equal(most.out.mostCrowded, most.out.places[0].name);
+  assert.ok(share(most.out.places[0].id) >= share(first.id));
 });
 
 test('show and rows come from the last call with map output; an unmodeled top place selects nothing', async () => {
@@ -106,9 +120,9 @@ test('show and rows come from the last call with map output; an unmodeled top pl
   const log = newToolLog();
   const tools = createTools(unmodeled, log);
   const run = (name: string, args: object) => tools.find((t) => t.name === name)!.invoke(new RunContext(), JSON.stringify(args));
-  await run('place_crowd_outlook', { place: 'Mugar', time: null });
+  await run('place_day', { place: 'Mugar', weekday: null, time: null });
   assert.equal(mapOutput(log).show?.select, 'mugar');
-  await run('rank_places_by_crowd', { kind: 'dining', time: null, near: null });
+  await run('rank_places_by_crowd', { kind: 'dining', weekday: null, time: null, near: null, order: null, openOnly: null });
   assert.equal(mapOutput(log).show, null);
   assert.ok(mapOutput(log).rows.length > 0);
   await run('walking_route', { from: 'CAS', to: 'Mugar' });
@@ -148,26 +162,229 @@ test('a code naming two courses is ambiguous instead of mixing their sections', 
 });
 
 test('time parameters must be HH:MM, in the strict schema and at run time', async () => {
-  const ok = await call('place_crowd_outlook', { place: 'Mugar', time: '18:00' });
-  assert.equal(ok.out.time, '6:00 PM');
-  const bad = await call('place_crowd_outlook', { place: 'Mugar', time: '6pm' });
+  const ok = await call('place_day', { place: 'Mugar', weekday: null, time: '18:00' });
+  assert.equal(ok.out.now.time, '6:00 PM');
+  assert.equal((await call('place_day', { place: 'Mugar', weekday: null, time: '9:30' })).out.now.time, '9:30 AM');
+  const bad = await call('place_day', { place: 'Mugar', weekday: null, time: '6pm' });
   // Strict mode keeps the model to the pattern; a stray value is rejected before the tool runs.
   assert.match(JSON.stringify(bad.out), /error/i);
   assert.equal(bad.out.time, undefined);
-  const late = await call('place_crowd_outlook', { place: 'Mugar', time: '25:00' });
+  const late = await call('place_day', { place: 'Mugar', weekday: null, time: '25:00' });
   assert.match(late.out.error, /HH:MM/);
-  for (const name of ['rank_places_by_crowd', 'place_crowd_outlook']) {
-    const t = createTools(ctx, newToolLog()).find((x) => x.name === name) as any;
-    assert.equal(t.strict, true);
-    assert.equal(t.parameters.properties.time.anyOf[0].pattern, '^\\d{2}:\\d{2}$');
+  for (const t of createTools(ctx, newToolLog()) as any[]) {
+    assert.equal(t.strict, true, t.name);
+    if (t.parameters.properties.time) assert.equal(t.parameters.properties.time.anyOf[0].pattern, '^\\d{1,2}:\\d{2}$');
   }
+  assert.equal(createTools(ctx, newToolLog()).some((t) => t.name === 'place_crowd_outlook'), false);
+});
+
+// ---------------------------------------------------------------- opening hours, other days and new tools
+
+const rank = (args: object) => call('rank_places_by_crowd', { kind: null, weekday: null, time: null, near: null, order: null, openOnly: null, ...args });
+
+test('a closed dining hall is never the quietest: closed rows rank after open and unknown ones', async () => {
+  const { out, map } = await rank({ kind: 'dining', time: '23:00' });
+  const gsu = out.places.find((p: any) => p.id === 'gsu');
+  assert.equal(gsu.open, false); // GSU's published Wednesday hours end at 23:00
+  assert.equal(gsu.level, null);
+  assert.equal(gsu.percent, null);
+  assert.equal('capacity' in gsu, false);
+  if (out.leastCrowded !== null) assert.equal(out.places.find((p: any) => p.name === out.leastCrowded).open, true);
+  else assert.equal(map.show, null);
+  const order = out.places.map((p: any) => (p.open === true ? 0 : p.open === null ? 2 : 3));
+  assert.deepEqual(order, [...order].sort());
+  const openOnly = await rank({ kind: 'dining', time: '23:00', openOnly: true });
+  assert.equal(openOnly.out.places.some((p: any) => p.open === false), false);
+  // All kinds, capped rows.
+  const all = await rank({});
+  assert.ok(all.out.places.length <= 10 && all.out.more > 0);
+  assert.equal(all.out.date, '2026-10-28');
+});
+
+test('another day that is not built says so, and asks for it to be built', async () => {
+  const { out, map } = await rank({ kind: 'library', weekday: 4 });
+  assert.deepEqual(out, { available: false, reason: 'day 4 is still being simulated', retryAfterSec: 10 });
+  assert.equal(map.show, null);
+  for (const [name, args] of [['place_day', { place: 'Mugar', weekday: 4, time: null }], ['campus_overview', { weekday: 4, time: null }]] as const) {
+    assert.equal((await call(name, args)).out.available, false, name);
+  }
+  const asked: number[] = [];
+  const day = dayFrom(() => undefined, async (d) => { asked.push(d); return wednesday; }, 7);
+  assert.deepEqual(day(4), { available: false, reason: 'Friday is still being simulated', retryAfterSec: 7 });
+  assert.deepEqual(asked, [4]);
+  assert.deepEqual(dayFrom(() => wednesday, async () => wednesday, 7)(2), { playback: wednesday });
+});
+
+test('place_day: hours, an hourly table, open-hour extremes, and after-midnight hours not modeled', async () => {
+  const { out } = await call('place_day', { place: 'Mugar', weekday: null, time: null });
+  assert.equal(out.day, 'Wednesday');
+  assert.equal(out.date, '2026-10-28');
+  assert.equal(out.hoursStatus, 'published');
+  assert.ok(out.hoursText);
+  assert.deepEqual(out.hours.columns, ['hour', 'open', 'percent', 'students']);
+  const [h0] = out.hours.rows;
+  assert.deepEqual(h0, [0, 1, null, null]); // open from Tuesday's window to 02:00, not modeled
+  assert.match(out.afterMidnightNote, /not modeled after midnight/);
+  const noon = out.hours.rows.find((r: any[]) => r[0] === 12);
+  const occ = wednesday.occupancyAt(12 * 3600).find((o) => o.location.id === 'mugar')!;
+  assert.equal(noon[3], occ.count);
+  assert.equal(out.now.students, wednesday.occupancyAt(ctx.time).find((o) => o.location.id === 'mugar')!.count);
+  assert.ok(!['12:00 AM', '1:00 AM'].includes(out.quietestOpen.time));
+  const gsu = (await call('place_day', { place: 'GSU', weekday: null, time: '23:30' })).out;
+  assert.equal(gsu.now.open, false);
+  assert.equal(gsu.now.percent, null);
+  assert.match(gsu.qualifier, /meal vendors/);
+  for (const r of gsu.hours.rows) if (r[1] === 0) assert.notEqual(`${r[0] % 12 || 12}:00 ${r[0] < 12 ? 'AM' : 'PM'}`, gsu.quietestOpen.time);
+});
+
+test('place_info: hours and next change, capacity basis, estimated profiles, unknown and restricted hours', async () => {
+  const gsu = (await call('place_info', { place: 'GSU', weekday: null, time: null })).out;
+  assert.equal(gsu.openNow, true);
+  assert.deepEqual(gsu.nextChange, { time: '11:00 PM', to: 'closed' });
+  assert.match(gsu.qualifier, /meal vendors/);
+  assert.ok(gsu.capacityBasis);
+  assert.ok(gsu.evidence.length >= 1 && gsu.evidence.length <= 3);
+  const mugar = (await call('place_info', { place: 'Mugar', weekday: null, time: null })).out;
+  assert.equal(mugar.nextChange.to, 'closed');
+  assert.match(mugar.nextChange.time, /next day/);
+  const cds = (await call('place_info', { place: 'CDS', weekday: null, time: null })).out;
+  assert.equal(cds.openNow, null);
+  assert.equal(cds.nextChange, null);
+  assert.match(cds.hoursNote, /aren’t published/);
+  const arena = (await call('place_info', { place: 'agganis', weekday: null, time: null })).out;
+  assert.equal(arena.openNow, false);
+  assert.match(arena.hoursReason, /arena/i);
+  assert.equal(arena.estimatedProfile.confidence, 'low');
+  assert.ok(arena.estimatedProfile.note.length <= 200);
+  assert.equal(arena.confidence, 'low');
+  // Sunday has no published GSU hours in the reference week: unknown, not closed.
+  const sunday = (await call('place_info', { place: 'GSU', weekday: 6, time: '12:00' })).out;
+  assert.equal(sunday.openNow, null);
+  assert.equal(sunday.date, '2026-11-01');
+  assert.equal(nextHoursChange(ctx.data!, 'gsu', 2, 9 * 3600)?.to, 'open');
+});
+
+test('campus_overview: whole-map totals from the playback, compact', async () => {
+  const { out, log } = await call('campus_overview', { weekday: null, time: null });
+  const pop = wednesday.populationAt(ctx.time);
+  assert.deepEqual(out.simulated, { students: pop.total, indoorsOnMap: pop.indoors, walking: pop.walking, notOnMap: pop.offCampus });
+  assert.equal(Object.values(out.indoorsByCampus as Record<string, number>).reduce((a, b) => a + b, 0), pop.indoors);
+  assert.equal(Object.values(out.walkingTo as Record<string, number>).reduce((a, b) => a + b, 0), pop.walking);
+  assert.equal(out.enrollment.students, 36977);
+  assert.ok(out.busiestByStudents.length <= 5 && out.busiestByPercent.length <= 5);
+  assert.ok(log.outputs[0].length < 800, String(log.outputs[0].length));
+});
+
+test('list_events: reference-week events in Boston time, with the count outside the week', async () => {
+  const week = (await call('list_events', { weekday: null, place: null })).out;
+  const data = ctx.data!;
+  const inWeek = data.events.filter((e) => e.start.slice(0, 10) >= '2026-10-26' && e.start.slice(0, 10) <= '2026-11-01');
+  assert.equal(week.events.length + (week.more ?? 0), inWeek.length);
+  assert.equal(week.outsideReferenceWeek, data.events.length - inWeek.length);
+  const wed = (await call('list_events', { weekday: 2, place: null })).out;
+  assert.ok(wed.events.every((e: any) => e.date === '2026-10-28' && e.day === 'Wednesday'));
+  assert.deepEqual(wed.events.map((e: any) => e.start), ['15:30', '17:00', '19:00']);
+  assert.equal(wed.events.find((e: any) => e.start === '19:00').mappedPlace, 'sargent');
+  assert.ok(wed.events.some((e: any) => e.where === 'location not published'));
+  const sargent = (await call('list_events', { weekday: null, place: 'sargent' })).out;
+  assert.ok(sargent.events.length >= 1 && sargent.events.every((e: any) => e.mappedPlace === 'sargent'));
+});
+
+test('free_rooms: rooms with no published class at the time, with seats and until when', async () => {
+  const { out } = await call('free_rooms', { building: 'CDS', weekday: null, time: null });
+  const t = 2 * 86400 + ctx.time;
+  const busy = new Set(ctx.meetings.filter((m) => m.locationId === 'cds' && m.meeting.intervals.some((iv) => iv.startSec <= t && t < iv.endSec)).map((m) => m.meeting.roomCode));
+  assert.equal(out.busyRooms, busy.size);
+  assert.ok(out.freeRooms.length <= 12);
+  for (const r of out.freeRooms) assert.equal(busy.has(r.room), false, r.room);
+  assert.equal(out.freeRooms.length + (out.moreFree ?? 0) + out.busyRooms, out.roomsWithPublishedClasses);
+  assert.match(out.caveat, /unknown/);
+});
+
+test('model_basis, published_counts and find_places', async () => {
+  for (const topic of BASIS_TOPICS) {
+    const { out, log } = await call('model_basis', { topic });
+    assert.ok(out.basis.length >= 1 && out.basis.length <= 3, topic);
+    assert.ok(log.outputs[0].length < 1200, `${topic} ${log.outputs[0].length}`);
+  }
+  const fit = (await call('published_counts', { source: 'fitrec_visits', weekday: 2 })).out;
+  assert.equal(fit.kind, 'published count');
+  assert.equal(fit.observedDate, '2026-10-21'); // the Wednesday of the published week
+  assert.deepEqual(fit.hours.columns, ['hour', 'visits']);
+  assert.ok(fit.busiestHour.visits >= fit.quietestHour.visits);
+  const usual = (await call('published_counts', { source: 'fitrec_visits', weekday: null })).out;
+  assert.equal(usual.observedDate, undefined);
+  assert.equal(usual.days, 7);
+  const usage = ctx.data!.fitrecUsage!;
+  const at = (h: number) => usage.observations.filter((o) => o.hour === h);
+  const avg = (h: number) => Math.round(at(h).reduce((a, o) => a + o.visits, 0) / at(h).length);
+  assert.equal(usual.busiestHour.visits, avg(Number(usual.busiestHour.hour)));
+  const ped = (await call('published_counts', { source: 'pedestrian_counts', weekday: 2 })).out;
+  assert.equal(ped.kind, 'published count');
+  assert.ok(ped.sites.length >= 1 && ped.sites[0].counts.length >= 1);
+  const libs = (await call('find_places', { kind: 'library', campus: 'charles-river', nameContains: null })).out;
+  assert.ok(libs.places.every((p: any) => p.campus === 'charles-river' && p.kind === 'library'));
+  assert.equal(libs.places.find((p: any) => p.id === 'mugar').hoursStatus, 'published');
+  assert.equal((await call('find_places', { kind: 'classroom', campus: null, nameContains: 'CDS' })).out.places[0].hoursStatus, 'unknown');
+});
+
+/** One call of every tool, with a few variants. */
+async function everyOutput(): Promise<string[]> {
+  const calls: [string, object][] = [
+    ['find_places', { kind: null, campus: null, nameContains: null }],
+    ['rank_places_by_crowd', { kind: null, weekday: null, time: null, near: 'CAS', order: null, openOnly: null }],
+    ['rank_places_by_crowd', { kind: 'classroom', weekday: null, time: '10:00', near: null, order: 'most', openOnly: null }],
+    ['rank_places_by_crowd', { kind: 'dorm', weekday: null, time: '23:00', near: null, order: null, openOnly: true }],
+    ['walking_route', { from: 'CAS', to: 'Mugar' }],
+    ['find_course', { code: 'CAS CS 132' }],
+    ...['Mugar', 'GSU', 'CDS', 'FitRec', 'Warren Towers', 'agganis'].flatMap((place): [string, object][] => [
+      ['place_day', { place, weekday: null, time: null }],
+      ['place_info', { place, weekday: null, time: null }],
+      ['free_rooms', { building: place, weekday: null, time: null }],
+    ]),
+    ['campus_overview', { weekday: null, time: '17:00' }],
+    ['list_events', { weekday: null, place: null }],
+    ['free_rooms', { building: 'CAS', weekday: null, time: '10:00' }],
+    ...BASIS_TOPICS.map((topic): [string, object] => ['model_basis', { topic }]),
+    ['published_counts', { source: 'fitrec_visits', weekday: 0 }],
+    ['published_counts', { source: 'pedestrian_counts', weekday: null }],
+  ];
+  const out: string[] = [];
+  for (const [name, args] of calls) out.push(...(await call(name, args)).log.outputs);
+  return out;
+}
+
+test('tool outputs stay small and never carry source URLs, agent ids or private meeting ids', async () => {
+  const outputs = await everyOutput();
+  for (const o of outputs) assert.ok(o.length < 2048, `${o.length}: ${o.slice(0, 80)}`);
+  const all = outputs.join('\n');
+  assert.doesNotMatch(all, /sourceUrl|https?:\/\//);
+  assert.doesNotMatch(all, /(?:under)?graduate:(?:full|part)-time:\d+/); // agent ids
+  assert.doesNotMatch(all, /meeting-[0-9a-f]{8,}/);
+  assert.ok(wednesday.data.agents.slice(0, 50).every((a) => !all.includes(`"${a.id}"`)));
+  const privatePath = fileURLToPath(new URL(`../../${PRIVATE_BUNDLE}`, import.meta.url));
+  if (existsSync(privatePath)) {
+    const publicIds = new Set(Object.values(ctx.data!.locations).flatMap((l) => l.meetings.map((m) => m.id)));
+    const privateOnly = Object.values((JSON.parse(readFileSync(privatePath, 'utf8')) as CampusData).locations)
+      .flatMap((l) => l.meetings.map((m) => m.id)).filter((id) => !publicIds.has(id));
+    for (const id of privateOnly) assert.equal(all.includes(id), false, 'private meeting id in a tool output');
+  }
+});
+
+test('the number check reads hourly tables by column, so hour numbers support nothing', () => {
+  const out = JSON.stringify({ percent: 41, hours: { columns: ['hour', 'open', 'percent', 'students'], rows: [[7, 1, 12, 96], [8, 0, null, 0]] } });
+  const known = supportedNumbers(out);
+  assert.ok(known.includes('41') && known.includes('12') && known.includes('96'));
+  assert.equal(known.includes('7'), false);
+  assert.equal(known.includes('8'), false);
+  assert.deepEqual(unsupportedNumbers('Quiet at 7, 12% then 8 students', [out]), ['7', '8']);
 });
 
 // ---------------------------------------------------------------- the agent, with a scripted model
 
 test('parallel tool calls: the answer carries show and rows of the last call', async () => {
   const model = new ScriptedModel([
-    [functionCall('rank_places_by_crowd', { kind: 'library', time: null, near: null }, { callId: 'a' }), functionCall('walking_route', { from: 'CAS', to: 'Mugar' }, { callId: 'b' })],
+    [functionCall('rank_places_by_crowd', { kind: 'library', weekday: null, time: null, near: null, order: null, openOnly: null }, { callId: 'a' }), functionCall('walking_route', { from: 'CAS', to: 'Mugar' }, { callId: 'b' })],
     [assistantMessage('Done.')],
   ]);
   const r = await askAgent('q', ctx, undefined, model);
@@ -178,11 +395,11 @@ test('parallel tool calls: the answer carries show and rows of the last call', a
 });
 
 test('an empty answer or the turn limit gives the friendly fallback with what was collected', async () => {
-  const empty = await askAgent('q', ctx, undefined, new ScriptedModel([[functionCall('place_crowd_outlook', { place: 'Mugar', time: null }, { callId: 'a' })], [assistantMessage('')]]));
+  const empty = await askAgent('q', ctx, undefined, new ScriptedModel([[functionCall('place_day', { place: 'Mugar', weekday: null, time: null }, { callId: 'a' })], [assistantMessage('')]]));
   assert.equal(empty.answer, FALLBACK_ANSWER);
   assert.equal(empty.show?.select, 'mugar');
-  assert.deepEqual(empty.calls, ['place_crowd_outlook']);
-  const loop = Array.from({ length: 8 }, (_, i) => [functionCall('find_places', { kind: 'library', nameContains: null }, { callId: `c${i}` })]);
+  assert.deepEqual(empty.calls, ['place_day']);
+  const loop = Array.from({ length: 8 }, (_, i) => [functionCall('find_places', { kind: 'library', campus: null, nameContains: null }, { callId: `c${i}` })]);
   const looped = await askAgent('q', ctx, undefined, new ScriptedModel(loop));
   assert.equal(looped.answer, FALLBACK_ANSWER);
   assert.ok(looped.calls.length >= 5);
@@ -191,6 +408,7 @@ test('an empty answer or the turn limit gives the friendly fallback with what wa
 test('answers are reworded away from predictions and live counts; unsupported numbers are counted, not blocked', async () => {
   assert.equal(rewordAnswer('Our prediction: Mugar is quiet. Predicted 40%.'), 'Our projection: Mugar is quiet. Projected 40%.');
   assert.equal(rewordAnswer('The live count is 12.'), 'The simulated count is 12.');
+  assert.equal(rewordAnswer('These are simulated, not live counts.'), 'These are simulated, not measured counts.');
   assert.equal(rewordAnswer('This is accurate.'), null);
   assert.equal(rewordAnswer('It is unpredictable.'), null);
   const accurate = await askAgent('q', ctx, undefined, new ScriptedModel([[assistantMessage('Very accurate: 12 people.')]]));
@@ -240,7 +458,7 @@ function fakeCampus(builder: (weekday: number) => Playback | Promise<Playback> =
     locations: campus.locations, walkRoutes: campus.walkRoutes, meetings: campus.meetings,
     ready: (d) => (d === 2 ? wednesday : cache.ready(d)),
     playback: (d) => (d === 2 ? Promise.resolve(wednesday) : cache.get(d)),
-    privateBundle: false, daysCached: 7, builds,
+    privateBundle: false, daysCached: 7, builds, facts,
   };
 }
 /** A promise the test resolves when it wants a fake build to finish. */
