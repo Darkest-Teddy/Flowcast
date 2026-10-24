@@ -87,6 +87,9 @@ EXTRA_IDS = {"way/29827118", "way/29932285"}
 # Medical Campus: the OSM campus area also holds BMC's hospital, a hotel and private housing, so
 # there only university buildings, named BU buildings and these are kept.
 MEDICAL_EXTRA = {"way/484824710"}  # Crosstown Center (801 Mass Ave): BU School of Public Health
+# Not BU's, but set in a row of BU buildings: modelled generically (same street style as their
+# neighbours) so the row has no plain grey box in it. They get a model, never crowd data.
+FILL_IN_IDS = {"way/697017309"}  # 165 Bay State Road (MIT's ΣΑΕ house, backs onto Back Street)
 
 METRES_PER_LEVEL = 3.6
 # True heights where OSM's tags are missing or misleading (from the reference research).
@@ -1579,9 +1582,9 @@ def select_buildings(charles, medical, areas):
             else:
                 in_fenway = any(inside(a, c) for a in FENWAY_AREAS)
                 in_main = inside(BU_MAIN, c)
-                if not (in_fenway or in_main or is_bu_tagged(tags) or ref in EXTRA_IDS):
+                if not (in_fenway or in_main or is_bu_tagged(tags) or ref in EXTRA_IDS or ref in FILL_IN_IDS):
                     continue
-                if foreign_operator(tags):
+                if foreign_operator(tags) and ref not in FILL_IN_IDS:
                     continue
                 if btype in HOUSE_TYPES and "Bay State Road" not in tags.get("addr:street", ""):
                     continue
