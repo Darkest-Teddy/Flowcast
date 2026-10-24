@@ -1,0 +1,2300 @@
+{
+  "schemaVersion": 1,
+  "description": "Behaviour parameters for the day builder (map-client/src/sim/sourceDay.ts). Base values equal the builder's own constants (including its stable personal habits); modifiers apply when the day's conditions hold (calibration first, then conditions). Values are composed by paramsFor() in src/sim/behavior.ts and only ever change people's timelines, never counts or capacities. Calibration values are refitted locally by `npm run calibrate` (scripts/calibrate-behavior.mjs) against measured BU data.",
+  "scalars": {
+    "classAttendance": {
+      "base": 1,
+      "min": 0,
+      "max": 1,
+      "unit": "probability",
+      "label": "class attendance",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Today's model: every synthetically enrolled student attends every published meeting."
+      }
+    },
+    "arrivalLeadMinMinutes": {
+      "base": 2,
+      "min": 0,
+      "max": 30,
+      "unit": "minutes",
+      "label": "earliest class arrival lead",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Students arrive 2–12 minutes before class when gaps permit."
+      }
+    },
+    "arrivalLeadSpreadMinutes": {
+      "base": 10,
+      "min": 0,
+      "max": 30,
+      "unit": "minutes",
+      "label": "class arrival lead spread",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Students arrive 2–12 minutes before class when gaps permit."
+      }
+    },
+    "homeBreakMinutes": {
+      "base": 15,
+      "min": 5,
+      "max": 120,
+      "unit": "minutes",
+      "label": "shortest worthwhile trip home",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Residents go home between commitments only if they can stay at least 15 minutes."
+      }
+    },
+    "commuterOffCampusGapMinutes": {
+      "base": 30,
+      "min": 30,
+      "max": 600,
+      "unit": "minutes",
+      "label": "commuter gap before leaving campus",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Commuters leave through a transit gateway when a gap allows 30 minutes off campus."
+      }
+    },
+    "offCampusMealShare": {
+      "base": 0.35,
+      "min": 0,
+      "max": 1,
+      "unit": "share",
+      "label": "meals eaten off campus",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Uncalibrated share of attempted resident meals taken off campus via a gateway walk."
+      }
+    },
+    "shoulderShare": {
+      "base": 0.25,
+      "min": 0,
+      "max": 1,
+      "unit": "share",
+      "label": "arrivals outside the core window",
+      "provenance": {
+        "kind": "assumption",
+        "note": "25% of optional arrivals fall anywhere in the broad-day window."
+      }
+    },
+    "walkSpeedFactor": {
+      "base": 1,
+      "min": 0.7,
+      "max": 1.3,
+      "unit": "× 1.4 m/s",
+      "label": "walking speed",
+      "provenance": {
+        "kind": "published",
+        "note": "Comfortable adult walking speed is about 1.4 m/s (Bohannon 1997, ages 20–29)."
+      }
+    },
+    "walkSpeedSpread": {
+      "base": 0,
+      "min": 0,
+      "max": 0.3,
+      "unit": "m/s (sd)",
+      "label": "walking speed spread",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Today everyone walks at the same speed."
+      }
+    },
+    "postClassLingerMinutes": {
+      "base": 0,
+      "min": 0,
+      "max": 20,
+      "unit": "minutes",
+      "label": "lingering after class",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Today students leave the second class ends."
+      }
+    },
+    "visitLengthSpread": {
+      "base": 0,
+      "min": 0,
+      "max": 0.8,
+      "unit": "± share",
+      "label": "visit length spread",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Today every visit of a kind lasts the same time."
+      }
+    },
+    "gapPlacement": {
+      "base": 0,
+      "min": 0,
+      "max": 1,
+      "unit": "on/off",
+      "label": "fit visits into free gaps",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Today a visit that clashes with a class is dropped rather than moved."
+      }
+    },
+    "commuterMinClasses": {
+      "base": 2,
+      "min": 1,
+      "max": 3,
+      "unit": "classes",
+      "label": "classes a commuter needs before free-time visits",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Today commuters with fewer than two classes that day make no optional visits."
+      }
+    },
+    "commuterActivityWindowMinutes": {
+      "base": 0,
+      "min": 0,
+      "max": 240,
+      "unit": "minutes",
+      "label": "commuter visits before/after classes",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Today commuter visits must fit between their first and last class."
+      }
+    },
+    "unmappedAcademicMinutes": {
+      "base": 120,
+      "min": 30,
+      "max": 180,
+      "unit": "minutes",
+      "label": "unmapped course block",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Each uncovered course slot reserves a 120-minute weekday block (sourceDay.ts UNMAPPED_ACADEMIC_MINUTES); 90% are placed on campus by the day builder."
+      }
+    },
+    "offMapAcademicShare": {
+      "base": 0.1,
+      "min": 0,
+      "max": 1,
+      "unit": "share",
+      "label": "uncovered-course study spent off the map",
+      "provenance": {
+        "kind": "assumption",
+        "note": "The day builder places 90% of uncovered-course study blocks on campus (a library or the student's own academic building) and 10% off the map (sourceDay.ts OFF_MAP_ACADEMIC_SHARE)."
+      }
+    },
+    "habitualTimeShare": {
+      "base": 0.7,
+      "min": 0,
+      "max": 1,
+      "unit": "share",
+      "label": "visits at a student's usual time",
+      "provenance": {
+        "kind": "assumption",
+        "note": "70% of visits fall within 20 minutes of a personal usual time (sourceDay.ts HABITUAL_TIME_SHARE)."
+      }
+    },
+    "favoriteVenueWeight": {
+      "base": 5,
+      "min": 1,
+      "max": 20,
+      "unit": "×",
+      "label": "pull of a student's favourite venue",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Each student favours one home-relative dining hall, library and gym with 5× venue weight (sourceDay.ts FAVORITE_VENUE_WEIGHT)."
+      }
+    },
+    "awayShareResidents": {
+      "base": 0,
+      "min": 0,
+      "max": 1,
+      "unit": "share",
+      "label": "residents away for the day",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Today every resident is on campus."
+      }
+    },
+    "awayShareCommuters": {
+      "base": 0,
+      "min": 0,
+      "max": 1,
+      "unit": "share",
+      "label": "commuters who don't come in",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Today commuters come in whenever they have a class."
+      }
+    },
+    "eventAttendanceFactor": {
+      "base": 1,
+      "min": 0,
+      "max": 3,
+      "unit": "×",
+      "label": "event turnout",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Scales a scenario event's expected student turnout."
+      }
+    },
+    "commuterOutdoorFactor": {
+      "base": 1,
+      "min": 0,
+      "max": 2,
+      "unit": "×",
+      "label": "commuters' time outdoors (relative to residents)",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Scales commuters' outdoor visits; residents live next to BU Beach and the Esplanade."
+      }
+    }
+  },
+  "activities": {
+    "weekdayMenus": [
+      "weekday",
+      "weekday",
+      "weekday",
+      "weekday",
+      "friday",
+      "saturday",
+      "sunday"
+    ],
+    "menus": {
+      "weekday": [
+        {
+          "id": "breakfast",
+          "label": "breakfast",
+          "kind": "dining",
+          "at": 8,
+          "spread": 2,
+          "shoulder": [
+            7,
+            11
+          ],
+          "minutes": 25,
+          "probability": 0.45,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated weekday menu."
+          }
+        },
+        {
+          "id": "lunch",
+          "label": "lunch",
+          "kind": "dining",
+          "at": 12,
+          "spread": 2,
+          "shoulder": [
+            10.5,
+            16
+          ],
+          "minutes": 35,
+          "probability": 0.75,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated weekday menu."
+          }
+        },
+        {
+          "id": "day-study",
+          "label": "daytime library study",
+          "kind": "library",
+          "at": 14,
+          "spread": 5,
+          "shoulder": [
+            8,
+            22
+          ],
+          "minutes": 75,
+          "probability": 0.55,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated weekday menu."
+          }
+        },
+        {
+          "id": "dinner",
+          "label": "dinner",
+          "kind": "dining",
+          "at": 18,
+          "spread": 3,
+          "shoulder": [
+            16,
+            22
+          ],
+          "minutes": 40,
+          "probability": 0.7,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated weekday menu."
+          }
+        },
+        {
+          "id": "workout",
+          "label": "gym workout",
+          "kind": "gym",
+          "at": 17,
+          "spread": 5,
+          "shoulder": [
+            6,
+            22
+          ],
+          "minutes": 55,
+          "probability": 0.25,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated weekday menu; FitRec arrival hours follow FitRec's published hourly visits."
+          }
+        },
+        {
+          "id": "evening-study",
+          "label": "evening library session",
+          "kind": "library",
+          "at": 19.5,
+          "spread": 2.5,
+          "shoulder": [
+            18,
+            22.5
+          ],
+          "minutes": 90,
+          "probability": 0.25,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated weekday menu."
+          }
+        },
+        {
+          "id": "day-outing",
+          "label": "daytime outing off campus",
+          "kind": "off-campus-outing",
+          "at": 11,
+          "spread": 4,
+          "shoulder": [
+            10,
+            18
+          ],
+          "minutes": 120,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Dormant (probability 0) on ordinary days; scenarios such as Marathon Monday switch it on. Appended last so existing draws are unchanged."
+          }
+        },
+        {
+          "id": "river-lawn",
+          "label": "time on the grass by the river",
+          "kind": "outdoor",
+          "spot": "lawn",
+          "at": 12,
+          "spread": 7,
+          "shoulder": [
+            10,
+            21
+          ],
+          "minutes": 45,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Sitting on BU Beach or an Esplanade lawn. Dormant (probability 0) without the conditions engine; appended last so earlier draws are unchanged."
+          }
+        },
+        {
+          "id": "river-loop",
+          "label": "walk or run on the river path",
+          "kind": "outdoor",
+          "spot": "loop",
+          "at": 7,
+          "spread": 12,
+          "shoulder": [
+            6,
+            21
+          ],
+          "minutes": 40,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "A walk or run on the Dr. Paul Dudley White Path. Dormant (probability 0) without the conditions engine."
+          }
+        }
+      ],
+      "friday": [
+        {
+          "id": "breakfast",
+          "label": "breakfast",
+          "kind": "dining",
+          "at": 8,
+          "spread": 2,
+          "shoulder": [
+            7,
+            11
+          ],
+          "minutes": 25,
+          "probability": 0.45,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Friday menu."
+          }
+        },
+        {
+          "id": "lunch",
+          "label": "lunch",
+          "kind": "dining",
+          "at": 12,
+          "spread": 2,
+          "shoulder": [
+            10.5,
+            16
+          ],
+          "minutes": 35,
+          "probability": 0.75,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Friday menu."
+          }
+        },
+        {
+          "id": "day-study",
+          "label": "daytime library study",
+          "kind": "library",
+          "at": 14,
+          "spread": 3,
+          "shoulder": [
+            9,
+            18
+          ],
+          "minutes": 75,
+          "probability": 0.4,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Friday menu: trimmed afternoon study."
+          }
+        },
+        {
+          "id": "dinner",
+          "label": "dinner",
+          "kind": "dining",
+          "at": 18,
+          "spread": 3,
+          "shoulder": [
+            16,
+            22
+          ],
+          "minutes": 40,
+          "probability": 0.7,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Friday menu."
+          }
+        },
+        {
+          "id": "workout",
+          "label": "gym workout",
+          "kind": "gym",
+          "at": 17,
+          "spread": 5,
+          "shoulder": [
+            6,
+            22
+          ],
+          "minutes": 55,
+          "probability": 0.25,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Friday menu."
+          }
+        },
+        {
+          "id": "night-out",
+          "label": "night out off campus",
+          "kind": "off-campus-outing",
+          "at": 19.5,
+          "spread": 2,
+          "shoulder": [
+            18,
+            21
+          ],
+          "minutes": 150,
+          "probability": 0.35,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Friday menu."
+          }
+        },
+        {
+          "id": "river-lawn",
+          "label": "time on the grass by the river",
+          "kind": "outdoor",
+          "spot": "lawn",
+          "at": 12,
+          "spread": 7,
+          "shoulder": [
+            10,
+            21
+          ],
+          "minutes": 45,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Sitting on BU Beach or an Esplanade lawn. Dormant (probability 0) without the conditions engine; appended last so earlier draws are unchanged."
+          }
+        },
+        {
+          "id": "river-loop",
+          "label": "walk or run on the river path",
+          "kind": "outdoor",
+          "spot": "loop",
+          "at": 7,
+          "spread": 12,
+          "shoulder": [
+            6,
+            21
+          ],
+          "minutes": 40,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "A walk or run on the Dr. Paul Dudley White Path. Dormant (probability 0) without the conditions engine."
+          }
+        }
+      ],
+      "saturday": [
+        {
+          "id": "brunch",
+          "label": "weekend brunch",
+          "kind": "dining",
+          "at": 10.5,
+          "spread": 2.5,
+          "shoulder": [
+            9,
+            14
+          ],
+          "minutes": 45,
+          "probability": 0.7,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Saturday menu."
+          }
+        },
+        {
+          "id": "day-study",
+          "label": "daytime library study",
+          "kind": "library",
+          "at": 13,
+          "spread": 4,
+          "shoulder": [
+            10,
+            21
+          ],
+          "minutes": 90,
+          "probability": 0.3,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Saturday menu."
+          }
+        },
+        {
+          "id": "workout",
+          "label": "gym workout",
+          "kind": "gym",
+          "at": 11,
+          "spread": 5,
+          "shoulder": [
+            8,
+            20
+          ],
+          "minutes": 60,
+          "probability": 0.35,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Saturday menu."
+          }
+        },
+        {
+          "id": "dinner",
+          "label": "dinner",
+          "kind": "dining",
+          "at": 17.5,
+          "spread": 2,
+          "shoulder": [
+            16.5,
+            20
+          ],
+          "minutes": 40,
+          "probability": 0.65,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Saturday menu."
+          }
+        },
+        {
+          "id": "night-out",
+          "label": "outing off campus",
+          "kind": "off-campus-outing",
+          "at": 19.5,
+          "spread": 2,
+          "shoulder": [
+            11,
+            21
+          ],
+          "minutes": 150,
+          "probability": 0.45,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Saturday menu."
+          }
+        },
+        {
+          "id": "river-lawn",
+          "label": "time on the grass by the river",
+          "kind": "outdoor",
+          "spot": "lawn",
+          "at": 11,
+          "spread": 7,
+          "shoulder": [
+            10,
+            21
+          ],
+          "minutes": 45,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Sitting on BU Beach or an Esplanade lawn. Dormant (probability 0) without the conditions engine; appended last so earlier draws are unchanged."
+          }
+        },
+        {
+          "id": "river-loop",
+          "label": "walk or run on the river path",
+          "kind": "outdoor",
+          "spot": "loop",
+          "at": 7,
+          "spread": 12,
+          "shoulder": [
+            6,
+            21
+          ],
+          "minutes": 40,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "A walk or run on the Dr. Paul Dudley White Path. Dormant (probability 0) without the conditions engine."
+          }
+        }
+      ],
+      "sunday": [
+        {
+          "id": "brunch",
+          "label": "weekend brunch",
+          "kind": "dining",
+          "at": 11,
+          "spread": 2.5,
+          "shoulder": [
+            10,
+            14
+          ],
+          "minutes": 45,
+          "probability": 0.7,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Sunday menu."
+          }
+        },
+        {
+          "id": "day-study",
+          "label": "daytime library study",
+          "kind": "library",
+          "at": 13,
+          "spread": 5,
+          "shoulder": [
+            10,
+            20
+          ],
+          "minutes": 120,
+          "probability": 0.5,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Sunday menu: afternoon study peak."
+          }
+        },
+        {
+          "id": "workout",
+          "label": "gym workout",
+          "kind": "gym",
+          "at": 11,
+          "spread": 5,
+          "shoulder": [
+            8,
+            20
+          ],
+          "minutes": 60,
+          "probability": 0.3,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Sunday menu."
+          }
+        },
+        {
+          "id": "dinner",
+          "label": "dinner",
+          "kind": "dining",
+          "at": 17,
+          "spread": 2.5,
+          "shoulder": [
+            16.5,
+            20.5
+          ],
+          "minutes": 40,
+          "probability": 0.65,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Sunday menu."
+          }
+        },
+        {
+          "id": "evening-study",
+          "label": "evening library session",
+          "kind": "library",
+          "at": 19,
+          "spread": 2.5,
+          "shoulder": [
+            18,
+            22.5
+          ],
+          "minutes": 90,
+          "probability": 0.3,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Uncalibrated Sunday menu."
+          }
+        },
+        {
+          "id": "day-outing",
+          "label": "daytime outing off campus",
+          "kind": "off-campus-outing",
+          "at": 11,
+          "spread": 4,
+          "shoulder": [
+            10,
+            18
+          ],
+          "minutes": 120,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Dormant (probability 0) on ordinary days; scenarios such as Marathon Monday switch it on. Appended last so existing draws are unchanged."
+          }
+        },
+        {
+          "id": "river-lawn",
+          "label": "time on the grass by the river",
+          "kind": "outdoor",
+          "spot": "lawn",
+          "at": 11,
+          "spread": 7,
+          "shoulder": [
+            10,
+            21
+          ],
+          "minutes": 45,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "Sitting on BU Beach or an Esplanade lawn. Dormant (probability 0) without the conditions engine; appended last so earlier draws are unchanged."
+          }
+        },
+        {
+          "id": "river-loop",
+          "label": "walk or run on the river path",
+          "kind": "outdoor",
+          "spot": "loop",
+          "at": 7,
+          "spread": 12,
+          "shoulder": [
+            6,
+            21
+          ],
+          "minutes": 40,
+          "probability": 0,
+          "provenance": {
+            "kind": "assumption",
+            "note": "A walk or run on the Dr. Paul Dudley White Path. Dormant (probability 0) without the conditions engine."
+          }
+        }
+      ]
+    }
+  },
+  "habits": {
+    "breakfast": {
+      "share": 0.45,
+      "high": 1.9,
+      "label": "breakfast regulars",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Stable personal habit from the day builder (sourceDay.ts HABIT_TRAITS): a share of students are regulars with a higher daily probability; everyone else's is lowered so the population mean is unchanged before the 100% cap. Uncalibrated."
+      }
+    },
+    "gym": {
+      "share": 0.3,
+      "high": 3,
+      "label": "gym regulars",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Stable personal habit from the day builder (sourceDay.ts HABIT_TRAITS): a share of students are regulars with a higher daily probability; everyone else's is lowered so the population mean is unchanged before the 100% cap. Uncalibrated."
+      }
+    },
+    "library": {
+      "share": 0.5,
+      "high": 1.6,
+      "label": "library regulars",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Stable personal habit from the day builder (sourceDay.ts HABIT_TRAITS): a share of students are regulars with a higher daily probability; everyone else's is lowered so the population mean is unchanged before the 100% cap. Uncalibrated."
+      }
+    },
+    "off-campus-outing": {
+      "share": 0.5,
+      "high": 1.6,
+      "label": "outing regulars",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Stable personal habit from the day builder (sourceDay.ts HABIT_TRAITS): a share of students are regulars with a higher daily probability; everyone else's is lowered so the population mean is unchanged before the 100% cap. Uncalibrated."
+      }
+    },
+    "off-campus-meal": {
+      "share": 0.35,
+      "high": 2,
+      "label": "frequent off-campus eaters",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Stable personal habit from the day builder (sourceDay.ts HABIT_TRAITS): a share of students are regulars with a higher daily probability; everyone else's is lowered so the population mean is unchanged before the 100% cap. Uncalibrated."
+      }
+    },
+    "river-lawn": {
+      "share": 0,
+      "high": 1,
+      "label": "regulars on the grass by the river",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Dormant without the conditions engine (no regulars)."
+      }
+    },
+    "river-loop": {
+      "share": 0,
+      "high": 1,
+      "label": "river-path runners",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Dormant without the conditions engine (no regulars)."
+      }
+    }
+  },
+  "modifiers": [
+    {
+      "id": "calibration-meal-times",
+      "label": "Meals peak at real meal times",
+      "group": "calibration",
+      "effects": [
+        {
+          "target": "activity.lunch.at",
+          "op": "set",
+          "value": 11.5,
+          "tune": {
+            "min": 10.5,
+            "max": 12.5,
+            "step": 0.25
+          }
+        },
+        {
+          "target": "activity.lunch.spread",
+          "op": "set",
+          "value": 2.75,
+          "tune": {
+            "min": 1.5,
+            "max": 4,
+            "step": 0.25
+          }
+        },
+        {
+          "target": "activity.lunch.bell",
+          "op": "set",
+          "value": 1
+        },
+        {
+          "target": "activity.dinner.at",
+          "op": "set",
+          "value": 16.5,
+          "tune": {
+            "min": 16.5,
+            "max": 18.5,
+            "step": 0.25
+          }
+        },
+        {
+          "target": "activity.dinner.spread",
+          "op": "set",
+          "value": 2,
+          "tune": {
+            "min": 1.5,
+            "max": 4,
+            "step": 0.25
+          }
+        },
+        {
+          "target": "activity.dinner.bell",
+          "op": "set",
+          "value": 1
+        },
+        {
+          "target": "activity.breakfast.bell",
+          "op": "set",
+          "value": 1
+        },
+        {
+          "target": "activity.brunch.bell",
+          "op": "set",
+          "value": 1
+        }
+      ],
+      "provenance": {
+        "kind": "fitted",
+        "note": "Bell-shaped arrivals centred on 11:30–13:30 lunch and 17:30–19:30 dinner; centres fitted to dining-hall timing targets and BU Dining's published daily meal counts.",
+        "source": "https://www.bu.edu/articles/2017/bu-dining/",
+        "validation": {
+          "totalLoss": 4.4032
+        }
+      }
+    },
+    {
+      "id": "calibration-dining-volume",
+      "label": "Dining volume matches BU Dining's meal counts",
+      "group": "calibration",
+      "effects": [
+        {
+          "target": "activity.lunch.probability",
+          "op": "mul",
+          "value": 0.85,
+          "tune": {
+            "min": 0.6,
+            "max": 1.3,
+            "step": 0.05
+          }
+        },
+        {
+          "target": "activity.dinner.probability",
+          "op": "mul",
+          "value": 1,
+          "tune": {
+            "min": 0.6,
+            "max": 1.3,
+            "step": 0.05
+          }
+        },
+        {
+          "target": "offCampusMealShare",
+          "op": "set",
+          "value": 0.35,
+          "tune": {
+            "min": 0.1,
+            "max": 0.5,
+            "step": 0.05
+          }
+        }
+      ],
+      "provenance": {
+        "kind": "fitted",
+        "note": "Three main dining halls serve about 3,000 breakfasts, 5,000 lunches and 5,000 dinners a day (BU Today, 2017).",
+        "source": "https://www.bu.edu/articles/2017/bu-dining/",
+        "validation": {
+          "totalLoss": 4.4032
+        }
+      }
+    },
+    {
+      "id": "calibration-fit-into-gaps",
+      "label": "Visits move into free gaps instead of being dropped",
+      "group": "calibration",
+      "effects": [
+        {
+          "target": "gapPlacement",
+          "op": "set",
+          "value": 1
+        },
+        {
+          "target": "visitLengthSpread",
+          "op": "set",
+          "value": 0.5,
+          "tune": {
+            "min": 0,
+            "max": 0.6,
+            "step": 0.1
+          }
+        }
+      ],
+      "provenance": {
+        "kind": "fitted",
+        "note": "A clash with a class used to drop the meal or study session (18k rejected visits on a Wednesday); now it moves to the nearest free gap in its window. Visit lengths vary ±40%.",
+        "validation": {
+          "totalLoss": 4.4032
+        }
+      }
+    },
+    {
+      "id": "calibration-library-weekday",
+      "label": "Weekday study starts mid-morning",
+      "group": "calibration",
+      "when": {
+        "weekday": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.day-study.at",
+          "op": "set",
+          "value": 10,
+          "tune": {
+            "min": 9,
+            "max": 13,
+            "step": 0.5
+          }
+        },
+        {
+          "target": "activity.day-study.spread",
+          "op": "set",
+          "value": 7.5,
+          "tune": {
+            "min": 4,
+            "max": 10,
+            "step": 0.5
+          }
+        }
+      ],
+      "provenance": {
+        "kind": "fitted",
+        "note": "Library entries by hour fitted to the shape of the School of Theology Library's historical gate counts (the only BU library series in the data), with evening sessions kept so libraries stay occupied late.",
+        "source": "https://public.tableau.com/views/GateCountsbyTimeofDay/STHLibraryCountsandQuestionsbyTimeofDay.csv?:showVizHome=no",
+        "validation": {
+          "totalLoss": 4.4032
+        }
+      }
+    },
+    {
+      "id": "calibration-library",
+      "label": "Library study follows the day, not just the evening",
+      "group": "calibration",
+      "effects": [
+        {
+          "target": "activity.day-study.bell",
+          "op": "set",
+          "value": 1
+        },
+        {
+          "target": "activity.day-study.minutes",
+          "op": "mul",
+          "value": 1,
+          "tune": {
+            "min": 0.6,
+            "max": 1.6,
+            "step": 0.1
+          }
+        },
+        {
+          "target": "activity.evening-study.probability",
+          "op": "mul",
+          "value": 1,
+          "tune": {
+            "min": 0.4,
+            "max": 1.6,
+            "step": 0.1
+          }
+        },
+        {
+          "target": "activity.evening-study.shoulderEnd",
+          "op": "set",
+          "value": 23
+        }
+      ],
+      "provenance": {
+        "kind": "fitted",
+        "note": "Library entries by hour fitted to the shape of the School of Theology Library's historical gate counts (the only BU library series in the data), with evening sessions kept so libraries stay occupied late.",
+        "source": "https://public.tableau.com/views/GateCountsbyTimeofDay/STHLibraryCountsandQuestionsbyTimeofDay.csv?:showVizHome=no",
+        "validation": {
+          "totalLoss": 4.4032
+        }
+      }
+    },
+    {
+      "id": "calibration-fitrec-weekday",
+      "label": "Weekday gym visits match FitRec's measured totals",
+      "group": "calibration",
+      "when": {
+        "weekday": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.workout.probability",
+          "op": "mul",
+          "value": 2.8,
+          "tune": {
+            "min": 1,
+            "max": 4,
+            "step": 0.1
+          }
+        }
+      ],
+      "provenance": {
+        "kind": "fitted",
+        "note": "FitRec's published hourly entries for Oct 17–23, 2026 total about 4,000 per weekday; the uncalibrated model produced about 1,400.",
+        "source": "https://www.bu.edu/fitrec/peak-quiet-hours/",
+        "validation": {
+          "totalLoss": 4.4032
+        }
+      }
+    },
+    {
+      "id": "calibration-commuters",
+      "label": "Commuters stay on campus between classes",
+      "group": "calibration",
+      "effects": [
+        {
+          "target": "commuterOffCampusGapMinutes",
+          "op": "set",
+          "value": 270,
+          "tune": {
+            "min": 60,
+            "max": 300,
+            "step": 30
+          }
+        },
+        {
+          "target": "commuterMinClasses",
+          "op": "set",
+          "value": 1
+        },
+        {
+          "target": "commuterActivityWindowMinutes",
+          "op": "set",
+          "value": 90,
+          "tune": {
+            "min": 0,
+            "max": 180,
+            "step": 30
+          }
+        }
+      ],
+      "provenance": {
+        "kind": "fitted",
+        "note": "Commuters used to bounce through a transit stop for any 30-minute gap. They now wait on campus for gaps under a few hours and may visit before or after their classes. Walk-in access points near each destination and on-campus study blocks come from the day builder itself.",
+        "validation": {
+          "totalLoss": 4.4032
+        }
+      }
+    },
+    {
+      "id": "calibration-walking",
+      "label": "People walk at different speeds and linger after class",
+      "group": "calibration",
+      "effects": [
+        {
+          "target": "walkSpeedFactor",
+          "op": "set",
+          "value": 0.964
+        },
+        {
+          "target": "walkSpeedSpread",
+          "op": "set",
+          "value": 0.2
+        },
+        {
+          "target": "postClassLingerMinutes",
+          "op": "set",
+          "value": 6,
+          "tune": {
+            "min": 0,
+            "max": 15,
+            "step": 1
+          }
+        }
+      ],
+      "provenance": {
+        "kind": "fitted",
+        "note": "Walking speeds of young adults average about 1.35 m/s with a standard deviation near 0.2 m/s (Bohannon 1997); 0–8 minutes of lingering after class removes the lockstep wave at the bell.",
+        "validation": {
+          "totalLoss": 4.4032
+        }
+      }
+    },
+    {
+      "id": "outdoor-defaults",
+      "label": "Students spend free time by the river",
+      "group": "calibration",
+      "effects": [
+        {
+          "target": "activity.river-lawn.probability",
+          "op": "set",
+          "value": 0.1,
+          "tune": {
+            "min": 0.02,
+            "max": 0.25,
+            "step": 0.02
+          }
+        },
+        {
+          "target": "activity.river-lawn.bell",
+          "op": "set",
+          "value": 1
+        },
+        {
+          "target": "activity.river-lawn.minutes",
+          "op": "set",
+          "value": 50
+        },
+        {
+          "target": "activity.river-loop.probability",
+          "op": "set",
+          "value": 0.05,
+          "tune": {
+            "min": 0.01,
+            "max": 0.12,
+            "step": 0.01
+          }
+        },
+        {
+          "target": "commuterOutdoorFactor",
+          "op": "set",
+          "value": 0.35
+        },
+        {
+          "target": "habit.river-lawn.share",
+          "op": "set",
+          "value": 0.4
+        },
+        {
+          "target": "habit.river-lawn.high",
+          "op": "set",
+          "value": 2
+        },
+        {
+          "target": "habit.river-loop.share",
+          "op": "set",
+          "value": 0.25
+        },
+        {
+          "target": "habit.river-loop.high",
+          "op": "set",
+          "value": 3
+        }
+      ],
+      "provenance": {
+        "kind": "fitted",
+        "note": "No counts of people on BU Beach or the Esplanade exist in the data, so these shares are assumptions: about one in twelve residents spends a while on the grass on an ordinary dry weekday and one in twenty walks or runs the river path; commuters about a third as often. River time is a habit like the builder's others: 40% are regulars on the grass (×2) and 25% are river-path runners (×3), with everyone else lowered to keep the mean.",
+        "validation": {
+          "totalLoss": 4.4032
+        }
+      }
+    },
+    {
+      "id": "outdoor-weekend",
+      "label": "Weekends by the river",
+      "group": "calibration",
+      "when": {
+        "weekday": [
+          5,
+          6
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.river-lawn.probability",
+          "op": "mul",
+          "value": 2
+        },
+        {
+          "target": "activity.river-lawn.minutes",
+          "op": "mul",
+          "value": 1.6
+        },
+        {
+          "target": "activity.river-loop.probability",
+          "op": "mul",
+          "value": 1.6
+        },
+        {
+          "target": "activity.river-loop.at",
+          "op": "set",
+          "value": 9
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Weekends: late morning to sunset on the grass, longer stays, more runs."
+      }
+    },
+    {
+      "id": "rain",
+      "label": "Rain",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "rain"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 1.12
+        },
+        {
+          "target": "activity.@library.minutes",
+          "op": "mul",
+          "value": 1.1
+        },
+        {
+          "target": "activity.@off-campus-outing.probability",
+          "op": "mul",
+          "value": 0.6
+        },
+        {
+          "target": "offCampusMealShare",
+          "op": "mul",
+          "value": 0.6
+        },
+        {
+          "target": "activity.@gym.probability",
+          "op": "mul",
+          "value": 0.9
+        },
+        {
+          "target": "walkSpeedFactor",
+          "op": "mul",
+          "value": 1.05
+        },
+        {
+          "target": "postClassLingerMinutes",
+          "op": "mul",
+          "value": 0.5
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Rain keeps students indoors: longer library stays, fewer outings and off-campus meals, faster and more direct walking. Direction follows studies of weather and pedestrian volumes (e.g. Aultman-Hall et al. 2009); sizes are assumptions."
+      }
+    },
+    {
+      "id": "storm",
+      "label": "Thunderstorm",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "storm"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 1.2
+        },
+        {
+          "target": "activity.@library.minutes",
+          "op": "mul",
+          "value": 1.2
+        },
+        {
+          "target": "activity.@off-campus-outing.probability",
+          "op": "mul",
+          "value": 0.4
+        },
+        {
+          "target": "offCampusMealShare",
+          "op": "mul",
+          "value": 0.4
+        },
+        {
+          "target": "activity.@gym.probability",
+          "op": "mul",
+          "value": 0.85
+        },
+        {
+          "target": "classAttendance",
+          "op": "mul",
+          "value": 0.97
+        },
+        {
+          "target": "walkSpeedFactor",
+          "op": "mul",
+          "value": 1.08
+        },
+        {
+          "target": "postClassLingerMinutes",
+          "op": "mul",
+          "value": 0.2
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Storms: students shelter indoors and skip optional trips. Sizes are assumptions."
+      }
+    },
+    {
+      "id": "snow",
+      "label": "Snow",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "snow"
+        ]
+      },
+      "effects": [
+        {
+          "target": "walkSpeedFactor",
+          "op": "mul",
+          "value": 0.85
+        },
+        {
+          "target": "arrivalLeadMinMinutes",
+          "op": "add",
+          "value": 3
+        },
+        {
+          "target": "classAttendance",
+          "op": "mul",
+          "value": 0.93
+        },
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 1.1
+        },
+        {
+          "target": "activity.@off-campus-outing.probability",
+          "op": "mul",
+          "value": 0.5
+        },
+        {
+          "target": "offCampusMealShare",
+          "op": "mul",
+          "value": 0.5
+        },
+        {
+          "target": "activity.@gym.probability",
+          "op": "mul",
+          "value": 0.8
+        },
+        {
+          "target": "postClassLingerMinutes",
+          "op": "mul",
+          "value": 0.3
+        },
+        {
+          "target": "awayShareCommuters",
+          "op": "add",
+          "value": 0.05
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Snow slows walking (about 15%), people leave earlier, some skip class and a few commuters stay home. Sizes are assumptions."
+      }
+    },
+    {
+      "id": "heat-midday",
+      "label": "Heatwave (midday)",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "heat"
+        ]
+      },
+      "window": [
+        11,
+        16
+      ],
+      "effects": [
+        {
+          "target": "activity.@off-campus-outing.probability",
+          "op": "mul",
+          "value": 0.6
+        },
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 1.15
+        },
+        {
+          "target": "activity.@dining.minutes",
+          "op": "mul",
+          "value": 1.1
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Heat: fewer midday outings, more time in air-conditioned libraries and dining halls (11:00–16:00 visits only)."
+      }
+    },
+    {
+      "id": "heat",
+      "label": "Heatwave",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "heat"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.@gym.probability",
+          "op": "mul",
+          "value": 0.85
+        },
+        {
+          "target": "walkSpeedFactor",
+          "op": "mul",
+          "value": 0.95
+        },
+        {
+          "target": "postClassLingerMinutes",
+          "op": "mul",
+          "value": 0.6
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Heat slows walking slightly and trims workouts. Sizes are assumptions."
+      }
+    },
+    {
+      "id": "cold",
+      "label": "Below freezing",
+      "group": "conditions",
+      "when": {
+        "band": [
+          "cold"
+        ]
+      },
+      "effects": [
+        {
+          "target": "offCampusMealShare",
+          "op": "mul",
+          "value": 0.8
+        },
+        {
+          "target": "postClassLingerMinutes",
+          "op": "mul",
+          "value": 0.5
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Below 32°F students eat on campus more and linger less outside. Sizes are assumptions."
+      }
+    },
+    {
+      "id": "reading-period",
+      "label": "Study period",
+      "group": "conditions",
+      "when": {
+        "period": [
+          "reading-period"
+        ]
+      },
+      "effects": [
+        {
+          "target": "classAttendance",
+          "op": "set",
+          "value": 0
+        },
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 1.6
+        },
+        {
+          "target": "activity.@library.minutes",
+          "op": "mul",
+          "value": 1.3
+        },
+        {
+          "target": "activity.evening-study.probability",
+          "op": "mul",
+          "value": 1.5
+        },
+        {
+          "target": "activity.@gym.probability",
+          "op": "mul",
+          "value": 0.85
+        },
+        {
+          "target": "activity.@off-campus-outing.probability",
+          "op": "mul",
+          "value": 0.6
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "No classes during BU's Study Period (published calendar); studying replaces them. Sizes are assumptions.",
+        "source": "https://www.bu.edu/reg/calendars/semester/"
+      }
+    },
+    {
+      "id": "finals",
+      "label": "Final exams",
+      "group": "conditions",
+      "when": {
+        "period": [
+          "finals"
+        ]
+      },
+      "effects": [
+        {
+          "target": "classAttendance",
+          "op": "set",
+          "value": 0.3
+        },
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 1.7
+        },
+        {
+          "target": "activity.@library.minutes",
+          "op": "mul",
+          "value": 1.3
+        },
+        {
+          "target": "activity.evening-study.probability",
+          "op": "mul",
+          "value": 1.8
+        },
+        {
+          "target": "activity.@gym.probability",
+          "op": "mul",
+          "value": 0.8
+        },
+        {
+          "target": "activity.@off-campus-outing.probability",
+          "op": "mul",
+          "value": 0.5
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Regular classes stop for finals (published calendar). Exam sittings are not published per room, so about 30% of class slots stand in for exams; libraries fill. Sizes are assumptions.",
+        "source": "https://www.bu.edu/reg/calendars/semester/"
+      }
+    },
+    {
+      "id": "break",
+      "label": "Recess",
+      "group": "conditions",
+      "when": {
+        "period": [
+          "break"
+        ]
+      },
+      "effects": [
+        {
+          "target": "classAttendance",
+          "op": "set",
+          "value": 0
+        },
+        {
+          "target": "awayShareResidents",
+          "op": "set",
+          "value": 0.8
+        },
+        {
+          "target": "awayShareCommuters",
+          "op": "set",
+          "value": 0.9
+        },
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 0.4
+        },
+        {
+          "target": "activity.@gym.probability",
+          "op": "mul",
+          "value": 0.6
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Classes suspended (published calendar); most students leave. Away shares are assumptions.",
+        "source": "https://www.bu.edu/reg/calendars/semester/"
+      }
+    },
+    {
+      "id": "holiday",
+      "label": "Holiday",
+      "group": "conditions",
+      "when": {
+        "period": [
+          "holiday"
+        ]
+      },
+      "effects": [
+        {
+          "target": "classAttendance",
+          "op": "set",
+          "value": 0
+        },
+        {
+          "target": "awayShareResidents",
+          "op": "set",
+          "value": 0.15
+        },
+        {
+          "target": "awayShareCommuters",
+          "op": "set",
+          "value": 0.85
+        },
+        {
+          "target": "activity.breakfast.at",
+          "op": "add",
+          "value": 1.5
+        },
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 0.8
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "A single suspended class day (published calendar): residents sleep in, few commuters come in. Sizes are assumptions.",
+        "source": "https://www.bu.edu/reg/calendars/semester/"
+      }
+    },
+    {
+      "id": "move-in",
+      "label": "Move-in",
+      "group": "conditions",
+      "when": {
+        "period": [
+          "move-in"
+        ]
+      },
+      "effects": [
+        {
+          "target": "classAttendance",
+          "op": "set",
+          "value": 0
+        },
+        {
+          "target": "awayShareCommuters",
+          "op": "set",
+          "value": 0.95
+        },
+        {
+          "target": "activity.@dining.probability",
+          "op": "mul",
+          "value": 1.2
+        },
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 0.2
+        },
+        {
+          "target": "activity.@gym.probability",
+          "op": "mul",
+          "value": 0.5
+        },
+        {
+          "target": "activity.@off-campus-outing.probability",
+          "op": "mul",
+          "value": 1.3
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Before the first class residents settle in: dining halls busy, errands off campus, libraries quiet. Sizes are assumptions."
+      }
+    },
+    {
+      "id": "marathon",
+      "label": "Boston Marathon",
+      "group": "conditions",
+      "when": {
+        "scenario": [
+          "marathon-monday"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.day-outing.probability",
+          "op": "set",
+          "value": 0.55
+        },
+        {
+          "target": "activity.day-outing.at",
+          "op": "set",
+          "value": 11
+        },
+        {
+          "target": "activity.day-outing.spread",
+          "op": "set",
+          "value": 3
+        },
+        {
+          "target": "activity.day-outing.minutes",
+          "op": "set",
+          "value": 180
+        },
+        {
+          "target": "activity.@library.probability",
+          "op": "mul",
+          "value": 0.6
+        },
+        {
+          "target": "activity.@gym.probability",
+          "op": "mul",
+          "value": 0.6
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Patriots' Day: the course passes Kenmore Square next to campus around midday; many residents go out to watch. Sizes are assumptions."
+      }
+    },
+    {
+      "id": "outdoor-rain",
+      "label": "Rain (outdoors)",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "rain"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.@outdoor.probability",
+          "op": "mul",
+          "value": 0.08
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Almost nobody sits on wet grass; a few runners still go out."
+      }
+    },
+    {
+      "id": "outdoor-storm",
+      "label": "Thunderstorm (outdoors)",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "storm"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.@outdoor.probability",
+          "op": "set",
+          "value": 0
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Nobody stays by the river in a thunderstorm."
+      }
+    },
+    {
+      "id": "outdoor-snow",
+      "label": "Snow (outdoors)",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "snow"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.river-lawn.probability",
+          "op": "mul",
+          "value": 0.05
+        },
+        {
+          "target": "activity.river-loop.probability",
+          "op": "mul",
+          "value": 0.25
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Snow: no sitting out; some walk the river path."
+      }
+    },
+    {
+      "id": "outdoor-cold",
+      "label": "Below freezing (outdoors)",
+      "group": "conditions",
+      "when": {
+        "band": [
+          "cold"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.river-lawn.probability",
+          "op": "mul",
+          "value": 0.1
+        },
+        {
+          "target": "activity.river-loop.probability",
+          "op": "mul",
+          "value": 0.4
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Below 32°F hardly anyone sits outside."
+      }
+    },
+    {
+      "id": "outdoor-cool",
+      "label": "Cool (outdoors)",
+      "group": "conditions",
+      "when": {
+        "band": [
+          "cool"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.river-lawn.probability",
+          "op": "mul",
+          "value": 0.45
+        },
+        {
+          "target": "activity.river-lawn.minutes",
+          "op": "mul",
+          "value": 0.7
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "32–55°F: fewer and shorter stays on the grass."
+      }
+    },
+    {
+      "id": "outdoor-warm",
+      "label": "Warm and dry (outdoors)",
+      "group": "conditions",
+      "when": {
+        "band": [
+          "warm"
+        ],
+        "weather": [
+          "dry"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.river-lawn.probability",
+          "op": "mul",
+          "value": 1.5
+        },
+        {
+          "target": "activity.river-lawn.minutes",
+          "op": "mul",
+          "value": 1.3
+        },
+        {
+          "target": "activity.river-loop.probability",
+          "op": "mul",
+          "value": 1.3
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "72–85°F and dry: BU Beach and the Esplanade fill up in the afternoon and evening."
+      }
+    },
+    {
+      "id": "outdoor-heat-midday",
+      "label": "Heat (outdoors, midday)",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "heat"
+        ]
+      },
+      "window": [
+        11,
+        16
+      ],
+      "effects": [
+        {
+          "target": "activity.@outdoor.probability",
+          "op": "mul",
+          "value": 0.4
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "In a heatwave people avoid the midday sun by the river."
+      }
+    },
+    {
+      "id": "outdoor-reading-period",
+      "label": "Study period (outdoors)",
+      "group": "conditions",
+      "when": {
+        "period": [
+          "reading-period"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.river-lawn.probability",
+          "op": "mul",
+          "value": 1.3
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Study breaks on the grass between library sessions."
+      }
+    },
+    {
+      "id": "outdoor-finals",
+      "label": "Finals (outdoors)",
+      "group": "conditions",
+      "when": {
+        "period": [
+          "finals"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.@outdoor.probability",
+          "op": "mul",
+          "value": 0.6
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Less free time during exams."
+      }
+    },
+    {
+      "id": "outdoor-marathon",
+      "label": "Marathon (outdoors)",
+      "group": "conditions",
+      "when": {
+        "scenario": [
+          "marathon-monday"
+        ]
+      },
+      "effects": [
+        {
+          "target": "activity.river-lawn.probability",
+          "op": "mul",
+          "value": 0.5
+        },
+        {
+          "target": "activity.river-loop.probability",
+          "op": "mul",
+          "value": 0.5
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "On Marathon Monday students watch the race in Kenmore instead."
+      }
+    }
+  ],
+  "validation": {
+    "generated": "2026-10-24",
+    "totalLoss": 4.4032,
+    "unconditionedLoss": 13.7628,
+    "metrics": {
+      "Wednesday, classes, dry 62°F · fitrec-hourly-r": 0.9418,
+      "Wednesday, classes, dry 62°F · fitrec-daily-ratio": 0.7126,
+      "Wednesday, classes, dry 62°F · fitrec-peak-hour": 2,
+      "Wednesday, classes, dry 62°F · library-hourly-r": 0.272,
+      "Wednesday, classes, dry 62°F · library-evening-vs-afternoon": 0.7136,
+      "Wednesday, classes, dry 62°F · library-pinned-share": 0.0781,
+      "Wednesday, classes, dry 62°F · dining-lunch-ratio": 1.0226,
+      "Wednesday, classes, dry 62°F · dining-dinner-ratio": 0.919,
+      "Wednesday, classes, dry 62°F · dining-meal-time-ratio": 1.5768,
+      "Wednesday, classes, dry 62°F · dining-peak-at-meal": 17.875,
+      "Wednesday, classes, dry 62°F · bluebikes-hourly-r": 0.5521,
+      "Wednesday, classes, dry 62°F · pedestrian-pm-am": 0.7471,
+      "Wednesday, classes, dry 62°F · walkers-3am": 0,
+      "Wednesday, classes, dry 62°F · walker-spike": 0.2193,
+      "Wednesday, classes, dry 62°F · walk-median-minutes": 5.7527,
+      "Wednesday, classes, dry 62°F · walk-long-share": 0.0464,
+      "Wednesday, classes, dry 62°F · commuter-stop-trips-4plus": 0.121,
+      "Wednesday, classes, dry 62°F · outdoor-3am": 0,
+      "Saturday, dry 62°F · fitrec-hourly-r": 0.9478,
+      "Saturday, dry 62°F · fitrec-daily-ratio": 0.9887,
+      "Saturday, dry 62°F · fitrec-peak-hour": 0,
+      "Saturday, dry 62°F · library-hourly-r": 0.7819,
+      "Saturday, dry 62°F · library-evening-vs-afternoon": 0.1678,
+      "Saturday, dry 62°F · library-pinned-share": 0.0365,
+      "Saturday, dry 62°F · dining-meal-time-ratio": 2.3374,
+      "Saturday, dry 62°F · dining-peak-at-meal": 12.125,
+      "Saturday, dry 62°F · walkers-3am": 0,
+      "Saturday, dry 62°F · walker-spike": 0.1664,
+      "Saturday, dry 62°F · walk-median-minutes": 4.9576,
+      "Saturday, dry 62°F · walk-long-share": 0.0528,
+      "Saturday, dry 62°F · commuter-stop-trips-4plus": 0.1712,
+      "Saturday, dry 62°F · outdoor-3am": 0,
+      "Finals Wednesday, dry 45°F · dining-meal-time-ratio": 1.5614,
+      "Finals Wednesday, dry 45°F · dining-peak-at-meal": 17.875,
+      "Finals Wednesday, dry 45°F · walkers-3am": 0,
+      "Finals Wednesday, dry 45°F · walker-spike": 0.1598,
+      "Finals Wednesday, dry 45°F · walk-median-minutes": 5.4518,
+      "Finals Wednesday, dry 45°F · walk-long-share": 0.0417,
+      "Finals Wednesday, dry 45°F · commuter-stop-trips-4plus": 0.1289,
+      "Finals Wednesday, dry 45°F · outdoor-3am": 0,
+      "Rainy Wednesday, 50°F · dining-meal-time-ratio": 1.5569,
+      "Rainy Wednesday, 50°F · dining-peak-at-meal": 17.875,
+      "Rainy Wednesday, 50°F · walkers-3am": 0,
+      "Rainy Wednesday, 50°F · walker-spike": 0.2277,
+      "Rainy Wednesday, 50°F · walk-median-minutes": 5.6617,
+      "Rainy Wednesday, 50°F · walk-long-share": 0.0504,
+      "Rainy Wednesday, 50°F · commuter-stop-trips-4plus": 0.1007,
+      "Rainy Wednesday, 50°F · outdoor-3am": 0,
+      "Rainy Wednesday, 50°F · outdoor-rain-share": 0.0364
+    }
+  },
+  "search": {
+    "method": "Seeded random search (¼ of the budget) then coordinate descent with step halving; acceptance requires every metric’s loss to rise by at most the tolerance and the weighted total to fall; winner confirmed on the full roster.",
+    "seed": 7,
+    "step": 4,
+    "sampleStudents": 9245,
+    "totalStudents": 36977,
+    "days": [
+      "Wednesday, classes, dry 62°F",
+      "Saturday, dry 62°F",
+      "Finals Wednesday, dry 45°F"
+    ],
+    "evaluations": 140,
+    "seconds": 224.841055834,
+    "tolerance": 0.02,
+    "startLoss": 6.521069946052488,
+    "bestLoss": 5.687010053031637,
+    "parameters": [
+      {
+        "modifier": "calibration-meal-times",
+        "target": "activity.lunch.at",
+        "start": 11.5,
+        "value": 11.5
+      },
+      {
+        "modifier": "calibration-meal-times",
+        "target": "activity.lunch.spread",
+        "start": 3,
+        "value": 2.75
+      },
+      {
+        "modifier": "calibration-meal-times",
+        "target": "activity.dinner.at",
+        "start": 16.75,
+        "value": 16.5
+      },
+      {
+        "modifier": "calibration-meal-times",
+        "target": "activity.dinner.spread",
+        "start": 2,
+        "value": 2
+      },
+      {
+        "modifier": "calibration-dining-volume",
+        "target": "activity.lunch.probability",
+        "start": 0.9,
+        "value": 0.85
+      },
+      {
+        "modifier": "calibration-dining-volume",
+        "target": "activity.dinner.probability",
+        "start": 1,
+        "value": 1
+      },
+      {
+        "modifier": "calibration-dining-volume",
+        "target": "offCampusMealShare",
+        "start": 0.35,
+        "value": 0.35
+      },
+      {
+        "modifier": "calibration-fit-into-gaps",
+        "target": "visitLengthSpread",
+        "start": 0.4,
+        "value": 0.5
+      },
+      {
+        "modifier": "calibration-library-weekday",
+        "target": "activity.day-study.at",
+        "start": 10,
+        "value": 10
+      },
+      {
+        "modifier": "calibration-library-weekday",
+        "target": "activity.day-study.spread",
+        "start": 7.5,
+        "value": 7.5
+      },
+      {
+        "modifier": "calibration-library",
+        "target": "activity.day-study.minutes",
+        "start": 1,
+        "value": 1
+      },
+      {
+        "modifier": "calibration-library",
+        "target": "activity.evening-study.probability",
+        "start": 1,
+        "value": 1
+      },
+      {
+        "modifier": "calibration-fitrec-weekday",
+        "target": "activity.workout.probability",
+        "start": 2.5,
+        "value": 2.8
+      },
+      {
+        "modifier": "calibration-commuters",
+        "target": "commuterOffCampusGapMinutes",
+        "start": 240,
+        "value": 270
+      },
+      {
+        "modifier": "calibration-commuters",
+        "target": "commuterActivityWindowMinutes",
+        "start": 90,
+        "value": 90
+      },
+      {
+        "modifier": "calibration-walking",
+        "target": "postClassLingerMinutes",
+        "start": 9,
+        "value": 6
+      },
+      {
+        "modifier": "outdoor-defaults",
+        "target": "activity.river-lawn.probability",
+        "start": 0.1,
+        "value": 0.1
+      },
+      {
+        "modifier": "outdoor-defaults",
+        "target": "activity.river-loop.probability",
+        "start": 0.07,
+        "value": 0.05
+      }
+    ],
+    "accepted": true
+  }
+}

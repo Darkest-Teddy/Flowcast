@@ -1,7 +1,7 @@
 // Turns a day of precomputed trips into "where is everyone at time t".
 // The server will eventually own this (plan Section 8.1); until then the client
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
-import { createOccupancyIndex, type OccupancyIndex } from './occupancyIndex';
+import { drain, occupancyIndexSteps, type OccupancyIndex } from './occupancyIndex';
 import type { CasualtyEvent } from './casualties';
 
 export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'outdoor' | 'off-campus';
@@ -108,7 +108,7 @@ export interface Trip {
 /** Why an agent occupies a stay. `fixed` stays (published classes) must never be relocated. */
 export type StayPurpose =
   | { kind: 'class'; fixed: true; meetingId: string; courseCode: string }
-  | { kind: 'dining' | 'library' | 'gym'; fixed: false }
+  | { kind: 'dining' | 'library' | 'gym' | 'outdoor'; fixed: false }
   | { kind: 'estimated'; fixed: false; purpose: EstimatedActivityProfile['purpose'] }
   | { kind: 'off-campus-meal' | 'off-campus-outing' | 'unmapped-academic'; fixed: false }
   | { kind: 'gathering'; fixed: false; eventId: string }
@@ -205,24 +205,100 @@ function bearingBetween(a: [number, number], b: [number, number]): number {
   return (Math.atan2(y, x) / toRad + 360) % 360;
 }
 
+/** The lookups a Playback is built on (see indexPlayback). */
+export interface PlaybackIndex {
+  agents: Map<string, Agent>;
+  tripsByAgent: Map<string, Trip[]>;
+  staysByAgent: Map<string, Stay[]>;
+  stayOccupancy: OccupancyIndex | null;
+  walkingBuckets: Map<number, Trip[]>;
+  outdoorStays: { stay: Stay; location: CampusLocation }[];
+  ridesByTrip: Map<string, TransitRide[]>;
+  waitingBuckets: Map<number, TransitRide[]>;
+  casualties: CasualtyEvent[];
+  casualtyByAgent: Map<string, CasualtyEvent>;
+}
+
+/** Index a day in resumable steps (yields every few thousand items), so a rebuilt day can be
+ * prepared across frames without a hitch; `new Playback(data)` simply runs it to the end. */
+export function* indexPlayback(data: DayData, chunk = 4096): Generator<void, PlaybackIndex> {
+  let work = 0;
+  const stayOccupancy = data.stays ? yield* occupancyIndexSteps(data.stays, chunk) : null;
+  const agents = new Map<string, Agent>(), tripsByAgent = new Map<string, Trip[]>(), staysByAgent = new Map<string, Stay[]>();
+  const walkingBuckets = new Map<number, Trip[]>(), ridesByTrip = new Map<string, TransitRide[]>(), waitingBuckets = new Map<number, TransitRide[]>();
+  const outdoorStays: { stay: Stay; location: CampusLocation }[] = [];
+  for (const agent of data.agents) {
+    if (agents.has(agent.id)) throw new Error(`Duplicate student: ${agent.id}`);
+    agents.set(agent.id, agent);
+    tripsByAgent.set(agent.id, []);
+    if (++work % chunk === 0) yield;
+  }
+  const casualties = validateCasualties(data.casualties, agents);
+  const casualtyByAgent = new Map<string, CasualtyEvent>();
+  for (const event of casualties) casualtyByAgent.set(event.agentId, event);
+  // Walks are cut at an agent's casualty event, so neither markers nor trails show later movement.
+  // The clipped copies are built once: trail candidates stay stable and rewinding needs no rebuild.
+  for (const original of data.trips) {
+    const event = casualtyByAgent.get(original.agent);
+    const trip = event ? clipTrip(original, event.at) : original;
+    if (!trip) continue;
+    const list = tripsByAgent.get(trip.agent) ?? [];
+    list.push(trip);
+    tripsByAgent.set(trip.agent, list);
+    const start = trip.timestamps[0];
+    const end = trip.timestamps[trip.timestamps.length - 1];
+    for (let bucket = Math.floor(start / 300); bucket < Math.ceil(end / 300); bucket++) {
+      const active = walkingBuckets.get(bucket) ?? [];
+      active.push(trip);
+      walkingBuckets.set(bucket, active);
+    }
+    if (++work % chunk === 0) yield;
+  }
+  for (const ride of data.transitRides ?? []) {
+    const list = ridesByTrip.get(ride.trip) ?? [];
+    list.push(ride); ridesByTrip.set(ride.trip, list);
+    if (++work % chunk === 0) yield;
+    if (ride.kind !== 'board' || ride.waitStart === undefined) continue;
+    for (let bucket = Math.floor(ride.waitStart / 300); bucket <= Math.floor(ride.time / 300); bucket++) {
+      const waiting = waitingBuckets.get(bucket) ?? [];
+      waiting.push(ride); waitingBuckets.set(bucket, waiting);
+    }
+  }
+  for (const stay of data.stays ?? []) {
+    const list = staysByAgent.get(stay.agent) ?? [];
+    list.push(stay); staysByAgent.set(stay.agent, list);
+    if (++work % chunk === 0) yield;
+  }
+  const outdoorLocations = new Map(data.locations.filter(location => location.kind === 'outdoor').map(location => [location.id, location]));
+  for (const stay of data.stays ?? []) {
+    const location = outdoorLocations.get(stay.location);
+    if (location) outdoorStays.push({ stay, location });
+    if (++work % chunk === 0) yield;
+  }
+  for (const list of staysByAgent.values()) { list.sort((a, b) => a.start - b.start); if (++work % chunk === 0) yield; }
+  for (const list of tripsByAgent.values()) { list.sort((a, b) => a.timestamps[0] - b.timestamps[0]); if (++work % chunk === 0) yield; }
+  return { agents, tripsByAgent, staysByAgent, stayOccupancy, walkingBuckets, outdoorStays, ridesByTrip, waitingBuckets, casualties, casualtyByAgent };
+}
+
 export class Playback {
   readonly locations: CampusLocation[];
-  private readonly agents = new Map<string, Agent>();
-  private readonly tripsByAgent = new Map<string, Trip[]>();
-  private readonly staysByAgent = new Map<string, Stay[]>();
+  private readonly agents: Map<string, Agent>;
+  private readonly tripsByAgent: Map<string, Trip[]>;
+  private readonly staysByAgent: Map<string, Stay[]>;
   private readonly stayOccupancy: OccupancyIndex | null;
-  private readonly walkingBuckets = new Map<number, Trip[]>();
-  private readonly outdoorStays: { stay: Stay; location: CampusLocation }[] = [];
+  private readonly walkingBuckets: Map<number, Trip[]>;
+  private readonly outdoorStays: { stay: Stay; location: CampusLocation }[];
   private trailWindow: { first: number; last: number; trips: Trip[] } | null = null;
-  private readonly ridesByTrip = new Map<string, TransitRide[]>();
-  private readonly waitingBuckets = new Map<number, TransitRide[]>();
+  private readonly ridesByTrip: Map<string, TransitRide[]>;
+  private readonly waitingBuckets: Map<number, TransitRide[]>;
   /** Sorted copy of data.casualties; the caller's array is never reordered. */
   private readonly casualties: CasualtyEvent[];
-  private readonly casualtyByAgent = new Map<string, CasualtyEvent>();
+  private readonly casualtyByAgent: Map<string, CasualtyEvent>;
 
   readonly data: DayData;
 
-  constructor(data: DayData) {
+  /** `index` (optional) is indexPlayback(data) already run, e.g. in slices between frames. */
+  constructor(data: DayData, index?: PlaybackIndex) {
     for (const location of data.locations) {
       if (!Number.isFinite(location.capacity) || location.capacity < 0
         || location.referenceCapacity !== undefined && location.capacity !== location.referenceCapacity) {
@@ -230,52 +306,18 @@ export class Playback {
       }
     }
     this.data = data;
-    this.stayOccupancy = data.stays ? createOccupancyIndex(data.stays) : null;
     this.locations = data.locations;
-    for (const agent of data.agents) {
-      if (this.agents.has(agent.id)) throw new Error(`Duplicate student: ${agent.id}`);
-      this.agents.set(agent.id, agent);
-      this.tripsByAgent.set(agent.id, []);
-    }
-    this.casualties = validateCasualties(data.casualties, this.agents);
-    for (const event of this.casualties) this.casualtyByAgent.set(event.agentId, event);
-    // Walks are cut at an agent's casualty event, so neither markers nor trails show later movement.
-    // The clipped copies are built once: trail candidates stay stable and rewinding needs no rebuild.
-    for (const original of data.trips) {
-      const event = this.casualtyByAgent.get(original.agent);
-      const trip = event ? clipTrip(original, event.at) : original;
-      if (!trip) continue;
-      const list = this.tripsByAgent.get(trip.agent) ?? [];
-      list.push(trip);
-      this.tripsByAgent.set(trip.agent, list);
-      const start = trip.timestamps[0];
-      const end = trip.timestamps[trip.timestamps.length - 1];
-      for (let bucket = Math.floor(start / 300); bucket < Math.ceil(end / 300); bucket++) {
-        const active = this.walkingBuckets.get(bucket) ?? [];
-        active.push(trip);
-        this.walkingBuckets.set(bucket, active);
-      }
-    }
-    for (const ride of data.transitRides ?? []) {
-      const list = this.ridesByTrip.get(ride.trip) ?? [];
-      list.push(ride); this.ridesByTrip.set(ride.trip, list);
-      if (ride.kind !== 'board' || ride.waitStart === undefined) continue;
-      for (let bucket = Math.floor(ride.waitStart / 300); bucket <= Math.floor(ride.time / 300); bucket++) {
-        const waiting = this.waitingBuckets.get(bucket) ?? [];
-        waiting.push(ride); this.waitingBuckets.set(bucket, waiting);
-      }
-    }
-    for (const stay of data.stays ?? []) {
-      const list = this.staysByAgent.get(stay.agent) ?? [];
-      list.push(stay); this.staysByAgent.set(stay.agent, list);
-    }
-    const outdoorLocations = new Map(data.locations.filter(location => location.kind === 'outdoor').map(location => [location.id, location]));
-    for (const stay of data.stays ?? []) {
-      const location = outdoorLocations.get(stay.location);
-      if (location) this.outdoorStays.push({ stay, location });
-    }
-    for (const list of this.staysByAgent.values()) list.sort((a, b) => a.start - b.start);
-    for (const list of this.tripsByAgent.values()) list.sort((a, b) => a.timestamps[0] - b.timestamps[0]);
+    const built = index ?? drain(indexPlayback(data));
+    this.stayOccupancy = built.stayOccupancy;
+    this.agents = built.agents;
+    this.tripsByAgent = built.tripsByAgent;
+    this.staysByAgent = built.staysByAgent;
+    this.walkingBuckets = built.walkingBuckets;
+    this.outdoorStays = built.outdoorStays;
+    this.ridesByTrip = built.ridesByTrip;
+    this.waitingBuckets = built.waitingBuckets;
+    this.casualties = built.casualties;
+    this.casualtyByAgent = built.casualtyByAgent;
   }
 
   // Computed once: the frame loop reads endTime every frame, and each read scanned all ~8,000 trips.

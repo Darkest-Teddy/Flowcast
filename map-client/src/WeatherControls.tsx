@@ -37,6 +37,8 @@ interface Props {
   simTime?: number | null;
   live?: boolean;
   onChange?: (weather: ActiveWeather) => void;
+  /** A scenario's weather look (conditions engine); null/undefined leaves the control as set. */
+  forceMode?: WeatherMode | null;
 }
 
 const clock = (iso: string | number) =>
@@ -78,8 +80,15 @@ function usePolled<T>(load: (signal: AbortSignal) => Promise<T>, every: number, 
   return [value, error] as const;
 }
 
-export function WeatherControls({ basemap, light, simTime = null, live = true, onChange }: Props) {
+export function WeatherControls({ basemap, light, simTime = null, live = true, onChange, forceMode = null }: Props) {
   const [mode, setMode] = useState<WeatherMode>('live');
+  // A scenario sets the look; leaving it goes back to live weather.
+  const forced = useRef<WeatherMode | null>(null);
+  useEffect(() => {
+    if (forceMode) setMode(forceMode);
+    else if (forced.current) setMode('live');
+    forced.current = forceMode;
+  }, [forceMode]);
   const [reading, error] = usePolled<WeatherReading>(fetchWeather, REFRESH_MS, cachedWeather()?.reading ?? null);
   const [forecast] = usePolled<Forecast>(fetchForecast, FORECAST_REFRESH_MS, null);
 

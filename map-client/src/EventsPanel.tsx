@@ -9,7 +9,7 @@ const longDate = (date: string) => LONG_DATE.format(new Date(`${date}T12:00:00Z`
 
 /** The shown day's campus events: which ones change the map, how many simulated students attend, and why others don't. */
 export function EventsPanel({ day, data, locations, eventsOn, onToggle, onPickDate, onShow }: {
-  day: SourceDay | null;
+  day: Pick<SourceDay, 'eventDate' | 'gatherings'> | null;
   data: CampusData;
   locations: CampusLocation[];
   eventsOn: boolean;

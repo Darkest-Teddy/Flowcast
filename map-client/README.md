@@ -199,6 +199,75 @@ The **Parking** toggle in the Transit tab (remembered in `localStorage` as `flow
 - **Drawing:** two deck.gl layers for every lot (`layers/parking.ts`: one `SolidPolygonLayer` of fills, one `PathLayer` of outlines) with data arrays built once; only the colour accessors re-run, when a lot changes level. The estimate is recomputed at most twice a second, like the HUD. Tags ("Agganis Garage · 82% · Busy", "FULL") go through the shared placer (`ParkingTags.tsx`), on the same four-step scale as the crowds.
 - **It's an estimate layer only.** Students in the simulation don't drive, and parking never changes timelines, occupancy or counts.
 
+## Conditions engine: daily conditions, what-if scenarios, explanation
+
+The simulated day responds to the day's conditions: the date's academic period (BU Registrar
+calendar: classes, holiday, recess, study period, finals, move-in), the weekday, the weather
+(rain, storm, snow, heat; temperature band), daylight, scheduled events and an optional scenario.
+Conditions only ever change **people's timelines** (who goes where, when and for how long); counts
+and capacities are never scaled.
+
+- `src/sim/conditions.ts` builds a deterministic `DayConditions` record (`conditionsFor`). Clock
+  mode: today's Boston date + live weather. Playback: the picked weekday + the shown weather.
+- `src/sim/behavior.ts` + `public/data/behavior.json`: every behavioural rate the day builder uses
+  (class attendance, arrival lead, meal windows and off-campus share, library/gym demand and
+  timing, visit lengths, walking speed and spread, post-class lingering, commuter gaps, river
+  time, away shares, event turnout…) has a base value equal to the builder's constants plus
+  modifiers by weather, period, weekday, time-of-day window, scenario or event. `paramsFor`
+  composes them (calibration first, then conditions; multiply/add/set; clamped). Every value
+  carries provenance: `measured` | `published` | `assumption` | `fitted`.
+- Habits and personas: the day builder's own stable habits (`HABIT_TRAITS`: breakfast, gym,
+  library, outing and off-campus-meal regulars, favourite venues, usual times) are parameters
+  here too (`habits` in behavior.json, plus river regulars). `public/data/personas.json` (early
+  riser, night owl, library regular, gym regular, varsity athlete, commuting grad; shares per
+  cohort, stable per student) modulates those habits, i.e. how likely a student is to be a
+  regular, rather than adding a second trait system; shares are rebalanced per cohort so averages
+  stay calibrated. Derived locally (rules in `scripts/lib/persona-rules.mjs`).
+- Walk-in access points near each destination, on-campus study blocks for uncovered courses,
+  transit rides and campus-event gatherings are the day builder's own mechanisms; the engine only
+  sets their parameters (e.g. `offMapAcademicShare`). A scenario's event (the hockey game) becomes
+  one more gathering, skipped if a published event already uses that venue at that time.
+- `public/data/scenarios.json`: hand-authored presets (ordinary day, rainy exam week, snow day,
+  finals week, heatwave, warm Saturday, home hockey game at Agganis, move-in day, Marathon Monday).
+- `public/data/outdoor.json` (built by `python3 data-pipeline/build_outdoor_spots.py`, offline from
+  saved OSM extracts): BU Beach, the Charles River Reservation lawns and the Dr. Paul Dudley White
+  Path loop on the Boston bank, with walking connectors that reach the river only over the BU Beach
+  footbridge (Storrow Drive is not walkable). People sit on the grass (idle) or walk/run the loop;
+  the title shows "N by the river" (they are out of buildings, not in occupancy).
+- `buildSourceDay(base, data, weekday, transit, { eventDate, conditions, model })` (sim/sourceDay.ts,
+  clearly marked "Conditions engine hook" blocks). **No conditions → exactly the unconditioned
+  output** (tested; trips, stays, transit rides, gatherings and activities hash identically to the
+  planner without the engine for every weekday, with and without events).
+- In the app, conditioned days are simulated in a Web Worker (`src/sim/dayWorker.ts`, ~1.5–2.5 s per
+  day, with the published MBTA/BU Shuttle timetables and the day's campus events), sent back as
+  transferred typed arrays with stay purposes, transit rides and gatherings, and turned into a
+  `Playback` in ≤4 ms slices between frames (`src/sim/dayEngine.ts`); the previous day stays on
+  screen until the new one is ready. A new day ends any incident scenario running on the old one.
+- Crowds tab → **Conditions**: scenario picker (default "Live conditions"), **Compare with an
+  ordinary day** (paired: same students, same random draws; walkers by hour, busier/quieter
+  places, whole-day totals) and **Explain the model** (fixed templates, no API: conditions, active
+  modifiers and their effects, persona mix, provenance and validation).
+
+### Calibrated locally against measured data
+
+Nothing calls a network or AI service. To re-validate or refit:
+
+```bash
+cd map-client
+npm run validate:behavior          # full roster, today's model vs the engine → docs/behavior-validation.md
+npm run calibrate                  # seeded random search + coordinate descent on tunable values, ~3–8 min
+npm run calibrate -- --seed 3 --step 6 --evaluations 60 --minutes 15 --tolerance 0.02 --dry-run
+```
+
+The calibration simulates a Wednesday, a Saturday and a finals Wednesday on every Nth student
+(capacities scaled to match), scores them against FitRec hourly entries, historical library gate
+counts, Bluebikes dock activity, BU Dining's published meal counts, Comm Ave pedestrian counts and
+sanity targets (no walkers or river-sitters at 3 am, dining busy at meal times, few long walks,
+few commuter stop round-trips, no one-minute walker spikes), accepts a change only if no metric
+gets worse beyond the tolerance and the total improves, confirms the winner on the full roster,
+and writes `behavior.json` (provenance `fitted`, scores and search settings), `personas.json` and
+`docs/behavior-validation.md`.
+
 ## Data contract (what the pipeline / server must provide)
 
 `public/data/demo-day.json`, currently generated by `data-pipeline/make_demo_routes.py`:

@@ -1,0 +1,34 @@
+/* Conditions engine controls in the Crowds tab (ConditionsPanel.tsx). */
+.conditions { margin: 4px 0 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.conditions h3 { margin: 12px 0 6px; font-size: 13px; color: var(--text); font-weight: 600; }
+.scenario-picker { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.scenario-picker select {
+  flex: 1; min-height: 32px; padding: 4px 8px; border-radius: 8px; font: inherit; font-size: 13px;
+  color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.scenario-picker select:focus-visible { outline: 2px solid var(--accent); }
+.scenario-description { margin: 6px 0 0; }
+.conditions-status { margin: 6px 0 0; font-size: 13px; color: var(--text); }
+.conditions .muted { margin: 4px 0 0; }
+.conditions-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.conditions-actions button {
+  min-height: 32px; padding: 4px 10px; border-radius: 8px; font: inherit; font-size: 12px; cursor: pointer;
+  color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.conditions-actions button[aria-expanded='true'] { border-color: var(--accent); }
+.conditions-actions button:disabled { opacity: 0.5; cursor: default; }
+.conditions-actions button:focus-visible { outline: 2px solid var(--accent); }
+.compare svg { display: block; width: 100%; height: auto; }
+.compare .tick { fill: var(--muted); font-size: 10px; }
+.compare-legend { display: flex; gap: 12px; margin: 0 0 4px; font-size: 12px; color: var(--muted); }
+.compare-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.compare-table caption { text-align: left; font-size: 12px; font-weight: 600; color: var(--text); padding: 6px 0 2px; }
+.compare-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.compare-table th, .compare-table td { padding: 3px 4px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.compare-table th[scope='row'], .compare-table thead th:first-child { text-align: left; font-weight: 400; color: var(--text); }
+.compare-table thead th { color: var(--muted); font-weight: 600; }
+.compare details { margin: 6px 0; font-size: 12px; color: var(--muted); }
+.compare summary { cursor: pointer; }
+.explain ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.45; }
+.explain li { margin-bottom: 4px; }
+.explain-source { display: block; color: var(--muted); }
