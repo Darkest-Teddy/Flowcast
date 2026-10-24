@@ -12,7 +12,7 @@ Use this with the revised [master plan](campus-digital-twin-spec.md). T means ad
 
 ## 2. Ownership and decisions
 
-- [ ] Assign Data & Schedules, Simulation/DS, Backend, Map/Frontend, and Mobile/Product & Pitch leads.
+- [ ] Assign the four leads: Data & Schedules, Simulation & Backend, Map/Frontend, and Mobile/Product & Pitch.
 - [ ] Name the scope decision owner, pitch speaker, and separate demo operator. Agree on shift coverage.
 - [ ] Simulation owns the shared TypeScript behavior implementation. Backend owns authority/persistence; Python prepares data and analysis inputs.
 - [ ] Confirm the real MyBU example and consent, or use a labeled synthetic baseline.
