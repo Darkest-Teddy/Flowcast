@@ -23,6 +23,7 @@ npm run dev                  # http://localhost:5173
 | `at` | `at=12:20` | Start playback at this time (24h) instead of Live |
 | `speed` | `speed=120` | Start at this playback speed |
 | `lng`, `lat`, `zoom`, `pitch`, `bearing` | `lng=-71.1058&lat=42.3501&zoom=19` | Start camera |
+| `spin` | `spin=0` | Don't start the slow camera orbit on load (it never auto-starts under prefers-reduced-motion) |
 | `interleaved` | `interleaved=0` | Draw deck.gl as a plain overlay instead of mixing into the map (debug fallback; characters will no longer hide behind buildings) |
 
 Example: <http://localhost:5173/?at=12:15&speed=30> shows the lunch rush.
@@ -45,6 +46,7 @@ Mapbox GL JS (Standard) or MapLibre ──── base map, real 3D buildings
 | `src/layers/agents.ts` | Character models, facing direction, de-synchronised walk cycles |
 | `src/layers/crowd.ts` | Building glow, trails, labels, and the shared Quiet/Moderate/Busy/Packed scale |
 | `src/sim/playback.ts` | Where everyone is at time *t* and how full each place is. The server takes this over later (plan Section 8.1) |
+| `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
 | `src/App.tsx` | The frame loop, dashboard panel and timeline |
 
 **Characters walking without lockstep.** A `ScenegraphLayer` plays one animation clock for every instance it draws, so with a single layer all 300 characters would stride in unison. `agents.ts` splits each of the 12 character models across 3 layers whose walk cycles start a third of a stride apart and run at slightly different speeds. Characters face their direction of travel. Anyone not walking is inside a building, which matches the interior-view plan in Section 6.7.

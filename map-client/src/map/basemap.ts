@@ -21,6 +21,110 @@ export interface Basemap {
   project(lngLat: [number, number]): [number, number];
   getZoom(): number;
   remove(): void;
+
+  // Camera control (src/map/camera.ts). Moves made through these never count as user interaction.
+  getCamera(): CameraState;
+  /** Animated move; `fly: true` uses the zoom-out arc of flyTo. Skipped (jumps) under prefers-reduced-motion. */
+  easeTo(move: CameraMove): void;
+  jumpTo(camera: Partial<CameraState>): void;
+  /** True while an animated camera move (ours or the app's flyTo) is running. */
+  isEasing(): boolean;
+  /** Steepest pitch the map allows. */
+  maxPitch: number;
+  /**
+   * The user touching the map: 'press' (pointer down on the map), 'release' (pointer up),
+   * 'gesture' (drag, scroll, pinch, rotate, tilt, keyboard pan). Returns an unsubscribe.
+   */
+  onUserInteraction(cb: (kind: UserInteraction) => void): () => void;
+}
+
+export interface CameraState {
+  center: [number, number];
+  zoom: number;
+  pitch: number;
+  bearing: number;
+}
+
+export interface CameraMove extends Partial<CameraState> {
+  duration?: number;
+  easing?: (t: number) => number;
+  fly?: boolean;
+}
+
+export type UserInteraction = 'press' | 'release' | 'gesture';
+
+// The camera calls shared by Mapbox and MapLibre; their typings differ only in detail.
+interface CameraMap {
+  getCenter(): { lng: number; lat: number };
+  getZoom(): number;
+  getPitch(): number;
+  getBearing(): number;
+  easeTo(options: object): unknown;
+  flyTo(options: object): unknown;
+  jumpTo(options: object): unknown;
+  isEasing(): boolean;
+  getCanvasContainer(): HTMLElement;
+  on(type: string, listener: (e: { originalEvent?: Event }) => void): unknown;
+  off(type: string, listener: (e: { originalEvent?: Event }) => void): unknown;
+}
+
+// Map events carry an originalEvent only when a handler (mouse, touch, wheel, keyboard) caused
+// them; the app's own flyTo/easeTo/jumpTo calls have none.
+const GESTURE_EVENTS = ['dragstart', 'rotatestart', 'pitchstart', 'zoomstart', 'movestart', 'boxzoomstart'];
+
+function cameraApi(map: CameraMap, maxPitch: number) {
+  return {
+    getCamera: (): CameraState => {
+      const c = map.getCenter();
+      return { center: [c.lng, c.lat], zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
+    },
+    easeTo: ({ fly, ...move }: CameraMove) => {
+      // Both maps merge options over their defaults, so an explicit `undefined` (say, easing)
+      // would wipe the default out.
+      const options = Object.fromEntries(Object.entries(move).filter(([, v]) => v !== undefined));
+      if (fly) map.flyTo(options);
+      else map.easeTo(options);
+    },
+    jumpTo: (camera: Partial<CameraState>) => map.jumpTo(camera),
+    isEasing: () => map.isEasing(),
+    maxPitch,
+    onUserInteraction: (cb: (kind: UserInteraction) => void) => {
+      const el = map.getCanvasContainer();
+      let pressed = false;
+      // Both maps cancel an in-progress drag when the camera is moved under it (jumpTo -> stop()),
+      // so a press has to pause any animation before the drag threshold is even reached.
+      const press = () => {
+        pressed = true;
+        cb('press');
+      };
+      const release = () => {
+        if (!pressed) return;
+        pressed = false;
+        cb('release');
+      };
+      const gesture = () => cb('gesture');
+      const fromHandler = (e: { originalEvent?: Event }) => {
+        if (e.originalEvent) cb('gesture');
+      };
+      const capture = { capture: true } as const;
+      el.addEventListener('pointerdown', press, capture);
+      el.addEventListener('touchstart', press, { capture: true, passive: true });
+      el.addEventListener('wheel', gesture, { capture: true, passive: true });
+      window.addEventListener('pointerup', release, capture);
+      window.addEventListener('pointercancel', release, capture);
+      window.addEventListener('touchend', release, capture);
+      for (const type of GESTURE_EVENTS) map.on(type, fromHandler);
+      return () => {
+        el.removeEventListener('pointerdown', press, capture);
+        el.removeEventListener('touchstart', press, capture);
+        el.removeEventListener('wheel', gesture, capture);
+        window.removeEventListener('pointerup', release, capture);
+        window.removeEventListener('pointercancel', release, capture);
+        window.removeEventListener('touchend', release, capture);
+        for (const type of GESTURE_EVENTS) map.off(type, fromHandler);
+      };
+    },
+  };
 }
 
 // From over the Charles looking south, so the whole Comm Ave strip (Kenmore to West Campus) fits.
@@ -132,6 +236,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       },
       getZoom: () => map.getZoom(),
       remove: () => map.remove(),
+      ...cameraApi(map as unknown as CameraMap, 80),
     };
   }
 
@@ -144,6 +249,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     style: 'https://tiles.openfreemap.org/styles/liberty',
     ...INITIAL_VIEW,
     ...BOSTON_LIMITS,
+    maxPitch: 85, // the default 60 is too flat for the street-level view
     canvasContextAttributes: { antialias: true },
   });
   map.setPadding(VIEW_PADDING);
@@ -162,5 +268,6 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     },
     getZoom: () => map.getZoom(),
     remove: () => map.remove(),
+    ...cameraApi(map as unknown as CameraMap, 85),
   };
 }

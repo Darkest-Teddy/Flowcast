@@ -9,6 +9,7 @@ import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } 
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
+import { CameraControls } from './CameraControls';
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
@@ -282,6 +283,8 @@ export default function App() {
       </header>
 
       {status && <div className="panel status" role="status">{status}</div>}
+
+      {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
 
       {hud && (
         <aside className="panel side">
