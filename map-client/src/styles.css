@@ -310,6 +310,11 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   animation: btag-ping 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
 }
 .btag-ppct { color: var(--lv-text); font-variant-numeric: tabular-nums; font-weight: 700; }
+/* A venue event's crowd: its own colour and a separator, so visitors never read as the student %. */
+.btag-pevent, .btag-event { color: #ddd6fe; font-variant-numeric: tabular-nums; font-weight: 650; }
+.btag-ppct:not([hidden]) + .btag-pevent::before { content: '·'; margin-right: 6px; color: rgba(255, 255, 255, 0.5); }
+.btag-event { font-size: 12px; line-height: 1.2; }
+.btag.has-event .btag-pill { border-color: rgba(167, 139, 250, 0.7); }
 .btag.is-selected .btag-pill { border-color: var(--accent); }
 .btags.is-compact .btag-pname { display: none; }
 .btag-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

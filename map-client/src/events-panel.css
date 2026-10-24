@@ -12,3 +12,13 @@
 .events-list .events-count { color: var(--accent); font-variant-numeric: tabular-nums; }
 .events-list button { align-self: start; min-height: 36px; padding: 4px 10px; margin-top: 2px; color: var(--text); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px; background: rgba(255, 255, 255, 0.06); cursor: pointer; }
 .events-panel details summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 6px 0; }
+.venue-events h3 { margin: 12px 0 2px; font-size: 14px; }
+.events-list .events-visitors { color: #ddd6fe; font-variant-numeric: tabular-nums; }
+.events-list .events-now { color: var(--text); font-size: 12px; }
+.events-list .events-muted, .events-muted { color: var(--muted); }
+.events-pop { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text); }
+.events-spark { flex: none; color: #94a3b8; }
+.events-spark-end { fill: #ddd6fe; }
+.events-provenance { margin: 2px 0 0; padding-left: 16px; font-size: 12px; color: var(--muted); }
+.events-provenance li { display: list-item; padding: 2px 0; border: 0; font-size: 12px; }
+.venue-events select { background: #202530; color: var(--text); border: 1px solid #687080; border-radius: 6px; min-height: 36px; max-width: 220px; color-scheme: dark; }

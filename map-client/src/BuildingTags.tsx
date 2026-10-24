@@ -69,6 +69,9 @@ interface Tag {
   pill: HTMLButtonElement;
   pname: HTMLElement;
   ppct: HTMLElement;
+  /** A venue event's crowd (visitors included), beside the student figure, never in it. */
+  pevent: HTMLElement;
+  event: HTMLElement;
   card: HTMLElement;
   icon: HTMLElement;
   short: HTMLElement;
@@ -92,11 +95,12 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
   root.innerHTML =
     '<span class="btag-dot"></span><span class="btag-stem"></span>' +
     '<button type="button" class="btag-pill" aria-expanded="false"><span class="btag-pdot"></span>' +
-    '<span class="btag-pname"></span><span class="btag-ppct"></span></button>' +
+    '<span class="btag-pname"></span><span class="btag-ppct"></span><span class="btag-pevent" hidden></span></button>' +
     '<span class="btag-card" aria-hidden="true">' +
     '<span class="btag-icon"></span>' +
     '<span class="btag-text"><span class="btag-name"><span class="btag-short"></span><span class="btag-pulse"></span></span>' +
-    '<span class="btag-stats"><span class="btag-pct"></span><span class="btag-word"></span></span></span>' +
+    '<span class="btag-stats"><span class="btag-pct"></span><span class="btag-word"></span></span>' +
+    '<span class="btag-event" hidden></span></span>' +
     '<span class="btag-bar"><span class="btag-fill"></span></span>' +
     '</span>';
   const q = (s: string) => root.querySelector(s) as HTMLElement;
@@ -112,6 +116,8 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
     pill,
     pname: q('.btag-pname'),
     ppct: q('.btag-ppct'),
+    pevent: q('.btag-pevent'),
+    event: q('.btag-event'),
     card,
     icon: q('.btag-icon'),
     short: q('.btag-short'),
@@ -202,10 +208,10 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         const anchors = s.projection.get(buildings, camera, width, height, project,
           b => [b.position[0], b.position[1], b.roof ?? s.heights.get(b.id) ?? 0], s.heights);
 
-        // Selected first, then busiest: if tags must be dropped, the quiet ones go (the side panel
-        // still lists every building).
+        // Selected first, then venues with an event under way, then busiest: if tags must be
+        // dropped, the quiet ones go (the side panel still lists every building).
         const order = [...anchors.keys()].sort(
-          (a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.share - a.share,
+          (a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || Number(Boolean(b.event)) - Number(Boolean(a.event)) || b.share - a.share,
         );
         const changed: Tag[] = [];
         for (const b of order) {
@@ -329,8 +335,11 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind,
 
 /** Rewrites a tag's text when it has changed; returns whether it did. */
 function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null, allowZero = false): boolean {
-  const display = activityDisplay({ ...b, kind, allowZero });
-  const key = `${b.name}|${b.short}|${display.primary}|${display.level}|${kind}`;
+  const display = b.eventOnly
+    ? { primary: '', secondary: '', percent: 0, hasPercentage: false, level: 'event', style: { '--lv': '167, 139, 250', '--lv-text': '#ddd6fe' }, description: '' }
+    : activityDisplay({ ...b, kind, allowZero });
+  const eventText = b.event?.text ?? '';
+  const key = `${b.name}|${b.short}|${display.primary}|${display.level}|${kind}|${eventText}`;
   if (key === tag.key) return false;
   tag.key = key;
   if (tag.kind !== kind) {
@@ -342,12 +351,20 @@ function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null,
   tag.pname.textContent = b.short;
   tag.pct.textContent = display.primary;
   tag.ppct.textContent = display.primary;
+  tag.ppct.hidden = !display.primary;
+  tag.pct.hidden = !display.primary;
   tag.word.textContent = display.secondary;
   tag.word.hidden = !display.secondary;
+  tag.pevent.textContent = eventText;
+  tag.pevent.hidden = !eventText;
+  tag.event.textContent = eventText;
+  tag.event.hidden = !eventText;
   tag.fill.style.width = `${Math.min(100, display.percent)}%`;
   tag.fill.parentElement!.hidden = !display.hasPercentage;
   tag.root.dataset.level = display.level;
+  tag.root.classList.toggle('has-event', Boolean(eventText));
   for (const [k, v] of Object.entries(display.style)) tag.root.style.setProperty(k, v);
-  tag.pill.setAttribute('aria-label', `${b.name}: ${display.description}${kind ? ` (${KIND_LABEL[kind]})` : ''}`);
+  const students = display.description ? `${display.description}${kind ? ` (${KIND_LABEL[kind]})` : ''}` : '';
+  tag.pill.setAttribute('aria-label', `${b.name}: ${[students, b.event?.description].filter(Boolean).join('; ')}`);
   return true;
 }
