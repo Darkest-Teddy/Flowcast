@@ -3,7 +3,8 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, crowdLevel } from './layers/crowd';
+import { crowdLayers, crowdLevel, crowdLevelStyle } from './layers/crowd';
+import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { createPlacer } from './layers/placement';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
@@ -54,6 +55,7 @@ export default function App() {
   const playingRef = useRef(true);
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
+  const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitRef = useRef<Transit | null>(null);
   const showTransitRef = useRef(true);
 
@@ -164,19 +166,29 @@ export default function App() {
           lastOccupancy = now;
           setHud({ time: t, walking: walking.length, occupancy });
         }
-        // One placer per frame, shared by every label layer: building labels first, then stations.
+        // One placer per frame, shared by every label layer: building tags first, then stations.
         const placer = createPlacer(basemap.project);
+        const buildings = playback.byBuilding(occupancy);
+        tagsRef.current?.update({
+          buildings,
+          footprints: day.buildings,
+          locations: day.locations,
+          selectedId: selectedRef.current,
+          placer,
+          project: basemap.project,
+          camera: basemap.getCamera(),
+        });
         const transit = transitRef.current;
         overlay!.setProps({
           layers: [
             ...crowdLayers({
               footprints: day.buildings,
-              buildings: playback.byBuilding(occupancy),
+              buildings,
               trips: day.trips,
               time: t,
               speed: speedRef.current,
               selectedId: selectedRef.current,
-              placer,
+              zoom: basemap.getZoom(),
             }),
             ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transit.feed, now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
             ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
@@ -246,6 +258,10 @@ export default function App() {
     leaveLive();
     timeRef.current = t;
   };
+  const selectBuilding = (id: string | null) => {
+    selectedRef.current = id;
+    setSelected(id);
+  };
   const select = (o: Occupancy) => {
     selectedRef.current = o.location.building;
     setSelected(o.location.building);
@@ -265,6 +281,7 @@ export default function App() {
   return (
     <div className="app">
       <div ref={containerRef} />
+      <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
 
       <header className="panel title">
         <h1>Flowcast</h1>
@@ -308,13 +325,14 @@ export default function App() {
                         className={o.location.building === selected ? 'row selected' : 'row'}
                         onClick={() => select(o)}
                         aria-pressed={o.location.building === selected}
+                        style={crowdLevelStyle(o.share)}
                       >
                         <span className="name">{o.location.name}</span>
                         <span className="bar" aria-hidden="true">
-                          <span style={{ width: `${Math.min(100, o.share * 100)}%`, background: `rgb(${level.glow.slice(0, 3).join(',')})` }} />
+                          <span style={{ width: `${Math.min(100, o.share * 100)}%` }} />
                         </span>
                         <span className="value">
-                          {Math.round(o.share * 100)}% · {level.label}
+                          <b>{Math.round(o.share * 100)}%</b> · {level.label}
                         </span>
                       </button>
                     </li>
