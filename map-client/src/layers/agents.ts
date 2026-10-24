@@ -34,14 +34,23 @@ function phaseOf(id: string): number {
   return Math.abs(h) % PHASES;
 }
 
+// Metres per model unit for a real ~1.8 m person (the Kenney characters are ~0.78 units tall).
+const REAL_SCALE = 2.3;
+
+/** True size at street level; grows as the camera pulls back so people stay visible on the
+ *  campus overview (sizeMinPixels then keeps them at least ~14 px tall). */
+export function walkerScale(zoom: number) {
+  return REAL_SCALE * Math.min(8, Math.max(1, 2 ** (18.6 - zoom)));
+}
+
 export interface AgentLayerOptions {
-  /** Metres per model unit. Real scale (~2.3) is invisible from campus height, so we exaggerate. */
-  sizeScale?: number;
+  zoom: number;
   highlightId?: string | null;
 }
 
-export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time: number, options: AgentLayerOptions = {}) {
-  const { sizeScale = 9, highlightId = null } = options;
+export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time: number, options: AgentLayerOptions) {
+  const { zoom, highlightId = null } = options;
+  const sizeScale = walkerScale(zoom);
   const buckets = new Map<string, WalkingAgent[]>();
   for (const agent of walking) {
     const key = `${agent.model % models.length}-${phaseOf(agent.id)}`;
@@ -64,7 +73,7 @@ export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time:
           _animations: ANIMATIONS[phase],
           _lighting: 'pbr',
           sizeScale,
-          sizeMinPixels: 14,
+          sizeMinPixels: 22,
           getPosition: (d) => d.position,
           getOrientation: (d) => [0, YAW_OFFSET - d.bearing, 90],
           getColor: (d) => (d.id === highlightId ? [255, 214, 10, 255] : [255, 255, 255, 255]),

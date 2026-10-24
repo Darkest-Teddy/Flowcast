@@ -32,7 +32,7 @@ CACHE = HERE / ".cache" / "overpass"
 OVERPASS = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "Flowcast-DSX-hackathon/0.1"
 
-AGENT_COUNT = 300
+AGENT_COUNT = 1200
 MIN_AGENTS_PER_CAMPUS = 40  # so every campus visibly moves, however small it is
 SEED = 7
 
@@ -385,7 +385,7 @@ def occupancy_timeline(agents, trips, step=300):
 
 
 def simulate_campus(rng, campus, agent_count, first_index):
-    """Agents, trips and scaled locations for one campus, routed on its own walk network."""
+    """Agents, trips, scaled locations and the walk routes used, for one campus."""
     print(f"Fetching {campus['name']} walk network from OpenStreetMap...", file=sys.stderr)
     coords, graph = fetch_walk_network(campus["bbox"])
     print(f"  {len(graph)} nodes", file=sys.stderr)
@@ -397,9 +397,9 @@ def simulate_campus(rng, campus, agent_count, first_index):
         ids.append(loc["id"])
         weights.append(max(1, loc["capacity"]))
 
-    agents, trips = [], []
+    agents, trips, used_routes = [], [], {}
     for i in range(first_index, first_index + agent_count):
-        agent_id = f"a{i:03d}"
+        agent_id = f"a{i:04d}"
         speed = rng.uniform(1.1, 1.5)  # metres per second
         home, stops = plan_day(rng, by_kind)
         agents.append({"id": agent_id, "home": home, "model": rng.randrange(12), "campus": campus["id"]})
@@ -417,9 +417,13 @@ def simulate_campus(rng, campus, agent_count, first_index):
                 "agent": agent_id,
                 "from": here,
                 "to": dest,
-                "path": path,
-                "timestamps": [round(depart + c / speed, 1) for c in cumulative],
+                "depart": round(depart, 1),
+                "speed": round(speed, 3),
+                # Full timestamps are only for calibration below; the file stores depart + speed
+                # and the shared route, and the map rebuilds these.
+                "timestamps": [depart + c / speed for c in cumulative],
             })
+            used_routes[f"{here}>{dest}"] = {"path": path, "cumulative": [round(c, 1) for c in cumulative]}
             here, free_at = dest, max(depart + duration + 10 * 60, leave_at * 60)
 
     # Calibrate: each kind's capacity is sized so its busiest simulated moment is TARGET_PEAK
@@ -447,7 +451,7 @@ def simulate_campus(rng, campus, agent_count, first_index):
             "id": loc["id"], "name": loc["name"], "short": loc["short"], "kind": loc["kind"],
             "position": [loc["lon"], loc["lat"]], "capacity": capacity, "building": loc["osm"], "campus": campus["id"],
         })
-    return agents, trips, locations
+    return agents, trips, locations, used_routes
 
 
 def main():
@@ -455,12 +459,13 @@ def main():
     campuses = load_campuses()
     counts = split_agents(campuses, AGENT_COUNT)
 
-    agents, trips, locations = [], [], []
+    agents, trips, locations, walk_routes = [], [], [], {}
     for campus in campuses:
-        a, t, l = simulate_campus(rng, campus, counts[campus["id"]], len(agents))
+        a, t, l, r = simulate_campus(rng, campus, counts[campus["id"]], len(agents))
         agents += a
         trips += t
         locations += l
+        walk_routes.update(r)
 
     print("Fetching building footprints...", file=sys.stderr)
     all_locs = [loc for c in campuses for loc in c["locations"]]
@@ -484,7 +489,10 @@ def main():
         "buildings": buildings,
         "locations": locations,
         "agents": agents,
-        "trips": trips,
+        # Each walk route once ("from>to": points + metres along them); a trip is just who,
+        # where, when they leave and how fast they walk. Timestamps = depart + metres / speed.
+        "walkRoutes": walk_routes,
+        "trips": [{k: t[k] for k in ("agent", "from", "to", "depart", "speed")} for t in trips],
     }
     OUT.write_text(json.dumps(payload, separators=(",", ":")))
 
