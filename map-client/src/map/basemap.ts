@@ -13,6 +13,8 @@ export interface Basemap {
   addControl(control: IControl): void;
   /** Only Mapbox Standard has time-of-day lighting; a no-op on the fallback. */
   setLightPreset(preset: LightPreset): void;
+  /** Remove the base map's own 3D models (trees) inside these polygons. Mapbox only. */
+  clipModels(polygons: [number, number][][]): void;
   /** Live traffic needs Mapbox's traffic tiles (a token); the fallback has none. */
   supportsTraffic: boolean;
   setTrafficVisible(visible: boolean): void;
@@ -165,31 +167,57 @@ const BOSTON_LIMITS = {
 // Mapbox's live traffic tiles (refreshed every few minutes). Congestion is shown by width as
 // well as colour, so it doesn't rely on colour alone (plan Section 10.3).
 const TRAFFIC_LAYER = 'flowcast-traffic';
-// Only congestion is drawn: free-flowing roads stay clean, so the overlay reads as "where it's
-// jammed" at a glance. Width steps up with severity, so it doesn't rely on colour alone.
+// Google Maps-style live traffic: every main road carries a continuous line coloured by speed.
+// Thickness follows the road's size; heavier traffic is also slightly thicker, so the overlay
+// never relies on colour alone.
 export const TRAFFIC_LEVELS = [
-  { key: 'moderate', label: 'Slow', color: '#f2b705', width: 1 },
-  { key: 'heavy', label: 'Heavy', color: '#e8590c', width: 1.3 },
-  { key: 'severe', label: 'Stopped', color: '#c0172f', width: 1.6 },
+  { key: 'low', label: 'Fast', color: '#2DB84C', boost: 1 },
+  { key: 'moderate', label: 'Slow', color: '#F5A623', boost: 1.1 },
+  { key: 'heavy', label: 'Heavy', color: '#E5341D', boost: 1.2 },
+  { key: 'severe', label: 'Stopped', color: '#8E1515', boost: 1.3 },
 ] as const;
+
+// Line width (px) at zoom 13 and zoom 18, by road class.
+const TRAFFIC_ROAD_WIDTHS: [string[], number, number][] = [
+  [['motorway', 'trunk'], 2.6, 9],
+  [['primary', 'secondary'], 2.2, 7],
+  [['tertiary'], 1.6, 5.5],
+  [['street', 'street_limited'], 1.0, 4],
+];
 
 function addTrafficLayer(map: import('mapbox-gl').Map) {
   map.addSource('mapbox-traffic', { type: 'vector', url: 'mapbox://mapbox.mapbox-traffic-v1' });
   const byLevel = (pick: (level: (typeof TRAFFIC_LEVELS)[number]) => string | number, fallback: string | number) =>
     ['match', ['get', 'congestion'], ...TRAFFIC_LEVELS.flatMap((l) => [l.key, pick(l)]), fallback];
+  const widthAt = (zoomIndex: 1 | 2) => [
+    '*',
+    ['match', ['get', 'class'], ...TRAFFIC_ROAD_WIDTHS.flatMap((row) => [row[0], row[zoomIndex]]), 1],
+    byLevel((l) => l.boost, 1),
+  ];
   map.addLayer({
     id: TRAFFIC_LAYER,
     type: 'line',
     source: 'mapbox-traffic',
     'source-layer': 'traffic',
     slot: 'middle',
-    filter: ['match', ['get', 'congestion'], TRAFFIC_LEVELS.map((l) => l.key), true, false],
-    // One solid line along the road: butt caps and full opacity, so the many short segments in
-    // the traffic tiles don't bead into dots where they overlap.
-    layout: { 'line-cap': 'butt', 'line-join': 'round' },
+    // Known congestion only. Main roads always; minor streets once zoomed in, where there's room.
+    filter: [
+      'all',
+      ['match', ['get', 'congestion'], TRAFFIC_LEVELS.map((l) => l.key), true, false],
+      [
+        'any',
+        ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'], true, false],
+        ['>=', ['zoom'], 16],
+      ],
+    ],
+    // Round caps at full opacity: overlapping same-colour segment ends merge invisibly, so the
+    // line is continuous instead of beaded or patchy.
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: {
       'line-color': byLevel((l) => l.color, '#888888') as never,
-      'line-width': ['interpolate', ['linear'], ['zoom'], 13, byLevel((l) => 2 * l.width, 2), 18, byLevel((l) => 6 * l.width, 6)] as never,
+      'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 13, widthAt(1), 18, widthAt(2)] as never,
+      // Each direction is its own feature: on one line when zoomed out, side by side when close.
+      'line-offset': ['interpolate', ['linear'], ['zoom'], 15, 0, 18, 3.5] as never,
       'line-opacity': 1,
     },
   });
@@ -238,6 +266,25 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       kind: 'mapbox',
       addControl: (control) => map.addControl(control),
       setLightPreset: (preset) => map.setConfigProperty('basemap', 'lightPreset', preset),
+      clipModels: (polygons) => {
+        // Mapbox's clip layer hides 3D models (Standard's trees) inside the polygons: used to keep
+        // trees off the Green Line trackbed down the middle of Comm Ave.
+        const data = {
+          type: 'FeatureCollection' as const,
+          features: polygons.map((ring) => ({
+            type: 'Feature' as const,
+            properties: {},
+            geometry: { type: 'Polygon' as const, coordinates: [ring] },
+          })),
+        };
+        const source = map.getSource('flowcast-clip') as import('mapbox-gl').GeoJSONSource | undefined;
+        if (source) {
+          source.setData(data);
+          return;
+        }
+        map.addSource('flowcast-clip', { type: 'geojson', data });
+        map.addLayer({ id: 'flowcast-clip', type: 'clip', source: 'flowcast-clip', layout: { 'clip-layer-types': ['model'] } });
+      },
       supportsTraffic: true,
       setTrafficVisible: (visible) => map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', visible ? 'visible' : 'none'),
       flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),
@@ -271,6 +318,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     // MapboxOverlay implements MapLibre's IControl too; the two interfaces only differ in typings.
     addControl: (control) => map.addControl(control as unknown as maplibregl.IControl),
     setLightPreset: () => {},
+    clipModels: () => {},
     supportsTraffic: false,
     setTrafficVisible: () => {},
     flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),

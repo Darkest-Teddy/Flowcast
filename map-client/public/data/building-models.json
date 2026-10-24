@@ -1,0 +1,3585 @@
+{
+ "frame": "glTF metres: +x east, +y up, +z south (north is -z), relative to origin [lng, lat]",
+ "campuses": [
+  {
+   "id": "charles-river",
+   "name": "Charles River Campus",
+   "origin": [
+    -71.1075,
+    42.35
+   ],
+   "model": "/models/buildings-charles-river.glb",
+   "buildings": [
+    {
+     "osm": "relation/11268507",
+     "name": null,
+     "center": [
+      -71.10394,
+      42.35049
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "relation/20512578",
+     "name": "Warren Towers",
+     "center": [
+      -71.104436,
+      42.349383
+     ],
+     "height": 69.5,
+     "landmark": "warren"
+    },
+    {
+     "osm": "relation/65258",
+     "name": null,
+     "center": [
+      -71.104873,
+      42.347447
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "relation/65269",
+     "name": null,
+     "center": [
+      -71.111675,
+      42.350136
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "relation/9679543",
+     "name": null,
+     "center": [
+      -71.095429,
+      42.35019
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9679544",
+     "name": null,
+     "center": [
+      -71.095531,
+      42.350198
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679545",
+     "name": null,
+     "center": [
+      -71.095626,
+      42.350205
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679546",
+     "name": null,
+     "center": [
+      -71.095723,
+      42.350212
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679547",
+     "name": null,
+     "center": [
+      -71.095814,
+      42.350218
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679548",
+     "name": null,
+     "center": [
+      -71.095894,
+      42.350224
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679549",
+     "name": null,
+     "center": [
+      -71.095983,
+      42.35023
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679550",
+     "name": null,
+     "center": [
+      -71.096084,
+      42.350237
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679551",
+     "name": null,
+     "center": [
+      -71.096186,
+      42.350249
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679552",
+     "name": null,
+     "center": [
+      -71.096279,
+      42.350249
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679553",
+     "name": null,
+     "center": [
+      -71.096378,
+      42.350256
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679554",
+     "name": null,
+     "center": [
+      -71.096485,
+      42.350264
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679555",
+     "name": null,
+     "center": [
+      -71.096574,
+      42.350271
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679556",
+     "name": null,
+     "center": [
+      -71.096664,
+      42.350277
+     ],
+     "height": 14.6
+    },
+    {
+     "osm": "relation/9679557",
+     "name": null,
+     "center": [
+      -71.09542,
+      42.349783
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9679558",
+     "name": null,
+     "center": [
+      -71.095567,
+      42.349764
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679559",
+     "name": null,
+     "center": [
+      -71.095657,
+      42.349763
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679560",
+     "name": null,
+     "center": [
+      -71.095743,
+      42.349769
+     ],
+     "height": 14.7
+    },
+    {
+     "osm": "relation/9679561",
+     "name": null,
+     "center": [
+      -71.095827,
+      42.349775
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679562",
+     "name": null,
+     "center": [
+      -71.09591,
+      42.349781
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679563",
+     "name": null,
+     "center": [
+      -71.095994,
+      42.349787
+     ],
+     "height": 14.7
+    },
+    {
+     "osm": "relation/9679564",
+     "name": null,
+     "center": [
+      -71.096076,
+      42.349793
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679565",
+     "name": null,
+     "center": [
+      -71.09616,
+      42.349799
+     ],
+     "height": 14.7
+    },
+    {
+     "osm": "relation/9679566",
+     "name": null,
+     "center": [
+      -71.096242,
+      42.349805
+     ],
+     "height": 12.8
+    },
+    {
+     "osm": "relation/9679567",
+     "name": null,
+     "center": [
+      -71.096326,
+      42.349811
+     ],
+     "height": 14.7
+    },
+    {
+     "osm": "relation/9679568",
+     "name": null,
+     "center": [
+      -71.096401,
+      42.349816
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679569",
+     "name": null,
+     "center": [
+      -71.096475,
+      42.349822
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679570",
+     "name": null,
+     "center": [
+      -71.096559,
+      42.349828
+     ],
+     "height": 14.7
+    },
+    {
+     "osm": "relation/9679571",
+     "name": null,
+     "center": [
+      -71.096641,
+      42.349834
+     ],
+     "height": 12.8
+    },
+    {
+     "osm": "relation/9679572",
+     "name": null,
+     "center": [
+      -71.096724,
+      42.349839
+     ],
+     "height": 14.7
+    },
+    {
+     "osm": "relation/9679573",
+     "name": null,
+     "center": [
+      -71.096807,
+      42.349845
+     ],
+     "height": 14.7
+    },
+    {
+     "osm": "relation/9679574",
+     "name": null,
+     "center": [
+      -71.096889,
+      42.349851
+     ],
+     "height": 14.7
+    },
+    {
+     "osm": "relation/9679575",
+     "name": null,
+     "center": [
+      -71.096973,
+      42.349857
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679576",
+     "name": null,
+     "center": [
+      -71.097057,
+      42.349863
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679640",
+     "name": null,
+     "center": [
+      -71.095114,
+      42.35017
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679644",
+     "name": null,
+     "center": [
+      -71.09334,
+      42.350193
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679645",
+     "name": null,
+     "center": [
+      -71.093434,
+      42.350189
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9679646",
+     "name": null,
+     "center": [
+      -71.093527,
+      42.350186
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685864",
+     "name": null,
+     "center": [
+      -71.099239,
+      42.350441
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685865",
+     "name": null,
+     "center": [
+      -71.098461,
+      42.3504
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685866",
+     "name": null,
+     "center": [
+      -71.098558,
+      42.350402
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685867",
+     "name": "Kilachand Honors College House",
+     "center": [
+      -71.098655,
+      42.350409
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685868",
+     "name": "\u0392\u0398\u03a0",
+     "center": [
+      -71.098753,
+      42.350417
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685869",
+     "name": null,
+     "center": [
+      -71.098868,
+      42.350435
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685870",
+     "name": null,
+     "center": [
+      -71.099023,
+      42.350446
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685871",
+     "name": null,
+     "center": [
+      -71.09914,
+      42.350448
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685872",
+     "name": null,
+     "center": [
+      -71.099333,
+      42.350464
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685873",
+     "name": null,
+     "center": [
+      -71.09943,
+      42.350472
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685874",
+     "name": null,
+     "center": [
+      -71.099524,
+      42.350471
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685875",
+     "name": null,
+     "center": [
+      -71.099606,
+      42.350468
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685876",
+     "name": null,
+     "center": [
+      -71.099683,
+      42.350474
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685877",
+     "name": null,
+     "center": [
+      -71.099767,
+      42.350495
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685881",
+     "name": null,
+     "center": [
+      -71.098568,
+      42.349964
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685882",
+     "name": null,
+     "center": [
+      -71.098637,
+      42.349969
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685883",
+     "name": null,
+     "center": [
+      -71.098712,
+      42.349975
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "relation/9685884",
+     "name": null,
+     "center": [
+      -71.098802,
+      42.349989
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685885",
+     "name": null,
+     "center": [
+      -71.098889,
+      42.349996
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685886",
+     "name": null,
+     "center": [
+      -71.098978,
+      42.350002
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685887",
+     "name": null,
+     "center": [
+      -71.099068,
+      42.350009
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685888",
+     "name": null,
+     "center": [
+      -71.103333,
+      42.347436
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "relation/9685889",
+     "name": null,
+     "center": [
+      -71.10321,
+      42.347434
+     ],
+     "height": 5.0
+    },
+    {
+     "osm": "relation/9685890",
+     "name": null,
+     "center": [
+      -71.103139,
+      42.347468
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "relation/9685891",
+     "name": null,
+     "center": [
+      -71.103065,
+      42.347488
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685892",
+     "name": null,
+     "center": [
+      -71.102985,
+      42.34751
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685893",
+     "name": null,
+     "center": [
+      -71.102906,
+      42.347532
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685894",
+     "name": null,
+     "center": [
+      -71.102831,
+      42.347552
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685895",
+     "name": null,
+     "center": [
+      -71.102753,
+      42.347574
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685896",
+     "name": null,
+     "center": [
+      -71.10268,
+      42.347594
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685897",
+     "name": null,
+     "center": [
+      -71.102604,
+      42.347612
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685898",
+     "name": null,
+     "center": [
+      -71.102412,
+      42.34762
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685899",
+     "name": null,
+     "center": [
+      -71.10363,
+      42.347414
+     ],
+     "height": 19.2
+    },
+    {
+     "osm": "relation/9685900",
+     "name": null,
+     "center": [
+      -71.10369,
+      42.347317
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685901",
+     "name": null,
+     "center": [
+      -71.10377,
+      42.347294
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685902",
+     "name": null,
+     "center": [
+      -71.103849,
+      42.347272
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "relation/9685903",
+     "name": null,
+     "center": [
+      -71.103924,
+      42.347251
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "relation/9685904",
+     "name": null,
+     "center": [
+      -71.103997,
+      42.347219
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "relation/9685905",
+     "name": null,
+     "center": [
+      -71.104078,
+      42.347196
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "relation/9685906",
+     "name": null,
+     "center": [
+      -71.104155,
+      42.347174
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "relation/9685907",
+     "name": null,
+     "center": [
+      -71.104237,
+      42.347151
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "relation/9685908",
+     "name": null,
+     "center": [
+      -71.104316,
+      42.347132
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "relation/9685909",
+     "name": null,
+     "center": [
+      -71.104393,
+      42.34711
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "relation/9685910",
+     "name": null,
+     "center": [
+      -71.104474,
+      42.347087
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "relation/9685911",
+     "name": null,
+     "center": [
+      -71.104552,
+      42.347065
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "relation/9685912",
+     "name": null,
+     "center": [
+      -71.104634,
+      42.347042
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685915",
+     "name": null,
+     "center": [
+      -71.105947,
+      42.346753
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685916",
+     "name": null,
+     "center": [
+      -71.106029,
+      42.346731
+     ],
+     "height": 19.2
+    },
+    {
+     "osm": "relation/9685927",
+     "name": null,
+     "center": [
+      -71.107958,
+      42.34811
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685930",
+     "name": null,
+     "center": [
+      -71.107525,
+      42.348072
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685943",
+     "name": null,
+     "center": [
+      -71.104448,
+      42.347982
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685944",
+     "name": null,
+     "center": [
+      -71.104595,
+      42.347982
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685945",
+     "name": null,
+     "center": [
+      -71.104681,
+      42.347956
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685946",
+     "name": null,
+     "center": [
+      -71.104759,
+      42.347935
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685947",
+     "name": null,
+     "center": [
+      -71.104838,
+      42.347913
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685948",
+     "name": null,
+     "center": [
+      -71.104918,
+      42.347891
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685949",
+     "name": null,
+     "center": [
+      -71.104996,
+      42.347869
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685950",
+     "name": null,
+     "center": [
+      -71.105073,
+      42.347848
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685951",
+     "name": null,
+     "center": [
+      -71.105151,
+      42.347827
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685952",
+     "name": null,
+     "center": [
+      -71.10523,
+      42.347805
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685953",
+     "name": null,
+     "center": [
+      -71.105417,
+      42.347841
+     ],
+     "height": 19.2
+    },
+    {
+     "osm": "relation/9685954",
+     "name": null,
+     "center": [
+      -71.105917,
+      42.347658
+     ],
+     "height": 5.0
+    },
+    {
+     "osm": "relation/9685955",
+     "name": null,
+     "center": [
+      -71.106136,
+      42.347543
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685956",
+     "name": null,
+     "center": [
+      -71.106213,
+      42.347521
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685957",
+     "name": null,
+     "center": [
+      -71.106292,
+      42.347499
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685958",
+     "name": null,
+     "center": [
+      -71.106371,
+      42.347477
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685959",
+     "name": null,
+     "center": [
+      -71.10645,
+      42.347455
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685960",
+     "name": null,
+     "center": [
+      -71.106528,
+      42.347433
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685961",
+     "name": null,
+     "center": [
+      -71.106621,
+      42.34743
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685962",
+     "name": null,
+     "center": [
+      -71.106695,
+      42.34741
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685963",
+     "name": null,
+     "center": [
+      -71.106778,
+      42.347385
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685964",
+     "name": null,
+     "center": [
+      -71.106851,
+      42.347369
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685965",
+     "name": null,
+     "center": [
+      -71.106974,
+      42.347334
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9685966",
+     "name": null,
+     "center": [
+      -71.100482,
+      42.350562
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685967",
+     "name": null,
+     "center": [
+      -71.100574,
+      42.35057
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685968",
+     "name": null,
+     "center": [
+      -71.100669,
+      42.350578
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685969",
+     "name": null,
+     "center": [
+      -71.100761,
+      42.350564
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685970",
+     "name": null,
+     "center": [
+      -71.100845,
+      42.350571
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685971",
+     "name": null,
+     "center": [
+      -71.100927,
+      42.350578
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685973",
+     "name": null,
+     "center": [
+      -71.101091,
+      42.350592
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685974",
+     "name": null,
+     "center": [
+      -71.101174,
+      42.350599
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685975",
+     "name": null,
+     "center": [
+      -71.101257,
+      42.350606
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685976",
+     "name": null,
+     "center": [
+      -71.101339,
+      42.350619
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685977",
+     "name": null,
+     "center": [
+      -71.101422,
+      42.350626
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685978",
+     "name": null,
+     "center": [
+      -71.101503,
+      42.350632
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685979",
+     "name": null,
+     "center": [
+      -71.101584,
+      42.350639
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685980",
+     "name": null,
+     "center": [
+      -71.101665,
+      42.350646
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685981",
+     "name": null,
+     "center": [
+      -71.101748,
+      42.350653
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685982",
+     "name": null,
+     "center": [
+      -71.101834,
+      42.35066
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685983",
+     "name": null,
+     "center": [
+      -71.101919,
+      42.350667
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685984",
+     "name": null,
+     "center": [
+      -71.102003,
+      42.350674
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685985",
+     "name": null,
+     "center": [
+      -71.102098,
+      42.350699
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685986",
+     "name": null,
+     "center": [
+      -71.102198,
+      42.35069
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685987",
+     "name": null,
+     "center": [
+      -71.102282,
+      42.350697
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685988",
+     "name": null,
+     "center": [
+      -71.102366,
+      42.350704
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685989",
+     "name": null,
+     "center": [
+      -71.102448,
+      42.35071
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685990",
+     "name": null,
+     "center": [
+      -71.10253,
+      42.350717
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685991",
+     "name": null,
+     "center": [
+      -71.102614,
+      42.350724
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685992",
+     "name": null,
+     "center": [
+      -71.102696,
+      42.350731
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685993",
+     "name": null,
+     "center": [
+      -71.102779,
+      42.350738
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685994",
+     "name": null,
+     "center": [
+      -71.102862,
+      42.350745
+     ],
+     "height": 21.2
+    },
+    {
+     "osm": "relation/9685995",
+     "name": "BU Catholic Center",
+     "center": [
+      -71.102948,
+      42.350752
+     ],
+     "height": 12.8
+    },
+    {
+     "osm": "relation/9685996",
+     "name": null,
+     "center": [
+      -71.100582,
+      42.350105
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685997",
+     "name": null,
+     "center": [
+      -71.100683,
+      42.350115
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685998",
+     "name": null,
+     "center": [
+      -71.100764,
+      42.350151
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9685999",
+     "name": null,
+     "center": [
+      -71.100843,
+      42.350135
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686000",
+     "name": null,
+     "center": [
+      -71.100906,
+      42.35014
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686001",
+     "name": null,
+     "center": [
+      -71.10098,
+      42.350145
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686002",
+     "name": null,
+     "center": [
+      -71.101046,
+      42.350171
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686003",
+     "name": null,
+     "center": [
+      -71.101126,
+      42.350179
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686004",
+     "name": null,
+     "center": [
+      -71.101211,
+      42.350188
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686005",
+     "name": null,
+     "center": [
+      -71.101397,
+      42.350219
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686006",
+     "name": null,
+     "center": [
+      -71.101479,
+      42.350228
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686007",
+     "name": null,
+     "center": [
+      -71.101562,
+      42.350236
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686008",
+     "name": null,
+     "center": [
+      -71.101645,
+      42.350244
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686009",
+     "name": null,
+     "center": [
+      -71.101728,
+      42.350252
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686010",
+     "name": null,
+     "center": [
+      -71.101812,
+      42.35026
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686011",
+     "name": null,
+     "center": [
+      -71.101896,
+      42.350268
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686012",
+     "name": null,
+     "center": [
+      -71.101978,
+      42.350276
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686013",
+     "name": null,
+     "center": [
+      -71.10206,
+      42.350284
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686014",
+     "name": null,
+     "center": [
+      -71.102142,
+      42.350292
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686015",
+     "name": null,
+     "center": [
+      -71.102226,
+      42.3503
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686016",
+     "name": null,
+     "center": [
+      -71.102309,
+      42.350308
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686017",
+     "name": null,
+     "center": [
+      -71.102394,
+      42.350317
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686018",
+     "name": null,
+     "center": [
+      -71.102475,
+      42.350324
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686019",
+     "name": null,
+     "center": [
+      -71.102558,
+      42.350319
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686020",
+     "name": null,
+     "center": [
+      -71.102644,
+      42.350328
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686021",
+     "name": null,
+     "center": [
+      -71.102729,
+      42.350336
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686022",
+     "name": null,
+     "center": [
+      -71.102811,
+      42.350343
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686023",
+     "name": null,
+     "center": [
+      -71.102893,
+      42.350352
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686024",
+     "name": null,
+     "center": [
+      -71.102975,
+      42.35036
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686025",
+     "name": null,
+     "center": [
+      -71.103055,
+      42.350367
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686026",
+     "name": null,
+     "center": [
+      -71.103133,
+      42.350376
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "relation/9686027",
+     "name": null,
+     "center": [
+      -71.101169,
+      42.349729
+     ],
+     "height": 18.6
+    },
+    {
+     "osm": "relation/9686028",
+     "name": null,
+     "center": [
+      -71.101261,
+      42.349739
+     ],
+     "height": 18.6
+    },
+    {
+     "osm": "relation/9686029",
+     "name": null,
+     "center": [
+      -71.101349,
+      42.349749
+     ],
+     "height": 18.6
+    },
+    {
+     "osm": "relation/9686030",
+     "name": null,
+     "center": [
+      -71.101436,
+      42.34976
+     ],
+     "height": 18.6
+    },
+    {
+     "osm": "relation/9686031",
+     "name": null,
+     "center": [
+      -71.101524,
+      42.34977
+     ],
+     "height": 18.6
+    },
+    {
+     "osm": "relation/9686032",
+     "name": "Noodle Street",
+     "center": [
+      -71.101612,
+      42.34978
+     ],
+     "height": 18.8
+    },
+    {
+     "osm": "relation/9686033",
+     "name": null,
+     "center": [
+      -71.101699,
+      42.34979
+     ],
+     "height": 18.8
+    },
+    {
+     "osm": "relation/9712514",
+     "name": null,
+     "center": [
+      -71.094105,
+      42.349382
+     ],
+     "height": 13.2
+    },
+    {
+     "osm": "relation/9712515",
+     "name": "Phi Sig Kappa",
+     "center": [
+      -71.094206,
+      42.349365
+     ],
+     "height": 13.0
+    },
+    {
+     "osm": "relation/9811331",
+     "name": null,
+     "center": [
+      -71.107329,
+      42.346771
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "relation/9811332",
+     "name": null,
+     "center": [
+      -71.107355,
+      42.34691
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "relation/9811333",
+     "name": null,
+     "center": [
+      -71.107554,
+      42.346899
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1006629898",
+     "name": null,
+     "center": [
+      -71.099858,
+      42.350504
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "way/1006629899",
+     "name": null,
+     "center": [
+      -71.099952,
+      42.350511
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "way/1007090933",
+     "name": "School of Theology",
+     "center": [
+      -71.107386,
+      42.350497
+     ],
+     "height": 26.6
+    },
+    {
+     "osm": "way/1007090934",
+     "name": null,
+     "center": [
+      -71.106725,
+      42.350575
+     ],
+     "height": 4.1
+    },
+    {
+     "osm": "way/1007090937",
+     "name": "Marsh Chapel",
+     "center": [
+      -71.106437,
+      42.35067
+     ],
+     "height": 43.4,
+     "landmark": "chapel"
+    },
+    {
+     "osm": "way/1007090938",
+     "name": null,
+     "center": [
+      -71.106192,
+      42.35051
+     ],
+     "height": 4.1
+    },
+    {
+     "osm": "way/1007090939",
+     "name": "College of Arts and Sciences",
+     "center": [
+      -71.105585,
+      42.350286
+     ],
+     "height": 40.1,
+     "landmark": "cas"
+    },
+    {
+     "osm": "way/1007090940",
+     "name": "Tsai Performance Center",
+     "center": [
+      -71.104504,
+      42.350234
+     ],
+     "height": 16.0
+    },
+    {
+     "osm": "way/1007090941",
+     "name": "Stone Science Building",
+     "center": [
+      -71.103872,
+      42.350187
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/102384832",
+     "name": "Agganis Arena",
+     "center": [
+      -71.117731,
+      42.352212
+     ],
+     "height": 27.1,
+     "landmark": "arena"
+    },
+    {
+     "osm": "way/102385045",
+     "name": "Boston University Fitness & Recreation Center",
+     "center": [
+      -71.116531,
+      42.351796
+     ],
+     "height": 21.8
+    },
+    {
+     "osm": "way/1026274040",
+     "name": "Langsam Garage",
+     "center": [
+      -71.121869,
+      42.353476
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/1188211556",
+     "name": "Whoop",
+     "center": [
+      -71.09678,
+      42.349256
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/1189253159",
+     "name": null,
+     "center": [
+      -71.106454,
+      42.349591
+     ],
+     "height": 19.2
+    },
+    {
+     "osm": "way/1189253160",
+     "name": null,
+     "center": [
+      -71.106131,
+      42.349536
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/1189253161",
+     "name": null,
+     "center": [
+      -71.105811,
+      42.349507
+     ],
+     "height": 19.2
+    },
+    {
+     "osm": "way/1189253162",
+     "name": null,
+     "center": [
+      -71.105663,
+      42.349575
+     ],
+     "height": 10.8
+    },
+    {
+     "osm": "way/1189253163",
+     "name": null,
+     "center": [
+      -71.105579,
+      42.349565
+     ],
+     "height": 10.7
+    },
+    {
+     "osm": "way/1189253164",
+     "name": null,
+     "center": [
+      -71.105498,
+      42.349547
+     ],
+     "height": 10.8
+    },
+    {
+     "osm": "way/1189253165",
+     "name": null,
+     "center": [
+      -71.10541,
+      42.349544
+     ],
+     "height": 10.7
+    },
+    {
+     "osm": "way/1189253166",
+     "name": null,
+     "center": [
+      -71.105283,
+      42.34945
+     ],
+     "height": 19.2
+    },
+    {
+     "osm": "way/1189269258",
+     "name": null,
+     "center": [
+      -71.105455,
+      42.34909
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/1189270380",
+     "name": "Warren Hall",
+     "center": [
+      -71.104441,
+      42.347559
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/1189270381",
+     "name": null,
+     "center": [
+      -71.10402,
+      42.347727
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1189270382",
+     "name": null,
+     "center": [
+      -71.103822,
+      42.347786
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1189270383",
+     "name": null,
+     "center": [
+      -71.103363,
+      42.347743
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1189420778",
+     "name": null,
+     "center": [
+      -71.105938,
+      42.347181
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1189420779",
+     "name": null,
+     "center": [
+      -71.106039,
+      42.34715
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1189420780",
+     "name": "Tower Court",
+     "center": [
+      -71.10611,
+      42.347112
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1189420781",
+     "name": null,
+     "center": [
+      -71.106226,
+      42.347097
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1189420782",
+     "name": null,
+     "center": [
+      -71.106565,
+      42.346971
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1189420783",
+     "name": null,
+     "center": [
+      -71.106731,
+      42.346965
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1189420784",
+     "name": null,
+     "center": [
+      -71.106886,
+      42.346901
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "way/1189678819",
+     "name": null,
+     "center": [
+      -71.115619,
+      42.35049
+     ],
+     "height": 11.3
+    },
+    {
+     "osm": "way/1189678820",
+     "name": null,
+     "center": [
+      -71.115261,
+      42.350447
+     ],
+     "height": 11.3
+    },
+    {
+     "osm": "way/1189678822",
+     "name": "School of Hospitality Administration (SHA)",
+     "center": [
+      -71.117508,
+      42.35088
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/1189678827",
+     "name": null,
+     "center": [
+      -71.118103,
+      42.350904
+     ],
+     "height": 8.6
+    },
+    {
+     "osm": "way/1189678829",
+     "name": null,
+     "center": [
+      -71.113017,
+      42.350443
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/1189678830",
+     "name": null,
+     "center": [
+      -71.113767,
+      42.350099
+     ],
+     "height": 10.4
+    },
+    {
+     "osm": "way/1235201680",
+     "name": null,
+     "center": [
+      -71.106968,
+      42.349635
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/1235201681",
+     "name": null,
+     "center": [
+      -71.107299,
+      42.349374
+     ],
+     "height": 8.6
+    },
+    {
+     "osm": "way/1235203386",
+     "name": null,
+     "center": [
+      -71.104335,
+      42.346008
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "way/1237917174",
+     "name": null,
+     "center": [
+      -71.09841,
+      42.349978
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "way/1258740884",
+     "name": null,
+     "center": [
+      -71.104365,
+      42.346564
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1258740885",
+     "name": null,
+     "center": [
+      -71.104279,
+      42.346588
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1258740886",
+     "name": null,
+     "center": [
+      -71.104191,
+      42.346612
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1258740887",
+     "name": null,
+     "center": [
+      -71.104102,
+      42.346637
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1258740892",
+     "name": null,
+     "center": [
+      -71.103628,
+      42.346763
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1258740893",
+     "name": null,
+     "center": [
+      -71.103553,
+      42.346783
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1258740894",
+     "name": null,
+     "center": [
+      -71.103478,
+      42.346804
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1258740895",
+     "name": null,
+     "center": [
+      -71.103402,
+      42.346822
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1258740896",
+     "name": null,
+     "center": [
+      -71.103322,
+      42.346831
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/1284919694",
+     "name": null,
+     "center": [
+      -71.117992,
+      42.35342
+     ],
+     "height": 4.1
+    },
+    {
+     "osm": "way/130209089",
+     "name": "Mugar Memorial Library",
+     "center": [
+      -71.10801,
+      42.35103
+     ],
+     "height": 23.4,
+     "landmark": "mugar"
+    },
+    {
+     "osm": "way/130209090",
+     "name": "George Sherman Union",
+     "center": [
+      -71.108966,
+      42.35092
+     ],
+     "height": 16.2,
+     "landmark": "gsu"
+    },
+    {
+     "osm": "way/155291470",
+     "name": "Student Village Phase Two",
+     "center": [
+      -71.117807,
+      42.353242
+     ],
+     "height": 96.7,
+     "landmark": "stuvi"
+    },
+    {
+     "osm": "way/1563657701",
+     "name": "Fuller's Pub",
+     "center": [
+      -71.103579,
+      42.350897
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/212129920",
+     "name": "Boston University Police Station",
+     "center": [
+      -71.118605,
+      42.352499
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/212272574",
+     "name": null,
+     "center": [
+      -71.108474,
+      42.348488
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/221299025",
+     "name": null,
+     "center": [
+      -71.104195,
+      42.348769
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/221299026",
+     "name": null,
+     "center": [
+      -71.104846,
+      42.348888
+     ],
+     "height": 8.6
+    },
+    {
+     "osm": "way/228160352",
+     "name": "MIT Student House",
+     "center": [
+      -71.098366,
+      42.350384
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "way/242272535",
+     "name": "The Towers",
+     "center": [
+      -71.099805,
+      42.35001
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/256604722",
+     "name": "Questrom School of Business",
+     "center": [
+      -71.099717,
+      42.349614
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/263551761",
+     "name": "DeWolfe Boathouse",
+     "center": [
+      -71.10777,
+      42.353252
+     ],
+     "height": 21.4
+    },
+    {
+     "osm": "way/277434241",
+     "name": "Center for Computing & Data Sciences Building",
+     "center": [
+      -71.102972,
+      42.350004
+     ],
+     "height": 94.6,
+     "landmark": "cds"
+    },
+    {
+     "osm": "way/277435862",
+     "name": "Boston University Wheelock College of Education & Human Development",
+     "center": [
+      -71.100859,
+      42.349755
+     ],
+     "height": 18.8
+    },
+    {
+     "osm": "way/29513001",
+     "name": "Boston University Engineering Product Innovation Center",
+     "center": [
+      -71.108021,
+      42.349699
+     ],
+     "height": 8.6
+    },
+    {
+     "osm": "way/29557600",
+     "name": "Myles Standish Hall",
+     "center": [
+      -71.094537,
+      42.349723
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/29559484",
+     "name": null,
+     "center": [
+      -71.096225,
+      42.349304
+     ],
+     "height": 23.0
+    },
+    {
+     "osm": "way/29579939",
+     "name": "College of Health & Rehabilitation Sciences: Sargent College",
+     "center": [
+      -71.101997,
+      42.349865
+     ],
+     "height": 18.8
+    },
+    {
+     "osm": "way/29580235",
+     "name": null,
+     "center": [
+      -71.120613,
+      42.351328
+     ],
+     "height": 8.6
+    },
+    {
+     "osm": "way/29580360",
+     "name": null,
+     "center": [
+      -71.113982,
+      42.351589
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29581513",
+     "name": "Photonics Center",
+     "center": [
+      -71.106093,
+      42.349184
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/29584368",
+     "name": null,
+     "center": [
+      -71.103734,
+      42.34764
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29588011",
+     "name": null,
+     "center": [
+      -71.1038,
+      42.345886
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29591283",
+     "name": null,
+     "center": [
+      -71.121022,
+      42.351334
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29627896",
+     "name": null,
+     "center": [
+      -71.097009,
+      42.349556
+     ],
+     "height": 17.2
+    },
+    {
+     "osm": "way/29629081",
+     "name": null,
+     "center": [
+      -71.105669,
+      42.348186
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/29630569",
+     "name": "Physics and Biology Research Building",
+     "center": [
+      -71.101255,
+      42.34864
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/29631663",
+     "name": "School of Social Work",
+     "center": [
+      -71.105254,
+      42.350729
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "way/29635323",
+     "name": null,
+     "center": [
+      -71.106109,
+      42.346709
+     ],
+     "height": 19.2
+    },
+    {
+     "osm": "way/29635363",
+     "name": null,
+     "center": [
+      -71.108722,
+      42.348582
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/29638497",
+     "name": "Metcalf Science Center",
+     "center": [
+      -71.10023,
+      42.348404
+     ],
+     "height": 20.7
+    },
+    {
+     "osm": "way/29650727",
+     "name": null,
+     "center": [
+      -71.098339,
+      42.349972
+     ],
+     "height": 18.4
+    },
+    {
+     "osm": "way/29650729",
+     "name": null,
+     "center": [
+      -71.097305,
+      42.349861
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "way/29650741",
+     "name": "Hotel Commonwealth",
+     "center": [
+      -71.095631,
+      42.348479
+     ],
+     "height": 22.0
+    },
+    {
+     "osm": "way/29680668",
+     "name": "Rich Hall",
+     "center": [
+      -71.120632,
+      42.353481
+     ],
+     "height": 44.6
+    },
+    {
+     "osm": "way/29680684",
+     "name": null,
+     "center": [
+      -71.118897,
+      42.352886
+     ],
+     "height": 8.6
+    },
+    {
+     "osm": "way/29680728",
+     "name": "College of Fine Arts",
+     "center": [
+      -71.113874,
+      42.351291
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29680758",
+     "name": null,
+     "center": [
+      -71.103689,
+      42.35044
+     ],
+     "height": 17.9
+    },
+    {
+     "osm": "way/29680807",
+     "name": null,
+     "center": [
+      -71.104008,
+      42.349064
+     ],
+     "height": 8.6
+    },
+    {
+     "osm": "way/29680831",
+     "name": null,
+     "center": [
+      -71.101152,
+      42.348233
+     ],
+     "height": 18.4
+    },
+    {
+     "osm": "way/29680834",
+     "name": "Audobon Court",
+     "center": [
+      -71.106169,
+      42.348041
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29680872",
+     "name": null,
+     "center": [
+      -71.106409,
+      42.347049
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/29715237",
+     "name": "Danielson Hall",
+     "center": [
+      -71.090303,
+      42.350887
+     ],
+     "height": 37.4
+    },
+    {
+     "osm": "way/29716750",
+     "name": null,
+     "center": [
+      -71.095244,
+      42.34959
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/29786702",
+     "name": null,
+     "center": [
+      -71.105347,
+      42.348128
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/29786804",
+     "name": "Boston University Sailing Pavilion",
+     "center": [
+      -71.110307,
+      42.352034
+     ],
+     "height": 7.0
+    },
+    {
+     "osm": "way/29787983",
+     "name": null,
+     "center": [
+      -71.102311,
+      42.348847
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29792470",
+     "name": null,
+     "center": [
+      -71.103864,
+      42.34602
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29793571",
+     "name": "BU Children's Center",
+     "center": [
+      -71.109809,
+      42.348709
+     ],
+     "height": 16.7
+    },
+    {
+     "osm": "way/29793580",
+     "name": null,
+     "center": [
+      -71.113855,
+      42.349291
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29793868",
+     "name": null,
+     "center": [
+      -71.105121,
+      42.347357
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "way/29820161",
+     "name": null,
+     "center": [
+      -71.108243,
+      42.348607
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/29822911",
+     "name": null,
+     "center": [
+      -71.115259,
+      42.35145
+     ],
+     "height": 23.0
+    },
+    {
+     "osm": "way/29825269",
+     "name": null,
+     "center": [
+      -71.103503,
+      42.348647
+     ],
+     "height": 44.6
+    },
+    {
+     "osm": "way/29827118",
+     "name": null,
+     "center": [
+      -71.11873,
+      42.351062
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29829063",
+     "name": null,
+     "center": [
+      -71.105579,
+      42.348035
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/29863053",
+     "name": "Kilachand Hall",
+     "center": [
+      -71.097,
+      42.350342
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/29887049",
+     "name": "Dahod Family Alumni Center at the Castle",
+     "center": [
+      -71.103645,
+      42.350905
+     ],
+     "height": 10.5
+    },
+    {
+     "osm": "way/29887815",
+     "name": null,
+     "center": [
+      -71.121242,
+      42.354233
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29888004",
+     "name": null,
+     "center": [
+      -71.11517,
+      42.351958
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29889456",
+     "name": "Claflin Hall",
+     "center": [
+      -71.119812,
+      42.352523
+     ],
+     "height": 44.6
+    },
+    {
+     "osm": "way/29889824",
+     "name": null,
+     "center": [
+      -71.113576,
+      42.350226
+     ],
+     "height": 10.4
+    },
+    {
+     "osm": "way/29904193",
+     "name": null,
+     "center": [
+      -71.105713,
+      42.347208
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "way/29904697",
+     "name": "Case Physical Education Center",
+     "center": [
+      -71.120309,
+      42.354042
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29922737",
+     "name": "Boston University Academy",
+     "center": [
+      -71.109974,
+      42.351212
+     ],
+     "height": 8.6
+    },
+    {
+     "osm": "way/29927783",
+     "name": "Boston University Student Village",
+     "center": [
+      -71.115992,
+      42.352391
+     ],
+     "height": 67.9,
+     "landmark": "stuvi"
+    },
+    {
+     "osm": "way/29930124",
+     "name": null,
+     "center": [
+      -71.120241,
+      42.352122
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29930171",
+     "name": "Boston University Track & Tennis Center",
+     "center": [
+      -71.123549,
+      42.354555
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29932285",
+     "name": null,
+     "center": [
+      -71.11656,
+      42.350755
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29936567",
+     "name": null,
+     "center": [
+      -71.106897,
+      42.350875
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29939094",
+     "name": "Boston University College of General Studies",
+     "center": [
+      -71.11457,
+      42.351485
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29940991",
+     "name": null,
+     "center": [
+      -71.12236,
+      42.354437
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29952155",
+     "name": null,
+     "center": [
+      -71.099547,
+      42.348805
+     ],
+     "height": 37.4
+    },
+    {
+     "osm": "way/300840086",
+     "name": null,
+     "center": [
+      -71.121406,
+      42.352273
+     ],
+     "height": 23.0
+    },
+    {
+     "osm": "way/300843497",
+     "name": null,
+     "center": [
+      -71.117776,
+      42.350671
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/300854780",
+     "name": null,
+     "center": [
+      -71.098611,
+      42.348138
+     ],
+     "height": 15.7
+    },
+    {
+     "osm": "way/316156067",
+     "name": "HoJo Dormitory",
+     "center": [
+      -71.098726,
+      42.349479
+     ],
+     "height": 30.2
+    },
+    {
+     "osm": "way/316156068",
+     "name": null,
+     "center": [
+      -71.098128,
+      42.349471
+     ],
+     "height": 20.8
+    },
+    {
+     "osm": "way/316156069",
+     "name": "Yawkey Center for Student Services",
+     "center": [
+      -71.097946,
+      42.349825
+     ],
+     "height": 23.0
+    },
+    {
+     "osm": "way/316156070",
+     "name": null,
+     "center": [
+      -71.097141,
+      42.349869
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "way/337210330",
+     "name": "Morse Auditorium",
+     "center": [
+      -71.100928,
+      42.348917
+     ],
+     "height": 20.6
+    },
+    {
+     "osm": "way/337489367",
+     "name": "Center for Integrated Life Sciences and Engineering",
+     "center": [
+      -71.101526,
+      42.349046
+     ],
+     "height": 26.6
+    },
+    {
+     "osm": "way/408045354",
+     "name": null,
+     "center": [
+      -71.119692,
+      42.352064
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/408045401",
+     "name": null,
+     "center": [
+      -71.11871,
+      42.351959
+     ],
+     "height": 8.6
+    },
+    {
+     "osm": "way/468538536",
+     "name": null,
+     "center": [
+      -71.107501,
+      42.349712
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/485216309",
+     "name": null,
+     "center": [
+      -71.096009,
+      42.349359
+     ],
+     "height": 23.0
+    },
+    {
+     "osm": "way/485216311",
+     "name": null,
+     "center": [
+      -71.095891,
+      42.349391
+     ],
+     "height": 23.0
+    },
+    {
+     "osm": "way/485216313",
+     "name": null,
+     "center": [
+      -71.095779,
+      42.349424
+     ],
+     "height": 23.0
+    },
+    {
+     "osm": "way/485216314",
+     "name": null,
+     "center": [
+      -71.095591,
+      42.349474
+     ],
+     "height": 23.0
+    },
+    {
+     "osm": "way/485223499",
+     "name": "Education School Tower",
+     "center": [
+      -71.107167,
+      42.351077
+     ],
+     "height": 63.1,
+     "landmark": "lawtower"
+    },
+    {
+     "osm": "way/485223500",
+     "name": "Sumner M. Redstone Building",
+     "center": [
+      -71.10748,
+      42.350984
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/495570628",
+     "name": "Florence Chasetz Hillel House",
+     "center": [
+      -71.103146,
+      42.350793
+     ],
+     "height": 14.7
+    },
+    {
+     "osm": "way/697017063",
+     "name": "Elie Wiesel Center for Jewish Studies",
+     "center": [
+      -71.100096,
+      42.350522
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "way/697017102",
+     "name": null,
+     "center": [
+      -71.102836,
+      42.348528
+     ],
+     "height": 44.6
+    },
+    {
+     "osm": "way/697017103",
+     "name": null,
+     "center": [
+      -71.102307,
+      42.348433
+     ],
+     "height": 44.6
+    },
+    {
+     "osm": "way/697017104",
+     "name": "Life Science and Engineering Building",
+     "center": [
+      -71.101737,
+      42.348334
+     ],
+     "height": 44.6
+    },
+    {
+     "osm": "way/813732836",
+     "name": "Sleeper Hall",
+     "center": [
+      -71.120532,
+      42.352918
+     ],
+     "height": 44.6
+    },
+    {
+     "osm": "way/813732837",
+     "name": null,
+     "center": [
+      -71.120262,
+      42.352628
+     ],
+     "height": 5.0
+    },
+    {
+     "osm": "way/822625894",
+     "name": "Alan & Sherry Leventhal Center",
+     "center": [
+      -71.103903,
+      42.35092
+     ],
+     "height": 14.1
+    },
+    {
+     "osm": "way/822626746",
+     "name": "School of Social Work",
+     "center": [
+      -71.105485,
+      42.350751
+     ],
+     "height": 17.7
+    },
+    {
+     "osm": "way/822626748",
+     "name": null,
+     "center": [
+      -71.104157,
+      42.350556
+     ],
+     "height": 17.9
+    },
+    {
+     "osm": "way/825285416",
+     "name": "Joan & Edgar Booth Theatre",
+     "center": [
+      -71.112286,
+      42.349962
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/836247399",
+     "name": null,
+     "center": [
+      -71.100961,
+      42.348755
+     ],
+     "height": 20.6
+    },
+    {
+     "osm": "way/985664753",
+     "name": null,
+     "center": [
+      -71.113524,
+      42.350478
+     ],
+     "height": 10.4
+    }
+   ]
+  },
+  {
+   "id": "fenway",
+   "name": "Fenway Campus",
+   "origin": [
+    -71.106,
+    42.3425
+   ],
+   "model": "/models/buildings-fenway.glb",
+   "buildings": [
+    {
+     "osm": "relation/63803",
+     "name": "Peabody Hall",
+     "center": [
+      -71.106671,
+      42.341434
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/1320778060",
+     "name": "Longwood House Residence Hall",
+     "center": [
+      -71.105513,
+      42.342784
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/1320778061",
+     "name": "Pilgrim House Residence Hall",
+     "center": [
+      -71.105386,
+      42.34252
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/1328765847",
+     "name": null,
+     "center": [
+      -71.10643,
+      42.341771
+     ],
+     "height": 15.6
+    },
+    {
+     "osm": "way/212128584",
+     "name": "Campus Center and Student Residence",
+     "center": [
+      -71.1052,
+      42.342984
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29513254",
+     "name": "Wheelock College Library",
+     "center": [
+      -71.104691,
+      42.343127
+     ],
+     "height": 12.0
+    },
+    {
+     "osm": "way/29788480",
+     "name": "Classroom Building",
+     "center": [
+      -71.104896,
+      42.342696
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29932348",
+     "name": "Activities Building",
+     "center": [
+      -71.106055,
+      42.34198
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29934329",
+     "name": "Riverway House Residence Hall",
+     "center": [
+      -71.105817,
+      42.342499
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/580619788",
+     "name": "Wightman Mansion",
+     "center": [
+      -71.109854,
+      42.343776
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/825285411",
+     "name": null,
+     "center": [
+      -71.109499,
+      42.343747
+     ],
+     "height": 15.8
+    }
+   ]
+  },
+  {
+   "id": "medical",
+   "name": "Medical Campus",
+   "origin": [
+    -71.0715,
+    42.3355
+   ],
+   "model": "/models/buildings-medical.glb",
+   "buildings": [
+    {
+     "osm": "way/1160558564",
+     "name": "B.U. School of Medicine Instructional Building",
+     "center": [
+      -71.072418,
+      42.336366
+     ],
+     "height": 51.8
+    },
+    {
+     "osm": "way/212124942",
+     "name": "NEIDL",
+     "center": [
+      -71.068381,
+      42.336211
+     ],
+     "height": 44.6
+    },
+    {
+     "osm": "way/212125120",
+     "name": null,
+     "center": [
+      -71.069844,
+      42.335202
+     ],
+     "height": 30.2
+    },
+    {
+     "osm": "way/212125204",
+     "name": null,
+     "center": [
+      -71.070357,
+      42.338424
+     ],
+     "height": 23.0
+    },
+    {
+     "osm": "way/29559271",
+     "name": "Building A",
+     "center": [
+      -71.072316,
+      42.335981
+     ],
+     "height": 19.3
+    },
+    {
+     "osm": "way/29560627",
+     "name": "BCD",
+     "center": [
+      -71.073089,
+      42.33579
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29566355",
+     "name": null,
+     "center": [
+      -71.066527,
+      42.340526
+     ],
+     "height": 20.6
+    },
+    {
+     "osm": "way/29570573",
+     "name": null,
+     "center": [
+      -71.065286,
+      42.340133
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29608522",
+     "name": null,
+     "center": [
+      -71.06988,
+      42.338848
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29612581",
+     "name": "FGH",
+     "center": [
+      -71.073724,
+      42.335394
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29624490",
+     "name": null,
+     "center": [
+      -71.071281,
+      42.334547
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29650872",
+     "name": "Evans",
+     "center": [
+      -71.071609,
+      42.336602
+     ],
+     "height": 37.4
+    },
+    {
+     "osm": "way/29650890",
+     "name": "Solomon Carter Fuller Mental Health Center",
+     "center": [
+      -71.070813,
+      42.336198
+     ],
+     "height": 37.4
+    },
+    {
+     "osm": "way/29650892",
+     "name": "B.U. Goldman School of Dental Medicine",
+     "center": [
+      -71.070138,
+      42.336364
+     ],
+     "height": 24.6
+    },
+    {
+     "osm": "way/29650894",
+     "name": "Conte Medical Research Center",
+     "center": [
+      -71.073196,
+      42.336153
+     ],
+     "height": 26.6
+    },
+    {
+     "osm": "way/29650907",
+     "name": "Center for Advanced Biomedical Research",
+     "center": [
+      -71.070212,
+      42.335492
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/29716695",
+     "name": "Evans Biomedical Research Center",
+     "center": [
+      -71.069474,
+      42.336018
+     ],
+     "height": 30.2
+    },
+    {
+     "osm": "way/29738786",
+     "name": null,
+     "center": [
+      -71.071694,
+      42.334067
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/29842318",
+     "name": "Vose",
+     "center": [
+      -71.071964,
+      42.336815
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29868362",
+     "name": null,
+     "center": [
+      -71.067233,
+      42.340637
+     ],
+     "height": 20.6
+    },
+    {
+     "osm": "way/29947102",
+     "name": "Preston Family Building",
+     "center": [
+      -71.071473,
+      42.337443
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/29951399",
+     "name": null,
+     "center": [
+      -71.072315,
+      42.333494
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/29952265",
+     "name": null,
+     "center": [
+      -71.074941,
+      42.332827
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/407833980",
+     "name": "Robinson",
+     "center": [
+      -71.071636,
+      42.337003
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/407834726",
+     "name": "Robinson",
+     "center": [
+      -71.072091,
+      42.337116
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/484823090",
+     "name": "B.U. School of Public Health",
+     "center": [
+      -71.071505,
+      42.335514
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/484823091",
+     "name": "Dowling Building",
+     "center": [
+      -71.073533,
+      42.3341
+     ],
+     "height": 37.4
+    },
+    {
+     "osm": "way/484823092",
+     "name": "Yawkey",
+     "center": [
+      -71.074128,
+      42.334436
+     ],
+     "height": 20.7
+    },
+    {
+     "osm": "way/484823096",
+     "name": "Doctors Office Building",
+     "center": [
+      -71.070932,
+      42.337663
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/484823097",
+     "name": "Menino Pavilion",
+     "center": [
+      -71.073152,
+      42.334599
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/484824019",
+     "name": "Moakley Building",
+     "center": [
+      -71.072668,
+      42.335274
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/484824710",
+     "name": "Crosstown Center",
+     "center": [
+      -71.07357,
+      42.332985
+     ],
+     "height": 26.6
+    },
+    {
+     "osm": "way/484824711",
+     "name": "Cary W. Akins Pavilion",
+     "center": [
+      -71.072791,
+      42.333645
+     ],
+     "height": 15.8
+    },
+    {
+     "osm": "way/484824713",
+     "name": "Finland Laboratory",
+     "center": [
+      -71.072338,
+      42.333909
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/812987708",
+     "name": null,
+     "center": [
+      -71.067031,
+      42.340714
+     ],
+     "height": 12.2
+    },
+    {
+     "osm": "way/832665656",
+     "name": "Shapiro Center",
+     "center": [
+      -71.072168,
+      42.33482
+     ],
+     "height": 33.8
+    },
+    {
+     "osm": "way/832665663",
+     "name": "Harrison Court",
+     "center": [
+      -71.073098,
+      42.337374
+     ],
+     "height": 19.4
+    },
+    {
+     "osm": "way/832665664",
+     "name": null,
+     "center": [
+      -71.072171,
+      42.335116
+     ],
+     "height": 33.8
+    }
+   ]
+  }
+ ]
+}

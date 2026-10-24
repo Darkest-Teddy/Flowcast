@@ -6,10 +6,14 @@ import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/ag
 import { crowdLayers, crowdLevel, crowdLevelStyle } from './layers/crowd';
 import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { createPlacer } from './layers/placement';
+import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
+import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
-import { MbtaFeed, loadTransit, minutesUntil, type TransitData } from './transit/mbta';
+import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
+import { trackCorridors } from './transit/tracks';
+import { ScheduledTransit } from './transit/scheduled';
 import { CameraControls } from './CameraControls';
 
 const SPEEDS = [1, 30, 120, 600];
@@ -43,7 +47,8 @@ interface Hud {
 
 interface Transit {
   data: TransitData;
-  feed: MbtaFeed;
+  feed: MbtaFeed; // live MBTA + BU feeds (Live mode)
+  schedule: ScheduledTransit; // scheduled service on the sim clock (playback / fast-forward)
   models: VehicleModels;
 }
 
@@ -67,6 +72,7 @@ export default function App() {
   const [live, setLive] = useState(START_LIVE);
   const [playing, setPlaying] = useState(true);
   const [light, setLight] = useState<LightPreset>('dusk');
+  const lightRef = useRef<LightPreset>('dusk'); // read by the frame loop (building model tint)
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'crowds' | 'transit'>('crowds');
   const [campuses, setCampuses] = useState<Campus[]>([]);
@@ -88,13 +94,16 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
         // Transit is an extra: the campus view must still start if it can't load.
         loadTransit('/data/transit.json').catch(() => null),
         loadVehicleModels().catch(() => ({})),
+        // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
+        loadBuildings().catch(() => null),
+        loadStreet().catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -116,7 +125,9 @@ export default function App() {
           shuttle,
         );
         feed.start();
-        transitRef.current = { data: transitData, feed, models: vehicleModels };
+        transitRef.current = { data: transitData, feed, schedule: new ScheduledTransit(transitData, feed.tracks), models: vehicleModels };
+        // Keep the base map's trees off the Green Line trackbed.
+        basemap.clipModels(trackCorridors(feed.tracks.filter((t) => t.route.startsWith('Green-')), 3.2));
       }
 
       const playback = new Playback(day);
@@ -135,7 +146,9 @@ export default function App() {
         },
         getTooltip: ({ object }: PickingInfo) => {
           const transit = transitRef.current;
-          const text = transit ? transitTooltip(object, transit.data, transit.feed) : null;
+          const streetText = streetTooltip(object, transit);
+          if (streetText) return streetText;
+          const text = transit ? transitTooltip(object, transit.data, liveRef.current ? transit.feed : transit.schedule) : null;
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
@@ -181,6 +194,9 @@ export default function App() {
         const transit = transitRef.current;
         overlay!.setProps({
           layers: [
+            ...(detailedBuildings
+              ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
+              : []),
             ...crowdLayers({
               footprints: day.buildings,
               buildings,
@@ -190,7 +206,8 @@ export default function App() {
               selectedId: selectedRef.current,
               zoom: basemap.getZoom(),
             }),
-            ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transit.feed, now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
+            ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
+            ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
             ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
           ],
         });
@@ -214,6 +231,7 @@ export default function App() {
 
   useEffect(() => {
     basemapRef.current?.setLightPreset(light);
+    lightRef.current = light;
   }, [light]);
 
   useEffect(() => {
@@ -275,8 +293,10 @@ export default function App() {
   // Re-read every render (the HUD re-renders twice a second), so "N min" counts down live.
   const transit = transitRef.current;
   const stations = transit?.data.stops.filter((s) => s.kind === 'station' && s.area === campus) ?? [];
-  const busArrivals = transit ? nextBuses(transit, campus) : [];
-  const shuttleArrivals = transit ? nextBuses(transit, campus, 'shuttle') : [];
+  // The panel follows the same source as the map: live feeds, or the schedule when playing back.
+  const source: TransitSource | null = transit ? (live ? transit.feed : transit.schedule) : null;
+  const busArrivals = transit && source ? nextBuses(transit.data, source, campus) : [];
+  const shuttleArrivals = transit && source ? nextBuses(transit.data, source, campus, 'shuttle') : [];
 
   return (
     <div className="app">
@@ -355,9 +375,11 @@ export default function App() {
               {transit && showTransit && (
                 <>
                   <h2>
-                    Live MBTA{' '}
+                    {live ? 'Live MBTA' : 'Scheduled service'}{' '}
                     <span className="muted">
-                      {feedError ?? (feedUpdatedAt ? `· updated ${new Date(feedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
+                      {live
+                        ? (feedError ?? (feedUpdatedAt ? `· updated ${new Date(feedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…'))
+                        : '· simulated on the playback clock; press Live for real-time'}
                     </span>
                   </h2>
                   {stations.length > 0 && (
@@ -380,12 +402,16 @@ export default function App() {
                         </thead>
                         <tbody>
                           {stations.map((s) => {
-                            const next = transit.feed.nextEachWay(s.id);
+                            // Trains only: Kenmore is also a stop for the 57 and other buses.
+                            const next: Partial<Record<0 | 1, { route: string; time: number }>> = {};
+                            for (const a of source!.nextArrivals(s.id)) {
+                              if (a.route.startsWith('Green-') && (!next[a.direction] || a.time < next[a.direction]!.time)) next[a.direction] = a;
+                            }
                             // Name the branch where several stop (Kenmore: B, C, D).
                             const cell = (direction: 0 | 1) => {
                               const a = next[direction];
                               if (!a) return '—';
-                              const branch = s.routes.length > 1 ? `${a.route.replace('Green-', '')} ` : '';
+                              const branch = s.routes.filter((r) => r.startsWith('Green-')).length > 1 ? `${a.route.replace('Green-', '')} ` : '';
                               return `${branch}${minutesUntil(a.time)}`;
                             };
                             return (
@@ -444,7 +470,7 @@ export default function App() {
                   <ul className="legend" aria-label="Traffic legend">
                     {TRAFFIC_LEVELS.map((l) => (
                       <li key={l.key}>
-                        <span className="swatch" style={{ background: l.color, height: l.width + 1 }} aria-hidden="true" />
+                        <span className="swatch" style={{ background: l.color, height: Math.round(3 * l.boost) }} aria-hidden="true" />
                         {l.label}
                       </li>
                     ))}
@@ -506,7 +532,7 @@ export default function App() {
 }
 
 /** Soonest bus (or BU shuttle) per route and direction at any of a campus's stops. */
-function nextBuses({ data, feed }: Transit, area: string, kind: 'bus' | 'shuttle' = 'bus') {
+function nextBuses(data: TransitData, feed: TransitSource, area: string, kind: 'bus' | 'shuttle' = 'bus') {
   const routes = new Map(data.routes.map((r) => [r.id, r]));
   const stops = new Map(data.stops.map((s) => [s.id, s]));
   const now = Date.now();
@@ -545,4 +571,14 @@ function readableOn(hex: string): string {
     return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.18 ? '#111' : '#fff';
+}
+
+/**
+ * Live mode draws the real MBTA and BU feeds. When the day is played back or fast-forwarded,
+ * live vehicles can't keep up, so scheduled service on the simulation clock takes over.
+ */
+function transitSourceAt(transit: Transit, t: number, live: boolean): TransitSource {
+  if (live) return transit.feed;
+  transit.schedule.setTime(t);
+  return transit.schedule;
 }
