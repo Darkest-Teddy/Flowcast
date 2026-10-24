@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "datasetVersion": "bu-public-2026-10-24T16:27:34.351982+00:00",
+  "generatedAt": "2026-10-24T16:27:34.351982+00:00",
+  "timezone": "America/New_York",
+  "status": "partial",
+  "datasets": [
+    {
+      "dataset": "catalog",
+      "path": "catalog.json",
+      "status": "partial",
+      "sha256": "fe8fe3b1f4dae4ca99972ff68c8ca2e59d69264037329eb2405b992d9d30bad2",
+      "sourceCount": 9859,
+      "recordCounts": {
+        "courses": 8900,
+        "meetings": 6944,
+        "excludedMeetings": 4786,
+        "buildings": 70,
+        "classrooms": 437,
+        "unavailableClassrooms": 168
+      },
+      "errors": [
+        {
+          "url": "https://www.bu.edu/classrooms/classroom/cfa-b37/",
+          "stage": "classroom",
+          "error": "Published room capacity not found: https://www.bu.edu/classrooms/classroom/cfa-b37/"
+        },
+        {
+          "url": "https://www.bu.edu/classrooms/classroom/com-206/",
+          "stage": "classroom",
+          "error": "Published room capacity not found: https://www.bu.edu/classrooms/classroom/com-206/"
+        },
+        {
+          "url": "https://www.bu.edu/classrooms/classroom/com-b31/",
+          "stage": "classroom",
+          "error": "Room identity mismatch for COM B31: https://www.bu.edu/classrooms/classroom/com-b31/"
+        },
+        {
+          "url": "https://www.bu.edu/classrooms/classroom/flr-303/",
+          "stage": "classroom",
+          "error": "Published room capacity not found: https://www.bu.edu/classrooms/classroom/flr-303/"
+        }
+      ],
+      "coveragePath": "campus-wide/coverage.json"
+    },
+    {
+      "dataset": "events",
+      "path": "events.json",
+      "status": "ok",
+      "sha256": "be96e6e6a6b32f603cb69a3330849b0cbc5fa2ec449c2b5f94f9a05949f55031",
+      "sourceCount": 22,
+      "recordCounts": {
+        "events": 18
+      },
+      "errors": []
+    },
+    {
+      "dataset": "dining",
+      "path": "dining.json",
+      "status": "ok",
+      "sha256": "60c34883ac18e78894081db903417c394f8695e30e7cd10d048c8e11fa9d88f8",
+      "sourceCount": 7,
+      "recordCounts": {
+        "locations": 28,
+        "measurements": 8,
+        "notices": 2
+      },
+      "errors": []
+    },
+    {
+      "dataset": "libraries",
+      "path": "libraries.json",
+      "status": "ok",
+      "sha256": "cf2fe254944e6f67624b2bbab35de9a56a60097ec0b9743aaabcf0a14e45569b",
+      "sourceCount": 4,
+      "recordCounts": {
+        "sectionObservations": 11220,
+        "patronCounts": 87,
+        "workbooks": 2,
+        "hours": 91
+      },
+      "errors": []
+    },
+    {
+      "dataset": "housing",
+      "path": "housing.json",
+      "status": "ok",
+      "sha256": "919e0dee67b89d6098b4003298828161ef54c62814b3384b5219867f08d0dca0",
+      "sourceCount": 49,
+      "recordCounts": {
+        "residences": 44,
+        "directoryPages": 1,
+        "measurements": 7
+      },
+      "errors": []
+    },
+    {
+      "dataset": "signals",
+      "path": "signals.json",
+      "status": "ok",
+      "sha256": "f568766bbf3dd0de8d67067341ce2bb2181587f494d0d1e2d76b0d9c79f09316",
+      "sourceCount": 4,
+      "recordCounts": {
+        "pedestrianCounts": 14,
+        "fitrecMetrics": 1,
+        "sportsAttendance": 1,
+        "dashboardLinks": 1
+      },
+      "errors": []
+    }
+  ],
+  "uncollectedInstitutionalSources": [
+    {
+      "source": "Campus Density Mapping",
+      "status": "institutional_access_required",
+      "url": "https://www.bu.edu/tech/services/admin/campus-operations-systems/campus-density-mapping/",
+      "requestedData": "Approved historical aggregate building population with timestamps and method definitions"
+    },
+    {
+      "source": "Registrar BU_R0012G_SR_SOC_EXTR",
+      "status": "staff_export_not_obtained",
+      "url": "https://sites.bu.edu/sis-training/scheduling-queries/",
+      "requestedData": "Section schedule and enrollment, combined-section identifiers; no student roster"
+    },
+    {
+      "source": "25Live reservations",
+      "status": "authorized_export_not_obtained",
+      "url": "https://www.bu.edu/reservations/25live/",
+      "requestedData": "Confirmed event locations and organizer attendance estimates"
+    },
+    {
+      "source": "Dining entries and transactions",
+      "status": "institutional_export_not_obtained",
+      "url": "https://www.bu.edu/dining/project-and-media-requests/",
+      "requestedData": "Aggregate counts by hall/date/interval with transaction definitions"
+    },
+    {
+      "source": "Housing occupied beds",
+      "status": "institutional_export_not_obtained",
+      "url": "https://www.bu.edu/housing/",
+      "requestedData": "Aggregate occupied beds by residence and applicable date range"
+    }
+  ],
+  "handoff": "Acquisition inputs, not the final campus bundle. Resolve locations to graph-connected entrances before planning.",
+  "limitations": "Capacity, registrations, throughput, historical counts, and occupancy are distinct. No measured live occupancy is inferred."
+}

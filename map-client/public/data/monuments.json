@@ -1,0 +1,328 @@
+[
+ {
+  "id": "free-at-last",
+  "kind": "monument",
+  "name": "Free at Last",
+  "subtitle": "MLK Jr. memorial · Sergio Castillo, 1975",
+  "model": "/models/free-at-last.glb",
+  "position": [
+   -71.1064981,
+   42.3503752
+  ],
+  "bearing": 189,
+  "height": 6.1,
+  "source": {
+   "position": "https://www.openstreetmap.org/node/9488437322",
+   "details": "BU public art list (bu.edu/cfa/featured-work/bu-public-art): 'about 20 ft tall; 50 interconnected birds' on Marsh Plaza; BU Today 2013 'Icons Among Us': Corten-steel doves on a granite base; shape from Peter H. Dreyer's 1975 photos (City of Boston Archives, Wikimedia Commons).",
+   "unverified": "Which way the inscribed face points; modelled facing Commonwealth Ave (south), as in the 1975 photos."
+  }
+ },
+ {
+  "id": "rhett-bench",
+  "kind": "monument",
+  "name": "Rhett Bench",
+  "subtitle": "BU's Boston Terrier · Virgil Oertle, 2019",
+  "model": "/models/rhett-bench.glb",
+  "position": [
+   -71.104417,
+   42.3510575
+  ],
+  "bearing": 188,
+  "height": 1.9,
+  "source": {
+   "position": "https://www.openstreetmap.org/node/12941649581",
+   "details": "BU Alumni / BU Today: 'between the BU Beach and the Alan & Sherry Leventhal Admissions Center', unveiled Aug 2019, donated by the BU Alumni Council; pose from The Daily Free Press photo (Aug 2019), which shows the Charles behind the bench.",
+   "unverified": "Exact facing; the photo puts the river behind it, so it faces roughly south."
+  }
+ },
+ {
+  "id": "citgo-sign",
+  "kind": "landmark",
+  "name": "Citgo Sign",
+  "subtitle": "Kenmore Square · since 1965",
+  "model": "/models/citgo-sign.glb",
+  "position": [
+   -71.0962619,
+   42.3492818
+  ],
+  "bearing": 245,
+  "altitude": 23.0,
+  "height": 27.9,
+  "source": {
+   "position": "https://www.openstreetmap.org/node/7599402961",
+   "details": "OSM tags direction=245;65 (double-sided), lit=yes; 60 ft square (Wikipedia, 'Citgo sign'); on the roof of 660 Beacon St, whose model top is 23.0 m in building-models.json; logo geometry from Wikimedia Commons File:Citgo_logo.svg; truss, pyramid trimark, 39 white light rows and 18 lit triangles from the Boston Landmarks Commission Citgo Sign study report (2018); frame and catwalk also from Commons photos (2017, 2025).",
+   "unverified": "Height of the truss: the Landmarks report says the sign is held 40 ft above the roof by a 90 ft truss (inconsistent); modelled at 9.5 m (31 ft), as photos suggest. The sign was taken down in May 2026 to be reinstalled about 120 ft east and 30 ft higher on the same property (Boston Globe, 29 May 2026; a Sept 2026 Commons photo shows the new frame). This entry is the long-standing position."
+  }
+ },
+ {
+  "id": "agganis-statue",
+  "kind": "monument",
+  "name": "The Golden Greek",
+  "subtitle": "Harry Agganis · Armand LaMontagne, 2004",
+  "model": "/models/agganis-statue.glb",
+  "position": [
+   -71.1183386,
+   42.3516932
+  ],
+  "bearing": 200,
+  "height": 3.4,
+  "source": {
+   "position": "https://www.openstreetmap.org/node/7770229545",
+   "details": "BU public art list ('The Golden Greek', inscribed 'always excel'); BU: bronze, left arm drawn back about to throw, cleats on a granite pedestal at the arena entrance.",
+   "unverified": "Facing (modelled toward Commonwealth Ave) and exact size."
+  }
+ },
+ {
+  "id": "braves-ticket-office",
+  "kind": "landmark",
+  "name": "Braves Field Ticket Office",
+  "subtitle": "1915 ballpark entrance · now BU Police HQ",
+  "model": null,
+  "position": [
+   -71.1186245,
+   42.3524769
+  ],
+  "bearing": 99,
+  "altitude": 15.8,
+  "source": {
+   "position": "https://www.openstreetmap.org/way/212129920",
+   "details": "SABR and BU: the stucco ticket office on Gaffney St (now Harry Agganis Way), where fans entered Braves Field through arches; enclosed in 1978; now BU Police headquarters. The building itself is drawn by the building models."
+  }
+ },
+ {
+  "id": "explosions",
+  "kind": "artwork",
+  "name": "Explosions",
+  "subtitle": "Sergio Castillo",
+  "model": null,
+  "position": [
+   -71.1002989,
+   42.3488507
+  ],
+  "bearing": 0,
+  "source": {
+   "position": "https://www.openstreetmap.org/node/7763953675",
+   "details": "BU public art list: 'on the plaza in front of 590 Commonwealth Avenue'."
+  }
+ },
+ {
+  "id": "point-counterpoint",
+  "kind": "artwork",
+  "name": "Point Counterpoint",
+  "subtitle": "Russell Jacques",
+  "model": null,
+  "position": [
+   -71.1061309,
+   42.3511623
+  ],
+  "bearing": 0,
+  "source": {
+   "position": "https://www.openstreetmap.org/node/7727717180",
+   "details": "BU public art list; OSM names it 'Counterpoint' (steel)."
+  }
+ },
+ {
+  "id": "lefevre-775",
+  "kind": "artwork",
+  "name": "Untitled 775",
+  "subtitle": "Gregg LeFevre, 1974",
+  "model": null,
+  "position": [
+   -71.1084936,
+   42.3509196
+  ],
+  "bearing": 0,
+  "source": {
+   "position": "https://www.openstreetmap.org/node/12943202989",
+   "details": "BU public art list ('LeFevre - Untitled 775'); BU class note: commissioned in 1974, between the GSU and Mugar Library."
+  }
+ },
+ {
+  "id": "provincetown-wheels",
+  "kind": "artwork",
+  "name": "Provincetown Wheels",
+  "subtitle": "George Greenamyer",
+  "model": null,
+  "position": [
+   -71.0988594,
+   42.35031
+  ],
+  "bearing": 0,
+  "source": {
+   "position": "https://www.openstreetmap.org/node/7848309390",
+   "details": "OSM (Smithsonian IAS 87740081); BU's public art list has an untitled metal piece by Greenamyer."
+  }
+ },
+ {
+  "id": "marsh-plaza",
+  "kind": "area",
+  "name": "Marsh Plaza",
+  "subtitle": null,
+  "model": null,
+  "position": [
+   -71.10652,
+   42.35022
+  ],
+  "bearing": 0,
+  "polygon": [
+   [
+    -71.1067776,
+    42.3505322
+   ],
+   [
+    -71.1067235,
+    42.3505257
+   ],
+   [
+    -71.1062435,
+    42.3504667
+   ],
+   [
+    -71.1061598,
+    42.3504578
+   ],
+   [
+    -71.1062209,
+    42.3501831
+   ],
+   [
+    -71.1068393,
+    42.3502582
+   ],
+   [
+    -71.1067776,
+    42.3505322
+   ]
+  ],
+  "source": {
+   "position": "https://www.openstreetmap.org/way/328056586",
+   "details": "OSM outline (paving)."
+  }
+ },
+ {
+  "id": "bu-beach",
+  "kind": "area",
+  "name": "BU Beach",
+  "subtitle": null,
+  "model": null,
+  "position": [
+   -71.1056801,
+   42.3511439
+  ],
+  "bearing": 0,
+  "polygon": [
+   [
+    -71.1045352,
+    42.3511066
+   ],
+   [
+    -71.1045301,
+    42.3511526
+   ],
+   [
+    -71.1054352,
+    42.3512523
+   ],
+   [
+    -71.1065273,
+    42.3513684
+   ],
+   [
+    -71.1065417,
+    42.3513069
+   ],
+   [
+    -71.1065476,
+    42.3512817
+   ],
+   [
+    -71.1065491,
+    42.3512605
+   ],
+   [
+    -71.1065432,
+    42.3512427
+   ],
+   [
+    -71.1065033,
+    42.3512268
+   ],
+   [
+    -71.106467,
+    42.3512053
+   ],
+   [
+    -71.1064367,
+    42.351183
+   ],
+   [
+    -71.1064129,
+    42.3511614
+   ],
+   [
+    -71.1063885,
+    42.351147
+   ],
+   [
+    -71.1063644,
+    42.351135
+   ],
+   [
+    -71.1063387,
+    42.3511259
+   ],
+   [
+    -71.106312,
+    42.3511209
+   ],
+   [
+    -71.1059093,
+    42.3510933
+   ],
+   [
+    -71.10552,
+    42.3510678
+   ],
+   [
+    -71.1054834,
+    42.3510875
+   ],
+   [
+    -71.1046812,
+    42.3510339
+   ],
+   [
+    -71.1046809,
+    42.3510204
+   ],
+   [
+    -71.1046775,
+    42.3510149
+   ],
+   [
+    -71.1046697,
+    42.3510112
+   ],
+   [
+    -71.1045482,
+    42.3509953
+   ],
+   [
+    -71.1045402,
+    42.3510642
+   ],
+   [
+    -71.104539,
+    42.3510747
+   ],
+   [
+    -71.1045352,
+    42.3511066
+   ]
+  ],
+  "source": {
+   "position": "https://www.openstreetmap.org/way/242274262",
+   "details": "OSM landuse=grass named 'BU Beach'."
+  }
+ }
+]

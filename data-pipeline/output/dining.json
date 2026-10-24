@@ -1,0 +1,1222 @@
+{
+  "schemaVersion": 1,
+  "dataset": "dining",
+  "generatedAt": "2026-10-24T15:13:54.587093+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "locations": [
+    {
+      "id": "dining:afterhourswest",
+      "name": "After Hours at West Campus",
+      "url": "https://www.bu.edu/dining/location/afterhourswest/",
+      "campus": "West",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "21:30",
+          "closesLocal": "01:00",
+          "crossesMidnight": true,
+          "rawText": "9:30 PM – 1:00 AM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:basho-express",
+      "name": "Basho Express",
+      "url": "https://www.bu.edu/dining/location/basho-express/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "12:00",
+          "closesLocal": "19:00",
+          "crossesMidnight": false,
+          "rawText": "12:00 PM – 7:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:basho-sushi-at-the-gsu",
+      "name": "Basho Sushi at the GSU",
+      "url": "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:breadwinners",
+      "name": "Breadwinners at Questrom",
+      "url": "https://www.bu.edu/dining/location/breadwinners/",
+      "campus": "East",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:buick-street-market",
+      "name": "Buick Street Market",
+      "url": "https://www.bu.edu/dining/location/buick-street-market/",
+      "campus": "West",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "8:00 AM – 12:00 AM",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:dipped-at-the-gsu",
+      "name": "Dipped!",
+      "url": "https://www.bu.edu/dining/location/dipped-at-the-gsu/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:dominos-pizza",
+      "name": "Domino’s Pizza",
+      "url": "https://www.bu.edu/dining/location/dominos-pizza/",
+      "campus": "Online Ordering",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "10:30",
+          "closesLocal": "02:00",
+          "crossesMidnight": true,
+          "rawText": "10:30 AM – 2:00 AM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:dunkin-donuts-at-buick-street-market",
+      "name": "Dunkin’ Donuts at Buick Street Market",
+      "url": "https://www.bu.edu/dining/location/dunkin-donuts-at-buick-street-market/",
+      "campus": "West",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "08:00",
+          "closesLocal": "16:00",
+          "crossesMidnight": false,
+          "rawText": "8:00 AM – 4:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:einsteins-brothers-bagels",
+      "name": "Einstein Bros. Bagels",
+      "url": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:el-comal",
+      "name": "El Comal at the GSU",
+      "url": "https://www.bu.edu/dining/location/el-comal/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "11:30",
+          "closesLocal": "19:00",
+          "crossesMidnight": false,
+          "rawText": "11:30 AM – 7:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:fenway",
+      "name": "Fenway Campus Center Dining Room",
+      "url": "https://www.bu.edu/dining/location/fenway/",
+      "campus": "Fenway",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": "Brunch",
+          "opensLocal": "10:00",
+          "closesLocal": "16:30",
+          "crossesMidnight": false,
+          "rawText": "Brunch: 10:00 AM – 4:30 PM",
+          "status": "parsed"
+        },
+        {
+          "label": "Dinner",
+          "opensLocal": "16:30",
+          "closesLocal": "19:30",
+          "crossesMidnight": false,
+          "rawText": "Dinner: 4:30 PM – 7:30 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:fullersbupub",
+      "name": "Fuller’s BU Pub",
+      "url": "https://www.bu.edu/dining/location/fullersbupub/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:granby",
+      "name": "Fresh Fuel at Granby Commons",
+      "url": "https://www.bu.edu/dining/location/granby/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:marciano",
+      "name": "The Fresh Food Co. at Marciano Commons",
+      "url": "https://www.bu.edu/dining/location/marciano/",
+      "campus": "East",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": "Breakfast",
+          "opensLocal": "09:00",
+          "closesLocal": "11:00",
+          "crossesMidnight": false,
+          "rawText": "Breakfast: 9:00 AM – 11:00 AM",
+          "status": "parsed"
+        },
+        {
+          "label": "Lunch",
+          "opensLocal": "11:00",
+          "closesLocal": "17:00",
+          "crossesMidnight": false,
+          "rawText": "Lunch: 11:00 AM – 5:00 PM",
+          "status": "parsed"
+        },
+        {
+          "label": "Dinner",
+          "opensLocal": "17:00",
+          "closesLocal": "21:00",
+          "crossesMidnight": false,
+          "rawText": "Dinner: 5:00 PM – 9:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:panda-express",
+      "name": "Panda Express at the GSU",
+      "url": "https://www.bu.edu/dining/location/panda-express/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "11:30",
+          "closesLocal": "19:00",
+          "crossesMidnight": false,
+          "rawText": "11:30 AM – 7:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:raising-canes-chicken-fingers",
+      "name": "Raising Cane’s Chicken Fingers",
+      "url": "https://www.bu.edu/dining/location/raising-canes-chicken-fingers/",
+      "campus": "West",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "10:00",
+          "closesLocal": "23:00",
+          "crossesMidnight": false,
+          "rawText": "10:00 AM – 11:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:rhettotg",
+      "name": "Rhett’s On The Go",
+      "url": "https://www.bu.edu/dining/location/rhettotg/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:saxbys",
+      "name": "Saxbys",
+      "url": "https://www.bu.edu/dining/location/saxbys/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "10:00",
+          "closesLocal": "16:00",
+          "crossesMidnight": false,
+          "rawText": "10:00 AM – 4:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:starbucks-at-700-commonwealth",
+      "name": "Starbucks at 700 Commonwealth",
+      "url": "https://www.bu.edu/dining/location/starbucks/starbucks-at-700-commonwealth/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "09:00",
+          "closesLocal": "19:00",
+          "crossesMidnight": false,
+          "rawText": "9:00 AM – 7:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:starbucks-at-questrom",
+      "name": "Starbucks at Questrom",
+      "url": "https://www.bu.edu/dining/location/starbucks/starbucks-at-questrom/",
+      "campus": "East",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:starbucks-at-the-gsu",
+      "name": "Starbucks at The GSU",
+      "url": "https://www.bu.edu/dining/location/starbucks/starbucks-at-the-gsu/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "11:30",
+          "closesLocal": "17:00",
+          "crossesMidnight": false,
+          "rawText": "11:30 AM – 5:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:tawa",
+      "name": "Tawa at the GSU",
+      "url": "https://www.bu.edu/dining/location/tawa/",
+      "campus": "",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:the-coop",
+      "name": "The Coop at the GSU",
+      "url": "https://www.bu.edu/dining/location/the-coop/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": "11:30",
+          "closesLocal": "19:00",
+          "crossesMidnight": false,
+          "rawText": "11:30 AM – 7:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:the-halal-shack",
+      "name": "The Halal Shack at the GSU",
+      "url": "https://www.bu.edu/dining/location/the-halal-shack/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:urban-table-at-the-gsu",
+      "name": "Urban Table at the GSU",
+      "url": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": null,
+          "opensLocal": null,
+          "closesLocal": null,
+          "crossesMidnight": null,
+          "rawText": "",
+          "status": "unavailable"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:warren",
+      "name": "The Fresh Food Co. at Warren Towers",
+      "url": "https://www.bu.edu/dining/location/warren/",
+      "campus": "Central",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": "Breakfast",
+          "opensLocal": "09:00",
+          "closesLocal": "11:00",
+          "crossesMidnight": false,
+          "rawText": "Breakfast: 9:00 AM – 11:00 AM",
+          "status": "parsed"
+        },
+        {
+          "label": "Lunch",
+          "opensLocal": "11:00",
+          "closesLocal": "17:00",
+          "crossesMidnight": false,
+          "rawText": "Lunch: 11:00 AM – 5:00 PM",
+          "status": "parsed"
+        },
+        {
+          "label": "Dinner",
+          "opensLocal": "17:00",
+          "closesLocal": "21:00",
+          "crossesMidnight": false,
+          "rawText": "Dinner: 5:00 PM – 9:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:west",
+      "name": "The Fresh Food Co. at West Campus",
+      "url": "https://www.bu.edu/dining/location/west/",
+      "campus": "West",
+      "timezone": "America/New_York",
+      "scheduleDate": null,
+      "scheduleScope": "retrieved_page_snapshot",
+      "dateStatus": "page_does_not_explicitly_identify_service_date",
+      "windows": [
+        {
+          "label": "Breakfast",
+          "opensLocal": "09:00",
+          "closesLocal": "11:00",
+          "crossesMidnight": false,
+          "rawText": "Breakfast: 9:00 AM – 11:00 AM",
+          "status": "parsed"
+        },
+        {
+          "label": "Lunch",
+          "opensLocal": "11:00",
+          "closesLocal": "17:00",
+          "crossesMidnight": false,
+          "rawText": "Lunch: 11:00 AM – 5:00 PM",
+          "status": "parsed"
+        },
+        {
+          "label": "Dinner",
+          "opensLocal": "17:00",
+          "closesLocal": "21:00",
+          "crossesMidnight": false,
+          "rawText": "Dinner: 5:00 PM – 9:00 PM",
+          "status": "parsed"
+        }
+      ],
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/open-now/",
+        "requestedUrl": "https://www.bu.edu/dining/open-now/",
+        "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+        "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "dining:starbucks",
+      "url": "https://www.bu.edu/dining/location/starbucks/",
+      "name": null,
+      "windows": [],
+      "scheduleDate": null,
+      "timezone": "America/New_York",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "provenance": {
+        "url": "https://www.bu.edu/dining/where-to-eat/",
+        "requestedUrl": "https://www.bu.edu/dining/where-to-eat/",
+        "retrievedAt": "2026-10-24T15:04:11.841060+00:00",
+        "sha256": "d9ad598d011b974e2186b5255ab57f4a0fb72c0f323acedb22bf8d9cae01ae27",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/2629a5a68ac4d3f9d8a99327e0ed95c46e58ec457089b012dbe12ce052414522.body",
+        "cacheUsed": true
+      }
+    }
+  ],
+  "measurements": [
+    {
+      "id": "6c440fac5e73d4c82869",
+      "entityKey": "dining:warren",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "throughput",
+      "value": 3850,
+      "unit": "meals/day",
+      "basis": "published",
+      "sourcePublishedDate": "2026-09-15",
+      "observationDate": null,
+      "evidence": "The dining hall serves about 3,850 meals a day and features a stir-fry grill, stone hearth–style Neapolitan pizza ovens—which run on electricity—a salad bar, an international section, gluten-free options, a deli and soup station, and a soft-serve station.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+        "requestedUrl": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+        "retrievedAt": "2026-10-24T15:04:12.254202+00:00",
+        "sha256": "07e4457b9eb6d95d3ba82e5bcc3744ee2c2936eec3b8fa7607333f524fa5089a",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/e88fdc3fb0afd5c5080321d186533e4b793afc22ade455959e6ec517b9146a7c.body",
+        "cacheUsed": true
+      },
+      "approximate": true
+    },
+    {
+      "id": "d62a24bddfd6c4ecfef9",
+      "entityKey": "dining:west",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "capacity",
+      "value": 840,
+      "unit": "seats",
+      "basis": "published",
+      "sourcePublishedDate": "2022-10-08",
+      "observationDate": null,
+      "evidence": "It may not be as tall as StuVi I and II, have the convenience of proximity to central campus like Warren Towers, or the charm of Bay State Road’s brownstones, but there’s a lot to recommend the three dorms comprising West Campus: Rich, Sleeper, and Claflin Halls. First, they’re a stone’s throw from Case Gym, the Track & Tennis Center, and FitRec. Then there are the killer views—of Nickerson Field and the Boston skyline. And finally, there’s the campus dining hall— Fresh Food Co. at West Campus , which seats 840 and has more than 20 food stations, including vegan and Halal options and the famous West Burger, all of which helped earned it the moniker “West Is Best.”",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2022/video-tour-of-west-campus/",
+        "requestedUrl": "https://www.bu.edu/articles/2022/video-tour-of-west-campus/",
+        "retrievedAt": "2026-10-24T15:04:13.213764+00:00",
+        "sha256": "33fff875f31a551bff65ecd24bdce85f0171f97b2888c1020e81d8ad8e000596",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/d2a0e9726c00bd6ef62c95a4a16a845e9bf4afe5675827d513cf68b3df51a7ca.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "id": "57627fe534713aefbf3d",
+      "entityKey": "dining:marciano",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "capacity",
+      "value": 920,
+      "unit": "seats",
+      "basis": "published",
+      "sourcePublishedDate": "2012-07-26",
+      "observationDate": null,
+      "evidence": "Finally, there’s the two-story dining room, called the Fresh Food Company at Marciano Commons . A cross-campus sibling to the Fresh Food Company at West Campus , this dining hall seats 920 (and serves around 5,000 meals every day) and replaces the older dining halls at three nearby residences. The space has 12 dining stations for every meal, healthy menu options from BU Sargent Choice Nutrition Center , digital menu boards with nutrition information, and two kitchens dedicated to vegan and gluten-free meals to prevent cross-contamination.",
+      "provenance": {
+        "url": "https://www.bu.edu/parentmagazine/2012/07/26/center-brings-student-services-together/",
+        "requestedUrl": "https://www.bu.edu/parentmagazine/2012/07/26/center-brings-student-services-together/",
+        "retrievedAt": "2026-10-24T15:04:13.478597+00:00",
+        "sha256": "5a054e41738d10baeba3b20498a490bb9b610e08ce2d19b6a82e54a179acddc6",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/b770ed4306c5275b39fe2d3392087d07e4722a1e28d5cbb8b6aae63b6ff10d03.body",
+        "cacheUsed": true
+      },
+      "approximate": false
+    },
+    {
+      "id": "7061e13742dfeb23077f",
+      "entityKey": "dining:marciano",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "throughput",
+      "value": 5000,
+      "unit": "meals/day",
+      "basis": "published",
+      "sourcePublishedDate": "2012-07-26",
+      "observationDate": null,
+      "evidence": "Finally, there’s the two-story dining room, called the Fresh Food Company at Marciano Commons . A cross-campus sibling to the Fresh Food Company at West Campus , this dining hall seats 920 (and serves around 5,000 meals every day) and replaces the older dining halls at three nearby residences. The space has 12 dining stations for every meal, healthy menu options from BU Sargent Choice Nutrition Center , digital menu boards with nutrition information, and two kitchens dedicated to vegan and gluten-free meals to prevent cross-contamination.",
+      "provenance": {
+        "url": "https://www.bu.edu/parentmagazine/2012/07/26/center-brings-student-services-together/",
+        "requestedUrl": "https://www.bu.edu/parentmagazine/2012/07/26/center-brings-student-services-together/",
+        "retrievedAt": "2026-10-24T15:04:13.478597+00:00",
+        "sha256": "5a054e41738d10baeba3b20498a490bb9b610e08ce2d19b6a82e54a179acddc6",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/b770ed4306c5275b39fe2d3392087d07e4722a1e28d5cbb8b6aae63b6ff10d03.body",
+        "cacheUsed": true
+      },
+      "approximate": true
+    },
+    {
+      "id": "666ddf81f8ddd89a2906",
+      "entityKey": "dining:three-main-halls",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "throughput",
+      "value": 3000,
+      "unit": "meals/day",
+      "basis": "published",
+      "sourcePublishedDate": "2017-04-27",
+      "observationDate": null,
+      "evidence": "It takes a small army to prepare and serve the 3,000 breakfasts, 5,000 lunches, and 5,000 dinners that BU’s Dining Services manages in its three main dining halls each day. Add to that the 40,000 customers served in the George Sherman Union Food Court every week, and it’s easy to understand why it takes 550 dining staff and another 800 student staff to make sure campus dining facilities run smoothly.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2017/bu-dining/",
+        "requestedUrl": "https://www.bu.edu/articles/2017/bu-dining/",
+        "retrievedAt": "2026-10-24T15:04:14.245261+00:00",
+        "sha256": "1ea430d662dd3224ee3ffe35acdd3ebd2bd636a5d0332b23ca684eea79acb3f7",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/a19f6cdd6d94c539d74ae4d9d2858239fdf150f1ff2329f579697b02cc3a05ae.body",
+        "cacheUsed": true
+      },
+      "period": "breakfasts",
+      "aggregate": true,
+      "members": [
+        "dining:warren",
+        "dining:west",
+        "dining:marciano"
+      ]
+    },
+    {
+      "id": "250a0d04721a35be1d24",
+      "entityKey": "dining:three-main-halls",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "throughput",
+      "value": 5000,
+      "unit": "meals/day",
+      "basis": "published",
+      "sourcePublishedDate": "2017-04-27",
+      "observationDate": null,
+      "evidence": "It takes a small army to prepare and serve the 3,000 breakfasts, 5,000 lunches, and 5,000 dinners that BU’s Dining Services manages in its three main dining halls each day. Add to that the 40,000 customers served in the George Sherman Union Food Court every week, and it’s easy to understand why it takes 550 dining staff and another 800 student staff to make sure campus dining facilities run smoothly.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2017/bu-dining/",
+        "requestedUrl": "https://www.bu.edu/articles/2017/bu-dining/",
+        "retrievedAt": "2026-10-24T15:04:14.245261+00:00",
+        "sha256": "1ea430d662dd3224ee3ffe35acdd3ebd2bd636a5d0332b23ca684eea79acb3f7",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/a19f6cdd6d94c539d74ae4d9d2858239fdf150f1ff2329f579697b02cc3a05ae.body",
+        "cacheUsed": true
+      },
+      "period": "lunches",
+      "aggregate": true,
+      "members": [
+        "dining:warren",
+        "dining:west",
+        "dining:marciano"
+      ]
+    },
+    {
+      "id": "87fd64911d54d2335fa9",
+      "entityKey": "dining:three-main-halls",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "throughput",
+      "value": 5000,
+      "unit": "meals/day",
+      "basis": "published",
+      "sourcePublishedDate": "2017-04-27",
+      "observationDate": null,
+      "evidence": "It takes a small army to prepare and serve the 3,000 breakfasts, 5,000 lunches, and 5,000 dinners that BU’s Dining Services manages in its three main dining halls each day. Add to that the 40,000 customers served in the George Sherman Union Food Court every week, and it’s easy to understand why it takes 550 dining staff and another 800 student staff to make sure campus dining facilities run smoothly.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2017/bu-dining/",
+        "requestedUrl": "https://www.bu.edu/articles/2017/bu-dining/",
+        "retrievedAt": "2026-10-24T15:04:14.245261+00:00",
+        "sha256": "1ea430d662dd3224ee3ffe35acdd3ebd2bd636a5d0332b23ca684eea79acb3f7",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/a19f6cdd6d94c539d74ae4d9d2858239fdf150f1ff2329f579697b02cc3a05ae.body",
+        "cacheUsed": true
+      },
+      "period": "dinners",
+      "aggregate": true,
+      "members": [
+        "dining:warren",
+        "dining:west",
+        "dining:marciano"
+      ]
+    },
+    {
+      "id": "96631957fe8058786c14",
+      "entityKey": "dining:gsu",
+      "locationId": null,
+      "locationResolution": "unresolved",
+      "metric": "throughput",
+      "value": 40000,
+      "unit": "customer-visits/week",
+      "basis": "published",
+      "sourcePublishedDate": "2017-04-27",
+      "observationDate": null,
+      "evidence": "It takes a small army to prepare and serve the 3,000 breakfasts, 5,000 lunches, and 5,000 dinners that BU’s Dining Services manages in its three main dining halls each day. Add to that the 40,000 customers served in the George Sherman Union Food Court every week, and it’s easy to understand why it takes 550 dining staff and another 800 student staff to make sure campus dining facilities run smoothly.",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2017/bu-dining/",
+        "requestedUrl": "https://www.bu.edu/articles/2017/bu-dining/",
+        "retrievedAt": "2026-10-24T15:04:14.245261+00:00",
+        "sha256": "1ea430d662dd3224ee3ffe35acdd3ebd2bd636a5d0332b23ca684eea79acb3f7",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/a19f6cdd6d94c539d74ae4d9d2858239fdf150f1ff2329f579697b02cc3a05ae.body",
+        "cacheUsed": true
+      }
+    }
+  ],
+  "notices": [
+    {
+      "kind": "operating_hours_article",
+      "rawText": "Among the changes is the return of After Hours at West Campus , the late-night dining program that closed in August 2025. The menu features familiar late-night staples, including French fries, chicken tenders, and pizza, alongside healthier alternatives such as salads and grain bowls.",
+      "sourcePublishedDate": "2026-10-21",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+        "requestedUrl": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+        "retrievedAt": "2026-10-24T15:04:14.779320+00:00",
+        "sha256": "c5cc65c46c41d01e47f5c4f8b17b8706778670212487331e68ada52eafdfa8f4",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/67d645fffb7d13bc2b62fda6c7d26370f9754798d6dde785b895981075141332.body",
+        "cacheUsed": true
+      }
+    },
+    {
+      "kind": "operating_hours_article",
+      "rawText": "West Campus Dining Hall kicked off its After Hours program October 14 with free food, games, and giveaways for students.",
+      "sourcePublishedDate": "2026-10-21",
+      "provenance": {
+        "url": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+        "requestedUrl": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+        "retrievedAt": "2026-10-24T15:04:14.779320+00:00",
+        "sha256": "c5cc65c46c41d01e47f5c4f8b17b8706778670212487331e68ada52eafdfa8f4",
+        "contentType": "text/html; charset=UTF-8",
+        "rawPath": "data-pipeline/.cache/sources/67d645fffb7d13bc2b62fda6c7d26370f9754798d6dde785b895981075141332.body",
+        "cacheUsed": true
+      }
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://www.bu.edu/dining/open-now/",
+      "requestedUrl": "https://www.bu.edu/dining/open-now/",
+      "retrievedAt": "2026-10-24T15:04:10.894160+00:00",
+      "sha256": "fce5bc81e2c5d0ed50497d06170d62e7bdb5f92f459f3fa5644a3047723dd10b",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/0de820191f88d4b890a5e6a615a456eef9766f61a00c11f35c2fbff154e483d0.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/dining/where-to-eat/",
+      "requestedUrl": "https://www.bu.edu/dining/where-to-eat/",
+      "retrievedAt": "2026-10-24T15:04:11.841060+00:00",
+      "sha256": "d9ad598d011b974e2186b5255ab57f4a0fb72c0f323acedb22bf8d9cae01ae27",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/2629a5a68ac4d3f9d8a99327e0ed95c46e58ec457089b012dbe12ce052414522.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+      "requestedUrl": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+      "retrievedAt": "2026-10-24T15:04:12.254202+00:00",
+      "sha256": "07e4457b9eb6d95d3ba82e5bcc3744ee2c2936eec3b8fa7607333f524fa5089a",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/e88fdc3fb0afd5c5080321d186533e4b793afc22ade455959e6ec517b9146a7c.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/articles/2022/video-tour-of-west-campus/",
+      "requestedUrl": "https://www.bu.edu/articles/2022/video-tour-of-west-campus/",
+      "retrievedAt": "2026-10-24T15:04:13.213764+00:00",
+      "sha256": "33fff875f31a551bff65ecd24bdce85f0171f97b2888c1020e81d8ad8e000596",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/d2a0e9726c00bd6ef62c95a4a16a845e9bf4afe5675827d513cf68b3df51a7ca.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/parentmagazine/2012/07/26/center-brings-student-services-together/",
+      "requestedUrl": "https://www.bu.edu/parentmagazine/2012/07/26/center-brings-student-services-together/",
+      "retrievedAt": "2026-10-24T15:04:13.478597+00:00",
+      "sha256": "5a054e41738d10baeba3b20498a490bb9b610e08ce2d19b6a82e54a179acddc6",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/b770ed4306c5275b39fe2d3392087d07e4722a1e28d5cbb8b6aae63b6ff10d03.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/articles/2017/bu-dining/",
+      "requestedUrl": "https://www.bu.edu/articles/2017/bu-dining/",
+      "retrievedAt": "2026-10-24T15:04:14.245261+00:00",
+      "sha256": "1ea430d662dd3224ee3ffe35acdd3ebd2bd636a5d0332b23ca684eea79acb3f7",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/a19f6cdd6d94c539d74ae4d9d2858239fdf150f1ff2329f579697b02cc3a05ae.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+      "requestedUrl": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+      "retrievedAt": "2026-10-24T15:04:14.779320+00:00",
+      "sha256": "c5cc65c46c41d01e47f5c4f8b17b8706778670212487331e68ada52eafdfa8f4",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/67d645fffb7d13bc2b62fda6c7d26370f9754798d6dde785b895981075141332.body",
+      "cacheUsed": true
+    }
+  ],
+  "warnings": [
+    "Dining windows are page snapshots with an unverified service date, not a reusable weekly schedule. Meals/visits are throughput, not unique people or concurrent occupancy."
+  ],
+  "errors": []
+}

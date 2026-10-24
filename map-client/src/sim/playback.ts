@@ -2,9 +2,43 @@
 // The server will eventually own this (plan Section 8.1); until then the client
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
 
-export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym';
+export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'off-campus';
 
+export interface EstimatedHousingProfile {
+  locationId: string;
+  campus: string;
+  studentLevel: 'undergraduate' | 'graduate';
+  capacity: number;
+  occupancyRate: number;
+  confidence: 'low';
+  basis: string;
+  note: string;
+  proxy: string;
+  capacityRange?: [number, number];
+  occupancyRateRange?: [number, number];
+}
+export interface EstimatedActivityProfile {
+  locationId: string;
+  campus: string;
+  purpose: 'academic' | 'research' | 'community' | 'arena' | 'rowing';
+  studentLevel: 'undergraduate' | 'graduate' | 'any';
+  weekdayWindows: { weekday: number; windows: [number, number][] }[];
+  durationMinutes: number;
+  attendanceProbability: number;
+  capacity: number;
+  dailyParticipants: number;
+  confidence: 'low';
+  basis: string;
+  note: string;
+  proxy: string;
+  capacityRange?: [number, number];
+  participantRange?: [number, number];
+}
 export interface CampusLocation {
+  estimatedProfile?: EstimatedActivityProfile;
+  estimatedHousingProfile?: EstimatedHousingProfile;
+  activityModeled?: boolean;
+  capacityBasis?: string;
   id: string;
   name: string;
   short: string; // what students call it: "CDS", "GSU", "StuVi"
@@ -33,6 +67,8 @@ export interface BuildingFootprint {
 }
 
 export interface BuildingOccupancy {
+  modeled?: boolean;
+  capacityBasis?: string;
   id: string;
   name: string; // the building's busiest location right now
   short: string;
@@ -40,9 +76,15 @@ export interface BuildingOccupancy {
   count: number;
   capacity: number;
   share: number;
+  /** Tag height in metres when it isn't the building's roof (a dining hall in a tower's podium). */
+  roof?: number;
 }
 
 export interface Agent {
+  residency?: 'resident' | 'commuter';
+  studentLevel?: 'undergraduate' | 'graduate';
+  attendance?: 'full-time' | 'part-time';
+  walkSpeed?: number;
   id: string;
   home: string;
   model: number;
@@ -57,13 +99,24 @@ export interface Trip {
   timestamps: number[]; // seconds since midnight, one per path point
 }
 
+export interface Stay { agent: string; location: string; start: number; end: number }
+
 export interface DayData {
+  stays?: Stay[];
   day: string;
   campuses?: Campus[];
   buildings: BuildingFootprint[];
   locations: CampusLocation[];
   agents: Agent[];
   trips: Trip[];
+  walkRoutes?: Record<string, { path: [number, number][]; cumulative: number[] }>;
+  /** Walks from transit stops to nearby locations, keyed "stopId>locationId" (see sim/riders.ts). */
+  stopRoutes?: Record<string, WalkRoute>;
+}
+
+export interface WalkRoute {
+  path: [number, number][];
+  cumulative: number[]; // metres from the start, one per point
 }
 
 export interface WalkingAgent {
@@ -75,6 +128,7 @@ export interface WalkingAgent {
 }
 
 export interface Occupancy {
+  modeled?: boolean;
   location: CampusLocation;
   count: number;
   share: number; // count / capacity, can exceed 1
@@ -82,7 +136,7 @@ export interface Occupancy {
 
 /** The file on disk: each walk route stored once, trips as who/where/when/how fast. */
 interface DayFile extends Omit<DayData, 'trips'> {
-  walkRoutes: Record<string, { path: [number, number][]; cumulative: number[] }>;
+  walkRoutes: Record<string, WalkRoute>;
   trips: { agent: string; from: string; to: string; depart: number; speed: number }[];
 }
 
@@ -95,8 +149,7 @@ export async function loadDay(url: string): Promise<DayData> {
     const route = file.walkRoutes[`${from}>${to}`];
     return { agent, from, to, path: route.path, timestamps: route.cumulative.map((m) => depart + m / speed) };
   });
-  const { walkRoutes: _routes, ...rest } = file;
-  return { ...rest, trips };
+  return { ...file, trips };
 }
 
 function bearingBetween(a: [number, number], b: [number, number]): number {
@@ -113,32 +166,52 @@ export class Playback {
   readonly locations: CampusLocation[];
   private readonly agents = new Map<string, Agent>();
   private readonly tripsByAgent = new Map<string, Trip[]>();
+  private readonly staysByAgent = new Map<string, Stay[]>();
+  private readonly walkingBuckets = new Map<number, Trip[]>();
 
-  constructor(readonly data: DayData) {
+  readonly data: DayData;
+
+  constructor(data: DayData) {
+    this.data = data;
     this.locations = data.locations;
-    for (const agent of data.agents) this.agents.set(agent.id, agent);
+    for (const agent of data.agents) {
+      this.agents.set(agent.id, agent);
+      this.tripsByAgent.set(agent.id, []);
+    }
     for (const trip of data.trips) {
       const list = this.tripsByAgent.get(trip.agent) ?? [];
       list.push(trip);
       this.tripsByAgent.set(trip.agent, list);
+      const start = trip.timestamps[0];
+      const end = trip.timestamps[trip.timestamps.length - 1];
+      for (let bucket = Math.floor(start / 300); bucket < Math.ceil(end / 300); bucket++) {
+        const active = this.walkingBuckets.get(bucket) ?? [];
+        active.push(trip);
+        this.walkingBuckets.set(bucket, active);
+      }
     }
+    for (const stay of data.stays ?? []) {
+      const list = this.staysByAgent.get(stay.agent) ?? [];
+      list.push(stay); this.staysByAgent.set(stay.agent, list);
+    }
+    for (const list of this.staysByAgent.values()) list.sort((a, b) => a.start - b.start);
     for (const list of this.tripsByAgent.values()) list.sort((a, b) => a.timestamps[0] - b.timestamps[0]);
   }
 
   get startTime(): number {
-    return Math.min(...this.data.trips.map((t) => t.timestamps[0]));
+    return this.data.trips.length ? this.data.trips.reduce((min, trip) => Math.min(min, trip.timestamps[0]), Infinity) : 0;
   }
 
   get endTime(): number {
-    return Math.max(...this.data.trips.map((t) => t.timestamps[t.timestamps.length - 1]));
+    return this.data.trips.length ? this.data.trips.reduce((max, trip) => Math.max(max, trip.timestamps[trip.timestamps.length - 1]), -Infinity) : 86400;
   }
 
-  /** Agents outdoors on a walkway at time t; everyone else is inside a building. */
+  /** Only trips active in this five-minute bucket need position interpolation. */
   walkingAt(t: number): WalkingAgent[] {
     const out: WalkingAgent[] = [];
-    for (const [agentId, trips] of this.tripsByAgent) {
-      const trip = trips.find((tr) => tr.timestamps[0] <= t && t < tr.timestamps[tr.timestamps.length - 1]);
-      if (!trip) continue;
+    for (const trip of this.walkingBuckets.get(Math.floor(t / 300)) ?? []) {
+      if (trip.timestamps[0] > t || t >= trip.timestamps[trip.timestamps.length - 1]) continue;
+      const agentId = trip.agent;
       const ts = trip.timestamps;
       let i = 1;
       while (ts[i] <= t) i++;
@@ -156,24 +229,33 @@ export class Playback {
     return out;
   }
 
+  populationAt(t: number) {
+    const indoors = this.occupancyAt(t).reduce((sum, entry) => sum + entry.count, 0);
+    const walking = this.walkingAt(t).length;
+    return { total: this.data.agents.length, indoors, walking, offCampus: this.data.agents.length - indoors - walking };
+  }
+
   /**
-   * Roll location occupancy up to footprints, so co-located places share one label and glow.
-   * A building reports its busiest place: a packed dining hall shouldn't read as "Moderate"
-   * because the dorm above it is half empty.
+   * Show the busiest modeled space on each footprint. Its name, count and reference
+   * capacity describe that same space, rather than mixing totals with a maximum ratio.
    */
   byBuilding(occupancy: Occupancy[]): BuildingOccupancy[] {
     const out = new Map<string, BuildingOccupancy>();
-    for (const { location, count, share } of occupancy) {
+    for (const { location, count, share, modeled = location.activityModeled !== false } of occupancy) {
+      if (location.kind === 'off-campus') continue;
       const current = out.get(location.building);
-      if (current && current.share >= share) continue;
+      if (current && (Number(current.modeled !== false) > Number(modeled)
+        || (current.modeled !== false) === modeled && (current.share > share || current.share === share && current.count >= count))) continue;
       out.set(location.building, {
         id: location.building,
         name: location.name,
         short: location.short,
-        position: current?.position ?? location.position, // keep the label from jumping
+        position: location.position,
         count,
         capacity: location.capacity,
         share,
+        modeled,
+        capacityBasis: location.capacityBasis,
       });
     }
     return [...out.values()];
@@ -182,6 +264,16 @@ export class Playback {
   /** Head count per location at time t: each agent is at its last destination, or home before its first trip. */
   occupancyAt(t: number): Occupancy[] {
     const counts = new Map<string, number>();
+    if (this.data.stays) {
+      for (const stays of this.staysByAgent.values()) {
+        const stay = stays.find((entry) => entry.start <= t && t < entry.end);
+        if (stay && stay.location !== 'off-campus') counts.set(stay.location, (counts.get(stay.location) ?? 0) + 1);
+      }
+      return this.locations.filter((location) => location.kind !== 'off-campus').map((location) => {
+        const count = counts.get(location.id) ?? 0;
+        return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false };
+      });
+    }
     for (const [agentId, trips] of this.tripsByAgent) {
       let where: string | null = this.agents.get(agentId)!.home;
       for (const trip of trips) {
@@ -192,7 +284,7 @@ export class Playback {
     }
     return this.locations.map((location) => {
       const count = counts.get(location.id) ?? 0;
-      return { location, count, share: count / location.capacity };
+      return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false };
     });
   }
 }

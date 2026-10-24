@@ -1,0 +1,505 @@
+{
+  "term": "FALL 2026",
+  "startedAt": "2026-10-24T16:25:33.645751+00:00",
+  "status": "partial",
+  "stage": "complete",
+  "academicAreas": [
+    {
+      "name": "BU Hub",
+      "url": "https://www.bu.edu/academics/hub/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/hub/courses/"
+      ]
+    },
+    {
+      "name": "Arvind & Chandan Nandlal Kilachand Honors College",
+      "url": "https://www.bu.edu/academics/khc/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/khc/courses/"
+      ]
+    },
+    {
+      "name": "Chobanian & Avedisian School of Medicine",
+      "url": "https://www.bu.edu/academics/camed/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/camed/courses/"
+      ]
+    },
+    {
+      "name": "College of Arts & Sciences",
+      "url": "https://www.bu.edu/academics/cas/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/cas/courses/"
+      ]
+    },
+    {
+      "name": "College of Communication",
+      "url": "https://www.bu.edu/academics/com/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/com/courses/"
+      ]
+    },
+    {
+      "name": "College of Engineering",
+      "url": "https://www.bu.edu/academics/eng/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/eng/courses/"
+      ]
+    },
+    {
+      "name": "College of Fine Arts",
+      "url": "https://www.bu.edu/academics/cfa/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/cfa/courses/"
+      ]
+    },
+    {
+      "name": "College of General Studies",
+      "url": "https://www.bu.edu/academics/cgs/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/cgs/courses/"
+      ]
+    },
+    {
+      "name": "Faculty of Computing & Data Sciences",
+      "url": "https://www.bu.edu/academics/cds/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/cds/courses/"
+      ]
+    },
+    {
+      "name": "Frederick S. Pardee School of Global Studies",
+      "url": "https://www.bu.edu/academics/frederick-s-pardee-school-of-global-studies/",
+      "status": "no_own_public_course_index_link",
+      "indexUrls": []
+    },
+    {
+      "name": "Graduate Medical Sciences",
+      "url": "https://www.bu.edu/academics/gms/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/gms/courses/"
+      ]
+    },
+    {
+      "name": "Graduate School of Arts & Sciences",
+      "url": "https://www.bu.edu/academics/grs/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/grs/courses/"
+      ]
+    },
+    {
+      "name": "Henry M. Goldman School of Dental Medicine",
+      "url": "https://www.bu.edu/academics/sdm/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/sdm/courses/"
+      ]
+    },
+    {
+      "name": "Metropolitan College & Extended Education",
+      "url": "https://www.bu.edu/academics/met/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/met/courses/"
+      ]
+    },
+    {
+      "name": "Questrom School of Business",
+      "url": "https://www.bu.edu/academics/questrom/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/questrom/courses/"
+      ]
+    },
+    {
+      "name": "Sargent College of Health & Rehabilitation Sciences",
+      "url": "https://www.bu.edu/academics/sar/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/sar/courses/"
+      ]
+    },
+    {
+      "name": "School of Hospitality Administration",
+      "url": "https://www.bu.edu/academics/sha/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/sha/courses/"
+      ]
+    },
+    {
+      "name": "School of Law",
+      "url": "https://www.bu.edu/academics/law/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/law/courses/"
+      ]
+    },
+    {
+      "name": "School of Public Health",
+      "url": "https://www.bu.edu/academics/sph/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/sph/courses/"
+      ]
+    },
+    {
+      "name": "School of Social Work",
+      "url": "https://www.bu.edu/academics/ssw/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/ssw/courses/"
+      ]
+    },
+    {
+      "name": "School of Theology",
+      "url": "https://www.bu.edu/academics/sth/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/sth/courses/"
+      ]
+    },
+    {
+      "name": "Wheelock College of Education & Human Development",
+      "url": "https://www.bu.edu/academics/wheelock/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/wheelock/courses/"
+      ]
+    },
+    {
+      "name": "Boston University Academy",
+      "url": "https://www.bu.edu/academy/",
+      "status": "external_academic_area_not_in_bulletin_crawl",
+      "indexUrls": []
+    },
+    {
+      "name": "Division of Military Education",
+      "url": "https://www.bu.edu/academics/rotc/",
+      "status": "index_discovered",
+      "indexUrls": [
+        "https://www.bu.edu/academics/rotc/courses/"
+      ]
+    },
+    {
+      "name": "Physical Education, Recreation & Dance",
+      "url": "https://www.bu.edu/academics/fitrec/",
+      "status": "no_own_public_course_index_link",
+      "indexUrls": []
+    },
+    {
+      "name": "Study Abroad",
+      "url": "https://www.bu.edu/academics/study-abroad/",
+      "status": "no_own_public_course_index_link",
+      "indexUrls": []
+    },
+    {
+      "name": "Summer Term",
+      "url": "https://www.bu.edu/summer/",
+      "status": "external_academic_area_not_in_bulletin_crawl",
+      "indexUrls": []
+    }
+  ],
+  "indexes": [
+    {
+      "url": "https://www.bu.edu/academics/camed/courses/",
+      "slug": "camed",
+      "pagesExpected": 9,
+      "pagesFetched": 9,
+      "coursesDiscovered": 165,
+      "errors": [],
+      "coursesListed": 165,
+      "coursePagesParsed": 165,
+      "coursesWithTargetTermTables": 145
+    },
+    {
+      "url": "https://www.bu.edu/academics/cas/courses/",
+      "slug": "cas",
+      "pagesExpected": 114,
+      "pagesFetched": 114,
+      "coursesDiscovered": 2274,
+      "errors": [],
+      "coursesListed": 2274,
+      "coursePagesParsed": 2274,
+      "coursesWithTargetTermTables": 920
+    },
+    {
+      "url": "https://www.bu.edu/academics/cds/courses/",
+      "slug": "cds",
+      "pagesExpected": 6,
+      "pagesFetched": 6,
+      "coursesDiscovered": 108,
+      "errors": [],
+      "coursesListed": 108,
+      "coursePagesParsed": 108,
+      "coursesWithTargetTermTables": 69
+    },
+    {
+      "url": "https://www.bu.edu/academics/cfa/courses/",
+      "slug": "cfa",
+      "pagesExpected": 41,
+      "pagesFetched": 41,
+      "coursesDiscovered": 816,
+      "errors": [],
+      "coursesListed": 816,
+      "coursePagesParsed": 816,
+      "coursesWithTargetTermTables": 470
+    },
+    {
+      "url": "https://www.bu.edu/academics/cgs/courses/",
+      "slug": "cgs",
+      "pagesExpected": 2,
+      "pagesFetched": 2,
+      "coursesDiscovered": 25,
+      "errors": [],
+      "coursesListed": 25,
+      "coursePagesParsed": 25,
+      "coursesWithTargetTermTables": 10
+    },
+    {
+      "url": "https://www.bu.edu/academics/com/courses/",
+      "slug": "com",
+      "pagesExpected": 18,
+      "pagesFetched": 18,
+      "coursesDiscovered": 343,
+      "errors": [],
+      "coursesListed": 343,
+      "coursePagesParsed": 343,
+      "coursesWithTargetTermTables": 194
+    },
+    {
+      "url": "https://www.bu.edu/academics/eng/courses/",
+      "slug": "eng",
+      "pagesExpected": 19,
+      "pagesFetched": 19,
+      "coursesDiscovered": 375,
+      "errors": [],
+      "coursesListed": 375,
+      "coursePagesParsed": 375,
+      "coursesWithTargetTermTables": 182
+    },
+    {
+      "url": "https://www.bu.edu/academics/gms/courses/",
+      "slug": "gms",
+      "pagesExpected": 25,
+      "pagesFetched": 25,
+      "coursesDiscovered": 492,
+      "errors": [],
+      "coursesListed": 492,
+      "coursePagesParsed": 492,
+      "coursesWithTargetTermTables": 221
+    },
+    {
+      "url": "https://www.bu.edu/academics/grs/courses/",
+      "slug": "grs",
+      "pagesExpected": 56,
+      "pagesFetched": 56,
+      "coursesDiscovered": 1115,
+      "errors": [],
+      "coursesListed": 1115,
+      "coursePagesParsed": 1115,
+      "coursesWithTargetTermTables": 372
+    },
+    {
+      "url": "https://www.bu.edu/academics/hub/courses/",
+      "slug": "hub",
+      "pagesExpected": 3,
+      "pagesFetched": 3,
+      "coursesDiscovered": 56,
+      "errors": [],
+      "coursesListed": 56,
+      "coursePagesParsed": 56,
+      "coursesWithTargetTermTables": 28
+    },
+    {
+      "url": "https://www.bu.edu/academics/khc/courses/",
+      "slug": "khc",
+      "pagesExpected": 4,
+      "pagesFetched": 4,
+      "coursesDiscovered": 67,
+      "errors": [],
+      "coursesListed": 67,
+      "coursePagesParsed": 67,
+      "coursesWithTargetTermTables": 14
+    },
+    {
+      "url": "https://www.bu.edu/academics/law/courses/",
+      "slug": "law",
+      "pagesExpected": 17,
+      "pagesFetched": 17,
+      "coursesDiscovered": 334,
+      "errors": [],
+      "coursesListed": 334,
+      "coursePagesParsed": 334,
+      "coursesWithTargetTermTables": 166
+    },
+    {
+      "url": "https://www.bu.edu/academics/met/courses/",
+      "slug": "met",
+      "pagesExpected": 26,
+      "pagesFetched": 26,
+      "coursesDiscovered": 520,
+      "errors": [],
+      "coursesListed": 520,
+      "coursePagesParsed": 520,
+      "coursesWithTargetTermTables": 215
+    },
+    {
+      "url": "https://www.bu.edu/academics/questrom/courses/",
+      "slug": "questrom",
+      "pagesExpected": 23,
+      "pagesFetched": 23,
+      "coursesDiscovered": 457,
+      "errors": [],
+      "coursesListed": 457,
+      "coursePagesParsed": 457,
+      "coursesWithTargetTermTables": 212
+    },
+    {
+      "url": "https://www.bu.edu/academics/rotc/courses/",
+      "slug": "rotc",
+      "pagesExpected": 4,
+      "pagesFetched": 4,
+      "coursesDiscovered": 0,
+      "errors": [],
+      "coursesListed": 0,
+      "coursePagesParsed": 0,
+      "coursesWithTargetTermTables": 0
+    },
+    {
+      "url": "https://www.bu.edu/academics/sar/courses/",
+      "slug": "sar",
+      "pagesExpected": 15,
+      "pagesFetched": 15,
+      "coursesDiscovered": 300,
+      "errors": [],
+      "coursesListed": 300,
+      "coursePagesParsed": 300,
+      "coursesWithTargetTermTables": 176
+    },
+    {
+      "url": "https://www.bu.edu/academics/sdm/courses/",
+      "slug": "sdm",
+      "pagesExpected": 18,
+      "pagesFetched": 18,
+      "coursesDiscovered": 349,
+      "errors": [],
+      "coursesListed": 349,
+      "coursePagesParsed": 349,
+      "coursesWithTargetTermTables": 291
+    },
+    {
+      "url": "https://www.bu.edu/academics/sha/courses/",
+      "slug": "sha",
+      "pagesExpected": 4,
+      "pagesFetched": 4,
+      "coursesDiscovered": 69,
+      "errors": [],
+      "coursesListed": 69,
+      "coursePagesParsed": 69,
+      "coursesWithTargetTermTables": 38
+    },
+    {
+      "url": "https://www.bu.edu/academics/sph/courses/",
+      "slug": "sph",
+      "pagesExpected": 14,
+      "pagesFetched": 14,
+      "coursesDiscovered": 274,
+      "errors": [],
+      "coursesListed": 274,
+      "coursePagesParsed": 274,
+      "coursesWithTargetTermTables": 149
+    },
+    {
+      "url": "https://www.bu.edu/academics/ssw/courses/",
+      "slug": "ssw",
+      "pagesExpected": 4,
+      "pagesFetched": 4,
+      "coursesDiscovered": 71,
+      "errors": [],
+      "coursesListed": 71,
+      "coursePagesParsed": 71,
+      "coursesWithTargetTermTables": 49
+    },
+    {
+      "url": "https://www.bu.edu/academics/sth/courses/",
+      "slug": "sth",
+      "pagesExpected": 11,
+      "pagesFetched": 11,
+      "coursesDiscovered": 207,
+      "errors": [],
+      "coursesListed": 207,
+      "coursePagesParsed": 207,
+      "coursesWithTargetTermTables": 41
+    },
+    {
+      "url": "https://www.bu.edu/academics/wheelock/courses/",
+      "slug": "wheelock",
+      "pagesExpected": 25,
+      "pagesFetched": 25,
+      "coursesDiscovered": 483,
+      "errors": [],
+      "coursesListed": 483,
+      "coursePagesParsed": 483,
+      "coursesWithTargetTermTables": 210
+    }
+  ],
+  "progress": {
+    "completed": 441,
+    "total": 441
+  },
+  "errors": [
+    {
+      "url": "https://www.bu.edu/classrooms/classroom/cfa-b37/",
+      "stage": "classroom",
+      "error": "Published room capacity not found: https://www.bu.edu/classrooms/classroom/cfa-b37/"
+    },
+    {
+      "url": "https://www.bu.edu/classrooms/classroom/com-206/",
+      "stage": "classroom",
+      "error": "Published room capacity not found: https://www.bu.edu/classrooms/classroom/com-206/"
+    },
+    {
+      "url": "https://www.bu.edu/classrooms/classroom/com-b31/",
+      "stage": "classroom",
+      "error": "Room identity mismatch for COM B31: https://www.bu.edu/classrooms/classroom/com-b31/"
+    },
+    {
+      "url": "https://www.bu.edu/classrooms/classroom/flr-303/",
+      "stage": "classroom",
+      "error": "Published room capacity not found: https://www.bu.edu/classrooms/classroom/flr-303/"
+    }
+  ],
+  "rateLimitResponses": 0,
+  "updatedAt": "2026-10-24T16:25:43.270985+00:00",
+  "reusedParsedCourses": 8899,
+  "counts": {
+    "courseUrlsDiscovered": 8900,
+    "coursePagesParsed": 8900,
+    "coursesListed": 8900,
+    "uniqueCourseCodes": 8454,
+    "coursesWithTargetTermTables": 4172,
+    "coursesWithoutTargetTermTables": 4728,
+    "coursesWithUnavailableDetails": 0,
+    "physicalMeetingRows": 6944,
+    "excludedRows": 4786,
+    "classroomsVerified": 437,
+    "classroomsAttempted": 441,
+    "classroomsReferenced": 609,
+    "classroomsWithoutDirectoryEntry": 168,
+    "errors": 4
+  },
+  "classroomsWithoutDirectoryEntry": 168,
+  "completedAt": "2026-10-24T16:25:43.751702+00:00"
+}

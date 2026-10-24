@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "dataset": "pedestrian_counts",
+  "generatedAt": "2026-10-24T17:10:46.103114+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "sourceUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+  "sources": [
+    {
+      "url": "https://www.ctps.org/geoserver/www/apps/bp-counts-app-01262024/data/csv/bp_counts.csv",
+      "requestedUrl": "https://www.ctps.org/geoserver/www/apps/bp-counts-app-01262024/data/csv/bp_counts.csv",
+      "retrievedAt": "2026-10-24T17:05:23.263334+00:00",
+      "sha256": "092b1debf714a8d3b884fb68c43b00755b3499ddf14058b804fce344c1f9c6b4",
+      "contentType": "text/csv;charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/94cf9e23f71fc3adbf080026f7dc87127d1549466eb74b11abc93ec270c6bf3a.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.ctps.org/geoserver/www/apps/bp-counts-app-01262024/data/json/ctps_bp_count_locations_pt.geo.json",
+      "requestedUrl": "https://www.ctps.org/geoserver/www/apps/bp-counts-app-01262024/data/json/ctps_bp_count_locations_pt.geo.json",
+      "retrievedAt": "2026-10-24T17:05:47.160817+00:00",
+      "sha256": "a8102b25b9ebe5966585a48b1a318746854427160b33d68c6e268b6257c8b0be",
+      "contentType": "application/json;charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/ac99c4aee7166f1e21a6a896be2033c5df41795212a5de3452c37a15b916fb19.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+      "requestedUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+      "retrievedAt": "2026-10-24T15:03:36.474435+00:00",
+      "sha256": "1a7c1b5df43c82722ec1a937435509f4c2425af5d6a1981d81069542cf84d866",
+      "contentType": "application/pdf",
+      "rawPath": "data-pipeline/.cache/sources/75b1ae398e8f330f7fc78abd652124535e021d0cb9160ebe810133bc6224c063.body",
+      "cacheUsed": true,
+      "pdfPage": 136,
+      "table": "7-6"
+    }
+  ],
+  "locations": [
+    {
+      "id": "ped-1957e1b5edd98e5094f7",
+      "name": "Commonwealth Avenue at Cummington Mall",
+      "position": [
+        -71.1050047,
+        42.3497639
+      ],
+      "campus": "charles-river",
+      "sourceUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+      "observedFrom": "2023-10-18",
+      "observedTo": "2023-10-19",
+      "geometrySourceFile": "map-client/public/data/street.json",
+      "signalGroup": "charles-river-40",
+      "geometryMethod": "Centroid of the mapped intersection signal poles",
+      "profiles": [
+        {
+          "weekday": null,
+          "weekdays": [
+            2,
+            3
+          ],
+          "hour": 8,
+          "pedestrians": 548,
+          "samples": 1
+        },
+        {
+          "weekday": null,
+          "weekdays": [
+            2,
+            3
+          ],
+          "hour": 17,
+          "pedestrians": 1159,
+          "samples": 1
+        }
+      ],
+      "note": "Midweek count; the report gives October 18–19, 2023 but does not identify each intersection’s collection day."
+    },
+    {
+      "id": "ped-42a65df8a82ab5c3d41c",
+      "name": "Commonwealth Avenue at Granby Street",
+      "position": [
+        -71.10364906666666,
+        42.34972833333333
+      ],
+      "campus": "charles-river",
+      "sourceUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+      "observedFrom": "2023-10-18",
+      "observedTo": "2023-10-19",
+      "geometrySourceFile": "map-client/public/data/street.json",
+      "signalGroup": "charles-river-41",
+      "geometryMethod": "Centroid of the mapped intersection signal poles",
+      "profiles": [
+        {
+          "weekday": null,
+          "weekdays": [
+            2,
+            3
+          ],
+          "hour": 8,
+          "pedestrians": 613,
+          "samples": 1
+        },
+        {
+          "weekday": null,
+          "weekdays": [
+            2,
+            3
+          ],
+          "hour": 17,
+          "pedestrians": 1995,
+          "samples": 1
+        }
+      ],
+      "note": "Midweek count; the report gives October 18–19, 2023 but does not identify each intersection’s collection day."
+    },
+    {
+      "id": "ped-9344c2b6d1ac5a16ad05",
+      "name": "Commonwealth Avenue at Silber Way/Blandford Mall",
+      "position": [
+        -71.100590425,
+        42.349293275
+      ],
+      "campus": "charles-river",
+      "sourceUrl": "https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf",
+      "observedFrom": "2023-10-18",
+      "observedTo": "2023-10-19",
+      "geometrySourceFile": "map-client/public/data/street.json",
+      "signalGroup": "charles-river-38",
+      "geometryMethod": "Centroid of the mapped intersection signal poles",
+      "profiles": [
+        {
+          "weekday": null,
+          "weekdays": [
+            2,
+            3
+          ],
+          "hour": 8,
+          "pedestrians": 818,
+          "samples": 1
+        },
+        {
+          "weekday": null,
+          "weekdays": [
+            2,
+            3
+          ],
+          "hour": 17,
+          "pedestrians": 1818,
+          "samples": 1
+        }
+      ],
+      "note": "Midweek count; the report gives October 18–19, 2023 but does not identify each intersection’s collection day."
+    }
+  ],
+  "coverage": {
+    "locations": 3,
+    "hourlyProfiles": 6,
+    "mpoCampusPedestrianRows": 32,
+    "mpoLocationsSince2015": 0,
+    "minimumMpoYear": 2015,
+    "mpoCompletenessRule": "All recorded directional movements must have four measured quarters for the reported hour",
+    "warrenSignalFile": "data-pipeline/output/signals.json"
+  },
+  "unmapped": [
+    "No uniquely matched signal group for Bay State Road at Granby Street/Back Street",
+    "No uniquely matched signal group for Commonwealth Avenue at Hinsdale Mall",
+    "No uniquely matched signal group for Commonwealth Avenue at St Mary's Street",
+    "No uniquely matched signal group for Silber Way at Bay State Road"
+  ],
+  "inputFiles": [
+    {
+      "path": "map-client/public/data/street.json",
+      "sha256": "0a56d3435c5cd401cff5c219670d3988edd30b9b4c879eb28006974aabd00128"
+    },
+    {
+      "path": "data-pipeline/output/signals.json",
+      "sha256": "f568766bbf3dd0de8d67067341ce2bb2181587f494d0d1e2d76b0d9c79f09316"
+    }
+  ],
+  "errors": []
+}

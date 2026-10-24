@@ -1,29 +1,27 @@
 // MBTA on the map: route lines in the official colours, stops, live trains and buses as 3D
-// blocks at true scale (exaggerated so they read from campus height), and next-arrival labels
-// under each Green Line station.
-import { LineLayer, PathLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
+// blocks at true scale (exaggerated so they read from campus height). The next-arrival tags for
+// stations and stops are HTML, in TransitTags.tsx.
+import { LineLayer, PathLayer, ScatterplotLayer } from '@deck.gl/layers';
 import { ScenegraphLayer, SimpleMeshLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import { CubeGeometry } from '@luma.gl/engine';
 import type { Color } from '@deck.gl/core';
-import { minutesUntil, type Arrival, type TransitSource, type TransitData, type TransitRoute, type TransitStop, type Vehicle } from '../transit/mbta';
-import { BU_RED } from '../transit/buShuttle';
+import { minutesUntil, type TransitSource, type TransitData, type TransitRoute, type TransitStop, type Vehicle } from '../transit/mbta';
+import { BU_RED, shuttleInService } from '../transit/buShuttle';
 import { trackGeometry, type Track, type TrackGeometry } from '../transit/tracks';
-import { labelWidth, type LabelPlacer } from './placement';
 
 const CUBE = new CubeGeometry(); // spans -1..1 on each axis; getScale gives half-dimensions in metres
 // True scale vanishes from campus height (a train is under a pixel wide at zoom 15.5), so
 // vehicles grow as the camera pulls back: real size at street level, up to ~5x on the overview.
 // Buses are a quarter of a train's length, so they start growing a little earlier.
-type VehicleKind = 'subway' | 'bus' | 'shuttle';
+type VehicleKind = 'subway' | 'bus' | 'shuttle' | 'shuttleNight';
 
 function vehicleScale(zoom: number, kind: VehicleKind) {
   return kind !== 'subway' ? Math.min(7, Math.max(1, 2 ** (18.4 - zoom))) : Math.min(5, Math.max(1, 2 ** (17.8 - zoom)));
 }
 // Half-dimensions in metres: a two-car Green Line train (~45 m) and a 40-ft bus.
-const HALF_SIZE = { subway: [1.35, 22.5, 1.8], bus: [1.3, 6.1, 1.6], shuttle: [1.3, 6.1, 1.6] } as const;
-const STATION_LABEL_HEIGHT = 38;
+const HALF_SIZE = { subway: [1.35, 22.5, 1.8], bus: [1.3, 6.1, 1.6], shuttle: [1.3, 6.1, 1.6], shuttleNight: [1.3, 6.1, 1.6] } as const;
 
 // Real models when public/models has them (metres, Y-up, front +Z, like the Kenney
 // characters); plain blocks otherwise.
@@ -31,6 +29,7 @@ const VEHICLE_MODEL_URLS = {
   subway: '/models/mbta-green-line-train.glb',
   bus: '/models/mbta-bus.glb',
   shuttle: '/models/bu-shuttle.glb', // BU red
+  shuttleNight: '/models/bu-shuttle-night.glb', // the Night line's blue
 };
 // Same convention as agents.ts: a model facing +Z, stood upright with a 90° roll.
 const MODEL_YAW_OFFSET = 180;
@@ -59,9 +58,15 @@ export interface TransitLayerInput {
   feed: TransitSource;
   now: number; // performance.now(), for easing vehicles
   zoom: number;
-  placer: LabelPlacer;
   models: VehicleModels;
+  /** Shown time (sim seconds since midnight) and day (0 = Sunday), for BU shuttle service hours. */
+  time?: number;
+  weekday?: number;
 }
+
+// Station tags (TransitTags.tsx) only from this zoom in: on the campus overview they crowded the
+// building tags.
+export const STATION_LABEL_MIN_ZOOM = 16.2;
 
 interface RoutePath {
   route: TransitRoute;
@@ -69,6 +74,16 @@ interface RoutePath {
 }
 
 // Track geometry only depends on the static route shapes, so build it once per feed.
+// The track is drawn flat on the ground, so it would z-fight with the base map's ground (a flicker
+// while zooming). Each layer is pulled slightly towards the camera, rails over ties over ballast.
+const TRACK_DEPTH = {
+  bed: { depthBias: -1, depthBiasSlopeScale: -200 },
+  ties: { depthBias: -1, depthBiasSlopeScale: -300 },
+  rails: { depthBias: -1, depthBiasSlopeScale: -400 },
+} as const;
+const TIES_MIN_ZOOM = 17.5;
+const RAILS_MIN_ZOOM = 16;
+
 const geometryCache = new WeakMap<Track[], TrackGeometry>();
 function subwayTracks(feed: TransitSource, routes: Map<string, TransitRoute>): TrackGeometry {
   let geometry = geometryCache.get(feed.tracks);
@@ -79,51 +94,24 @@ function subwayTracks(feed: TransitSource, routes: Map<string, TransitRoute>): T
   return geometry;
 }
 
-export function transitLayers({ data, feed, now, zoom, placer, models }: TransitLayerInput) {
-  const routes = new Map(data.routes.map((r) => [r.id, r]));
+export function transitLayers({ data, feed, now, zoom, models, time, weekday }: TransitLayerInput) {
+  // BU shuttle lines appear only during their service hours (the Night line in the evening).
+  const running = (r: TransitRoute) => r.kind !== 'shuttle' || time === undefined || weekday === undefined || shuttleInService(r, time, weekday);
+  const routes = new Map(data.routes.filter(running).map((r) => [r.id, r]));
   const kindOf = (routeId: string) => routes.get(routeId)?.kind ?? 'bus';
   // Draw order, bottom to top: BU shuttle lines, MBTA buses, and the 57 last. It's the primary
   // line along Comm Ave, so nothing covers it where routes share the street.
   const lineRank = (r: TransitRoute) => (r.id === '57' ? 2 : r.kind === 'bus' ? 1 : 0);
-  const busPaths: RoutePath[] = data.routes
+  const busPaths: RoutePath[] = [...routes.values()]
     .filter((r) => r.kind !== 'subway')
     .sort((a, b) => lineRank(a) - lineRank(b))
     .flatMap((route) => route.paths.map(({ path }) => ({ route, path })));
   const tracks = subwayTracks(feed, routes);
-  const vehicles = feed.positionsAt(now);
+  const vehicles = feed.positionsAt(now).filter((v) => routes.has(v.route));
   const trains = vehicles.filter((v) => kindOf(v.route) === 'subway');
   const buses = vehicles.filter((v) => kindOf(v.route) === 'bus');
-  const shuttles = vehicles.filter((v) => kindOf(v.route) === 'shuttle');
-
-  const stations = data.stops.filter((s) => s.kind === 'station');
-  const labelText = (s: TransitStop) => {
-    // Trains only: Kenmore is also a stop for the 57 and other buses.
-    const next: Partial<Record<0 | 1, Arrival>> = {};
-    for (const a of feed.nextArrivals(s.id)) {
-      if (routes.get(a.route)?.kind === 'subway' && (!next[a.direction] || a.time < next[a.direction]!.time)) next[a.direction] = a;
-    }
-    const branches = s.routes.filter((r) => routes.get(r)?.kind === 'subway');
-    const parts = ([1, 0] as const).flatMap((dir) => {
-      const a = next[dir];
-      if (!a) return [];
-      const route = routes.get(a.route)!;
-      // Name the branch where more than one stops here (Kenmore: B, C, D).
-      const branch = branches.length > 1 ? `${route.name} ` : '';
-      return [`${route.directions[dir]} ${branch}${minutesUntil(a.time)}`];
-    });
-    return `${s.short}\n${parts.length ? parts.join(' · ') : 'No predictions'}`;
-  };
-  const texts = new Map(stations.map((s) => [s, labelText(s)]));
-  const lifts = placer.place(stations, {
-    position: (s) => s.position,
-    width: (s) => labelWidth(texts.get(s)!, 12),
-    height: STATION_LABEL_HEIGHT,
-    direction: 1,
-    gap: 12,
-    maxLift: 1,
-  });
-  const labelled = stations.filter((s) => lifts.has(s));
-  const labelKey = labelled.map((s) => `${s.id}:${lifts.get(s)}:${texts.get(s)}`).join();
+  const shuttles = vehicles.filter((v) => kindOf(v.route) === 'shuttle' && !routes.get(v.route)?.night);
+  const nightShuttles = vehicles.filter((v) => routes.get(v.route)?.night);
 
   const vehicleLayer = (id: string, kind: VehicleKind, data: Vehicle[]) =>
     models[kind]
@@ -158,25 +146,14 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
     });
 
   return [
-    // A light casing under every bus line, so dark ones (BU's black Albany St line) still read.
-    new PathLayer<RoutePath>({
-      id: 'transit-bus-casing',
-      data: busPaths,
-      getPath: (d) => d.path,
-      getColor: [255, 255, 255, 150],
-      getWidth: (d) => (d.route.id === '57' ? 7 : 5.5),
-      widthUnits: 'pixels',
-      capRounded: true,
-      jointRounded: true,
-      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
-      slot: 'middle',
-    }),
     new PathLayer<RoutePath>({
       id: 'transit-bus-routes',
       data: busPaths,
       getPath: (d) => d.path,
-      getColor: (d) => hexToColor(d.route.color, d.route.id === '57' ? 255 : 210),
-      getWidth: (d) => (d.route.id === '57' ? 5 : 3.5),
+      // Thin and slightly translucent, so routes read as a quiet layer under the traffic and
+      // vehicles; the 57 (the main Comm Ave line) is a touch stronger.
+      getColor: (d) => hexToColor(d.route.color, d.route.id === '57' ? 230 : 170),
+      getWidth: (d) => (d.route.id === '57' ? 3 : 2),
       widthUnits: 'pixels',
       capRounded: true,
       jointRounded: true,
@@ -191,11 +168,14 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
       data: tracks.beds,
       getPath: (d) => d.path,
       getColor: [86, 82, 76, 255],
-      getWidth: 3.4,
+      // 4.6 m: the two beds (4 m apart) join into one ballast strip that also covers the base map's
+      // own rail lines, so only our two tracks show.
+      getWidth: 4.6,
       widthUnits: 'meters',
       widthMinPixels: 4,
       jointRounded: true,
       pickable: true,
+      parameters: TRACK_DEPTH.bed,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
@@ -207,6 +187,9 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
       getColor: [128, 108, 88, 255],
       getWidth: 0.26,
       widthUnits: 'meters',
+      // Sub-pixel ties shimmer (moiré) as the camera zooms out: only draw them up close.
+      visible: zoom >= TIES_MIN_ZOOM,
+      parameters: TRACK_DEPTH.ties,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
@@ -219,6 +202,8 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
       widthUnits: 'meters',
       widthMinPixels: 1,
       jointRounded: true,
+      visible: zoom >= RAILS_MIN_ZOOM,
+      parameters: TRACK_DEPTH.rails,
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
@@ -241,34 +226,9 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
       slot: 'top',
     }),
     vehicleLayer('transit-shuttles', 'shuttle', shuttles),
+    vehicleLayer('transit-shuttles-night', 'shuttleNight', nightShuttles),
     vehicleLayer('transit-buses', 'bus', buses),
     vehicleLayer('transit-trains', 'subway', trains),
-    new TextLayer<TransitStop>({
-      id: 'transit-station-labels',
-      data: labelled,
-      getPosition: (s) => s.position,
-      getText: (s) => texts.get(s)!,
-      getSize: 12,
-      getColor: [255, 255, 255, 255],
-      getBackgroundColor: hexToColor('#00843D', 240), // white on MBTA green: 5.1:1
-      getBorderColor: [255, 255, 255, 140],
-      getBorderWidth: 1,
-      background: true,
-      backgroundPadding: [6, 3],
-      getTextAnchor: 'middle',
-      getAlignmentBaseline: 'top',
-      getPixelOffset: (s) => [0, 12 + STATION_LABEL_HEIGHT * (lifts.get(s) ?? 0)],
-      fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-      fontWeight: 600,
-      characterSet: 'auto',
-      lineHeight: 1.25,
-      billboard: true,
-      pickable: true,
-      parameters: { depthCompare: 'always' },
-      updateTriggers: { getText: labelKey, getPixelOffset: labelKey },
-      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
-      slot: 'top',
-    }),
   ];
 }
 

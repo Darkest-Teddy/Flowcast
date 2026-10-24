@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "dataset": "residential_availability",
+  "generatedAt": "2026-10-24T18:24:47.551949+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "records": [
+    {
+      "locationId": "warren",
+      "value": 600,
+      "unit": "bed-spaces",
+      "basis": "verified_reopened_component",
+      "coverage": "partial",
+      "displayName": "Warren Towers (Tower A)",
+      "validFrom": "2026-10-19",
+      "validTo": "2026-10-25",
+      "sourcePublishedDate": "2026-09-15",
+      "sourceUrl": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+      "sourceUrls": [
+        "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+        "https://www.bu.edu/cpo/warren-faq/",
+        "https://www.bu.edu/cpo/project/warren-towers-renovation/"
+      ],
+      "components": [
+        {
+          "name": "Tower A",
+          "capacity": 600,
+          "status": "reopened"
+        },
+        {
+          "name": "Tower B",
+          "capacity": 0,
+          "status": "students_relocated",
+          "relocatedStudents": 595
+        },
+        {
+          "name": "Tower C",
+          "capacity": null,
+          "status": "component_capacity_unverified"
+        }
+      ],
+      "note": "Supported minimum for the reference week: reopened Tower A only. Tower B students are assigned to Fenway; Tower C is not counted without a verified component bed total. Capacity is not observed occupancy."
+    }
+  ],
+  "campusResidentMinimums": [
+    {
+      "campus": "fenway",
+      "students": 595,
+      "validFrom": "2026-10-19",
+      "validTo": "2026-10-25",
+      "basis": "published_planned_relocation",
+      "sourceUrl": "https://www.bu.edu/cpo/warren-faq/",
+      "note": "Model minimum based on the published Fall 2026 Tower B relocation plan; not observed attendance or assignment to a specific Fenway residence."
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+      "requestedUrl": "https://www.bu.edu/articles/2026/warren-towers-tower-a-reopens-to-students/",
+      "retrievedAt": "2026-10-24T15:04:12.254202+00:00",
+      "sha256": "07e4457b9eb6d95d3ba82e5bcc3744ee2c2936eec3b8fa7607333f524fa5089a",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/e88fdc3fb0afd5c5080321d186533e4b793afc22ade455959e6ec517b9146a7c.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/cpo/warren-faq/",
+      "requestedUrl": "https://www.bu.edu/cpo/warren-faq/",
+      "retrievedAt": "2026-10-24T17:49:34.220626+00:00",
+      "sha256": "e4b4ca7a71c31e7a6bf40d2371a0d31ce16236f963c93b60980e063473d90d8d",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/cbc9fbde368c81b76671d4548181424398028ed038a2709b78c24fd1e9eabcb9.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/cpo/project/warren-towers-renovation/",
+      "requestedUrl": "https://www.bu.edu/cpo/project/warren-towers-renovation/",
+      "retrievedAt": "2026-10-24T17:49:34.836214+00:00",
+      "sha256": "1b1629bd4481050abd21c0a1c8d4a3d5a835149649b15647b31e12400b63b9ab",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/97b66a88dbf747fba87e99e6c81ed450d3768c17f6998d73b94b1bf3c1284172.body",
+      "cacheUsed": true
+    }
+  ],
+  "errors": []
+}

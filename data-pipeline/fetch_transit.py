@@ -174,26 +174,65 @@ def offset_right(path, metres):
 
 
 def snap_to_rails(path, rails):
-    """Move each point onto the nearest OSM rail (same way as its neighbours where ambiguous)."""
+    """This direction's own rail: for each point, the nearest OSM rail on the RIGHT of travel.
+
+    Comm Ave's median has two light-rail ways about 4 m apart, one per direction; the MBTA shape
+    runs roughly between them. Snapping to the plain nearest rail put both directions on the same
+    rail (one track drawn, trains meeting head-on), so each point takes the nearest rail per way,
+    and where two run side by side it keeps the right-hand one. Where only one rail is mapped,
+    it's used only if it's not clearly on the left; otherwise the point is offset right.
+    """
     lat0 = path[0][1]
     local_rails = [(_local(a, lat0), _local(b, lat0), wid) for a, b, wid in rails]
-    picks = []
-    for p in path:
-        px, py = _local(p, lat0)
-        best = None
+    xy = [_local(p, lat0) for p in path]
+    out, matched = [], 0
+    for i, (px, py) in enumerate(xy):
+        a, b = xy[max(0, i - 1)], xy[min(len(xy) - 1, i + 1)]
+        tx, ty = b[0] - a[0], b[1] - a[1]
+        tl = math.hypot(tx, ty) or 1
+        nx, ny = ty / tl, -tx / tl  # right-hand normal (x east, y north)
+        nearest = {}  # way id -> (distance, qx, qy, side)
         for (ax, ay), (bx, by), wid in local_rails:
             dx, dy = bx - ax, by - ay
             f = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ((dx * dx + dy * dy) or 1)))
             qx, qy = ax + dx * f, ay + dy * f
             d = math.hypot(px - qx, py - qy)
-            if best is None or d < best[0]:
-                best = (d, qx, qy, wid)
-        picks.append(best if best and best[0] <= RAIL_SNAP_METRES else None)
-    out = []
-    for i, p in enumerate(path):
-        pick = picks[i]
-        out.append(_unlocal(pick[1], pick[2], lat0) if pick else p)
-    return out, sum(pick is not None for pick in picks)
+            if d <= RAIL_SNAP_METRES and (wid not in nearest or d < nearest[wid][0]):
+                nearest[wid] = (d, qx, qy, (qx - px) * nx + (qy - py) * ny)
+        cands = sorted(nearest.values())
+        pick = None
+        if len(cands) >= 2:
+            # Two rails side by side: the one further right of their midpoint is ours.
+            r1, r2 = cands[0], cands[1]
+            pick = r1 if r1[3] > r2[3] else r2
+        elif len(cands) == 1 and cands[0][3] > -0.8:
+            pick = cands[0]
+        if pick:
+            matched += 1
+            out.append(_unlocal(pick[1], pick[2], lat0))
+        else:
+            out.append(_unlocal(px + nx * TRACK_OFFSET_METRES, py + ny * TRACK_OFFSET_METRES, lat0))
+    return out, matched
+
+
+# A surface stretch shorter than this between two tunnel spans is drawn as tunnel too. Leaving
+# Kenmore, the D branch surfaces for 142 m, dips under a 65 m road overpass that OSM tags as a
+# tunnel, then surfaces for good before Fenway: drawn literally, the track popped up, vanished and
+# popped up again.
+MIN_SURFACE_METRES = 200
+
+
+def merge_short_surface(spans, path):
+    cum = [0.0]
+    for a, b in zip(path, path[1:]):
+        cum.append(cum[-1] + math.hypot((b[0] - a[0]) * 111320 * math.cos(math.radians(a[1])), (b[1] - a[1]) * 110540))
+    merged = []
+    for start, end in spans:
+        if merged and cum[start] - cum[merged[-1][1]] < MIN_SURFACE_METRES:
+            merged[-1][1] = end
+        else:
+            merged.append([start, end])
+    return merged
 
 
 def underground_spans(path, segs):
@@ -289,13 +328,13 @@ def main():
                     entry = {"direction": direction, "path": run}
                     if attrs["type"] in (0, 1):
                         # This direction's own track, on the real rails (see TRACK_OFFSET_METRES).
-                        track, matched = snap_to_rails(offset_right(densify(run, DENSIFY_METRES), TRACK_OFFSET_METRES), rails)
+                        track, matched = snap_to_rails(densify(run, DENSIFY_METRES), rails)
                         print(f"  {rid} dir {direction}: {matched}/{len(track)} points on OSM rails", file=sys.stderr)
                         entry["path"] = track
                         entry["isTrack"] = True  # already the track itself: the map adds no offset
                         # Kenmore, Hynes and the D past Fenway run underground: the map draws no
                         # track there and trains vanish into the portal.
-                        entry["underground"] = underground_spans(track, tunnels)
+                        entry["underground"] = merge_short_surface(underground_spans(track, tunnels), track)
                     paths.append(entry)
         is_green = rid.startswith("Green-")
         out_routes.append({

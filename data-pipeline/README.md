@@ -4,9 +4,36 @@ Python acquires and normalizes public evidence for the revised [Flowcast plan](.
 
 The sources come from the supplied *BU population data sources* guide dated 24 October 2026. Source URLs are defined alongside their parsers. No login, university account, private roster, or participant schedule is used.
 
-## Setup and run
+## Use the saved datasets
 
-Run from the repository root with Python 3.10 or newer:
+The normalized public datasets in [`output/`](output/) are committed. Use them directly; application setup and data analysis do not require another scrape or the scraper dependencies.
+
+- [`output/catalog.json`](output/catalog.json): the campus-wide Fall 2026 snapshot, with 8,900 course pages, 8,454 unique course codes, 6,944 physical meeting records, and 437 verified classroom capacities.
+- [`output/manifest.json`](output/manifest.json): checksums and collection status for all six categories.
+- [`output/campus-wide/coverage.json`](output/campus-wide/coverage.json): per-school coverage and explicit schedule/capacity gaps.
+- The other category JSON files contain the saved events, dining, library, housing, and supplemental-signal records.
+- [`output/opening_hours.json`](output/opening_hours.json) audits all 13 mapped dining, library, and recreation venues. `scrape_opening_hours.py` extracts dated dining hours, library general hours, FitRec seasonal weekly schedules and closures, and the official Fenway provider's embedded schedule. It records restricted event/team facilities separately. The map uses these audited records instead of undated dining snapshots and mixed departmental hours.
+- [`output/residential_availability.json`](output/residential_availability.json) records dated residential availability separately from nominal complex totals. `scrape_residential_availability.py` verifies reopened Warren Tower A's 600 spaces and Tower B's relocation from BU publications; Tower C remains outside the verified subtotal. The runtime labels this partial allocation explicitly.
+
+Additional saved inputs for population scale and traffic:
+
+| Snapshot / collector | Source and use |
+|---|---|
+| `population.json` / `scrape_population.py` | BU 2025–26 Common Data Set and FY2026 fact sheet. Census headcount and attendance cohorts are distinct from FTE, staff, and residence capacity. |
+| `transit_schedule.json` / `scrape_transit_schedule.py` | Official MBTA GTFS, reference week October 19–25, 2026. Arrival/departure times, calendar exceptions, and previous-day after-midnight service. |
+| `road_counts.json` / `scrape_road_counts.py` | Boston Streets Hourly Bike Counts feature service, including motor vehicles. Latest available campaign per site; 15 sites in campus/approach bounds. |
+| `bluebikes.json` / `scrape_bluebikes.py` | September 2026 public trip archive. 13,788 trips with both endpoints in the study areas; weekday/hour OD means include zero-activity dates. These riders are not assumed to be BU students. |
+| `pedestrian_counts.json` / `scrape_pedestrian_counts.py` | Saved Warren Towers 2023 intersection counts mapped to three verified intersections. Pooled Wednesday/Thursday observations are not expanded to other weekdays. Incomplete or historical CTPS counts are excluded. |
+
+Each snapshot retains provenance and coverage. Each collector supports cached offline replay; refreshing is explicit. `fetch_bikes.py` is the merged dock replay feature (selected actual day near BU docks), while `scrape_bluebikes.py` retains month-wide aggregate flows. The two views have different geographic coverage and must not be summed.
+
+`build_runtime_data.py` and `build_mobility_data.py` produce compact browser bundles from these committed files. No network requests run during `npm run prepare:data` or production builds. Run the complete acquisition/parser suite from this directory with `.venv/bin/python -m unittest discover -s tests -v`.
+
+The campus-wide folder also retains discovered URLs and parsed JSONL records for resuming an intentional update. Root and campus-wide catalogs are identical snapshots. Raw HTTP response bodies and run logs remain local; published provenance uses repository-relative cache paths, and the cache is not required to consume these JSON datasets.
+
+## Refresh the data only when needed
+
+The commands below perform acquisition and can overwrite the saved outputs. Run them only when intentionally updating the snapshot, from the repository root with Python 3.10 or newer:
 
 ```sh
 python3 -m venv data-pipeline/.venv
@@ -116,7 +143,7 @@ HTTP requests use a research User-Agent, a default minimum 0.5-second interval p
 data-pipeline/.venv/bin/python data-pipeline/scrape_population_data.py --offline
 ```
 
-Offline replay requires the same requested URLs and discovery limits to have been acquired already. The cache and generated output are ignored by Git. Keep the cache with an acquisition when preserving reproducibility; absolute `rawPath` values refer to the collecting machine.
+Offline replay requires the same requested URLs and discovery limits to have been acquired already. The raw HTTP cache and run logs are ignored by Git. Normalized datasets and manifests are versioned. Keep the cache with an acquisition when preserving reproducibility; committed `rawPath` values are relative to the repository root. Fresh local acquisitions may initially record absolute paths.
 
 Each dataset has a schema version, generation time, status, source list, warnings, and errors. The runner's manifest records checksums, source counts, record counts, per-category failures, and institutional sources still unavailable. Writes are atomic. A category failure does not prevent the other categories from being saved. Any acquisition/parser failure makes the runner exit nonzero with a `partial` manifest; inspect the error details instead of treating the run as complete.
 
@@ -150,3 +177,17 @@ These scripts feed `map-client/` until the shared simulation core produces its o
 - `make_demo_routes.py`: placeholder plans for the map. It pulls each campus's walk network and building footprints from OpenStreetMap, routes a synthetic Wednesday for 300 students with Dijkstra, and writes `map-client/public/data/demo-day.json` (format: `map-client/README.md`, "Data contract"). Run `python3 data-pipeline/make_demo_routes.py`.
 - `campuses/*.json`: the campuses and real BU locations that script uses (`campus`, `name`, `bbox` [S, W, N, E], `locations` with `id`, `name`, `short`, `kind`, `lat`, `lon`, `capacity`, `osm`, optional `height`). Every file is loaded; files with the same `campus` id merge (bboxes union). Each campus gets its own walk network and at least 40 of the 300 agents.
 - `fetch_transit.py`: snapshots the MBTA routes and stops serving each campus into `map-client/public/data/transit.json`. The map polls live vehicles and predictions itself.
+- `fetch_bikes.py`: real Bluebikes rides at BU's docks into `map-client/public/data/bikes.json`. It downloads the month's public trip file once (`--month`, default `202609`, ~130 MB, cached in `.cache/bluebikes/`). It keeps docks within 200 m of a location in `campuses/*.json`, profiles each dock's typical weekday (`--weekday`, default Wednesday), and routes every ride on the median day (or `--replay-date`) over OSM's bike network. Dock times are real; street paths are inferred (see the map client README). It reads `campuses/*.json` but doesn't change them. Tests: `tests/test_bikes.py`.
+
+### Map integration (offline)
+
+`python3 data-pipeline/build_map_data.py` transforms the six category snapshots, opening-hours audit, and dated residential availability into
+`map-client/public/data/campus-data.json`. It reads local files only and records input
+SHA-256 hashes. Rebuild this bundle after deliberately refreshing source datasets;
+opening the map does not scrape BU again.
+
+Mappings target existing map location IDs. Unknown building codes and ambiguous event
+venues remain explicitly unmapped. The map displays source facts with dates and units,
+while `map-client/src/sim/sourceDay.ts` generates fictional student attendance against
+published class times. Historical library counts, registrations, residential baselines,
+and dining volumes are not treated as live occupancy.
