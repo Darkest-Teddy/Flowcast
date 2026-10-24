@@ -1,4 +1,4 @@
-import { dateForWeekday, openingHoursForDate, type CampusData } from '../data/campusData';
+import { carriedForwardHours, dateForWeekday, openingHoursForDate, type CampusData } from '../data/campusData';
 import { effectiveMeetingIntervals } from '../data/academicCalendar';
 import type { Agent, DayData, EstimatedActivityProfile, EstimatedHousingProfile } from './playback';
 import { countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
@@ -89,7 +89,8 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
   const locations = base.locations.map((location) => {
     const published = source.locations[location.id];
     const openThisWeek = published?.hoursStatus !== 'restricted' && Array.from({ length: 7 }, (_, weekday) =>
-      openingHoursForDate(published?.hours ?? [], dateForWeekday(source, weekday), weekday).some(h => h.windows.length > 0)).some(Boolean);
+      [...openingHoursForDate(published?.hours ?? [], dateForWeekday(source, weekday), weekday),
+        ...carriedForwardHours(published?.hours ?? [], dateForWeekday(source, weekday), weekday)].some(h => h.windows.length > 0)).some(Boolean);
     return { ...location, name: population.locationNames?.[location.id] ?? location.name,
       short: population.locationNames?.[location.id] ?? location.short,
       capacity: population.locationCapacities[location.id] ?? location.capacity,

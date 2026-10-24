@@ -3,7 +3,7 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, modelRoofHeights, type RoofHeights } from './layers/crowd';
+import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
@@ -36,6 +36,7 @@ import { activeWindFromDegrees } from './weather/weather';
 import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
 import { quality } from './perf/quality';
+import { pacer } from './perf/pacer';
 import {
   BikeReplay,
   BluebikesFeed,
@@ -49,6 +50,7 @@ import {
 } from './bikes/bluebikes';
 import { bikeLayers, bikeTooltip, loadBikeModels } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
+import { LoadingScreen, createLoadProgress } from './LoadingScreen';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
@@ -128,7 +130,7 @@ export default function App() {
   const bikesRef = useRef<Bikes | null>(null);
   const showBikesRef = useRef(true);
 
-  const [status, setStatus] = useState('Loading campus…');
+  const [loadProgress] = useState(createLoadProgress);
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
   const [hud, setHud] = useState<Hud | null>(null);
   const [range, setRange] = useState<[number, number]>([0, 86400]);
@@ -184,27 +186,29 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
+      loadProgress.reset();
+      const track = loadProgress.track;
       // BU Shuttle timetable (recorded TransLoc schedules + BU's GTFS baseline); MBTA-only without it.
       const shuttleTimetable = loadPublishedSchedule('/data/shuttle-schedule.json').catch(() => null);
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields] = await Promise.all([
-        createBasemap(mapElement, shownLight),
-        loadDay('/data/demo-day.json'),
-        loadCharacterModels() as Promise<LoadedModels>,
+        track('Drawing the map', createBasemap(mapElement, shownLight)),
+        track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
+        track('Dressing the students', loadCharacterModels() as Promise<LoadedModels>),
         // Transit and bikes are extras: the campus view must still start if they can't load.
-        loadTransit('/data/transit.json').catch(() => null),
-        loadVehicleModels().catch(() => ({})),
+        track('Mapping MBTA routes', loadTransit('/data/transit.json')).catch(() => null),
+        track('Rolling out trains and buses', loadVehicleModels()).catch(() => ({})),
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
-        loadBuildings().catch(() => null),
-        loadStreet().catch(() => null),
-        loadCampusData(),
-        loadMonuments().catch(() => null),
-        loadBikes('/data/bikes.json').catch(() => null),
-        loadBoats().catch(() => null), // sailboats on the Charles (river polygon + models)
-        loadPopulation(),
-        loadPublishedSchedule().catch((error: Error) => { setScheduleError(error.message); return null; }),
-        loadMobility().catch((error: Error) => { setMobilityError(error.message); return null; }),
-        loadFields().catch(() => null),
-        loadBikeModels().catch(() => null), // Bluebikes riders; plain blocks without them
+        track('Raising campus buildings', loadBuildings()).catch(() => null),
+        track('Lining the streets', loadStreet()).catch(() => null),
+        track('Reading campus data', loadCampusData()),
+        track('Placing landmarks', loadMonuments()).catch(() => null),
+        track('Docking Bluebikes', loadBikes('/data/bikes.json')).catch(() => null),
+        track('Launching sailboats', loadBoats()).catch(() => null), // sailboats on the Charles (river polygon + models)
+        track('Enrolling students', loadPopulation()),
+        track('Loading transit timetables', loadPublishedSchedule()).catch((error: Error) => { setScheduleError(error.message); return null; }),
+        track('Counting traffic', loadMobility()).catch((error: Error) => { setMobilityError(error.message); return null; }),
+        track('Marking the fields', loadFields()).catch(() => null),
+        track('Saddling up riders', loadBikeModels()).catch(() => null), // Bluebikes riders; plain blocks without them
       ]);
       if (cancelled) return basemap.remove();
       const shuttleSchedule = await shuttleTimetable;
@@ -330,10 +334,22 @@ export default function App() {
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
       if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, transitRef, bikesRef, populationBase, quality } });
-      setStatus('');
+      // Lift the loading screen once the first frames are drawn and the view's tiles are in (or
+      // after 4 s regardless), sweeping the camera in from a wider, turned view as it fades.
+      const revealFrom = performance.now();
+      const reveal = () => {
+        if (cancelled) return;
+        if (!basemap.tilesLoaded() && performance.now() - revealFrom < 4000) return void requestAnimationFrame(reveal);
+        const camera = basemap.getCamera();
+        basemap.jumpTo({ zoom: camera.zoom - 0.9, bearing: camera.bearing - 25, pitch: Math.max(0, camera.pitch - 15) });
+        basemap.easeTo({ ...camera, duration: 2200 });
+        loadProgress.finish();
+      };
+      requestAnimationFrame(() => requestAnimationFrame(reveal));
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
+      const volumes = modelVolumes(detailedBuildings?.manifest);
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
@@ -345,6 +361,11 @@ export default function App() {
       let buildingsPlayback: Playback | null = null;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       const tick = (now: number) => {
+        // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
+        if (!pacer.shouldRender(now)) {
+          frame = requestAnimationFrame(tick);
+          return;
+        }
         const elapsed = now - last;
         last = now;
         let nextDay = weekdayRef.current;
@@ -455,6 +476,7 @@ export default function App() {
             selectedId: selectedRef.current,
             zoom: basemap.getZoom(),
             roofHeights,
+            volumes,
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
@@ -479,7 +501,7 @@ export default function App() {
         frame = requestAnimationFrame(tick);
       };
       frame = requestAnimationFrame(tick);
-    })().catch((err) => setStatus(`Could not start the map: ${err.message}`));
+    })().catch((err: Error) => { if (!cancelled) loadProgress.fail(err.message); });
 
     return () => {
       cancelled = true;
@@ -655,7 +677,7 @@ export default function App() {
         )}
       </header>
 
-      {status && <div className="panel status" role="status">{status}</div>}
+      <LoadingScreen progress={loadProgress} />
 
       <MemoPerfMonitor counts={getPerfCounts} />
       {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}

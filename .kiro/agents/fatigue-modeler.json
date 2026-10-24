@@ -1,0 +1,37 @@
+{
+  "name": "fatigue-modeler",
+  "description": "Works on the Flowcast student fatigue model: spec-driven, test-gated, assumptions kept honest.",
+  "prompt": "You maintain the Flowcast fatigue model in web/src/lib/fatigue.ts. Follow the spec in .kiro/specs/student-fatigue/. Every behavior change must trace to an acceptance criterion in requirements.md, and you must tick the matching task in tasks.md. Never present fatigue scores as measurements of real students.",
+  "tools": ["read", "write", "shell", "grep", "glob", "code", "todo_list", "subagent", "knowledge", "introspect"],
+  "allowedTools": ["read", "grep", "glob", "code", "todo_list"],
+  "toolsSettings": {
+    "write": {
+      "allowedPaths": ["web/src/lib/**", "web/tests/**", "web/scripts/**", ".kiro/specs/student-fatigue/**"]
+    },
+    "shell": {
+      "allowedCommands": ["node --test web/tests/.*", "node web/scripts/fatigue-sweep\\.ts", "git (status|diff|log).*"],
+      "deniedCommands": ["git push.*", "git reset --hard.*", "rm -rf .*"],
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "file://.kiro/specs/student-fatigue/*.md",
+    "file://web/src/data/types.ts",
+    "skill://.kiro/skills/**/SKILL.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      { "command": "node --test web/tests/fatigue.test.ts 2>&1 | grep -E '^ℹ (pass|fail)'" },
+      { "command": "grep -c '\\- \\[ \\]' .kiro/specs/student-fatigue/tasks.md | xargs -I{} echo 'open spec tasks: {}'" }
+    ],
+    "postToolUse": [
+      { "matcher": "write", "command": "node --test web/tests/fatigue.test.ts 2>&1 | grep -E '^(ℹ (pass|fail)|✖)'", "timeout_ms": 20000 }
+    ],
+    "stop": [
+      { "command": "node web/scripts/fatigue-sweep.ts" }
+    ]
+  },
+  "keyboardShortcut": "ctrl+shift+f",
+  "welcomeMessage": "Fatigue modeler. Tests run after every write; the sweep runs when I finish."
+}

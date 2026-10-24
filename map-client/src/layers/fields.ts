@@ -85,6 +85,9 @@ export interface FieldData {
  * a roof follows the height the building models actually draw that building at, so it never ends
  * up inside (or floating over) the garage.
  */
+/** Turf height above a roof deck, metres. */
+const DECK_LIFT = 0.05;
+
 export async function loadFields(url = '/data/fields.json', buildingsUrl = '/data/building-models.json'): Promise<FieldData> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Could not load ${url}: ${res.status}`);
@@ -93,13 +96,17 @@ export async function loadFields(url = '/data/fields.json', buildingsUrl = '/dat
     const manifest = await fetch(buildingsUrl)
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null);
-    const heights = new Map<string, number>(
-      // The deck the field sits on (Langsam Garage: 3.5 m), not the parapet top (`height`).
-      (manifest?.campuses ?? []).flatMap((c: { buildings: { osm: string; height: number; deck?: number }[] }) => c.buildings.map((b) => [b.osm, b.deck ?? b.height])),
+    const buildings = new Map<string, { height: number; deck?: number }>(
+      (manifest?.campuses ?? []).flatMap((c: { buildings: { osm: string; height: number; deck?: number }[] }) => c.buildings.map((b) => [b.osm, b])),
     );
     for (const f of fields) {
-      const top = f.followBuilding && heights.get(f.followBuilding.osm);
-      if (top) f.altitude = Math.max(0, top - f.followBuilding!.roofBelowTop);
+      const b = f.followBuilding && buildings.get(f.followBuilding.osm);
+      if (!b) continue;
+      // On the deck when the model says where it is (Langsam Garage: 3.5 m), a few centimetres up
+      // so the turf doesn't flicker against the deck; otherwise `roofBelowTop` under the parapet
+      // top. (Subtracting `roofBelowTop` from the deck as well sank the turf to 2.6 m, inside the
+      // garage, so New Balance Field showed the bare roof.)
+      f.altitude = b.deck !== undefined ? b.deck + DECK_LIFT : Math.max(0, b.height - f.followBuilding!.roofBelowTop);
     }
   }
   const urls = [...new Set(fields.flatMap((f) => [f.props, ...f.towers.flatMap((t) => [t.model, t.litModel])]))];

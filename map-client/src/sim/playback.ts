@@ -23,7 +23,8 @@ export interface EstimatedActivityProfile {
   campus: string;
   purpose: 'academic' | 'research' | 'community' | 'arena' | 'rowing';
   studentLevel: 'undergraduate' | 'graduate' | 'any';
-  weekdayWindows: { weekday: number; windows: [number, number][] }[];
+  /** `dailyParticipants` on a row overrides the profile-wide limit for that weekday. */
+  weekdayWindows: { weekday: number; windows: [number, number][]; dailyParticipants?: number }[];
   durationMinutes: number;
   attendanceProbability: number;
   capacity: number;
@@ -103,7 +104,15 @@ export interface Trip {
   timestamps: number[]; // seconds since midnight, one per path point
 }
 
-export interface Stay { agent: string; location: string; start: number; end: number }
+/** Why an agent occupies a stay. `fixed` stays (published classes) must never be relocated. */
+export type StayPurpose =
+  | { kind: 'class'; fixed: true; meetingId: string; courseCode: string }
+  | { kind: 'dining' | 'library' | 'gym'; fixed: false }
+  | { kind: 'estimated'; fixed: false; purpose: EstimatedActivityProfile['purpose'] }
+  | { kind: 'off-campus-meal' | 'off-campus-outing' | 'unmapped-academic'; fixed: false }
+  | { kind: 'wait'; fixed: false; before: 'class' | 'activity' }
+  | { kind: 'home'; fixed: false };
+export interface Stay { agent: string; location: string; start: number; end: number; purpose?: StayPurpose }
 
 /**
  * A student stepping off (`alight`) or onto (`board`) one published MBTA trip at a campus stop.

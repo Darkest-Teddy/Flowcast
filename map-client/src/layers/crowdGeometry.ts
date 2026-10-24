@@ -1,7 +1,10 @@
 // Footprint geometry for the crowd glow: rings nudged just outside the walls, the convex hull
-// grown into a rounded halo, and the sharp corners that get vertical light edges.
+// grown into a rounded halo, and the sharp corners that get vertical light edges. For buildings
+// whose detailed model is several volumes (CDS's stacked pieces, Warren's towers on their
+// podium), the same roof rims and corner edges per volume, trimmed where another volume hides them.
 // Worked in local metres around each footprint (a few hundred metres at most, so flat is fine).
 import type { BuildingFootprint } from '../sim/playback';
+import type { BuildingVolume } from './buildings';
 
 type XY = [number, number];
 
@@ -139,5 +142,133 @@ export function footprintGeometry(f: BuildingFootprint): FootprintGeometry | nul
     }
   }
   cache.set(f, geometry);
+  return geometry;
+}
+
+/** A visible stretch of one volume's roof edge, lng/lat, at that volume's top (metres). */
+export interface VolumeRim {
+  path: XY[];
+  top: number;
+}
+
+/** A visible corner of the massing, lng/lat, from z0 up to z1 (metres). */
+export interface VolumeEdge {
+  at: XY;
+  z0: number;
+  z1: number;
+}
+
+export interface VolumeGeometry {
+  rims: VolumeRim[];
+  edges: VolumeEdge[];
+}
+
+/** A rim or corner this close to another volume's walls (m) is against them, not in the open. */
+const AGAINST = 0.9;
+/** Rims are trimmed in pieces of at most this length (m). */
+const RIM_STEP = 1;
+
+function insideRing(p: XY, ring: XY[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function nearRing(p: XY, ring: XY[], d: number): boolean {
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % ring.length];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const t = Math.min(Math.max(((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1), 0), 1);
+    if (Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]) < d) return true;
+  }
+  return false;
+}
+
+const volumeCache = new WeakMap<readonly BuildingVolume[], VolumeGeometry>();
+
+/**
+ * Roof rims and corner edges that trace a multi-volume model. Each volume's roof edge is kept
+ * only where it's in the open: where another volume stands on it or rises beside it at that
+ * height (flush walls included), the edge is hidden in the massing and dropped. Corners are cut
+ * the same way and joined up where volumes stack flush, so a corner running up several pieces
+ * is one edge from the ground (or the bottom of an overhang) to the top.
+ */
+export function volumeGeometry(volumes: readonly BuildingVolume[]): VolumeGeometry {
+  const hit = volumeCache.get(volumes);
+  if (hit) return hit;
+  const { toLocal, toLngLat } = localFrame(volumes.flatMap((v) => v.ring));
+  const vols = volumes
+    .map((v) => ({ ring: cleanRing(v.ring.map(toLocal)), base: v.base, top: v.top }))
+    .filter((v) => v.ring.length >= 3);
+  const against = (p: XY, ring: XY[]) => insideRing(p, ring) || nearRing(p, ring, AGAINST);
+
+  const rims: VolumeRim[] = [];
+  vols.forEach((v, self) => {
+    // A roof edge is hidden by any other volume that spans its height there.
+    const hides = vols.filter((w, i) => i !== self && w.base <= v.top + 0.3 && w.top >= v.top - 0.3);
+    const covered = (p: XY) => hides.some((w) => against(p, w.ring));
+    const outline = offsetRing(v.ring, 0.4);
+    const runs: XY[][] = [];
+    let run: XY[] | null = null;
+    let first = true; // the first piece of the ring is in the open
+    for (let i = 0; i < outline.length; i++) {
+      const a = outline[i];
+      const b = outline[(i + 1) % outline.length];
+      const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / RIM_STEP));
+      for (let k = 0; k < n; k++) {
+        const at = (t: number): XY => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+        const open = !covered(at((k + 0.5) / n));
+        if (i === 0 && k === 0) first = open;
+        if (open) {
+          if (!run) runs.push((run = [at(k / n)]));
+          if (k === n - 1) run.push(b);
+        } else if (run) {
+          run.push(at(k / n));
+          run = null;
+        }
+      }
+    }
+    // A run still open at the end carries on into the first one (unless it is the whole ring).
+    if (run && first && runs.length > 1) runs[0] = [...runs.pop()!, ...runs[0].slice(1)];
+    for (const r of runs) if (r.length >= 2) rims.push({ path: r.map(toLngLat), top: v.top });
+  });
+
+  // Corners: each volume's sharp corners over its own height, minus the heights where another
+  // volume's walls are around them.
+  const pieces: { p: XY; z0: number; z1: number }[] = [];
+  vols.forEach((v, self) => {
+    const corner = offsetRing(v.ring, 0.6);
+    for (const i of sharpCorners(v.ring)) {
+      const p = corner[i];
+      let spans: [number, number][] = [[v.base, v.top]];
+      vols.forEach((w, j) => {
+        if (j === self || !against(p, w.ring)) return;
+        spans = spans.flatMap(([z0, z1]): [number, number][] => {
+          if (w.top <= z0 || w.base >= z1) return [[z0, z1]];
+          const keep: [number, number][] = [];
+          if (w.base > z0) keep.push([z0, w.base]);
+          if (w.top < z1) keep.push([w.top, z1]);
+          return keep;
+        });
+      });
+      for (const [z0, z1] of spans) if (z1 - z0 > 0.5) pieces.push({ p, z0, z1 });
+    }
+  });
+  pieces.sort((a, b) => a.z0 - b.z0);
+  const edges: { p: XY; z0: number; z1: number }[] = [];
+  for (const piece of pieces) {
+    const below = edges.find((e) => Math.hypot(e.p[0] - piece.p[0], e.p[1] - piece.p[1]) < 1 && piece.z0 <= e.z1 + 1.5);
+    if (below) below.z1 = Math.max(below.z1, piece.z1);
+    else edges.push({ ...piece });
+  }
+
+  const geometry = { rims, edges: edges.map((e) => ({ at: toLngLat(e.p), z0: e.z0, z1: e.z1 })) };
+  volumeCache.set(volumes, geometry);
   return geometry;
 }
