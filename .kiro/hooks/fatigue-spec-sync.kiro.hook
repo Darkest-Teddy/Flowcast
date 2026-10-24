@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Fatigue spec sync",
+  "description": "When the fatigue model changes, re-check it against the spec and update tasks.md.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["web/src/lib/fatigue.ts"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "web/src/lib/fatigue.ts changed. Run `node --test web/tests/fatigue.test.ts` and `node web/scripts/fatigue-sweep.ts`. Check every acceptance criterion in .kiro/specs/student-fatigue/requirements.md still holds and that rest < typical < packed by mean. If an equation changed, update the table in design.md. Report anything that no longer matches."
+  }
+}
