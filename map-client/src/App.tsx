@@ -47,9 +47,15 @@ export default function App() {
     let frame = 0;
     let overlay: MapboxOverlay | null = null;
 
+    // A fresh element per mount: in dev, StrictMode mounts twice, and the first map is still
+    // being torn down when the second is created.
+    const mapElement = document.createElement('div');
+    mapElement.className = 'map';
+    containerRef.current!.appendChild(mapElement);
+
     (async () => {
       const [basemap, day, models] = await Promise.all([
-        createBasemap(containerRef.current!, light),
+        createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
       ]);
@@ -76,6 +82,8 @@ export default function App() {
         },
       });
       basemap.addControl(overlay);
+      // Dev-only handle for poking at layers from the browser console.
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, playback } });
       setStatus('');
 
       let last = performance.now();
@@ -119,12 +127,15 @@ export default function App() {
       cancelAnimationFrame(frame);
       basemapRef.current?.remove();
       basemapRef.current = null;
+      mapElement.remove();
     };
     // The map is created once; light changes go through setLightPreset below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => basemapRef.current?.setLightPreset(light), [light]);
+  useEffect(() => {
+    basemapRef.current?.setLightPreset(light);
+  }, [light]);
 
   const changeSpeed = (s: number) => {
     speedRef.current = s;
@@ -147,7 +158,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <div ref={containerRef} className="map" />
+      <div ref={containerRef} />
 
       <header className="panel title">
         <h1>Flowcast</h1>

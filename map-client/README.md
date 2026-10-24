@@ -13,7 +13,7 @@ cp .env.example .env.local   # optional: paste a Mapbox token (see below)
 npm run dev                  # http://localhost:5173
 ```
 
-**Without a token** the map falls back to MapLibre + OpenFreeMap (free, no account). The buildings are plain grey extrusions, but everything else works. **With `VITE_MAPBOX_TOKEN`** set, you get Mapbox Standard: textured, lit buildings plus a Dawn/Day/Dusk/Night lighting control. You can create a free token at <https://account.mapbox.com/access-tokens/> without a card. *The Mapbox path hasn't been run yet because no token was available while building this. Try it first thing.*
+**Without a token** the map falls back to MapLibre + OpenFreeMap (free, no account). The buildings are plain grey extrusions, but everything else works. **With `VITE_MAPBOX_TOKEN`** set, you get Mapbox Standard: textured, lit buildings plus a Dawn/Day/Dusk/Night lighting control. The team's public `pk.` token lives in each person's `map-client/.env.local`, which is gitignored; ask in the team chat rather than committing it. For a hosted build (Railway), set `VITE_MAPBOX_TOKEN` as a build-time variable.
 
 ### URL parameters (handy for rehearsing demo moments)
 
@@ -70,6 +70,7 @@ Trips (a path plus timestamps) are what deck.gl's TripsLayer reads natively. The
 
 ## Pitfalls we already hit (don't re-debug these)
 
+- **Mapbox must use `projection: 'mercator'`.** Mapbox Standard defaults to a globe, which flips deck.gl into GlobeView. Text labels and the 3D characters then draw nothing, with no error.
 - **MapLibre is pinned to v5.** MapLibre 6 removed `map.transform`, which deck.gl 9.4's interleaved mode reads, and every deck layer crashes.
 - **`HeatmapLayer` and `CollisionFilterExtension` render nothing in interleaved mode.** Both need an offscreen pass. That's why the "heatmap" is tinted building footprints plus trails, and why label overlap is handled in screen space in `crowd.ts`.
 - **Kenney GLBs render grey unless re-packed.** They carry a no-op `KHR_texture_transform` that loaders.gl turns into a `TEXCOORD_2` luma.gl won't sample. `scripts/embed_glb_textures.py` strips it and embeds the texture. Re-run it if you add models (wheelchairs and canes are in the same pack, which would make a good accessibility feature).

@@ -1,6 +1,10 @@
 // The base 3D map. Mapbox Standard (textured, lit 3D buildings) when a token is set;
 // otherwise MapLibre + OpenFreeMap, which needs no account. deck.gl draws on top of either.
 import type { IControl } from 'mapbox-gl';
+// Static so the styles are in place before the map is constructed (both are small; the class
+// prefixes don't clash).
+import 'mapbox-gl/dist/mapbox-gl.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -18,8 +22,8 @@ export interface Basemap {
 // From over the Charles looking south, so the whole Comm Ave strip (Kenmore to West Campus) fits.
 // Any field can be overridden from the URL, e.g. ?lng=-71.105&lat=42.350&zoom=18&pitch=70&bearing=-60
 const DEFAULT_VIEW = {
-  center: [-71.1098, 42.3497] as [number, number],
-  zoom: 15.6,
+  center: [-71.1106, 42.3498] as [number, number],
+  zoom: 15.5,
   pitch: 58,
   bearing: 192,
 };
@@ -45,11 +49,13 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
 
   if (token) {
     const { default: mapboxgl } = await import('mapbox-gl');
-    await import('mapbox-gl/dist/mapbox-gl.css');
     mapboxgl.accessToken = token;
     const map = new mapboxgl.Map({
       container,
       style: 'mapbox://styles/mapbox/standard',
+      // Standard defaults to a globe, which flips deck.gl into GlobeView, where text labels and
+      // the 3D characters silently don't draw. One campus is flat anyway.
+      projection: 'mercator',
       ...INITIAL_VIEW,
       antialias: true,
       config: {
@@ -75,7 +81,6 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
   const maplibreModule = await import('maplibre-gl');
   // v5 is a UMD bundle: depending on how Vite pre-bundles it, the API is on .default or the namespace.
   const maplibregl = (maplibreModule.default ?? maplibreModule) as typeof maplibreModule.default;
-  await import('maplibre-gl/dist/maplibre-gl.css');
   const map = new maplibregl.Map({
     container,
     style: 'https://tiles.openfreemap.org/styles/liberty',
