@@ -5,6 +5,7 @@ import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPr
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights } from './layers/crowd';
 import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
+import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadMonuments, monumentLayers } from './layers/monuments';
@@ -100,6 +101,7 @@ export default function App() {
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
   const tagsRef = useRef<BuildingTagsHandle>(null);
+  const transitTagsRef = useRef<TransitTagsHandle>(null);
   const transitRef = useRef<Transit | null>(null);
   const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
@@ -213,11 +215,29 @@ export default function App() {
       const riders = transitRef.current ? new RiderSim(day, transitRef.current.data, transitRef.current.feed.tracks) : null;
       setCampuses(day.campuses ?? []);
 
+      // What a map pointer is over, for the tags that expand on hover (and on tap, for touch).
+      const buildingUnder = (object: unknown) =>
+        object && typeof object === 'object' && ('polygon' in object || 'share' in object) ? (object as unknown as { id: string }).id : null;
+      const markerUnder = (object: unknown): TagMarker =>
+        !object || typeof object !== 'object' ? null
+        : 'platforms' in object ? { kind: 'stop', id: (object as unknown as { id: string }).id }
+        : 'gbfsId' in object ? { kind: 'dock', id: (object as unknown as { id: string }).id }
+        : null;
       overlay = new MapboxOverlay({
         interleaved: new URLSearchParams(window.location.search).get('interleaved') !== '0',
         _animate: true, // keeps the walk cycles ticking between data updates
+        // Hovering a building or a stop/dock dot expands its tag.
+        onHover: ({ object }: PickingInfo) => {
+          tagsRef.current?.hoverBuilding(buildingUnder(object));
+          transitTagsRef.current?.hoverMarker(markerUnder(object));
+        },
         // Building footprints and labels both carry the building id; anything else clears.
         onClick: ({ object }: PickingInfo) => {
+          // A vehicle pins its tag; anything else unpins it.
+          transitTagsRef.current?.pinVehicle(object && 'receivedAt' in object ? (object as { id: string }).id : null);
+          // Touch has no hover: a tap opens the stop's or dock's tag (a tapped building's tag opens
+          // because it's selected).
+          transitTagsRef.current?.hoverMarker(markerUnder(object));
           const isBuilding = object && ('polygon' in object || 'share' in object);
           const id = isBuilding ? (object as { id: string }).id : null;
           selectedRef.current = id;
@@ -225,6 +245,13 @@ export default function App() {
           if (id) setTab("data");
         },
         getTooltip: ({ object }: PickingInfo) => {
+          // Vehicles get a floating glass tag (TransitTags) instead of the tooltip.
+          const vehicleId = object && 'receivedAt' in object ? (object as { id: string }).id : null;
+          transitTagsRef.current?.hoverVehicle(vehicleId);
+          if (vehicleId) return null;
+          // Stops and docks with a tag expand it instead of showing a tooltip.
+          const marker = markerUnder(object);
+          if (marker && transitTagsRef.current?.hasTag(marker)) return null;
           const bikes = bikesRef.current;
           const bikeText = bikes ? bikeTooltip(object, bikes.data, bikes.feed, timeRef.current) : null;
           if (bikeText) return bikeText;
@@ -292,6 +319,17 @@ export default function App() {
         const source = transit ? transitSourceAt(transit, t, liveRef.current) : null;
         if (riders && source) riders.step(t, now, source);
         const showBikesNow = bikes && showBikesRef.current;
+        // Shown time and day (0 = Sunday), for BU shuttle service hours.
+        const serviceTime = liveRef.current ? wallClockSeconds() : t;
+        const serviceDay = liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7;
+        // Then station, stop and dock tags, through the same placer.
+        transitTagsRef.current?.update({
+          placer,
+          project: basemap.project,
+          zoom: basemap.getZoom(),
+          transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay } : null,
+          bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
+        });
         const frameLayers = [
           ...(detailedBuildings
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
@@ -309,11 +347,11 @@ export default function App() {
             roofHeights,
           }),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
-          ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), placer, models: transit.models, time: liveRef.current ? wallClockSeconds() : t, weekday: liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7 }) : []),
+          ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
           ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
           ...(showBikesNow
-            ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus, placer })
+            ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
           ...agentLayers(withRiders(walking, riders, showTransitRef.current), models, t, { zoom: basemap.getZoom() }),
           ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
@@ -446,6 +484,7 @@ export default function App() {
     <div className="app">
       <div ref={containerRef} />
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
+      <TransitTags ref={transitTagsRef} />
 
       <header className="panel title">
         <h1>Flowcast</h1>
