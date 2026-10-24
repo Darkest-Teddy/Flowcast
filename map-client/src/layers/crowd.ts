@@ -15,26 +15,13 @@ import { TripsLayer } from '@deck.gl/geo-layers';
 import type { Color } from '@deck.gl/core';
 import type { BuildingFootprint, BuildingOccupancy, Trip } from '../sim/playback';
 import { footprintGeometry, roundedOffset, volumeGeometry, type FootprintGeometry } from './crowdGeometry';
-import type { BuildingVolume } from './buildings';
+import type { ModelVolumes, RoofHeights } from './crowdGeometry';
 import { GlowFadeExtension, HALO_Z, HALO_Z_RANGE } from './crowdGlow';
 
 type RGB = readonly [number, number, number];
 
-// One scale for the whole UI: the map glow, the tags and the dashboard bars always agree.
-// `glow` is the light colour; `text` is its pale twin, which keeps 4.5:1 or better on the dark
-// glass of the tags and panel (5.8:1 worst case, over a white map).
-const LEVELS = [
-  { min: 0.85, key: 'packed', label: 'Packed', glow: [244, 63, 94, 200], text: '#fda4af', halo: 180, roof: 72, rim: 9 },
-  { min: 0.6, key: 'busy', label: 'Busy', glow: [249, 115, 22, 195], text: '#fdba74', halo: 150, roof: 60, rim: 7 },
-  { min: 0.3, key: 'moderate', label: 'Moderate', glow: [250, 204, 21, 185], text: '#fde047', halo: 120, roof: 48, rim: 6 },
-  { min: 0, key: 'quiet', label: 'Quiet', glow: [45, 212, 191, 150], text: '#5eead4', halo: 80, roof: 30, rim: 4 },
-] as const satisfies readonly { min: number; key: string; label: string; glow: Color; text: string; halo: number; roof: number; rim: number }[];
-
-export type CrowdLevel = (typeof LEVELS)[number];
-
-export function crowdLevel(share: number): CrowdLevel {
-  return LEVELS.find((level) => share >= level.min) ?? LEVELS[LEVELS.length - 1];
-}
+import { crowdLevel, LEVELS, type CrowdLevel } from './crowdLevels';
+export { crowdLevel, type CrowdLevel };
 
 /** CSS custom properties for a level (`--lv` is "r, g, b" for rgb()/rgba(); `--lv-text` a colour). */
 export function crowdLevelStyle(share: number): Record<string, string> {
@@ -56,21 +43,9 @@ function haloReach(share: number) {
   return 6 + 24 * Math.min(Math.max(share, 0), 1.2);
 }
 
-/** Top of each building's detailed model, by OSM id (building-models.json). */
-export type RoofHeights = ReadonlyMap<string, number>;
-
-/** Reads model heights from the building-model manifest (any object of that shape). */
-export function modelRoofHeights(manifest?: { campuses: { buildings: { osm: string; height: number }[] }[] } | null): RoofHeights {
-  return new Map(manifest?.campuses.flatMap((c) => c.buildings.map((b) => [b.osm, b.height] as const)) ?? []);
-}
-
-/** The massing of each multi-volume model, by OSM id (building-models.json `volumes`). */
-export type ModelVolumes = ReadonlyMap<string, readonly BuildingVolume[]>;
-
-/** Reads the models' volumes from the building-model manifest (any object of that shape). */
-export function modelVolumes(manifest?: { campuses: { buildings: { osm: string; volumes?: BuildingVolume[] }[] }[] } | null): ModelVolumes {
-  return new Map(manifest?.campuses.flatMap((c) => c.buildings.flatMap((b) => (b.volumes?.length ? [[b.osm, b.volumes] as const] : []))) ?? []);
-}
+// Model heights and volumes by OSM id, read from building-models.json without its context
+// (scenery) buildings, which never glow (crowdGeometry.ts, so the tests can reach them).
+export { modelRoofHeights, modelVolumes, type ModelVolumes, type RoofHeights } from './crowdGeometry';
 
 /**
  * Where the glow sits on one footprint ring: the detailed model's height where there is one

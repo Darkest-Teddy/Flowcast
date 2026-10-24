@@ -518,7 +518,10 @@ test('unmapped degree loads become explicit estimated off-map academic blocks wi
   const day=buildSourceDay(base,data,0);validate(day);
   assert.equal(day.sourceStats.mappedCourseCoverage.undergraduate.fraction,0);assert.equal(day.sourceAssignments.length,0);
   const blocks=day.sourceActivities.filter(a=>a.kind==='unmapped-academic');assert.ok(blocks.length>0);
-  for(const block of blocks){assert.equal(block.endSec-block.startSec,7200);assert.equal(block.locationId,'off-campus');assert.ok(block.estimated&&block.basis==='modeled_unmapped_academic_time');}
+  for(const block of blocks){assert.equal(block.endSec-block.startSec,7200);assert.ok(['off-campus','study'].includes(block.locationId));assert.ok(block.estimated&&block.basis==='modeled_unmapped_academic_time');}
+  const onCampus=blocks.filter(b=>b.locationId==='study').length/blocks.length;
+  assert.ok(onCampus>0.8&&onCampus<0.97,`most blocks are on campus: ${onCampus}`);
+  assert.ok(blocks.some(b=>b.locationId==='off-campus'),'some blocks stay off the map');
   assert.ok(day.trips.some(t=>t.to==='off-campus'));assert.ok(day.trips.some(t=>t.from==='off-campus'));
 });
 
@@ -847,4 +850,59 @@ test('per-weekday dailyParticipants overrides cap estimated visits on that day o
   base.agents=Array.from({length:100},(_,i)=>({id:`limit-${i}`,home:'home',residency:'resident',campus:'main',studentLevel:'graduate',model:0}));
   const count=day=>buildSourceDay(base,data,day).sourceActivities.filter(a=>a.kind==='estimated').length;
   assert.ok(count(0)>4&&count(0)<=20);assert.ok(count(5)>0&&count(5)<=4);assert.ok(count(6)<=2);
+});
+
+const { habitMultiplier, habitualStart, habitSlot, HABIT_TRAITS } = await import('../src/sim/sourceDay.ts');
+
+test('habit multipliers are stable per student and preserve the population mean',()=>{
+  for(const [slot,trait] of Object.entries(HABIT_TRAITS)){
+    const values=Array.from({length:20000},(_,i)=>habitMultiplier(`habit-${i}`,slot));
+    const mean=values.reduce((a,b)=>a+b,0)/values.length;
+    assert.ok(Math.abs(mean-1)<0.03,`${slot} mean ${mean}`);
+    assert.ok(values.every(v=>v>=0));
+    assert.ok(Math.abs(values.filter(v=>v===trait.high).length/values.length-trait.share)<0.02);
+    assert.equal(habitMultiplier('same','gym'),habitMultiplier('same','gym'));
+  }
+  assert.equal(habitMultiplier('anyone','unknown-slot'),1);
+  assert.equal(habitSlot({kind:'dining',at:8}),'breakfast');assert.equal(habitSlot({kind:'dining',at:12}),'midday');assert.equal(habitSlot({kind:'dining',at:18}),'dinner');
+});
+
+test('habitual start times cluster around a personal usual time within the activity window',()=>{
+  const starts=Array.from({length:7*40},(_,i)=>habitualStart('creature-of-habit','gym',`creature-of-habit:${i%5}:activity:4:${i}`,4,i%5));
+  const sorted=[...starts].sort((a,b)=>a-b),median=sorted[sorted.length>>1];
+  const near=starts.filter(t=>Math.abs(t-median)<=40*60).length/starts.length;
+  assert.ok(near>0.6,`share near usual time ${near}`);
+  for(const t of starts)assert.ok(t>=6*3600&&t<=22*3600);
+  const others=new Set(Array.from({length:50},(_,i)=>Math.round(habitualStart(`student-${i}`,'gym',`student-${i}:0:activity:4:0`,4,0)/600)));
+  assert.ok(others.size>10,'different students keep different usual times');
+});
+
+test('residents return to a favourite dining hall across the week',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  const second=location('meal2','dining');second.position=[-71.1,42.351];base.locations.push(second);
+  for(const loc of base.locations)if(loc.id!=='meal2'){base.walkRoutes[`${loc.id}>meal2`]={path:[loc.position,second.position],cumulative:[0,140]};base.walkRoutes[`meal2>${loc.id}`]={path:[second.position,loc.position],cumulative:[0,140]};}
+  data.locations.meal2={...data.locations.meal,id:'meal2'};
+  base.agents=Array.from({length:200},(_,i)=>({id:`fav-${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  const visits=new Map();
+  for(let weekday=0;weekday<7;weekday++){const day=buildSourceDay(base,data,weekday);validate(day);
+    for(const a of day.sourceActivities.filter(a=>a.kind==='dining')){const list=visits.get(a.agentId)??[];list.push(a.locationId);visits.set(a.agentId,list);}}
+  const shares=[...visits.values()].filter(v=>v.length>=5).map(v=>Math.max(v.filter(x=>x==='meal').length,v.filter(x=>x==='meal2').length)/v.length);
+  const mean=shares.reduce((a,b)=>a+b,0)/shares.length;
+  assert.ok(mean>0.7,`mean favourite share ${mean}`);
+});
+
+test('walk-in commuters mostly enter from the access point nearest their destination',()=>{
+  const {base,data}=fixture();
+  const near={path:[[-71.1011,42.3502],base.locations.find(l=>l.id==='class').position],cumulative:[0,120]};
+  const far={path:[[-71.1100,42.3440],base.locations.find(l=>l.id==='class').position],cumulative:[0,900]};
+  base.stopRoutes={'near-gate>class':near,'far-gate>class':far};
+  for(const id of ['meal','study','gym'])data.locations[id].hours=[];
+  data.locations.class.meetings=[meeting('A',0,9*3600,10*3600,{roomCapacity:400})];
+  base.agents=Array.from({length:300},(_,i)=>({id:`walk-in-${i}`,home:'off-campus',residency:'commuter',campus:'main',model:0,attendance:'part-time'}));
+  const day=buildSourceDay(base,data,0);validate(day);
+  const arrivals=day.trips.filter(t=>t.from==='off-campus'&&t.to==='class');
+  assert.ok(arrivals.length>50);
+  const nearShare=arrivals.filter(t=>t.path[0][1]===near.path[0][1]).length/arrivals.length;
+  assert.ok(nearShare>0.9,`near-gate share ${nearShare}`);
+  assert.ok(nearShare<1,'the farther access point still sees some use');
 });

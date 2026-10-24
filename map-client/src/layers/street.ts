@@ -17,7 +17,7 @@ import type { Color } from '@deck.gl/core';
 import type { MbtaFeed, TransitData, TransitRoute, TransitStop } from '../transit/mbta';
 import { offsetPath, pointAlong, snapToTracks, type Track } from '../transit/tracks';
 import { PLATFORM_LENGTH, platformCentre } from '../transit/motion';
-import { lampAt, registerSignals, secondsToChange, splitFor, timingFor, timingLabel, type IntersectionTiming, type Lamp } from '../sim/signals';
+import { lampAt, planAt, registerSignals, secondsToChange, splitFor, timingFor, timingLabel, type IntersectionTiming, type Lamp } from '../sim/signals';
 import { transitTooltip } from './transit';
 
 /** Below this zoom the 3D furniture is too small to matter, so none of it draws. */
@@ -439,6 +439,11 @@ export function streetTooltip(object: unknown, transit: { data: TransitData; fee
         lines.push(`${who}: green ${Math.round(split.green)} s${lpi}, amber ${split.yellow} s, all-red ${split.allRed} s`);
       }
       lines.push(timingLabel(lastTime, group));
+      lines.push('Modeled phase · not a live observation');
+      const plan = planAt(lastTime, group);
+      if (plan.sourceDate) lines.push(`Plan dated ${plan.sourceDate} · switching hours assumed`);
+      const sourceUrl = plan.sourceUrl ?? timing?.sourceUrl;
+      if (sourceUrl) lines.push(`Source: ${sourceUrl}`);
     }
     return lines.join('\n');
   }

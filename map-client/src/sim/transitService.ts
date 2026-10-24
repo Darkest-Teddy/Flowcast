@@ -26,6 +26,13 @@ export const MAX_STOP_WAIT_SECONDS = 30 * 60;
 export const MAX_EARLY_ARRIVAL_SECONDS = 60 * 60;
 /** A route direction needs at least this many published trips a week at a stop to be someone's commute. */
 export const MIN_WEEKLY_TRIPS = 35;
+/**
+ * Only calls in these hours (seconds after midnight) count toward MIN_WEEKLY_TRIPS and a commute's
+ * weight: the span of the class day. Without it the late-night-only BU Shuttle Night route (first
+ * call after 10 PM) qualified on its night trips, and the daytime commuters given it never found a
+ * trip to or from class.
+ */
+export const COMMUTE_HOURS: readonly [number, number] = [6 * 3600, 22 * 3600];
 /** The opposite-direction stop used for the trip home must be within this walk of the arrival stop. */
 export const MAX_STOP_PAIR_METRES = 400;
 /** Passenger capacity BU configures for every BU Shuttle vehicle in TransLoc (GetVehicleCapacities, October 2026). */
@@ -80,7 +87,7 @@ export function createTransitService(schedule: PublishedScheduleData): TransitSe
       const stop = schedule.stops[call.stop]?.mapStopId;
       if (!stop || !(call.arrival <= call.departure) || call.departure >= DAY || call.arrival < 0) return;
       const serviceKey = `${trip.route}|${trip.direction}`;
-      if (!counted.has(stop)) {
+      if (!counted.has(stop) && call.departure >= COMMUTE_HOURS[0] && call.arrival <= COMMUTE_HOURS[1]) {
         counted.add(stop);
         const services = weekly.get(stop) ?? new Map<string, StopService>();
         const service = services.get(serviceKey) ?? { route: trip.route, direction: trip.direction, weeklyTrips: 0 };

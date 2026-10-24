@@ -9,6 +9,7 @@
 // so nothing here re-renders per frame. Placement goes through the shared label placer first
 // (building tags, then station labels), exactly as the old TextLayer did.
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { countInterval } from './sim/uncertainty';
 import { TagProjection } from './tags/projection';
 import type { CameraState } from './map/basemap';
 import type { LabelPlacer, Projector } from './layers/placement';
@@ -287,6 +288,10 @@ interface ActivityDisplayInput {
 }
 
 /** Labels refer to the modeled space and its denominator, not every use of its building. */
+/** Below these, a place shows "<N%" / "<N students" instead of a figure that rounds to zero. */
+const NEAR_ZERO_PERCENT = 5;
+const NEAR_ZERO_STUDENTS = 3;
+
 export function activityDisplay({ count, capacity, modeled, capacityBasis, kind }: ActivityDisplayInput) {
   const share = occupancyShare(count, capacity);
   const hasPercentage = modeled !== false && capacity > 0 && Number.isFinite(share)
@@ -295,7 +300,16 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind 
   const percent = hasPercentage ? Math.round(share * 100) : 0;
   const seats = capacityBasis?.includes('classroom_seats') || (!capacityBasis && kind === 'classroom');
   const level = crowdLevel(share);
-  const primary = modeled === false ? 'Not modeled' : hasPercentage ? `${percent}%${seats ? ' seats' : ''}` : `${count.toLocaleString()} ${count === 1 ? 'student' : 'students'}`;
+  // Plain percentages, except near zero: no building is ever truly empty (staff, visitors, people
+  // the model doesn't simulate; sim/uncertainty.ts), so a near-empty place reads "<3%" rather than
+  // "0%". The level and colour still follow the simulated figure.
+  const band = countInterval(count, capacity);
+  const unit = seats ? ' seats' : '';
+  const nearZeroPct = Math.max(2, Math.min(NEAR_ZERO_PERCENT, Math.ceil((band.high / capacity) * 100)));
+  const primary = modeled === false ? 'Not modeled'
+    : hasPercentage
+      ? percent < NEAR_ZERO_PERCENT ? `<${nearZeroPct}%${unit}` : `${percent}%${unit}`
+      : count < NEAR_ZERO_STUDENTS ? `<${Math.max(NEAR_ZERO_STUDENTS, band.high)} students` : `${count.toLocaleString()} ${count === 1 ? 'student' : 'students'}`;
   const secondary = hasPercentage ? level.label : '';
   return {
     primary,
@@ -304,7 +318,7 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind 
     hasPercentage,
     level: hasPercentage ? level.key : 'unmodeled',
     style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1' },
-    description: hasPercentage ? `${percent}% of ${seats ? 'classroom seats' : 'capacity'}, ${secondary}` : primary,
+    description: hasPercentage ? `${primary} of ${seats ? 'classroom seats' : 'capacity'}, ${secondary}` : primary,
   };
 }
 

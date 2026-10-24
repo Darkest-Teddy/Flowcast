@@ -20,7 +20,8 @@ import {
   type SearchMode,
 } from '../ui';
 import { isUpcoming } from './student/days';
-import { SearchResults } from './student/SearchResults';
+import { eventVenue } from './student/events';
+import { ExampleQuestions, SearchResults } from './student/SearchResults';
 import styles from './Home.module.css';
 
 export default function Home() {
@@ -29,6 +30,7 @@ export default function Home() {
   const schedule = useResource(api.getSchedule);
   const places = useResource(api.getPlaceForecasts);
   const hourly = useResource(api.getHourlyForecasts);
+  const geo = useResource(api.getCampusGeo);
   const suggestions = useResource(api.getSuggestions);
   const events = useResource(api.getCampusEvents);
   const clubs = useResource(api.getClubs);
@@ -84,11 +86,14 @@ export default function Home() {
         onSubmit={(query, mode) => setSearch({ query, mode })}
       />
 
+      {!search && <ExampleQuestions onAsk={(query) => setSearch({ query, mode: 'ask' })} />}
+
       {search && (
         <SearchResults
           query={search.query}
           mode={search.mode}
           onClear={() => setSearch(null)}
+          onAsk={(query) => setSearch({ query, mode: 'ask' })}
           data={{
             locations: locations.data ?? [],
             schedule: schedule.data ?? [],
@@ -96,6 +101,8 @@ export default function Home() {
             clubs: clubs.data ?? [],
             hourly: hourly.data ?? [],
             places: places.data ?? [],
+            geo: geo.data ?? { positions: {}, walkMeters: {} },
+            homeLocationId: session?.user.homeLocationId ?? null,
           }}
         />
       )}
@@ -205,7 +212,7 @@ export default function Home() {
               title={
                 <>
                   {e.title}
-                  <span className={styles.where}>{place(e.locationId)}</span>
+                  <span className={styles.where}>{eventVenue(e)}</span>
                 </>
               }
               detail={isToday(e.start) ? `Today ${formatTime(e.start)}` : formatDayTime(e.start)}

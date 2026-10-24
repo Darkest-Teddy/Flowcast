@@ -36,6 +36,18 @@ export interface BuildingModelEntry {
   /** The model's massing, where it isn't one box up to `height`: CDS's stacked pieces, Warren's
    *  towers on their podium, CAS's tower, pitched roofs and masts above the walls. */
   volumes?: BuildingVolume[];
+  /** Scenery: a building that isn't BU's, modelled so the streets around campus (Comm Ave out to
+   *  1019, Kenmore Square, Fenway Park) aren't plain grey boxes. Never glows, never gets a tag or
+   *  occupancy (modelRoofHeights / modelVolumes leave it out). */
+  context?: boolean;
+  /** [lng, lat] ring under which the base map's own 3D model of this landmark is hidden
+   *  (Mapbox Standard's Fenway Park), so it doesn't overlap ours. */
+  clip?: [number, number][];
+}
+
+/** The base map's own 3D models that our landmark models replace (see `clip`), as closed rings. */
+export function landmarkClips(manifest?: BuildingModelManifest | null): [number, number][][] {
+  return manifest?.campuses.flatMap((c) => c.buildings.flatMap((b) => (b.clip?.length ? [[...b.clip, b.clip[0]]] : []))) ?? [];
 }
 
 /** One modelled volume: its OSM footprint ring and the heights its walls run between. */
@@ -72,10 +84,11 @@ export async function loadBuildingManifest(url = '/data/building-models.json'): 
   return res.json();
 }
 
-/** Fetch and parse every campus GLB once, plus its lit-window meshes. */
-export async function loadBuildingModels(manifest: BuildingModelManifest): Promise<BuildingModels> {
+/** Fetch and parse campus GLBs (all, or just `only`), plus their lit-window meshes. */
+export async function loadBuildingModels(manifest: BuildingModelManifest, only?: string[]): Promise<BuildingModels> {
   const jobs: [string, string][] = [];
   for (const c of manifest.campuses) {
+    if (only && !only.includes(c.id)) continue;
     jobs.push([c.id, c.model]);
     for (const [when, url] of Object.entries(c.lights ?? {})) if (url) jobs.push([`${c.id}:${when}`, url]);
   }
@@ -83,11 +96,39 @@ export async function loadBuildingModels(manifest: BuildingModelManifest): Promi
   return Object.fromEntries(entries);
 }
 
-/** Convenience: manifest + models in one call. */
+// Level of detail by campus: the Medical Campus is ~2.5 km from the main views and most sessions
+// never look at it, so its models (~1.4 MB) load only when it's about to come into view (or its
+// campus button is pressed), well before it's on screen.
+export const DEFERRED_CAMPUSES = ['medical'];
+
+/** Convenience: manifest + the models of every campus that isn't deferred, in one call. */
 export async function loadBuildings(url?: string) {
   const manifest = await loadBuildingManifest(url);
-  const models = await loadBuildingModels(manifest);
+  const models = await loadBuildingModels(manifest, manifest.campuses.map((c) => c.id).filter((id) => !DEFERRED_CAMPUSES.includes(id)));
   return { manifest, models };
+}
+
+const loading = new Set<string>();
+/** Load a deferred campus into `models` (once; later calls are no-ops). Resolves when it's drawable. */
+export async function loadCampusModels(manifest: BuildingModelManifest, models: BuildingModels, campus: string): Promise<void> {
+  if (models[campus] || loading.has(campus)) return;
+  loading.add(campus);
+  try {
+    Object.assign(models, await loadBuildingModels(manifest, [campus]));
+  } finally {
+    loading.delete(campus);
+  }
+}
+
+/** [west, south, east, north] around a campus's buildings (from the manifest's building centres). */
+export function campusBounds(manifest: BuildingModelManifest, campus: string, padMetres = 300): [number, number, number, number] | null {
+  const c = manifest.campuses.find((x) => x.id === campus);
+  if (!c?.buildings.length) return null;
+  const lngs = c.buildings.map((b) => b.center[0]);
+  const lats = c.buildings.map((b) => b.center[1]);
+  const dLat = padMetres / 110_540;
+  const dLng = padMetres / (111_320 * Math.cos((c.origin[1] * Math.PI) / 180));
+  return [Math.min(...lngs) - dLng, Math.min(...lats) - dLat, Math.max(...lngs) + dLng, Math.max(...lats) + dLat];
 }
 
 export type BuildingLight = 'dawn' | 'day' | 'dusk' | 'night';

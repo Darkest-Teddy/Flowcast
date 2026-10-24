@@ -1,37 +1,25 @@
 """Join saved campus routes using OSM corridors; never add straight snap edges.
 
-Run: python3 data-pipeline/build_cross_campus_routes.py
+Run: python3 data-pipeline/build_cross_campus_routes.py (after make_demo_routes.py)
 The normalized corridor snapshot retains OSM way IDs, tags and consecutive nodes.
-Only exactly matching six-decimal coordinates connect it to existing routes.
+It is routed together with the Fenway and Charles River walk networks make_demo_routes.py uses
+(read from its Overpass cache) on the same sidewalk-first graph (pedestrian_network.py), so
+cross-campus walkers keep to sidewalks and crosswalks too. Ways connect only at exactly matching
+six-decimal vertices, and every route starts and ends at its location's saved route endpoint.
 """
 import gzip
-import heapq
 import json
-import math
 import sys
 import xml.etree.ElementTree as ET
-from collections import defaultdict
 from pathlib import Path
+
+import pedestrian_network
+from pedestrian_network import walkable  # noqa: F401  (re-exported for tests and callers)
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / 'map-client/public/data/demo-day.json'
 SOURCE = ROOT / 'data-pipeline/output/campus-walk-corridors.json'
-WALKABLE = set('footway path pedestrian steps living_street residential service unclassified tertiary secondary primary crossing corridor cycleway'.split())
-
-
-def walkable(tags):
-    foot = tags.get('foot')
-    if tags.get('highway') not in WALKABLE or foot in ('no', 'private', 'use_sidepath'):
-        return False
-    if tags.get('access') in ('no', 'private') and foot not in ('yes', 'designated', 'permissive'):
-        return False
-    return tags.get('highway') != 'cycleway' or foot in ('yes', 'designated', 'permissive')
-
-
-def distance(a, b):
-    lat1, lat2 = math.radians(a[1]), math.radians(b[1])
-    value = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(math.radians(b[0] - a[0]) / 2) ** 2
-    return 6371000 * 2 * math.asin(math.sqrt(value))
+CAMPUSES = ('fenway', 'charles-river')
 
 
 def rebuild_source(source):
@@ -53,42 +41,38 @@ def rebuild_source(source):
     return source
 
 
-def build(base, source):
-    graph = defaultdict(dict)
-    endpoints = {}
+def campus_ways():
+    """The tagged OSM ways of the Fenway and Charles River walk networks (make_demo_routes.py)."""
+    import make_demo_routes
+    ways = []
+    for campus in make_demo_routes.load_campuses():
+        if campus['id'] in CAMPUSES:
+            ways += make_demo_routes.fetch_walk_ways(make_demo_routes.network_bbox(campus))
+    return ways
+
+
+def build(base, source, ways):
+    network = pedestrian_network.Network()
+    for way in [*ways, *source['ways']]:
+        network.add_way(way['tags'], way['path'])
     locations = {location['id']: location for location in base['locations']}
 
-    def add_path(path):
-        for a, b in zip(path, path[1:]):
-            if a != b:
-                graph[a][b] = graph[b][a] = distance(a, b)
-
+    endpoints = {}
     for key, route in base['walkRoutes'].items():
         start, end = key.split('>')
-        path = list(map(tuple, route['path']))
+        path = route['path']
         for name, point in ((start, path[0]), (end, path[-1])):
+            point = pedestrian_network.key(*point)
             assert name not in endpoints or endpoints[name] == point, f'Inconsistent endpoint: {name}'
             endpoints[name] = point
-        add_path(path)
-    for way in source['ways']:
-        if walkable(way['tags']):
-            add_path(list(map(tuple, way['path'])))
 
     routes = {}
-    campus_ids = sorted(id for id in endpoints if locations[id]['campus'] in ('fenway', 'charles-river'))
+    campus_ids = sorted(id for id in endpoints if locations[id]['campus'] in CAMPUSES)
+    for name in campus_ids:  # a saved endpoint part-way along a way becomes a vertex of it
+        assert network.attach(endpoints[name], max_metres=0.5, exact=True), f'Endpoint off the walk network: {name}'
     for start in campus_ids:
         origin = endpoints[start]
-        costs, previous, queue = {origin: 0}, {}, [(0, origin)]
-        while queue:
-            cost, node = heapq.heappop(queue)
-            if cost > costs[node]:
-                continue
-            for neighbor, weight in graph[node].items():
-                candidate = cost + weight
-                if candidate < costs.get(neighbor, math.inf):
-                    costs[neighbor] = candidate
-                    previous[neighbor] = node
-                    heapq.heappush(queue, (candidate, neighbor))
+        costs, previous = network.shortest(origin)
         for end in campus_ids:
             if start == end:
                 continue
@@ -97,22 +81,13 @@ def build(base, source):
                 continue
             target = endpoints[end]
             assert target in costs, f'No verified corridor: {start}>{end}'
-            key = f'{start}>{end}'
-            old = base['walkRoutes'].get(key)
-            if old and not cross_campus and costs[target] >= old['cumulative'][-1] - 1:
-                continue
-            path = [target]
-            while path[-1] != origin:
-                path.append(previous[path[-1]])
-            path.reverse()
-            cumulative = [0.0]
-            length = 0.0
-            for a, b in zip(path, path[1:]):
-                assert b in graph[a]
-                length += graph[a][b]
-                cumulative.append(round(length, 1))
-            assert path[0] == endpoints[start] and path[-1] == endpoints[end]
-            routes[key] = {'path': path, 'cumulative': cumulative}
+            nodes = [target]
+            while nodes[-1] != origin:
+                nodes.append(previous[nodes[-1]])
+            nodes.reverse()
+            path = network.route_geometry(nodes)
+            assert tuple(path[0]) == origin and tuple(path[-1]) == target
+            routes[f'{start}>{end}'] = {'path': path, 'cumulative': pedestrian_network.cumulative(path)}
     return {'sources': source['sources'], 'retrieved': source['retrieved'], 'attribution': source['attribution'], 'walkRoutes': routes}
 
 
@@ -121,7 +96,7 @@ if __name__ == '__main__':
     source = json.loads(SOURCE.read_text())
     if '--rebuild-source' in sys.argv:
         source = rebuild_source(source)
-    result = build(base, source)
+    result = build(base, source, campus_ways())
     base['walkRoutes'].update(result['walkRoutes'])
     base['walkRouteSources'] = {key: value for key, value in result.items() if key != 'walkRoutes'}
     BASE.write_text(json.dumps(base, separators=(',', ':')) + '\n')

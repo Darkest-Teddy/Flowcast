@@ -38,6 +38,10 @@ DINING_ALIASES = {
 }
 LIBRARY_ALIASES = {"Mugar Library": "mugar", "Pardee Management Library": "pardee"}
 EVENT_ALIASES = {**BUILDING_ALIASES, "GSU": "gsu", "Sargent": "sargent"}
+# Venue names that put the building later in the text ("Student Theater at Agganis Arena").
+EVENT_NAME_PATTERNS = [(r"\bAgganis Arena\b", "agganis"), (r"\bGeorge Sherman Union\b", "gsu")]
+# Published street addresses of mapped venues without a catalog building code.
+EVENT_VENUE_ADDRESSES = {"775 Commonwealth Avenue": "gsu", "925 Commonwealth Avenue": "agganis"}
 MONTH_DATE = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}\b"
 DATE = rf"(?:\b\d{{1,2}}/\d{{1,2}}(?:/\d{{2,4}})?\b|\b\d{{4}}-\d{{2}}-\d{{2}}\b|\b{MONTH_DATE})"
 
@@ -157,17 +161,40 @@ def normalized_address(value):
     return re.sub(r"[^\w-]", "", value)
 
 
+def event_room(record, location_id, classrooms):
+    """The room an event names inside its mapped building ("CAS B36", "Sargent 101"), with published seats."""
+    if not location_id or not record.get("locationName"):
+        return None, None
+    name = record["locationName"]
+    for alias, target in EVENT_ALIASES.items():
+        match = re.match(r"^" + re.escape(alias) + r"\s+([A-Z]?\d{2,4}[A-Z]?)\b", name, re.I)
+        if target != location_id or not match:
+            continue
+        room = match[1].upper()
+        codes = [code for code, value in BUILDING_ALIASES.items() if value == target]
+        seats = [classrooms[(code, room)] for code in codes if (code, room) in classrooms]
+        return room, (min(seats) if seats else None)
+    return None, None
+
+
 def event_location(record, locations, address_aliases):
+    """Resolve a public venue to an existing mapped location, or None.
+
+    The venue name ("CAS B36", "Student Theater at Agganis Arena") is the strongest evidence.
+    Terrier Central addresses are often the organizer's default (775 Commonwealth Ave appears
+    for CAS, PHO and Agganis rooms), so the address only decides when the name names no building.
+    """
     if record.get("locationStatus") == "hidden" or not record.get("locationName"):
         return None
     name = record["locationName"]
     candidates = {target for alias, target in EVENT_ALIASES.items()
                   if target in locations and re.match(r"^"+re.escape(alias)+r"\b", name, re.I)}
-    address = normalized_address(record.get("locationAddress") or "")
-    address_candidates = {target for prefix, target in address_aliases if address and address.startswith(prefix)}
-    if candidates and address_candidates and not candidates.intersection(address_candidates):
-        return None
-    candidates = candidates or address_candidates
+    candidates |= {target for pattern, target in EVENT_NAME_PATTERNS if target in locations and re.search(pattern, name, re.I)}
+    named_address = normalized_address(name)
+    candidates |= {target for prefix, target in address_aliases if named_address.startswith(prefix)}
+    if not candidates:
+        address = normalized_address(record.get("locationAddress") or "")
+        candidates = {target for prefix, target in address_aliases if address and address.startswith(prefix)}
     return next(iter(candidates)) if len(candidates) == 1 else None
 
 
@@ -308,12 +335,20 @@ def build_bundle(datasets, day, input_files=None):
         })
     address_aliases = [(normalized_address(record["address"]), aliases[record["buildingCode"]])
                        for record in catalog.get("buildings", []) if record["buildingCode"] in aliases and record.get("address")]
-    if "gsu" in locations:
-        address_aliases.append((normalized_address("775 Commonwealth Avenue"), "gsu"))
-    events = [{"id": record["id"], "name": record["name"], "start": record["start"], "end": record.get("end"),
-               "locationId": event_location(record, locations, address_aliases), "locationName": record.get("locationName"),
-               "registrationCount": record.get("registrationCount"), "sourceUrl": source_url(record)}
-              for record in datasets["events"]["events"]]
+    for address, target in EVENT_VENUE_ADDRESSES.items():
+        if target in locations:
+            address_aliases.append((normalized_address(address), target))
+    classrooms = {(room["buildingCode"], room["roomCode"].upper()): room["capacity"]["value"]
+                  for room in catalog.get("classrooms", []) if (room.get("capacity") or {}).get("value") is not None}
+    events = []
+    for record in datasets["events"]["events"]:
+        location_id = event_location(record, locations, address_aliases)
+        room, seats = event_room(record, location_id, classrooms)
+        events.append({"id": record["id"], "name": record["name"], "start": record["start"], "end": record.get("end"),
+               "locationId": location_id, "locationName": record.get("locationName"),
+               "roomCode": room, "roomCapacity": seats,
+               "organizer": record.get("organizer"),
+               "registrationCount": record.get("registrationCount"), "sourceUrl": source_url(record)})
     for record in datasets["signals"]["pedestrianCounts"]:
         item = evidence(record, f"{record['intersection']}, {record['startLocal']}-{record['endLocal']}")
         item["note"] = "Collection dates: "+", ".join(record["collectionDates"])+". "+record["limitations"]
