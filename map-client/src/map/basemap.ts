@@ -5,6 +5,7 @@ import type { IControl } from 'mapbox-gl';
 // prefixes don't clash).
 import 'mapbox-gl/dist/mapbox-gl.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import type { WeatherEffect } from '../weather/weather';
 
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -13,11 +14,19 @@ export interface Basemap {
   addControl(control: IControl): void;
   /** Only Mapbox Standard has time-of-day lighting; a no-op on the fallback. */
   setLightPreset(preset: LightPreset): void;
+  /**
+   * Draw the city's buildings ourselves, leaving out these OSM ids (buildings we render as
+   * detailed models). Mapbox Standard can't hide single buildings, and its own copies (e.g.
+   * Warren Towers as one 56 m block, podium included) poke through our models. Mapbox only.
+   */
+  excludeBuildings(osmIds: number[]): void;
   /** Remove the base map's own 3D models (trees) inside these polygons. Mapbox only. */
   clipModels(polygons: [number, number][][]): void;
   /** Live traffic needs Mapbox's traffic tiles (a token); the fallback has none. */
   supportsTraffic: boolean;
   setTrafficVisible(visible: boolean): void;
+  /** Rain, snow and fog (Mapbox v3 only; a no-op on the fallback). The screen overlay is drawn by WeatherControls. */
+  setWeather(effect: WeatherEffect): void;
   flyTo(center: [number, number], zoom?: number): void;
   /** Screen pixel position of a lng/lat (ground level). */
   project(lngLat: [number, number]): [number, number];
@@ -154,19 +163,21 @@ function viewFromUrl() {
 
 export const INITIAL_VIEW = viewFromUrl();
 
-// Keep the camera (and so tile loading) to Boston: every campus with room to spare, from
-// Brighton/Allston to the Seaport and Cambridge to Roxbury. No need to render the world.
+// Keep the camera (and so tile loading) to the campuses and central Boston: West Campus /
+// Nickerson to downtown and the Seaport edge, the Cambridge riverbank to the Medical Campus.
 const BOSTON_LIMITS = {
   maxBounds: [
-    [-71.19, 42.3],
-    [-71.0, 42.4],
+    [-71.135, 42.325],
+    [-71.045, 42.368],
   ] as [[number, number], [number, number]],
-  minZoom: 12,
+  minZoom: 13.5,
 };
 
 // Mapbox's live traffic tiles (refreshed every few minutes). Congestion is shown by width as
 // well as colour, so it doesn't rely on colour alone (plan Section 10.3).
 const TRAFFIC_LAYER = 'flowcast-traffic';
+const ROAD_LABEL_MIN_ZOOM = 17.2;
+const CITY_BUILDINGS = 'flowcast-city-buildings';
 // Google Maps-style live traffic: every main road carries a continuous line coloured by speed.
 // Thickness follows the road's size; heavier traffic is also slightly thicker, so the overlay
 // never relies on colour alone.
@@ -262,6 +273,19 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     tameInteractions(map);
     await new Promise<void>((resolve) => map.once('style.load', () => resolve()));
     addTrafficLayer(map);
+    // Distance haze: the tilted camera would otherwise show the whole region out to the
+    // horizon. Fading out a few km away keeps the eye on campus and central Boston.
+    const baseFog = { range: [0.8, 3.2] as [number, number], 'horizon-blend': 0.25 };
+    map.setFog(baseFog);
+    // Street names stay out of the way: hidden until you zoom in close, then in a muted grey.
+    map.setConfigProperty('basemap', 'colorRoadLabels', '#9AA0A8');
+    let roadLabels: boolean | null = null;
+    const updateRoadLabels = () => {
+      const show = map.getZoom() >= ROAD_LABEL_MIN_ZOOM;
+      if (show !== roadLabels) map.setConfigProperty('basemap', 'showRoadLabels', (roadLabels = show));
+    };
+    updateRoadLabels();
+    map.on('zoom', updateRoadLabels);
     return {
       kind: 'mapbox',
       addControl: (control) => map.addControl(control),
@@ -285,8 +309,45 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         map.addSource('flowcast-clip', { type: 'geojson', data });
         map.addLayer({ id: 'flowcast-clip', type: 'clip', source: 'flowcast-clip', layout: { 'clip-layer-types': ['model'] } });
       },
+      excludeBuildings: (osmIds) => {
+        map.setConfigProperty('basemap', 'show3dBuildings', false);
+        map.setConfigProperty('basemap', 'show3dFacades', false);
+        if (!map.getSource('flowcast-city')) {
+          map.addSource('flowcast-city', { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' });
+        }
+        const filter = ['all', ['==', ['get', 'extrude'], 'true'], ['!', ['in', ['id'], ['literal', osmIds]]]];
+        if (map.getLayer(CITY_BUILDINGS)) {
+          map.setFilter(CITY_BUILDINGS, filter as never);
+          return;
+        }
+        map.addLayer({
+          id: CITY_BUILDINGS,
+          type: 'fill-extrusion',
+          source: 'flowcast-city',
+          'source-layer': 'building',
+          slot: 'middle',
+          minzoom: 13,
+          filter: filter as never,
+          paint: {
+            // Neutral stone: Standard's lights shade it, so it reads as city fabric behind BU.
+            'fill-extrusion-color': '#d6d1c8',
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-base': ['get', 'min_height'],
+            'fill-extrusion-opacity': 1,
+            'fill-extrusion-ambient-occlusion-intensity': 0.35,
+            'fill-extrusion-vertical-gradient': true,
+          },
+        });
+      },
       supportsTraffic: true,
       setTrafficVisible: (visible) => map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', visible ? 'visible' : 'none'),
+      setWeather: ({ rain, snow, fog }) => {
+        map.setRain(rain as import('mapbox-gl').RainSpecification | null);
+        map.setSnow(snow as import('mapbox-gl').SnowSpecification | null);
+        // Weather fog merges into the distance haze and never reaches further out than it.
+        const range = (fog?.range as [number, number] | undefined) ?? baseFog.range;
+        map.setFog({ ...baseFog, ...fog, range: [Math.min(range[0], baseFog.range[0]), Math.min(range[1], baseFog.range[1])] });
+      },
       flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),
       project: (lngLat) => {
         const p = map.project(lngLat);
@@ -318,9 +379,11 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     // MapboxOverlay implements MapLibre's IControl too; the two interfaces only differ in typings.
     addControl: (control) => map.addControl(control as unknown as maplibregl.IControl),
     setLightPreset: () => {},
+    excludeBuildings: () => {},
     clipModels: () => {},
     supportsTraffic: false,
     setTrafficVisible: () => {},
+    setWeather: () => {},
     flyTo: (center, zoom) => map.flyTo({ center, zoom: zoom ?? map.getZoom(), essential: true }),
     project: (lngLat) => {
       const p = map.project(lngLat);
