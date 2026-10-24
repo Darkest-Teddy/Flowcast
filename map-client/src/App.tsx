@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
@@ -19,6 +19,11 @@ import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
+
+// The HUD re-renders the app twice a second; these only need to when their own props change.
+const MemoPerfMonitor = memo(PerfMonitor);
+const MemoCameraControls = memo(CameraControls);
+const MemoWeatherControls = memo(WeatherControls);
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
@@ -263,6 +268,10 @@ export default function App() {
   };
 
   const getPerfCounts = useCallback(() => perfRef.current, []);
+  const onWeather = useCallback((w: ActiveWeather) => {
+    weatherRef.current = w;
+    setWeather(w);
+  }, []);
 
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
@@ -305,6 +314,11 @@ export default function App() {
   const ranked = hud
     ? hud.occupancy.filter((o) => (o.location.campus ?? 'charles-river') === campus).sort((a, b) => b.share - a.share)
     : [];
+  // The camera tour only cares which places are in the campus (it re-picks when that set changes),
+  // so it gets a new list only then, not on every HUD refresh.
+  const tourKey = ranked.map((o) => o.location.id).sort().join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const tourLocations = useMemo(() => ranked.map((o) => o.location), [tourKey]);
   // Re-read every render (the HUD re-renders twice a second), so "N min" counts down live.
   const transit = transitRef.current;
   const stations = transit?.data.stops.filter((s) => s.kind === 'station' && s.area === campus) ?? [];
@@ -335,9 +349,9 @@ export default function App() {
 
       {status && <div className="panel status" role="status">{status}</div>}
 
-      <PerfMonitor counts={getPerfCounts} />
-      {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
-      {mapKind && <WeatherControls basemap={basemapRef.current} light={light} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
+      <MemoPerfMonitor counts={getPerfCounts} />
+      {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}
+      {mapKind && <MemoWeatherControls basemap={basemapRef.current} light={light} onChange={onWeather} />}
 
       {hud && (
         <aside className="panel side">
