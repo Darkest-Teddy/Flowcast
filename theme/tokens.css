@@ -1,0 +1,182 @@
+/*
+ * Flowcast design tokens: the single source of truth for colour, type, spacing, radii and motion.
+ * Every app (web dashboard, admin, map client) reads these variables; components never hard-code
+ * a colour, size or font. tokens.ts exposes the same names to TypeScript.
+ *
+ * Look: Apple-like system type, neutral greys, one blue for actions, small radii (sharp edges).
+ */
+
+:root {
+  /* Type. System faces first: SF Pro on Apple devices, Helvetica Neue / Helvetica elsewhere. */
+  --font-text: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 34px;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.47;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --tracking-display: -0.022em;
+  --tracking-text: -0.01em;
+
+  /* Colour: surfaces and ink */
+  --color-canvas: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #ececf0;
+  --color-surface-hover: #e8e8ed;
+  --color-ink: #1d1d1f;
+  --color-ink-secondary: #6e6e73;
+  --color-ink-tertiary: #86868b;
+  --color-hairline: #d2d2d7;
+  --color-hairline-soft: #e5e5ea;
+
+  /* Colour: actions */
+  --color-accent: #0066cc;
+  --color-accent-hover: #0058b0;
+  --color-accent-soft: #e8f0fb;
+  --color-on-accent: #ffffff;
+  --color-strong: #1d1d1f; /* primary "black" button */
+  --color-on-strong: #ffffff;
+  --color-focus-ring: rgba(0, 102, 204, 0.4);
+
+  /* Colour: status (text-safe on surface, plus a soft fill) */
+  --color-ok: #1d7a35;
+  --color-ok-soft: #e3f3e7;
+  --color-warn: #a35200;
+  --color-warn-soft: #fdf0e1;
+  --color-bad: #c9001a;
+  --color-bad-soft: #fde7e9;
+  --color-off: #8e8e93;
+  --color-off-soft: #efeff2;
+
+  /* Colour: crowd scale (Quiet / Moderate / Busy / Packed). Always shown with a number and a word. */
+  --crowd-quiet: #34a853;
+  --crowd-moderate: #e0a800;
+  --crowd-busy: #f07d00;
+  --crowd-packed: #e0242f;
+
+  /* Colour: small identity swatches (club and user avatars) */
+  --swatch-1: #0066cc;
+  --swatch-2: #1d7a35;
+  --swatch-3: #a35200;
+  --swatch-4: #7d3fb8;
+  --swatch-5: #c9001a;
+  --swatch-6: #0e7c86;
+  --color-on-swatch: #ffffff;
+  --color-knob: #ffffff;
+
+  /* Spacing (4 px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radii: deliberately small */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 999px;
+
+  /* Elevation */
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-overlay: 0 8px 28px rgba(0, 0, 0, 0.14);
+  --shadow-field-focus: 0 0 0 3px var(--color-focus-ring);
+
+  /* Layout */
+  --sidebar-width: 232px;
+  --topbar-height: 52px;
+  --content-max: 980px;
+  --content-max-wide: 1180px;
+  --control-height: 30px;
+  --control-height-lg: 40px;
+  --content-narrow: 400px; /* sign-in column */
+  --content-form: 600px; /* single-column forms and the welcome tour */
+  --control-height-xl: 56px; /* presenter controls, legible at arm's length */
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-canvas: #000000;
+    --color-surface: #1c1c1e;
+    --color-surface-sunken: #2c2c2e;
+    --color-surface-hover: #3a3a3c;
+    --color-ink: #f5f5f7;
+    --color-ink-secondary: #a1a1a6;
+    --color-ink-tertiary: #8e8e93;
+    --color-hairline: #3a3a3c;
+    --color-hairline-soft: #2c2c2e;
+    --color-accent: #2997ff;
+    --color-accent-hover: #4aa8ff;
+    --color-accent-soft: #0a2540;
+    --color-strong: #f5f5f7;
+    --color-on-strong: #1d1d1f;
+    --color-focus-ring: rgba(41, 151, 255, 0.45);
+    --color-ok: #30d158;
+    --color-ok-soft: #0f2e17;
+    --color-warn: #ff9f0a;
+    --color-warn-soft: #33220a;
+    --color-bad: #ff453a;
+    --color-bad-soft: #3a1210;
+    --color-off: #8e8e93;
+    --color-off-soft: #2c2c2e;
+    --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-overlay: 0 8px 28px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-canvas: #000000;
+  --color-surface: #1c1c1e;
+  --color-surface-sunken: #2c2c2e;
+  --color-surface-hover: #3a3a3c;
+  --color-ink: #f5f5f7;
+  --color-ink-secondary: #a1a1a6;
+  --color-ink-tertiary: #8e8e93;
+  --color-hairline: #3a3a3c;
+  --color-hairline-soft: #2c2c2e;
+  --color-accent: #2997ff;
+  --color-accent-hover: #4aa8ff;
+  --color-accent-soft: #0a2540;
+  --color-strong: #f5f5f7;
+  --color-on-strong: #1d1d1f;
+  --color-focus-ring: rgba(41, 151, 255, 0.45);
+  --color-ok: #30d158;
+  --color-ok-soft: #0f2e17;
+  --color-warn: #ff9f0a;
+  --color-warn-soft: #33220a;
+  --color-bad: #ff453a;
+  --color-bad-soft: #3a1210;
+  --color-off: #8e8e93;
+  --color-off-soft: #2c2c2e;
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-overlay: 0 8px 28px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
