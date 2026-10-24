@@ -32,7 +32,9 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .side ol { list-style: none; margin: 0; padding: 0; }
 .tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); }
 .tabs button {
-  flex: 1;
+  flex: 1 1 auto; /* sized to their labels, so three tabs fit on one line */
+  padding: 0 8px;
+  white-space: nowrap;
   min-height: 34px;
   border: 0;
   border-radius: 8px;
@@ -274,3 +276,16 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .perf-low.ok { color: #facc15; }
 .perf-low.bad { color: #f87171; }
 .perf-warn { color: #f87171; font-weight: 700; }
+
+/* Bikes tab */
+#panel-bikes .toggles { margin-top: 10px; }
+#panel-bikes h3 { margin: 14px 0 6px; font-size: 13px; font-weight: 700; }
+#panel-bikes p { margin: 4px 0; }
+#panel-bikes .arrivals thead th { white-space: nowrap; }
+.bike-summary { font-size: 14px; }
+.bike-summary strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+#panel-bikes .source { margin-top: 12px; line-height: 1.4; }
+.activity { margin: 0; }
+.activity svg { display: block; width: 100%; height: auto; cursor: crosshair; }
+.activity .tick { fill: var(--muted); font-size: 10px; }
+.activity-readout { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-variant-numeric: tabular-nums; }
