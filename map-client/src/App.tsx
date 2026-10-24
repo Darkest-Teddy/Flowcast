@@ -110,10 +110,11 @@ export default function App() {
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
+      const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
+      const plainFootprints = day.buildings.filter((f) => !modelled.has(f.id));
       if (detailedBuildings) {
         // Our detailed models replace Mapbox's own copies of those buildings.
-        const ids = detailedBuildings.manifest.campuses.flatMap((c) => c.buildings.map((b) => Number(b.osm.split('/')[1])));
-        basemap.excludeBuildings(ids);
+        basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])));
       }
 
       if (transitData) {
@@ -195,7 +196,9 @@ export default function App() {
               ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
               : []),
             ...crowdLayers({
-              footprints: day.buildings,
+              // Buildings with detailed models skip the old extruded crowd box: it cut through
+              // their real shape (CDS's offset blocks) and flickered on zoom. Their tags remain.
+              footprints: plainFootprints,
               buildings: playback.byBuilding(occupancy),
               trips: day.trips,
               time: t,
