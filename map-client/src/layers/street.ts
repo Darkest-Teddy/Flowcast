@@ -216,6 +216,10 @@ interface Placements {
   stopCount: number;
   platforms: Platform[];
   busStops: BusStop[];
+  // Split once here rather than per frame: a fresh array each frame made deck.gl re-upload the
+  // shelter and sign models' attributes every frame.
+  shelters: BusStop[];
+  signs: BusStop[];
 }
 const placementCache = new WeakMap<Track[], Placements>();
 
@@ -292,7 +296,13 @@ function placeTransitFurniture(data: TransitData, tracks: Track[], signals: Stre
     busStops.push({ streetKind: 'bus-stop', stop, position, bearing: (at.bearing + 270) % 360, shelter });
   }
 
-  const placements = { stopCount: data.stops.length, platforms, busStops };
+  const placements = {
+    stopCount: data.stops.length,
+    platforms,
+    busStops,
+    shelters: busStops.filter((b) => b.shelter),
+    signs: busStops.filter((b) => !b.shelter),
+  };
   placementCache.set(tracks, placements);
   return placements;
 }
@@ -309,17 +319,19 @@ export interface StreetLayerInput {
 }
 
 const CONCRETE: Color = [178, 176, 170, 255];
+const NO_PLACEMENTS: Omit<Placements, 'stopCount'> = { platforms: [], busStops: [], shelters: [], signs: [] };
+const NO_GLOWS: Glow[] = [];
 const TACTILE_YELLOW: Color = [255, 199, 44, 255];
 let lastTime = 0;
 
 export function streetLayers({ street, transit, time, zoom }: StreetLayerInput) {
   lastTime = time;
   const detail = zoom >= STREET_DETAIL_ZOOM;
-  const { platforms, busStops } = transit
+  const { platforms, shelters, signs } = transit
     ? placeTransitFurniture(transit.data, transit.feed.tracks, street.signals)
-    : { platforms: [], busStops: [] };
+    : NO_PLACEMENTS;
   // Signal lamps go with the rest of the street detail: zoomed out they were just noise.
-  const glows = detail ? signalGlows(street.signals, time) : [];
+  const glows = detail ? signalGlows(street.signals, time) : NO_GLOWS;
   const { models } = street;
 
   const model = <T,>(id: string, name: ModelName, data: T[], getPosition: (d: T) => [number, number, number], bearingX: (d: T) => number) =>
@@ -369,8 +381,8 @@ export function streetLayers({ street, transit, time, zoom }: StreetLayerInput) 
       slot: 'middle',
     }),
     ...model('street-gl-shelters', 'shelter', platforms, (p) => p.shelter.position, (p) => p.shelter.bearing),
-    ...model('street-bus-shelters', 'stop', busStops.filter((b) => b.shelter), (b) => [b.position[0], b.position[1], 0], (b) => b.bearing),
-    ...model('street-bus-signs', 'stopSign', busStops.filter((b) => !b.shelter), (b) => [b.position[0], b.position[1], 0], (b) => b.bearing),
+    ...model('street-bus-shelters', 'stop', shelters, (b) => [b.position[0], b.position[1], 0], (b) => b.bearing),
+    ...model('street-bus-signs', 'stopSign', signs, (b) => [b.position[0], b.position[1], 0], (b) => b.bearing),
     ...model('street-signals', 'signal', street.signals, (s) => [s.position[0], s.position[1], 0], (s) => s.bearing),
     // Lit lamps: a soft halo, then the bright lens. The halo doesn't write depth, so it never
     // hides the lens or a neighbour's lamp. Both keep a pixel minimum so the lights twinkle on

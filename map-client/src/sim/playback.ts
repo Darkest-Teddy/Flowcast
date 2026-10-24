@@ -125,12 +125,27 @@ export class Playback {
     for (const list of this.tripsByAgent.values()) list.sort((a, b) => a.timestamps[0] - b.timestamps[0]);
   }
 
+  // Computed once: the frame loop reads endTime every frame, and each read scanned all ~8,000 trips.
+  private bounds: [number, number] | null = null;
+
   get startTime(): number {
-    return Math.min(...this.data.trips.map((t) => t.timestamps[0]));
+    this.bounds ??= this.timeBounds();
+    return this.bounds[0];
   }
 
   get endTime(): number {
-    return Math.max(...this.data.trips.map((t) => t.timestamps[t.timestamps.length - 1]));
+    this.bounds ??= this.timeBounds();
+    return this.bounds[1];
+  }
+
+  private timeBounds(): [number, number] {
+    let start = Infinity;
+    let end = -Infinity;
+    for (const t of this.data.trips) {
+      start = Math.min(start, t.timestamps[0]);
+      end = Math.max(end, t.timestamps[t.timestamps.length - 1]);
+    }
+    return [start, end];
   }
 
   /** Agents outdoors on a walkway at time t; everyone else is inside a building. */

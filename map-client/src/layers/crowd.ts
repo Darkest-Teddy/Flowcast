@@ -36,9 +36,67 @@ export interface CrowdLayerInput {
   placer: LabelPlacer;
 }
 
+// Per `buildings` array (a new one arrives only when occupancy changes): its lookup and counts
+// key, and the label list placed last frame. Handing deck.gl the same label array while nothing
+// moved keeps it from regenerating every label's text attributes each frame.
+interface CrowdCache {
+  byId: Map<string, BuildingOccupancy>;
+  countsKey: string;
+  liftKey: string | null;
+  visible: BuildingOccupancy[];
+}
+const crowdCache = new WeakMap<BuildingOccupancy[], CrowdCache>();
+
+// The glow fades to a new level over 400 ms, linearly from whatever it shows now. This used to be
+// deck.gl's `transitions: { getFillColor: 400 }`, but for polygon layers its GPU transition reads
+// the colour buffer back synchronously (getBufferSubData) every time occupancy changes, stalling
+// the frame for ~50 ms twice a second during busy periods. Same fade, done on the CPU instead.
+const FADE_MS = 400;
+interface Fade {
+  from: Color;
+  to: Color;
+  start: number;
+}
+const fades = new Map<string, Fade>();
+let fadeTargetsKey: string | null = null;
+let fadeEnd = -Infinity;
+
+function fadeColor(fade: Fade | undefined, now: number): Color {
+  if (!fade) return LEVELS[LEVELS.length - 1].glow;
+  const t = Math.min(1, (now - fade.start) / FADE_MS);
+  if (t >= 1) return fade.to;
+  const mix = (i: number) => (fade.from[i] ?? 255) + ((fade.to[i] ?? 255) - (fade.from[i] ?? 255)) * t;
+  return [mix(0), mix(1), mix(2), mix(3)];
+}
+
+/** Point each footprint's fade at its level for these counts; returns a fill-colour trigger. */
+function updateFades(footprints: BuildingFootprint[], byId: Map<string, BuildingOccupancy>, countsKey: string, now: number): string {
+  if (countsKey !== fadeTargetsKey) {
+    const first = fadeTargetsKey === null; // the first colours appear directly, as before
+    fadeTargetsKey = countsKey;
+    for (const f of footprints) {
+      const target = crowdLevel(byId.get(f.id)?.share ?? 0).glow;
+      const fade = fades.get(f.id);
+      if (!fade || first) fades.set(f.id, { from: target, to: target, start: -Infinity });
+      else if (fade.to !== target) {
+        fades.set(f.id, { from: fadeColor(fade, now), to: target, start: now });
+        fadeEnd = now + FADE_MS;
+      }
+    }
+  }
+  // Re-evaluate colours every frame while a fade runs, then once more to land on the target.
+  return now < fadeEnd ? `${countsKey}|${now}` : `${countsKey}|${fadeEnd}`;
+}
+
 export function crowdLayers({ footprints, buildings, trips, time, speed, selectedId, placer }: CrowdLayerInput) {
-  const byId = new Map(buildings.map((b) => [b.id, b]));
-  const countsKey = buildings.map((b) => b.count).join();
+  let cache = crowdCache.get(buildings);
+  if (!cache) {
+    cache = { byId: new Map(buildings.map((b) => [b.id, b])), countsKey: buildings.map((b) => b.count).join(), liftKey: null, visible: [] };
+    crowdCache.set(buildings, cache);
+  }
+  const { byId, countsKey } = cache;
+  const now = performance.now();
+  const fillKey = updateFades(footprints, byId, countsKey, now);
   // Selected first, then busiest: if labels must be dropped, the quiet ones go (the dashboard
   // list still has every building).
   const order = [...buildings].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.share - a.share);
@@ -48,8 +106,12 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
     height: LABEL_HEIGHT,
     direction: -1,
   });
-  const visible = order.filter((b) => lifts.has(b));
-  const liftKey = visible.map((b) => `${b.id}:${lifts.get(b)}`).join();
+  const liftKey = order.filter((b) => lifts.has(b)).map((b) => `${b.id}:${lifts.get(b)}`).join();
+  if (liftKey !== cache.liftKey) {
+    cache.liftKey = liftKey;
+    cache.visible = order.filter((b) => lifts.has(b));
+  }
+  const visible = cache.visible;
 
   return [
     new PolygonLayer<BuildingFootprint>({
@@ -59,15 +121,14 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       extruded: true,
       // A metre taller than the real building so the glow wraps it instead of z-fighting with it.
       getElevation: (d) => d.height + 1,
-      getFillColor: (d) => crowdLevel(byId.get(d.id)?.share ?? 0).glow,
+      getFillColor: (d) => fadeColor(fades.get(d.id), now),
       getLineColor: [255, 214, 10, 255],
       getLineWidth: (d) => (d.id === selectedId ? 3 : 0),
       lineWidthUnits: 'pixels',
       stroked: true,
       material: { ambient: 0.6, diffuse: 0.5, shininess: 16, specularColor: [255, 255, 255] },
       pickable: true,
-      updateTriggers: { getFillColor: countsKey, getLineWidth: selectedId },
-      transitions: { getFillColor: 400 },
+      updateTriggers: { getFillColor: fillKey, getLineWidth: selectedId },
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
@@ -113,9 +174,12 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       // Draw over buildings rather than being hidden behind them.
       parameters: { depthCompare: 'always' },
       getPixelOffset: (d) => [0, -LABEL_HEIGHT * (lifts.get(d) ?? 0) - 6],
+      // Strings, not [countsKey, liftKey]: TextLayer nests getText inside its background's
+      // getBoundingRect trigger, where a fresh array each frame counted as a change and
+      // re-measured every label every frame.
       updateTriggers: {
-        getText: [countsKey, liftKey],
-        getBackgroundColor: [countsKey, liftKey],
+        getText: `${countsKey}|${liftKey}`,
+        getBackgroundColor: `${countsKey}|${liftKey}`,
         getPixelOffset: liftKey,
         getSize: selectedId,
         getBorderColor: selectedId,

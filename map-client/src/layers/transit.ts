@@ -11,6 +11,8 @@ import { minutesUntil, type Arrival, type TransitSource, type TransitData, type 
 import { BU_RED } from '../transit/buShuttle';
 import { trackGeometry, type Track, type TrackGeometry } from '../transit/tracks';
 import { labelWidth, type LabelPlacer } from './placement';
+import { boxAround, setCullBox } from './culling';
+import { headingsKey, stableList } from './stable';
 
 const CUBE = new CubeGeometry(); // spans -1..1 on each axis; getScale gives half-dimensions in metres
 // True scale vanishes from campus height (a train is under a pixel wide at zoom 15.5), so
@@ -79,23 +81,56 @@ function subwayTracks(feed: TransitSource, routes: Map<string, TransitRoute>): T
   return geometry;
 }
 
-export function transitLayers({ data, feed, now, zoom, placer, models }: TransitLayerInput) {
-  const routes = new Map(data.routes.map((r) => [r.id, r]));
-  const kindOf = (routeId: string) => routes.get(routeId)?.kind ?? 'bus';
+// Everything derived from the static route and stop lists, built once. These layers are rebuilt
+// every frame, and a fresh `data` array each time made deck.gl re-tesselate every bus route and
+// re-upload the stops every frame.
+interface StaticTransit {
+  routeCount: number;
+  stopCount: number;
+  routes: Map<string, TransitRoute>;
+  busPaths: RoutePath[];
+  stops: TransitStop[]; // stations drawn on top of bus stops
+  stations: TransitStop[];
+  labelled: TransitStop[]; // station labels placed last frame, reused while unchanged
+  labelKey: string;
+}
+const staticCache = new WeakMap<TransitData, StaticTransit>();
+function staticTransit(data: TransitData): StaticTransit {
+  const cached = staticCache.get(data);
+  // BU shuttle routes and stops are merged into the data at runtime: rebuild if the lists grew.
+  if (cached && cached.routeCount === data.routes.length && cached.stopCount === data.stops.length) return cached;
   // Draw order, bottom to top: BU shuttle lines, MBTA buses, and the 57 last. It's the primary
   // line along Comm Ave, so nothing covers it where routes share the street.
   const lineRank = (r: TransitRoute) => (r.id === '57' ? 2 : r.kind === 'bus' ? 1 : 0);
-  const busPaths: RoutePath[] = data.routes
-    .filter((r) => r.kind !== 'subway')
-    .sort((a, b) => lineRank(a) - lineRank(b))
-    .flatMap((route) => route.paths.map(({ path }) => ({ route, path })));
+  const built: StaticTransit = {
+    routeCount: data.routes.length,
+    stopCount: data.stops.length,
+    routes: new Map(data.routes.map((r) => [r.id, r])),
+    busPaths: data.routes
+      .filter((r) => r.kind !== 'subway')
+      .sort((a, b) => lineRank(a) - lineRank(b))
+      .flatMap((route) => route.paths.map(({ path }) => ({ route, path }))),
+    stops: [...data.stops].sort((a, b) => Number(a.kind === 'station') - Number(b.kind === 'station')),
+    stations: data.stops.filter((s) => s.kind === 'station'),
+    labelled: [],
+    labelKey: '',
+  };
+  staticCache.set(data, built);
+  return built;
+}
+
+export function transitLayers({ data, feed, now, zoom, placer, models }: TransitLayerInput) {
+  const cached = staticTransit(data);
+  const { routes, busPaths, stations } = cached;
+  const kindOf = (routeId: string) => routes.get(routeId)?.kind ?? 'bus';
   const tracks = subwayTracks(feed, routes);
   const vehicles = feed.positionsAt(now);
-  const trains = vehicles.filter((v) => kindOf(v.route) === 'subway');
-  const buses = vehicles.filter((v) => kindOf(v.route) === 'bus');
-  const shuttles = vehicles.filter((v) => kindOf(v.route) === 'shuttle');
+  // Same vehicles as last frame: same arrays, so only positions (and headings, when they change)
+  // are re-uploaded instead of every attribute of each model's 16 primitives.
+  const trains = stableList('transit-trains', vehicles.filter((v) => kindOf(v.route) === 'subway'), (v) => v.id);
+  const buses = stableList('transit-buses', vehicles.filter((v) => kindOf(v.route) === 'bus'), (v) => v.id);
+  const shuttles = stableList('transit-shuttles', vehicles.filter((v) => kindOf(v.route) === 'shuttle'), (v) => v.id);
 
-  const stations = data.stops.filter((s) => s.kind === 'station');
   const labelText = (s: TransitStop) => {
     // Trains only: Kenmore is also a stop for the 57 and other buses.
     const next: Partial<Record<0 | 1, Arrival>> = {};
@@ -122,21 +157,31 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
     gap: 12,
     maxLift: 1,
   });
-  const labelled = stations.filter((s) => lifts.has(s));
-  const labelKey = labelled.map((s) => `${s.id}:${lifts.get(s)}:${texts.get(s)}`).join();
+  const labelKey = stations.filter((s) => lifts.has(s)).map((s) => `${s.id}:${lifts.get(s)}:${texts.get(s)}`).join();
+  // Same labels, texts and places as last frame: keep the same array, so nothing re-uploads.
+  if (labelKey !== cached.labelKey) {
+    cached.labelKey = labelKey;
+    cached.labelled = stations.filter((s) => lifts.has(s));
+  }
+  const labelled = cached.labelled;
 
-  const vehicleLayer = (id: string, kind: VehicleKind, data: Vehicle[]) =>
-    models[kind]
+  const vehicleLayer = (id: string, kind: VehicleKind, data: Vehicle[]) => {
+    // Off-screen vehicles skip the model's ~16 draws. Pad by the longest half-length, scaled.
+    const scale = vehicleScale(zoom, kind);
+    setCullBox(id, models[kind] ? boxAround(data.map((v) => v.position), HALF_SIZE[kind][1] * scale + 5, HALF_SIZE[kind][2] * 2 * scale + 5) : null);
+    return models[kind]
       ? new ScenegraphLayer<Vehicle>({
           id,
           data,
           scenegraph: models[kind] as never,
+          // No vehicles of this kind on the map: skip the model's ~16 draws.
+          visible: data.length > 0,
           sizeScale: vehicleScale(zoom, kind),
           _lighting: 'pbr',
           getPosition: (v) => [v.position[0], v.position[1], 0],
           getOrientation: (v) => [0, MODEL_YAW_OFFSET - v.bearing, 90],
           pickable: true,
-          updateTriggers: { getPosition: now, getOrientation: now },
+          updateTriggers: { getPosition: now, getOrientation: headingsKey(data, (v) => v.bearing) },
           // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
           slot: 'middle',
         })
@@ -156,6 +201,7 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     });
+  };
 
   return [
     // A light casing under every bus line, so dark ones (BU's black Albany St line) still read.
@@ -225,7 +271,7 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
     new ScatterplotLayer<TransitStop>({
       id: 'transit-stops',
       // Stations on top of bus stops.
-      data: [...data.stops].sort((a, b) => Number(a.kind === 'station') - Number(b.kind === 'station')),
+      data: cached.stops,
       getPosition: (s) => s.position,
       getRadius: (s) => (s.kind === 'station' ? 9 : s.kind === 'shuttle' ? 6 : 5),
       radiusUnits: 'pixels',

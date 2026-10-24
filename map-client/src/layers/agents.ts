@@ -8,6 +8,9 @@ import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { WalkingAgent } from '../sim/playback';
+import { boxAround, setCullBox } from './culling';
+import { headingsKey, stableList } from './stable';
+import { mergeSkinnedMeshes } from './gltf-merge';
 
 export const CHARACTER_MODELS = [
   'female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f',
@@ -23,9 +26,10 @@ const YAW_OFFSET = 180;
 
 export type LoadedModels = unknown[];
 
-/** Fetch and parse every character once; each layer then builds its own GPU copy and clock. */
+/** Fetch and parse every character once; each layer then builds its own GPU copy and clock.
+ *  Body and head are merged into one primitive (one draw per layer instead of two). */
 export function loadCharacterModels(): Promise<LoadedModels> {
-  return Promise.all(CHARACTER_MODELS.map((url) => load(url, GLTFLoader)));
+  return Promise.all(CHARACTER_MODELS.map((url) => load(url, GLTFLoader).then(mergeSkinnedMeshes)));
 }
 
 function phaseOf(id: string): number {
@@ -48,6 +52,12 @@ export interface AgentLayerOptions {
   highlightId?: string | null;
 }
 
+const NOBODY: WalkingAgent[] = [];
+
+function* positionsOf(agents: WalkingAgent[]) {
+  for (const a of agents) yield a.position;
+}
+
 export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time: number, options: AgentLayerOptions) {
   const { zoom, highlightId = null } = options;
   const sizeScale = walkerScale(zoom);
@@ -63,10 +73,19 @@ export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time:
   for (let model = 0; model < models.length; model++) {
     for (let phase = 0; phase < PHASES; phase++) {
       const key = `${model}-${phase}`;
+      // Same walkers as last frame: same array, so only positions (and headings, when one
+      // turns) are re-uploaded instead of every attribute of the model.
+      const data = stableList(`agents-${key}`, buckets.get(key) ?? NOBODY, (a) => a.id);
+      // Off-screen buckets skip their draws (zoomed in, most of campus is out of view). A
+      // character is under a model unit wide and tall, so sizeScale metres all round is ample.
+      setCullBox(`agents-${key}`, boxAround(positionsOf(data), sizeScale, sizeScale));
       layers.push(
         new ScenegraphLayer<WalkingAgent>({
           id: `agents-${key}`,
-          data: buckets.get(key) ?? [],
+          data,
+          // An empty layer still costs a full model draw a frame; skip drawing it (it stays in
+          // the list, so its GPU copy of the model and its animation clock persist).
+          visible: data.length > 0,
           scenegraph: models[model] as never,
           // Layers persist across frames, so these stay referentially stable and the clock
           // is only configured once per layer.
@@ -77,7 +96,7 @@ export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time:
           getPosition: (d) => d.position,
           getOrientation: (d) => [0, YAW_OFFSET - d.bearing, 90],
           getColor: (d) => (d.id === highlightId ? [255, 214, 10, 255] : [255, 255, 255, 255]),
-          updateTriggers: { getColor: highlightId, getPosition: time, getOrientation: time },
+          updateTriggers: { getColor: highlightId, getPosition: time, getOrientation: headingsKey(data, (a) => a.bearing) },
           pickable: true,
           // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
           slot: 'middle',

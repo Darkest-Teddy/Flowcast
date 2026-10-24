@@ -11,6 +11,7 @@
 import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
+import { gltfExtent, setCullBox } from './culling';
 
 export interface BuildingModelEntry {
   osm: string; // e.g. "way/277434241", the same ids as demo-day.json's buildings
@@ -83,6 +84,33 @@ interface Instance {
   position: [number, number, number];
 }
 
+// One instance per campus, built once. The layer is rebuilt every frame, and a new `data` array
+// each time made deck.gl re-upload every attribute of all ~70 model primitives per frame.
+const instanceCache = new WeakMap<CampusModel, Instance[]>();
+function campusInstance(c: CampusModel, model: unknown): Instance[] {
+  let data = instanceCache.get(c);
+  if (!data) {
+    instanceCache.set(c, (data = [{ position: [c.origin[0], c.origin[1], 0] }]));
+    // The campus model's real extent, so a campus that's off-screen (Fenway and Medical from the
+    // Charles River views) skips its ~20 draws a frame. Model frame: +x east, +y up, +z south.
+    const extent = gltfExtent(model);
+    if (extent) {
+      const pad = 5;
+      const kx = 111_320 * Math.cos((c.origin[1] * Math.PI) / 180);
+      const ky = 110_540;
+      setCullBox(`building-models-${c.id}`, [
+        c.origin[0] + (extent.min[0] - pad) / kx,
+        c.origin[1] - (extent.max[2] + pad) / ky,
+        extent.min[1] - pad,
+        c.origin[0] + (extent.max[0] + pad) / kx,
+        c.origin[1] - (extent.min[2] - pad) / ky,
+        extent.max[1] + pad,
+      ]);
+    }
+  }
+  return data;
+}
+
 export function buildingModelLayers(
   manifest: BuildingModelManifest,
   models: BuildingModels,
@@ -96,7 +124,7 @@ export function buildingModelLayers(
       (c) =>
         new ScenegraphLayer<Instance>({
           id: `building-models-${c.id}`,
-          data: [{ position: [c.origin[0], c.origin[1], 0] }],
+          data: campusInstance(c, models[c.id]),
           scenegraph: models[c.id] as never,
           getPosition: (d) => d.position,
           // glTF is y-up; roll 90 stands it on the map: +x east, +y up, -z north.

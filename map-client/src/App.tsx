@@ -5,11 +5,12 @@ import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPr
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, crowdLevel } from './layers/crowd';
 import { createPlacer } from './layers/placement';
+import { cullLayers } from './layers/culling';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
-import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
+import { Playback, formatClock, loadDay, type BuildingOccupancy, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
@@ -149,6 +150,8 @@ export default function App() {
       overlay = new MapboxOverlay({
         interleaved: new URLSearchParams(window.location.search).get('interleaved') !== '0',
         _animate: true, // keeps the walk cycles ticking between data updates
+        // Skips drawing models that are wholly off-screen (see layers/culling.ts).
+        layerFilter: cullLayers,
         // Building footprints and labels both carry the building id; anything else clears.
         onClick: ({ object }: PickingInfo) => {
           const isBuilding = object && ('polygon' in object || 'share' in object);
@@ -175,6 +178,9 @@ export default function App() {
       let last = performance.now();
       let lastOccupancy = 0;
       let occupancy = playback.occupancyAt(timeRef.current);
+      // Rolled up per building only when occupancy is refreshed (not every frame), and kept as the
+      // same array while nothing changed, so the crowd layers don't re-upload their attributes.
+      let buildings = playback.byBuilding(occupancy);
       const tick = (now: number) => {
         const dt = Math.min(now - last, 100) / 1000;
         last = now;
@@ -188,6 +194,8 @@ export default function App() {
         const walking = playback.walkingAt(t);
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
           occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
+          const next = playback.byBuilding(occupancy);
+          if (!sameBuildings(next, buildings)) buildings = next;
           lastOccupancy = now;
           setHud({ time: t, walking: walking.length, occupancy });
         }
@@ -202,7 +210,7 @@ export default function App() {
             // Buildings with detailed models skip the old extruded crowd box: it cut through
             // their real shape (CDS's offset blocks) and flickered on zoom. Their tags remain.
             footprints: plainFootprints,
-            buildings: playback.byBuilding(occupancy),
+            buildings,
             trips: day.trips,
             time: t,
             speed: speedRef.current,
@@ -537,6 +545,17 @@ export default function App() {
       )}
     </div>
   );
+}
+
+/** Same buildings, counts and shares (so the same labels and glow) as last time. */
+function sameBuildings(a: BuildingOccupancy[], b: BuildingOccupancy[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x.id !== y.id || x.count !== y.count || x.share !== y.share || x.name !== y.name || x.short !== y.short || x.position !== y.position) return false;
+  }
+  return true;
 }
 
 /** One line on how the weather changes campus routines (plan Section 5.6), and what the map adjusts for it. */

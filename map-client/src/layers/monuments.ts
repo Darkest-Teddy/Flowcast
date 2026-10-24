@@ -11,6 +11,7 @@ import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color } from '@deck.gl/core';
 import { labelWidth, type LabelPlacer } from './placement';
+import { boxAround, gltfExtent, setCullBox } from './culling';
 
 export interface Monument {
   id: string;
@@ -80,18 +81,56 @@ function labelPosition(m: Monument): [number, number, number] {
   return [m.position[0], m.position[1], (m.altitude ?? 0) + (m.height ?? 0) + 1];
 }
 
-export function monumentLayers({ monuments, models }: MonumentData, { zoom, placer, lightPreset = 'dusk' }: MonumentLayerOptions) {
-  const tint = LIGHT_TINT[lightPreset];
+// Per-frame layer rebuilds must hand deck.gl the same arrays while nothing changed: a new `data`
+// array makes it regenerate and re-upload every attribute (for every primitive of every model).
+interface MonumentGroups {
+  byModel: [string, Monument[]][];
+  areas: Monument[];
+  artworks: Monument[];
+  sorted: Monument[]; // label candidates, most important kind first
+  labelled: Monument[];
+  liftKey: string;
+}
+const groupCache = new WeakMap<MonumentData, MonumentGroups>();
+const NO_MONUMENTS: Monument[] = [];
+
+function monumentGroups(data: MonumentData): MonumentGroups {
+  let groups = groupCache.get(data);
+  if (groups) return groups;
+  const { monuments, models } = data;
   const byModel = new Map<string, Monument[]>();
   for (const m of monuments) if (m.model && models[m.model]) byModel.set(m.model, [...(byModel.get(m.model) ?? []), m]);
-
-  const areas = monuments.filter((m) => m.kind === 'area' && m.polygon);
-  const artworks = monuments.filter((m) => m.kind === 'artwork');
   // Most important first: if labels must be dropped, the minor artworks go.
   const order: Monument['kind'][] = ['landmark', 'monument', 'area', 'artwork'];
-  const candidates = monuments
-    .filter((m) => zoom >= LABEL_MIN_ZOOM[m.kind])
-    .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+  groups = {
+    byModel: [...byModel],
+    areas: monuments.filter((m) => m.kind === 'area' && m.polygon),
+    artworks: monuments.filter((m) => m.kind === 'artwork'),
+    sorted: [...monuments].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind)),
+    labelled: NO_MONUMENTS,
+    liftKey: '',
+  };
+  // Each model layer gets its real extent (turned any way), so an off-screen statue skips its draws.
+  for (const [url, list] of groups.byModel) {
+    const extent = gltfExtent(models[url]);
+    if (!extent) continue;
+    const radius = Math.hypot(Math.max(-extent.min[0], extent.max[0]), Math.max(-extent.min[2], extent.max[2])) + 2;
+    const altitudes = list.map((m) => m.altitude ?? 0);
+    const base = Math.min(...altitudes) + Math.min(0, extent.min[1]) - 2;
+    const top = Math.max(...altitudes) + extent.max[1] + 2;
+    setCullBox(`monument-${list[0].id}`, boxAround(list.map((m) => m.position), radius, top - base, base));
+  }
+  groupCache.set(data, groups);
+  return groups;
+}
+
+export function monumentLayers(data: MonumentData, { zoom, placer, lightPreset = 'dusk' }: MonumentLayerOptions) {
+  const { models } = data;
+  const tint = LIGHT_TINT[lightPreset];
+  const groups = monumentGroups(data);
+  const { byModel, areas, artworks } = groups;
+  // (Array.sort is stable, so filtering the pre-sorted list gives the same order as before.)
+  const candidates = groups.sorted.filter((m) => zoom >= LABEL_MIN_ZOOM[m.kind]);
   // Areas label their middle; everything else sits above its anchor.
   const lifts = placer.place(candidates, {
     position: (m) => m.position,
@@ -101,8 +140,13 @@ export function monumentLayers({ monuments, models }: MonumentData, { zoom, plac
     gap: 4,
     maxLift: 3,
   });
-  const labelled = candidates.filter((m) => lifts.has(m));
-  const liftKey = labelled.map((m) => `${m.id}:${lifts.get(m)}`).join();
+  const liftKey = candidates.filter((m) => lifts.has(m)).map((m) => `${m.id}:${lifts.get(m)}`).join();
+  // Same labels in the same places as last frame: keep the same array, so nothing re-uploads.
+  if (liftKey !== groups.liftKey) {
+    groups.liftKey = liftKey;
+    groups.labelled = candidates.filter((m) => lifts.has(m));
+  }
+  const labelled = groups.labelled;
 
   return [
     new PolygonLayer<Monument>({
@@ -119,7 +163,7 @@ export function monumentLayers({ monuments, models }: MonumentData, { zoom, plac
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
-    ...[...byModel].map(
+    ...byModel.map(
       ([url, data]) =>
         new ScenegraphLayer<Monument>({
           id: `monument-${data[0].id}`,
@@ -141,7 +185,7 @@ export function monumentLayers({ monuments, models }: MonumentData, { zoom, plac
     // A small bronze dot marks artworks we label but don't model.
     new ScatterplotLayer<Monument>({
       id: 'monument-artwork-dots',
-      data: zoom >= LABEL_MIN_ZOOM.artwork - 0.8 ? artworks : [],
+      data: zoom >= LABEL_MIN_ZOOM.artwork - 0.8 ? artworks : NO_MONUMENTS,
       getPosition: (m) => m.position,
       getRadius: 0.9,
       radiusMinPixels: 3,
