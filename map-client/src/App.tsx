@@ -22,6 +22,9 @@ import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
+import { BikeReplay, BluebikesFeed, activityCurve, formatDate, loadBikes, type BikeData, type BikeTrip } from './bikes/bluebikes';
+import { bikeLayers, bikeTooltip } from './layers/bikes';
+import { ActivityChart } from './ActivityChart';
 
 const SPEEDS = [1, 30, 120, 600];
 const params = new URLSearchParams(window.location.search);
@@ -53,6 +56,8 @@ interface Hud {
   time: number;
   walking: number;
   occupancy: Occupancy[];
+  /** Bluebikes riders on the map, by the campus of the BU dock they left or are heading to. */
+  riding: Map<string, number>;
 }
 
 interface Transit {
@@ -60,6 +65,13 @@ interface Transit {
   feed: MbtaFeed; // live MBTA + BU feeds (Live mode)
   schedule: ScheduledTransit; // scheduled service on the sim clock (playback / fast-forward)
   models: VehicleModels;
+}
+
+interface Bikes {
+  data: BikeData;
+  replay: BikeReplay;
+  feed: BluebikesFeed;
+  campusOf: (trip: BikeTrip) => string;
 }
 
 export default function App() {
@@ -73,6 +85,8 @@ export default function App() {
   const transitRef = useRef<Transit | null>(null);
   const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
   const showTransitRef = useRef(true);
+  const bikesRef = useRef<Bikes | null>(null);
+  const showBikesRef = useRef(true);
 
   const [status, setStatus] = useState('Loading campus…');
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
@@ -84,7 +98,7 @@ export default function App() {
   const [light, setLight] = useState<LightPreset>('dusk');
   const lightRef = useRef<LightPreset>('dusk'); // read by the frame loop (building model tint)
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'crowds' | 'data' | 'transit'>('crowds');
+  const [tab, setTab] = useState<'crowds' | 'data' | 'transit' | 'bikes'>('crowds');
   const [weekday, setWeekday] = useState(2);
   const [sourceData, setSourceData] = useState<CampusData | null>(null);
   const [sourceError, setSourceError] = useState('');
@@ -98,6 +112,9 @@ export default function App() {
   const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
   const [weather, setWeather] = useState<ActiveWeather | null>(null);
   const weatherRef = useRef<ActiveWeather | null>(null); // read by the frame loop (occupancy nudge)
+  const [showBikes, setShowBikes] = useState(true);
+  const [bikeFeedError, setBikeFeedError] = useState<string | null>(null);
+  const [bikeFeedUpdatedAt, setBikeFeedUpdatedAt] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,11 +128,11 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
-        // Transit is an extra: the campus view must still start if it can't load.
+        // Transit and bikes are extras: the campus view must still start if they can't load.
         loadTransit('/data/transit.json').catch(() => null),
         loadVehicleModels().catch(() => ({})),
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
@@ -123,6 +140,7 @@ export default function App() {
         loadStreet().catch(() => null),
         loadCampusData().catch(() => { setSourceError("Could not load campus data. Showing the demo."); return null; }),
         loadMonuments().catch(() => null),
+        loadBikes('/data/bikes.json').catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -155,6 +173,18 @@ export default function App() {
         basemap.clipModels(trackCorridors(feed.tracks.filter((t) => t.route.startsWith('Green-')), 3.2));
       }
 
+      if (bikeData) {
+        const feed = new BluebikesFeed(bikeData.stations, (state) => {
+          setBikeFeedError(state.error);
+          setBikeFeedUpdatedAt(state.updatedAt);
+        });
+        feed.start();
+        const dockCampus = new Map(bikeData.stations.map((s) => [s.id, s.campus]));
+        // Every replayed ride has at least one BU dock; it belongs to that dock's campus.
+        const campusOf = (trip: BikeTrip) => dockCampus.get(trip.from ?? '') ?? dockCampus.get(trip.to ?? '') ?? 'charles-river';
+        bikesRef.current = { data: bikeData, replay: new BikeReplay(bikeData), feed, campusOf };
+      }
+
       baseDayRef.current = day;
       setSourceData(snapshot);
       const playback = new Playback(snapshot ? buildSourceDay(day, snapshot, 2) : day);
@@ -174,6 +204,9 @@ export default function App() {
           if (id) setTab("data");
         },
         getTooltip: ({ object }: PickingInfo) => {
+          const bikes = bikesRef.current;
+          const bikeText = bikes ? bikeTooltip(object, bikes.data, bikes.feed, timeRef.current) : null;
+          if (bikeText) return bikeText;
           const transit = transitRef.current;
           const streetText = streetTooltip(object, transit);
           if (streetText) return streetText;
@@ -186,7 +219,7 @@ export default function App() {
       });
       basemap.addControl(overlay);
       // Dev-only handle for poking at layers from the browser console.
-      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, transitRef } });
+      if (import.meta.env.DEV) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, transitRef, bikesRef } });
       setStatus('');
 
       let last = performance.now();
@@ -204,14 +237,19 @@ export default function App() {
         }
         const t = timeRef.current;
         const walking = playback.walkingAt(t);
+        const bikes = bikesRef.current;
+        const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
           occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
           lastOccupancy = now;
-          setHud({ time: t, walking: walking.length, occupancy });
+          const ridingByCampus = new Map<string, number>();
+          for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
+          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus });
         }
         // One placer per frame, shared by every label layer: building labels first, then stations.
         const placer = createPlacer(basemap.project);
         const transit = transitRef.current;
+        const showBikesNow = bikes && showBikesRef.current;
         const frameLayers = [
           ...(detailedBuildings
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current })
@@ -230,6 +268,9 @@ export default function App() {
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), placer, lightPreset: lightRef.current }) : []),
+          ...(showBikesNow
+            ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom() })
+            : []),
           ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
         ];
         overlay!.setProps({ layers: frameLayers });
@@ -248,6 +289,8 @@ export default function App() {
       cancelAnimationFrame(frame);
       transitRef.current?.feed.stop();
       transitRef.current = null;
+      bikesRef.current?.feed.stop();
+      bikesRef.current = null;
       basemapRef.current?.remove();
       basemapRef.current = null;
       mapElement.remove();
@@ -277,6 +320,11 @@ export default function App() {
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
     setShowTransit(showTransitRef.current);
+  };
+
+  const toggleBikes = () => {
+    showBikesRef.current = !showBikesRef.current;
+    setShowBikes(showBikesRef.current);
   };
 
   const leaveLive = () => {
@@ -315,7 +363,7 @@ export default function App() {
     if (!baseDayRef.current || !sourceData) return;
     playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value));
     setWeekday(value);
-    setHud({ time: timeRef.current, walking: playbackRef.current.walkingAt(timeRef.current).length, occupancy: playbackRef.current.occupancyAt(timeRef.current) });
+    setHud({ riding: hud?.riding ?? new Map(), time: timeRef.current, walking: playbackRef.current.walkingAt(timeRef.current).length, occupancy: playbackRef.current.occupancyAt(timeRef.current) });
   };
   const selectSource = (location: CampusLocation) => {
     setCampus(location.campus ?? 'charles-river');
@@ -334,6 +382,9 @@ export default function App() {
   const source: TransitSource | null = transit ? (live ? transit.feed : transit.schedule) : null;
   const busArrivals = transit && source ? nextBuses(transit.data, source, campus) : [];
   const shuttleArrivals = transit && source ? nextBuses(transit.data, source, campus, 'shuttle') : [];
+  const bikes = bikesRef.current;
+  const docks = bikes?.data.stations.filter((s) => s.campus === campus) ?? [];
+  const ridingHere = hud?.riding.get(campus) ?? 0;
 
   return (
     <div className="app">
@@ -343,6 +394,7 @@ export default function App() {
         <h1>Flowcast</h1>
         <p>
           {currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]} {hud ? `· ${hud.walking} walking` : ''}
+          {bikes && showBikes && hud ? ` · ${ridingHere} on Bluebikes` : ''}
         </p>
         <p className="model-note">{sourceData ? 'Campus simulation · Fall 2026' : 'Campus simulation · Demo'}</p>
         {sourceData && <p className="model-note">{dateForWeekday(sourceData, weekday)} · Boston time</p>}
@@ -375,6 +427,11 @@ export default function App() {
             <button role="tab" id="tab-transit" aria-selected={tab === 'transit'} aria-controls="panel-transit" onClick={() => setTab('transit')}>
               Transit &amp; traffic
             </button>
+            {bikes && (
+              <button role="tab" id="tab-bikes" aria-selected={tab === 'bikes'} aria-controls="panel-bikes" onClick={() => setTab('bikes')}>
+                Bikes
+              </button>
+            )}
           </div>
           {tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
@@ -406,6 +463,71 @@ export default function App() {
           ) : tab === 'data' ? (
             <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
               {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
+            </section>
+          ) : tab === 'bikes' && bikes ? (
+            <section id="panel-bikes" role="tabpanel" aria-labelledby="tab-bikes">
+              <div className="toggles" role="group" aria-label="Map layers">
+                <button onClick={toggleBikes} aria-pressed={showBikes}>
+                  Bluebikes
+                </button>
+              </div>
+              <h2>
+                Real Bluebikes rides <span className="muted">· {formatDate(bikes.data.replayDate)}</span>
+              </h2>
+              <p className="bike-summary">
+                <strong>{ridingHere}</strong> riding to or from {currentCampus?.name.replace(' Campus', '') ?? 'BU'} docks now ·{' '}
+                {bikes.replay.trips.filter((t) => bikes.campusOf(t) === campus).length.toLocaleString()} rides that day
+              </p>
+              {docks.length > 0 && (
+                <>
+                  <h3>Typical {bikes.data.weekday} at these docks</h3>
+                  <ActivityChart
+                    values={activityCurve(docks, bikes.data.binSeconds)}
+                    binSeconds={bikes.data.binSeconds}
+                    time={hud.time}
+                    unit="rides/h"
+                    label={`Rides docked and undocked per hour at ${currentCampus?.name ?? 'BU'} Bluebikes docks on a typical ${bikes.data.weekday}`}
+                  />
+                  <p className="muted">
+                    Docked + undocked per hour, averaged over {bikes.data.profileDates.length} {bikes.data.weekday}s in{' '}
+                    {new Date(`${bikes.data.month}-15T12:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' })}
+                  </p>
+                  <h3>
+                    Live docks{' '}
+                    <span className="muted">
+                      {bikeFeedError ??
+                        (bikeFeedUpdatedAt ? `· updated ${new Date(bikeFeedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
+                    </span>
+                  </h3>
+                  <table className="arrivals">
+                    <thead>
+                      <tr>
+                        <th scope="col">Dock</th>
+                        <th scope="col">Bikes</th>
+                        <th scope="col">E-bikes</th>
+                        <th scope="col">Empty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {docks.map((s) => {
+                        const live = bikes.feed.status(s);
+                        return (
+                          <tr key={s.id}>
+                            <th scope="row">{s.short}</th>
+                            <td>{live ? live.bikes : '—'}</td>
+                            <td>{live ? live.ebikes : '—'}</td>
+                            <td>{live ? live.docks : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </>
+              )}
+              <p className="muted source">
+                Bluebikes System Data and live feed. Docks within {bikes.data.stationRadiusMetres} m of a BU building. Ride times at BU docks are real;
+                street routes are inferred.
+              </p>
             </section>
           ) : (
             <section id="panel-transit" role="tabpanel" aria-labelledby="tab-transit">
