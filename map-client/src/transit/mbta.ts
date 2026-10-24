@@ -22,20 +22,28 @@ export interface TransitRoute {
   paths: [number, number][][];
 }
 
+export interface TransitArea {
+  id: string; // campus id, as in data-pipeline/campuses/*.json
+  name: string;
+  bbox: [number, number, number, number]; // west, south, east, north
+  routes: string[];
+}
+
 export interface TransitStop {
   id: string;
   name: string;
   short: string;
   kind: 'station' | 'bus';
+  area: string;
   position: [number, number];
   platforms: string[]; // the stop/platform ids predictions may name
   routes: string[];
 }
 
 export interface TransitData {
+  areas: TransitArea[];
   routes: TransitRoute[];
   stops: TransitStop[];
-  bbox: [number, number, number, number]; // west, south, east, north
 }
 
 export interface Vehicle {
@@ -136,6 +144,15 @@ export class MbtaFeed {
     return [...best.values()].sort((a, b) => a.route.localeCompare(b.route) || a.direction - b.direction);
   }
 
+  /** Soonest arrival each way at a stop, whichever route (Kenmore has B, C and D trains). */
+  nextEachWay(stopId: string, now = Date.now()): Partial<Record<0 | 1, Arrival>> {
+    const out: Partial<Record<0 | 1, Arrival>> = {};
+    for (const a of this.nextArrivals(stopId, now)) {
+      if (!out[a.direction] || a.time < out[a.direction]!.time) out[a.direction] = a;
+    }
+    return out;
+  }
+
   private loop(poll: () => Promise<void>, interval: number) {
     let delay = interval;
     const run = async () => {
@@ -160,15 +177,16 @@ export class MbtaFeed {
       'filter[route]': this.routeIds,
       'fields[vehicle]': 'latitude,longitude,bearing,current_status,direction_id,label',
     });
-    const [west, south, east, north] = this.data.bbox;
     const margin = 0.01;
+    const nearCampus = ([lng, lat]: [number, number]) =>
+      this.data.areas.some(({ bbox: [west, south, east, north] }) => lng >= west - margin && lng <= east + margin && lat >= south - margin && lat <= north + margin);
     const previous = new Map(this.state.vehicles.map((v) => [v.id, v]));
     const now = performance.now();
     this.state.vehicles = (json.data as ApiResource[])
       .map((r): Vehicle | null => {
         const a = r.attributes as { latitude: number; longitude: number; bearing: number; current_status: string; direction_id: 0 | 1; label: string };
         const to: [number, number] = [a.longitude, a.latitude];
-        if (to[0] < west - margin || to[0] > east + margin || to[1] < south - margin || to[1] > north + margin) return null;
+        if (!nearCampus(to)) return null;
         const prev = previous.get(r.id);
         return {
           id: r.id,

@@ -51,9 +51,16 @@ export function transitLayers({ data, feed, now, zoom, placer }: TransitLayerInp
 
   const stations = data.stops.filter((s) => s.kind === 'station');
   const labelText = (s: TransitStop) => {
-    const arrivals = feed.nextArrivals(s.id);
-    if (!arrivals.length) return `${s.short}\nNo predictions`;
-    return `${s.short}\n${arrivals.map((a) => `${routes.get(a.route)!.directions[a.direction]} ${minutesUntil(a.time)}`).join(' · ')}`;
+    const next = feed.nextEachWay(s.id);
+    const parts = ([1, 0] as const).flatMap((dir) => {
+      const a = next[dir];
+      if (!a) return [];
+      const route = routes.get(a.route)!;
+      // Name the branch where more than one stops here (Kenmore: B, C, D).
+      const branch = s.routes.length > 1 ? `${route.name} ` : '';
+      return [`${route.directions[dir]} ${branch}${minutesUntil(a.time)}`];
+    });
+    return `${s.short}\n${parts.length ? parts.join(' · ') : 'No predictions'}`;
   };
   const texts = new Map(stations.map((s) => [s, labelText(s)]));
   const lifts = placer.place(stations, {
