@@ -54,6 +54,7 @@ HTML overlay (BuildingTags.tsx) ─────────  "CDS · 87% · Pack
 | `src/layers/crowd.ts` | Building glow and trails, plus the shared Quiet/Moderate/Busy/Packed scale (`crowdLevel`, `crowdLevelStyle`) |
 | `src/BuildingTags.tsx` | The HTML building tags over the map; clicking one selects the building |
 | `src/sim/playback.ts` | Where everyone is at time *t* and how full each place is. The server takes this over later (plan Section 8.1) |
+| `src/sim/riders.ts`, `src/layers/riders.ts` | People at Green Line stations and bus / shuttle stops: queues that grow with the time of day, boarding when a train or bus (live, or scheduled when playing back) stops, and riders getting off and walking to buildings along `stopRoutes`. Walking riders share the students' walk layers; people waiting get 12 idle layers |
 | `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
 | `src/App.tsx` | The frame loop, dashboard panel and timeline |
 
@@ -103,7 +104,10 @@ The **Bikes** tab and the blue riders are the only *measured* movement on the ma
   // Each walk route once; a trip names its route by "from>to". The map rebuilds
   // timestamps = depart + metres / speed (seconds since midnight, one per point).
   "walkRoutes": { "warren>cds": { "path": [[lng, lat], …], "cumulative": [0, 12.4, …] } },
-  "trips":     [{ "agent": "a0000", "from": "warren", "to": "cds", "depart": 32400.0, "speed": 1.31 }]
+  "trips":     [{ "agent": "a0000", "from": "warren", "to": "cds", "depart": 32400.0, "speed": 1.31 }],
+  // Riders: from each Green Line station / bus / BU Shuttle stop near a campus to its 8 nearest
+  // locations (within 1.2 km), same form as walkRoutes; path[0] is the stop itself.
+  "stopRoutes": { "place-bucen>cas": { "path": [[lng, lat], …], "cumulative": [0, 9.8, …] } }
 }
 ```
 

@@ -65,6 +65,13 @@ export interface DayData {
   agents: Agent[];
   trips: Trip[];
   walkRoutes?: Record<string, { path: [number, number][]; cumulative: number[] }>;
+  /** Walks from transit stops to nearby locations, keyed "stopId>locationId" (see sim/riders.ts). */
+  stopRoutes?: Record<string, WalkRoute>;
+}
+
+export interface WalkRoute {
+  path: [number, number][];
+  cumulative: number[]; // metres from the start, one per point
 }
 
 export interface WalkingAgent {
@@ -83,7 +90,7 @@ export interface Occupancy {
 
 /** The file on disk: each walk route stored once, trips as who/where/when/how fast. */
 interface DayFile extends Omit<DayData, 'trips'> {
-  walkRoutes: Record<string, { path: [number, number][]; cumulative: number[] }>;
+  walkRoutes: Record<string, WalkRoute>;
   trips: { agent: string; from: string; to: string; depart: number; speed: number }[];
 }
 
