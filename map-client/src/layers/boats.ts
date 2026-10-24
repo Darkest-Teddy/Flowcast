@@ -6,7 +6,8 @@
 // rotates it about its own fore-and-aft axis, which is exactly heel (positive pitch lifts the
 // starboard side, leaning the mast to port). The models are drawn with the sails out to port;
 // getScale x = -1 mirrors them for the other tack.
-import { ScenegraphLayer } from '@deck.gl/mesh-layers';
+import { MaterialScenegraphLayer as ScenegraphLayer } from './material-scenegraph';
+import { mergeMaterialPrimitives } from './gltf-materials';
 import { TripsLayer } from '@deck.gl/geo-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
@@ -31,7 +32,7 @@ export async function loadBoats(url = '/data/river.json'): Promise<Boats> {
     return r.json() as Promise<RiverData>;
   });
   const entries = await Promise.all(
-    Array.from({ length: BOAT_VARIANTS }, (_, v) => TRIMS.map(async (trim) => [`${v}-${trim}`, await load(modelUrl(v, trim), GLTFLoader)] as const)).flat(),
+    Array.from({ length: BOAT_VARIANTS }, (_, v) => TRIMS.map(async (trim) => [`${v}-${trim}`, mergeMaterialPrimitives(await load(modelUrl(v, trim), GLTFLoader), { materialAttributes: true })] as const)).flat(),
   );
   return { fleet: new Fleet(river), models: Object.fromEntries(entries) };
 }

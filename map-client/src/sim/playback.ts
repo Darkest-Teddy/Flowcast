@@ -1,6 +1,7 @@
 // Turns a day of precomputed trips into "where is everyone at time t".
 // The server will eventually own this (plan Section 8.1); until then the client
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
+import { createOccupancyIndex, type OccupancyIndex } from './occupancyIndex';
 
 export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'off-campus';
 
@@ -170,6 +171,7 @@ export class Playback {
   private readonly agents = new Map<string, Agent>();
   private readonly tripsByAgent = new Map<string, Trip[]>();
   private readonly staysByAgent = new Map<string, Stay[]>();
+  private readonly stayOccupancy: OccupancyIndex | null;
   private readonly walkingBuckets = new Map<number, Trip[]>();
   private trailWindow: { first: number; last: number; trips: Trip[] } | null = null;
 
@@ -183,6 +185,7 @@ export class Playback {
       }
     }
     this.data = data;
+    this.stayOccupancy = data.stays ? createOccupancyIndex(data.stays) : null;
     this.locations = data.locations;
     for (const agent of data.agents) {
       if (this.agents.has(agent.id)) throw new Error(`Duplicate student: ${agent.id}`);
@@ -303,11 +306,13 @@ export class Playback {
 
   /** Head count per location at time t: each agent is at its last destination, or home before its first trip. */
   occupancyAt(t: number): Occupancy[] {
-    const counts = new Map<string, number>();
+    const counts = this.stayOccupancy?.countsAt(t) ?? new Map<string, number>();
     if (this.data.stays) {
-      for (const stays of this.staysByAgent.values()) {
-        const stay = stays.find((entry) => entry.start <= t && t < entry.end);
-        if (stay && stay.location !== 'off-campus') counts.set(stay.location, (counts.get(stay.location) ?? 0) + 1);
+      if (!this.stayOccupancy) {
+        for (const stays of this.staysByAgent.values()) {
+          const stay = stays.find((entry) => entry.start <= t && t < entry.end);
+          if (stay && stay.location !== 'off-campus') counts.set(stay.location, (counts.get(stay.location) ?? 0) + 1);
+        }
       }
       return this.locations.filter((location) => location.kind !== 'off-campus').map((location) => {
         const count = counts.get(location.id) ?? 0;

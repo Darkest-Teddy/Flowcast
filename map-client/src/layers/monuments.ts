@@ -6,7 +6,8 @@
 // `source`). Models: scripts/make_monument_models.py (metres, +Y up, front +Z), turned to face each
 // entry's compass bearing the same way agents.ts turns the walkers.
 import { PolygonLayer, ScatterplotLayer } from '@deck.gl/layers';
-import { ScenegraphLayer } from '@deck.gl/mesh-layers';
+import { MaterialScenegraphLayer as ScenegraphLayer } from './material-scenegraph';
+import { mergeMaterialPrimitives } from './gltf-materials';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color } from '@deck.gl/core';
@@ -47,7 +48,7 @@ export async function loadMonuments(url = '/data/monuments.json'): Promise<Monum
   const monuments: Monument[] = await res.json();
   const urls = [...new Set(monuments.flatMap((m) => (m.model ? [m.model] : [])))];
   const [loaded, citgoLights] = await Promise.all([
-    Promise.all(urls.map(async (u) => [u, await load(u, GLTFLoader).catch(() => null)] as const)),
+    Promise.all(urls.map(async (u) => [u, await load(u, GLTFLoader).then((model) => mergeMaterialPrimitives(model, { materialAttributes: true })).catch(() => null)] as const)),
     fetch('/data/citgo-lights.json').then((r) => (r.ok ? (r.json() as Promise<CitgoLights>) : null)).catch(() => null),
   ]);
   return { monuments, models: Object.fromEntries(loaded.filter(([, m]) => m)), citgoLights };
