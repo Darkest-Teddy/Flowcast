@@ -9,7 +9,8 @@
 // scripts/make_field_models.py. Each field's props are ONE merged GLB in the field's own frame
 // (origin at `anchor`, +Z along `bearing`), so a field costs one ScenegraphLayer.
 import { PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer, _MultiIconLayer as MultiIconLayer } from '@deck.gl/layers';
-import { ScenegraphLayer } from '@deck.gl/mesh-layers';
+import { MaterialScenegraphLayer as ScenegraphLayer } from './material-scenegraph';
+import { mergeMaterialPrimitives } from './gltf-materials';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color, Layer } from '@deck.gl/core';
@@ -102,7 +103,7 @@ export async function loadFields(url = '/data/fields.json', buildingsUrl = '/dat
     }
   }
   const urls = [...new Set(fields.flatMap((f) => [f.props, ...f.towers.flatMap((t) => [t.model, t.litModel])]))];
-  const loaded = await Promise.all(urls.map(async (u) => [u, await load(u, GLTFLoader).catch(() => null)] as const));
+  const loaded = await Promise.all(urls.map(async (u) => [u, await load(u, GLTFLoader).then((model) => mergeMaterialPrimitives(model, { materialAttributes: true })).catch(() => null)] as const));
   return { fields, models: Object.fromEntries(loaded.filter(([, m]) => m)) };
 }
 

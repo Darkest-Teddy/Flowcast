@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { Playback, occupancyShare } from '../src/sim/playback.ts';
+import { registerHooks } from 'node:module';
+registerHooks({ resolve(specifier, context, nextResolve) {
+  try { return nextResolve(specifier, context); }
+  catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
+} });
+const { Playback, occupancyShare } = await import('../src/sim/playback.ts');
 import { advanceTime } from '../src/sim/clock.ts';
 
 test('clock preserves elapsed time across slow frames and midnight', () => {
@@ -45,6 +50,18 @@ test('off-map stays are excluded from building occupancy without losing populati
   const location = {id:'home',name:'Home',short:'Home',kind:'dorm',position:[-71,42],capacity:1,building:'h'};
   const playback = new Playback({ day:'Monday',buildings:[],locations:[location],agents:[{id:'a',home:'home',model:0},{id:'b',home:'off-campus',model:0}],trips:[],stays:[{agent:'a',location:'home',start:0,end:86400},{agent:'b',location:'off-campus',start:0,end:86400}] });
   assert.deepEqual(playback.populationAt(36000), {total:2,indoors:1,walking:0,offCampus:1});
+});
+
+test('overlapping stays retain first-match occupancy semantics', () => {
+  const location = id => ({id,name:id,short:id,kind:'dorm',position:[-71,42],capacity:10,building:id});
+  const playback = new Playback({day:'Monday',buildings:[],locations:[location('a'),location('b')],
+    agents:[{id:'student',home:'a',model:0}],trips:[],stays:[
+      {agent:'student',location:'a',start:0,end:20},
+      {agent:'student',location:'b',start:10,end:30},
+    ]});
+  for (const [time, expected] of [[15,[1,0]],[20,[0,1]],[30,[0,0]],[0,[1,0]]]) {
+    assert.deepEqual(playback.occupancyAt(time).map(o => o.count), expected);
+  }
 });
 
 test('shared footprint label and percentage refer to the same busiest modeled space', () => {
