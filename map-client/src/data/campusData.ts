@@ -25,10 +25,22 @@ export interface SourceMeeting {
 
 export interface OpeningHours {
   date: string | null;
+  weekday?: number; // Monday = 0; absent on unverified undated snapshots
+  validFrom?: string;
+  validTo?: string;
   windows: [number, number][]; // local seconds; overnight closing may exceed 86400
   text: string;
   sourceUrl: string;
   qualifier: string | null;
+  serviceSourceUrls?: string[];
+}
+
+export function openingHoursForDate(hours: OpeningHours[], date: string, weekday: number): OpeningHours[] {
+  const exact = hours.filter(entry => entry.date === date);
+  if (exact.length) return exact;
+  return hours.filter(entry => entry.date === null && entry.weekday === weekday
+    && (!entry.validFrom || date >= entry.validFrom)
+    && (!entry.validTo || date <= entry.validTo));
 }
 
 export interface SourceLocation {
@@ -37,6 +49,8 @@ export interface SourceLocation {
   meetings: SourceMeeting[];
   evidence: Evidence[];
   hours: OpeningHours[];
+  hoursStatus?: 'published' | 'unknown' | 'restricted';
+  hoursReason?: string;
 }
 
 export interface SourceEvent {

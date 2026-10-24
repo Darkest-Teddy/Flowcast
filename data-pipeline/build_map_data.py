@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_INPUT = ROOT / "data-pipeline" / "output"
 DEFAULT_MAP = ROOT / "map-client" / "public" / "data" / "demo-day.json"
 DEFAULT_OUTPUT = ROOT / "map-client" / "public" / "data" / "campus-data.json"
-DATASETS = ("catalog", "events", "dining", "housing", "libraries", "signals")
+DATASETS = ("catalog", "events", "dining", "housing", "libraries", "signals", "opening_hours", "residential_availability")
 
 # These aliases refer to existing mapped buildings, never inferred nearby coordinates.
 BUILDING_ALIASES = {
@@ -214,6 +214,38 @@ def build_bundle(datasets, day, input_files=None):
         if target in locations:
             locations[target]["hours"].append({"date": record["date"], "windows": hour_windows(record["hoursText"]),
                 "text": record["hoursText"], "sourceUrl": source_url(record), "qualifier": None})
+    for record in datasets.get("opening_hours", {}).get("locations", []):
+        target = record["locationId"]
+        if target not in locations:
+            raise ValueError(f"Opening hours reference unknown map location: {target}")
+        audited = []
+        for hours in record.get("hours", []):
+            date, weekday = hours.get("date"), hours.get("weekday")
+            if date is None and (type(weekday) is not int or not 0 <= weekday <= 6):
+                raise ValueError(f"Opening hours have neither a date nor a weekday: {target}")
+            for key in ("date", "validFrom", "validTo"):
+                if hours.get(key):
+                    datetime.strptime(hours[key], "%Y-%m-%d")
+            if hours.get("validFrom") and hours.get("validTo") and hours["validFrom"] > hours["validTo"]:
+                raise ValueError(f"Reversed opening-hour validity: {target}")
+            for window in hours["windows"]:
+                if len(window) != 2 or any(not isinstance(n, (int, float)) or not math.isfinite(n) for n in window) or not 0 <= window[0] < window[1] <= 172800:
+                    raise ValueError(f"Invalid opening-hour window: {target}")
+            audited.append(hours)
+        # The audit separates general public service from desks, teams and event-only access.
+        locations[target]["hours"] = audited
+        locations[target]["hoursStatus"] = record["status"]
+        locations[target]["hoursReason"] = record.get("reason", "")
+    for record in datasets.get("residential_availability", {}).get("records", []):
+        if record["locationId"] not in locations:
+            raise ValueError("Residential availability references an unknown location")
+        locations[record["locationId"]]["evidence"].append({
+            "id": f"available:{record['locationId']}:{record['validFrom']}",
+            "label": f"Verified beds: {record.get('displayName', record['locationId'])}",
+            "value": record["value"], "unit": "bed-spaces", "basis": "dated_availability",
+            "publishedAt": record.get("sourcePublishedDate"), "sourceUrl": record["sourceUrl"],
+            "note": f"{record['validFrom']} to {record['validTo']}. {record['note']}",
+        })
     address_aliases = [(normalized_address(record["address"]), aliases[record["buildingCode"]])
                        for record in catalog.get("buildings", []) if record["buildingCode"] in aliases and record.get("address")]
     if "gsu" in locations:
@@ -275,7 +307,7 @@ def build_bundle(datasets, day, input_files=None):
             "Only explicit building aliases with existing mapped routes are joined; no nearby-building guessing.",
             "Date/session-restricted rows are retained for inspection, not expanded as ordinary weekly classes.",
             "Identical room/time candidates share a key; possible combined sections must not be counted as independent attendance.",
-            "Dining snapshots have no verified service date. Dated library hours apply only to their displayed dates.",
+            "Optional visits require audited dated or weekday service hours. Unknown hours and restricted-access venues do not generate optional visits.",
             "Registrations, residential baselines, seats, throughput and historical counts are distinct from live occupancy.",
             "Multi-day event listings are not expanded into recurring occurrences or continuous attendance.",
         ],

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { dateForWeekday, WEEKDAYS, type CampusData, type Evidence, type SourceMeeting } from './data/campusData';
+import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type Evidence, type SourceMeeting } from './data/campusData';
 import { formatClock, type CampusLocation } from './sim/playback';
 import './source-data.css';
 
@@ -74,7 +74,7 @@ export function SourceDataPanel({ data, locations, selectedBuilding, campus, wee
       if (!source) continue;
       source.buildingCodes.forEach((code) => codes.add(code));
       source.evidence.forEach((item) => evidence.set(item.id, item));
-      hours.push({ location, entries: source.hours.filter((entry) => entry.date === date || entry.date === null) });
+      hours.push({ location, entries: openingHoursForDate(source.hours, date, weekday) });
       for (const meeting of source.meetings) {
         for (const interval of meeting.intervals) {
           if (interval.weekday !== weekday) continue;
@@ -145,12 +145,15 @@ export function SourceDataPanel({ data, locations, selectedBuilding, campus, wee
               <div className="source-hours" key={`${location.id}:${entry.date}:${index}`}>
                 <strong>{location.name}</strong>
                 <span>{entry.text || 'Hours not published'}</span>
-                <span className="source-caption">{entry.date ?? 'Page snapshot'}</span>
+                <span className="source-caption">{entry.date ?? `${WEEKDAYS[entry.weekday!]} hours`}</span>
                 {entry.qualifier && <details><summary>Details</summary><p>{entry.qualifier}</p></details>}
-                <a href={entry.sourceUrl} target="_blank" rel="noreferrer">Hours source</a>
+                {(entry.serviceSourceUrls ?? [entry.sourceUrl]).map((url, sourceIndex) => <a key={url} href={url} target="_blank" rel="noreferrer">Hours source{entry.serviceSourceUrls ? ` ${sourceIndex + 1}` : ''}</a>)}
               </div>
             )))}
           </>}
+          {selection.hours.filter(({ location, entries }) => !entries.length && ['dining', 'library', 'gym'].includes(location.kind)).map(({ location }) => (
+            <p className="source-caption" key={`hours-status:${location.id}`}>{location.name}: {data.locations[location.id]?.hoursStatus === 'restricted' ? 'Event or team access; not open recreation.' : `No verified service hours for ${date}.`}</p>
+          ))}
           {selection.evidence.length === 0 && selection.rows.length === 0 && !selection.hours.some((item) => item.entries.length > 0) && <p className="source-caption">No building details available.</p>}
         </section>
       ) : (

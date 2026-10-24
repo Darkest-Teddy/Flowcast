@@ -13,11 +13,13 @@ test('published roster conserves population while only sourced beds create mappe
   assert.equal(new Set(result.agents.map(a => a.id)).size, 36977);
   assert.equal(result.agents.filter(a => a.studentLevel === 'undergraduate').length, 18289);
   assert.equal(result.agents.filter(a => a.residency === 'resident').length, 10048);
-  assert.equal(result.populationSummary.mappedResidents, 3013);
-  assert.equal(result.populationSummary.residentsOutsideMap, 7035);
+  assert.equal(result.populationSummary.mappedResidents, 3613);
+  assert.equal(result.populationSummary.residentsOutsideMap, 6435);
   const occupancy = {};
   for (const agent of result.agents) if (agent.home !== 'off-campus') occupancy[agent.home] = (occupancy[agent.home] ?? 0) + 1;
   assert.deepEqual(occupancy, population.residentialCapacities);
+  assert.equal(result.locations.find(l => l.id === 'warren').name, 'Warren Towers (Tower A)');
+  assert.equal(result.locations.find(l => l.id === 'warren').capacity, 600);
   assert.equal(result.trips.length, 0);
   assert.deepEqual(result.agents, buildPopulation(base, source, population).agents);
 });

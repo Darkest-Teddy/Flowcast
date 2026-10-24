@@ -8,6 +8,7 @@ export interface PopulationData {
   housing: { estimatedUndergraduateResidents: number };
   locationCapacities: Record<string, number>;
   residentialCapacities: Record<string, number>;
+  locationNames?: Record<string, string>;
   sources: { url: string }[];
 }
 export interface PopulationSummary {
@@ -34,7 +35,8 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
   for (const capacity of Object.values(population.residentialCapacities)) {
     if (!Number.isInteger(capacity) || capacity < 0) throw new Error('Invalid residential capacity');
   }
-  const locations = base.locations.map((location) => ({ ...location, capacity: population.locationCapacities[location.id] ?? location.capacity }));
+  const locations = base.locations.map((location) => ({ ...location, name: population.locationNames?.[location.id] ?? location.name,
+    short: population.locationNames?.[location.id] ?? location.short, capacity: population.locationCapacities[location.id] ?? location.capacity }));
   const campuses = base.campuses?.map((c) => c.id) ?? ['charles-river'];
   const weights = campuses.map((campus) => {
     const ids = new Set(locations.filter((l) => l.campus === campus).map((l) => l.id));

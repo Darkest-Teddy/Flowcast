@@ -1,6 +1,7 @@
 """Build compact runtime population and transit snapshots without network access."""
 
 import argparse
+from datetime import date, timedelta
 import json
 import math
 import os
@@ -14,22 +15,38 @@ def valid_capacity(value):
     return not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(value) and value >= 0
 
 
-def build_population(population, campuses, sources):
+def build_population(population, campuses, sources, availability=None):
     students = population["students"]
     if sum(c["headcount"] for c in students["cohorts"]) != students["total"]:
         raise ValueError("Population cohorts do not reconcile")
-    capacities, bases, residential = {}, {}, {}
+    capacities, bases, residential, names = {}, {}, {}, {}
+    dated = {}
+    if availability:
+        week_start = date.fromisoformat(sources['referenceWeekStart'])
+        week_end = week_start + timedelta(days=6)
+        for record in availability['records']:
+            if record['unit'] != 'bed-spaces' or not valid_capacity(record['value']):
+                raise ValueError('Invalid dated residential capacity')
+            if date.fromisoformat(record['validFrom']) <= week_start and week_end <= date.fromisoformat(record['validTo']):
+                if record['locationId'] in dated:
+                    raise ValueError('Overlapping residential capacity records')
+                dated[record['locationId']] = record
     for campus in campuses:
         for location in campus["locations"]:
             key = location["id"]
             records = sources["locations"].get(key, {}).get("evidence", [])
             units = {"bed-spaces", "residential-spaces"} if location["kind"] == "dorm" else {"seats"}
             records = [e for e in records if e.get("unit") in units and valid_capacity(e.get("value"))
-                       and not (location["kind"] == "dorm" and e.get("basis") == "nominal_complex_total")]
-            if records:
-                record = min(records, key=lambda e: e["value"])
+                       and not (location["kind"] == "dorm" and e.get("basis") in ("nominal_complex_total", "dated_availability"))]
+            override = dated.get(key) if location['kind'] == 'dorm' else None
+            if records or override:
+                record = override or min(records, key=lambda e: e["value"])
                 capacities[key] = int(record["value"])
                 bases[key] = {"basis": record["basis"], "unit": record["unit"], "sourceUrl": record["sourceUrl"]}
+                if override:
+                    if override.get('displayName'):
+                        names[key] = override['displayName']
+                    bases[key].update({field: override[field] for field in ('coverage', 'validFrom', 'validTo', 'note', 'sourceUrls')})
                 if location["kind"] == "dorm":
                     residential[key] = capacities[key]
             elif location["kind"] == "dorm":
@@ -42,7 +59,7 @@ def build_population(population, campuses, sources):
                 capacities[key] = capacity
                 bases[key] = {"basis": "configured_model_capacity", "unit": "people"}
     return {**population, "locationCapacities": capacities, "locationCapacityBasis": bases,
-            "residentialCapacities": residential}
+            "residentialCapacities": residential, "locationNames": names, "residentialAvailability": list(dated.values())}
 
 
 def write_compact(path, value):
@@ -57,7 +74,7 @@ def write_compact(path, value):
 def build(input_dir, campus_dir, output_dir):
     read = lambda path: json.loads(path.read_text())
     population = build_population(read(input_dir / "population.json"),
-        [read(path) for path in sorted(campus_dir.glob("*.json"))], read(output_dir / "campus-data.json"))
+        [read(path) for path in sorted(campus_dir.glob("*.json"))], read(output_dir / "campus-data.json"), read(input_dir / "residential_availability.json"))
     transit = read(input_dir / "transit_schedule.json")
     if transit.get("schemaVersion") != 1 or len(transit.get("dates", [])) != 7 or not isinstance(transit.get("trips"), list):
         raise ValueError("Unsupported transit timetable")

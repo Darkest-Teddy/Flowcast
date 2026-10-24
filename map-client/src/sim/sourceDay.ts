@@ -1,4 +1,4 @@
-import { dateForWeekday, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
+import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
 import type { Agent, CampusLocation, DayData, Trip } from './playback';
 
 const DAY = 86400;
@@ -6,6 +6,7 @@ const WALK_SPEED = 1.4;
 const weeklyCache = new WeakMap<DayData, WeakMap<CampusData, (weekday: number) => SourceDay>>();
 const HOME_BREAK = 15 * 60;
 const OFF_CAMPUS_BREAK = 30 * 60;
+export const MODELED_OFF_CAMPUS_MEAL_SHARE = 0.35;
 const MAX_GATEWAY_WALK_METRES = 2000;
 const ARRIVAL_LEAD = { minimum: 2 * 60, spread: 10 * 60 };
 const RESIDENT_ACTIVITIES = [
@@ -23,6 +24,7 @@ interface Stop {
   end: number;
   meeting?: SourceMeeting;
   attendanceLimit?: number;
+  activity?: 'dining' | 'library' | 'gym' | 'off-campus-meal';
 }
 
 export interface SourceAssignment {
@@ -52,12 +54,23 @@ export interface SourceDayStats {
   eligibleWeeklySections: number;
   campusAccessTrips: number;
   modeledActivities: number;
+  modeledOffCampusMeals: number;
+  unavailableActivities: number;
   assumptions: string[];
+}
+
+export interface SourceActivity {
+  agentId: string;
+  locationId: string;
+  startSec: number;
+  endSec: number;
+  kind: 'dining' | 'library' | 'gym' | 'off-campus-meal';
 }
 
 export interface SourceDay extends DayData {
   sourceStats: SourceDayStats;
   sourceAssignments: SourceAssignment[];
+  sourceActivities: SourceActivity[];
 }
 
 function fraction(key: string): number {
@@ -97,7 +110,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     eligibleMeetings: 0, assignedClasses: 0, scheduledStudents: 0, skippedCalendar: 0,
     sharedCandidatesSuppressed: 0, unroutableCandidates: 0, unroutableTrips: 0, invalidRoutes: 0,
     composedRoutes: 0, composedTrips: 0, capacityLimitedCandidates: 0,
-    weeklyEnrolledStudents: 0, weeklyEnrollments: 0, unassignedStudents: 0, eligibleWeeklySections: 0, campusAccessTrips: 0, modeledActivities: 0,
+    weeklyEnrolledStudents: 0, weeklyEnrollments: 0, unassignedStudents: 0, eligibleWeeklySections: 0, campusAccessTrips: 0, modeledActivities: 0, modeledOffCampusMeals: 0, unavailableActivities: 0,
     assumptions: [
       'Enrollment is synthetic and fixed for the whole reference week; published classes supply places, times, and seat upper bounds, not actual enrollment.',
       'Modeled course loads are 1–2 for part-time students, 3–4 for full-time graduate students, and 4–5 for full-time undergraduates; only mapped, reachable, mutually feasible weekly sections are assigned. Linked lecture/lab requirements are unknown.',
@@ -107,8 +120,10 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
       'Off-campus students use a stable modeled campus gateway on saved transit-stop walking geometry; only the campus access leg is shown, not an observed commute or transit boarding. Arrival leads vary by 2–12 minutes.',
       'Mapped residents may take probability-bounded modeled meal, study, and gym trips, including weekends; these are synthetic preferences, not observed attendance. Feasible home breaks and waits fill gaps.',
       'Off-campus students may leave via their gateway during a gap that permits access walks and at least 30 minutes off-campus; campus waiting remains modeled when a departure does not fit.',
-      'Exact-date opening hours override other hours. Saved undated dining windows are used only as an explicit modeled service-window assumption.',
-      'Date-limited class notes are excluded. Date-specific opening hours apply only on their exact reference-week date; undated hours are not authoritative.',
+      'Optional visits require published exact-date or valid weekly opening hours; exact-date closures override weekly schedules. Missing or undated hours do not imply availability. Published classes retain their own source times.',
+      'Open, reachable optional venues are selected with modeled capacity/distance weights, not observed preferences; unavailable venues receive no overflow traffic.',
+      `A modeled ${Math.round(MODELED_OFF_CAMPUS_MEAL_SHARE * 100)}% share of attempted resident meals (an uncalibrated model parameter) uses physical gateway walks and off-campus stays; no restaurant, off-map route, or observed meal behavior is asserted. Infeasible meals are skipped.`,
+      'Date-limited class notes are excluded. Undated opening-hour snapshots are not authoritative.',
     ],
   };
   const routes = new Map<string, Route>();
@@ -187,7 +202,8 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
   const offCampus = (agent: Agent) => agent.home === 'off-campus' || (agent as Agent & { residency?: string }).residency === 'commuter';
   const duration = (from: string, to: string, agent: Agent): number => {
     if (from === to) return 0;
-    const route = routeBetween(from, to);
+    const route = from === 'off-campus' || to === 'off-campus'
+      ? accessRoute(agent, from === 'off-campus' ? to : from) : routeBetween(from, to);
     return route ? route.cumulative[route.cumulative.length - 1] / speed(agent) : Infinity;
   };
   const gateways = new Map<string, Map<string, Route>>();
@@ -235,10 +251,20 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
   const used = new Map<string, number>();
   const occurrences = new Set<string>();
   const dates = Array.from({ length: 7 }, (_, day) => dateForWeekday(data, day));
-  const isOpen = (stop: WeeklyStop) => {
-    const hours = data.locations[stop.location]?.hours.filter((entry) => entry.date === dates[stop.weekday]) ?? [];
-    return !hours.length || hours.some((entry) => entry.windows.some(([opens, closes]) => opens <= stop.start && stop.end <= closes));
+  const openingCache = new Map<string, [number, number][]>();
+  const optionalWindows = (location: string, weekday: number): [number, number][] => {
+    if (data.locations[location]?.hoursStatus === 'restricted') return [];
+    const key = `${location}:${weekday}`;
+    const cached = openingCache.get(key);
+    if (cached) return cached;
+    const date = dates[weekday];
+    const hours = data.locations[location]?.hours ?? [];
+    const selected = openingHoursForDate(hours, date, weekday);
+    const windows = selected.flatMap(entry => entry.windows);
+    openingCache.set(key, windows); return windows;
   };
+  const isOpen = (stop: WeeklyStop) => !!stop.meeting || stop.location === 'off-campus'
+    || optionalWindows(stop.location, stop.weekday).some(([opens, closes]) => opens <= stop.start && stop.end <= closes);
   for (const source of Object.values(data.locations).sort((a, b) => a.id.localeCompare(b.id))) {
     if (!locations.has(source.id)) continue;
     for (const meeting of [...source.meetings].sort((a, b) => a.id.localeCompare(b.id))) {
@@ -281,6 +307,10 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
         const walk = duration(previous.location, stop.location, agent);
         if (!Number.isFinite(walk)) stats.unroutableCandidates++;
         if (previous.end + walk > stop.start) return false;
+        if (!previous.meeting && previous.location !== 'off-campus') {
+          const homeTime = offCampus(agent) ? Infinity : duration(previous.location, agent.home, agent) + duration(agent.home, stop.location, agent) + HOME_BREAK;
+          if (previous.end + homeTime > stop.start && !isOpen({ ...previous, end: stop.start - walk })) return false;
+        }
       }
       previous = stop;
     }
@@ -327,7 +357,8 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     const trips: Trip[] = [];
     const stays: { agent: string; location: string; start: number; end: number }[] = [];
     const assignments: SourceAssignment[] = [];
-    let composedTrips = 0, scheduledStudents = 0, campusAccessTrips = 0, modeledActivities = 0;
+    const activities: SourceActivity[] = [];
+    let composedTrips = 0, scheduledStudents = 0, campusAccessTrips = 0, modeledActivities = 0, modeledOffCampusMeals = 0, unavailableActivities = 0;
     const stay = (agent: Agent, location: string, start: number, end: number) => {
       if (end > start) stays.push({ agent: agent.id, location, start, end });
     };
@@ -352,18 +383,34 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
         for (const [index, activity] of RESIDENT_ACTIVITIES.entries()) {
           const seed = `${agent.id}:${weekday}:activity:${index}`;
           if (fraction(`${seed}:attend`) >= activity.probability) continue;
-          const candidates = base.locations.filter(l => l.kind === activity.kind && campusOf(l) === campusOf(locations.get(agent.home)!));
-          if (!candidates.length) continue;
           const start = (activity.at + fraction(`${seed}:time`) * activity.spread) * 3600;
-          for (let offset = 0; offset < candidates.length; offset++) {
-            const location = candidates[(Math.floor(fraction(`${seed}:location`) * candidates.length) + offset) % candidates.length];
-            const stop: WeeklyStop = { location: location.id, start, end: start + activity.minutes * 60, weekday, pool: '' };
-            const exact = data.locations[location.id]?.hours.filter(h => h.date === dates[weekday]) ?? [];
-            const fallback = !exact.length && location.kind === 'dining' ? data.locations[location.id]?.hours.filter(h => h.date === null) ?? [] : [];
-            if (fallback.length && !fallback.some(h => h.windows.some(([open, close]) => open <= stop.start && stop.end <= close))) continue;
+          const offCampusMeal = activity.kind === 'dining' && fraction(`${seed}:off-campus`) < MODELED_OFF_CAMPUS_MEAL_SHARE;
+          if (offCampusMeal) {
+            const stop: WeeklyStop = { location: 'off-campus', start, end: start + activity.minutes * 60, weekday, pool: '', activity: 'off-campus-meal' };
             const proposed = [...stops, stop].sort((a, b) => a.start - b.start);
-            if (feasible(proposed, agent)) { stops = proposed; modeledActivities++; break; }
+            if (accessRoute(agent, agent.home) && feasible(proposed, agent)) {
+              stops = proposed; modeledActivities++; modeledOffCampusMeals++;
+            } else unavailableActivities++;
+            continue;
           }
+          const candidates: { stop: WeeklyStop; proposed: WeeklyStop[]; weight: number }[] = [];
+          for (const location of base.locations) {
+            if (location.kind !== activity.kind || campusOf(location) !== campusOf(locations.get(agent.home)!)) continue;
+            const stop: WeeklyStop = { location: location.id, start, end: start + activity.minutes * 60, weekday, pool: '', activity: activity.kind };
+            if (!isOpen(stop)) continue;
+            const proposed = [...stops, stop].sort((a, b) => a.start - b.start);
+            if (!feasible(proposed, agent)) continue;
+            const index = proposed.indexOf(stop);
+            const origin = proposed[index - 1]?.location ?? agent.home;
+            const destination = proposed[index + 1]?.location ?? agent.home;
+            const travelTime = duration(origin, location.id, agent) + duration(location.id, destination, agent);
+            candidates.push({ stop, proposed, weight: Math.sqrt(Math.max(1, location.capacity)) / (300 + travelTime) });
+          }
+          const totalWeight = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
+          let choice = fraction(`${seed}:venue`) * totalWeight;
+          const selected = candidates.find(candidate => { choice -= candidate.weight; return choice < 0; });
+          if (selected) { stops = selected.proposed; modeledActivities++; }
+          else unavailableActivities++;
         }
       }
       const home = offCampus(agent) ? 'off-campus' : agent.home;
@@ -375,10 +422,15 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
           && freeAt + accessDuration(agent, from) + accessDuration(agent, stop.location) + OFF_CAMPUS_BREAK <= stop.start) {
           freeAt = travel(agent, from, 'off-campus', freeAt); from = 'off-campus';
         }
-        if (from === 'off-campus') {
+        if (from === 'off-campus' && home !== 'off-campus'
+          && freeAt + duration(from, home, agent) + duration(home, stop.location, agent) + HOME_BREAK <= stop.start) {
+          freeAt = travel(agent, from, home, freeAt); from = home;
+        }
+        if (from === stop.location) stay(agent, from, freeAt, stop.start);
+        else if (from === 'off-campus') {
           const access = accessRoute(agent, stop.location);
           const walk = accessDuration(agent, stop.location);
-          const lead = Math.min(stop.start - walk, ARRIVAL_LEAD.minimum + fraction(`${agent.id}:${weekday}:arrival-lead`) * ARRIVAL_LEAD.spread);
+          const lead = stop.meeting ? Math.min(stop.start - walk, ARRIVAL_LEAD.minimum + fraction(`${agent.id}:${weekday}:arrival-lead`) * ARRIVAL_LEAD.spread) : 0;
           const depart = Math.max(freeAt, stop.start - walk - lead);
           if (access) {
             stay(agent, from, freeAt, depart);
@@ -397,6 +449,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
         stay(agent, stop.location, stop.start, stop.end);
         if (stop.meeting) assignments.push({ agentId: agent.id, meetingId: stop.meeting!.id, courseCode: stop.meeting!.courseCode,
           locationId: stop.location, startSec: stop.start, endSec: stop.end });
+        if (stop.activity) activities.push({ agentId: agent.id, locationId: stop.location, startSec: stop.start, endSec: stop.end, kind: stop.activity });
         from = stop.location; freeAt = stop.end;
       }
       if (home !== 'off-campus' || accessRoute(agent, from)) freeAt = travel(agent, from, home, freeAt);
@@ -404,7 +457,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     }
     const result: SourceDay = { ...base, day: WEEKDAYS[weekday], trips, stays,
       sourceStats: { ...stats, eligibleMeetings: [...occurrences].filter((key) => Number(key.split(':').at(-3)) === weekday).length,
-        assignedClasses: assignments.length, scheduledStudents, composedTrips, campusAccessTrips, modeledActivities }, sourceAssignments: assignments };
+        assignedClasses: assignments.length, scheduledStudents, composedTrips, campusAccessTrips, modeledActivities, modeledOffCampusMeals, unavailableActivities }, sourceAssignments: assignments, sourceActivities: activities };
     days.set(weekday, result);
     return result;
   };
