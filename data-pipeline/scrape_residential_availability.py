@@ -40,7 +40,12 @@ def collect(fetcher):
         if item['rawPath']:
             item['rawPath'] = str(Path(item['rawPath']).relative_to(ROOT.parent))
         provenance.append(item)
-    return {'records': [record], 'sources': provenance, 'errors': []}
+    return {'records': [record], 'campusResidentMinimums': [{
+        'campus': 'fenway', 'students': record['components'][1]['relocatedStudents'],
+        'validFrom': record['validFrom'], 'validTo': record['validTo'],
+        'basis': 'published_planned_relocation', 'sourceUrl': FAQ,
+        'note': 'Model minimum based on the published Fall 2026 Tower B relocation plan; not observed attendance or assignment to a specific Fenway residence.'}],
+        'sources': provenance, 'errors': []}
 
 
 if __name__ == '__main__':

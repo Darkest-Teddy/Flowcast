@@ -290,11 +290,40 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
   return <div ref={layerRef} className="btags" />;
 }
 
+interface ActivityDisplayInput {
+  count: number;
+  capacity: number;
+  share: number;
+  modeled?: boolean;
+  capacityBasis?: string;
+  kind?: LocationKind | null;
+}
+
+/** Labels refer to the modeled space and its denominator, not every use of its building. */
+export function activityDisplay({ count, capacity, share, modeled, capacityBasis, kind }: ActivityDisplayInput) {
+  const hasPercentage = modeled !== false && capacity > 0 && Number.isFinite(share)
+    && capacityBasis !== 'residential_beds_plus_classroom_seats'
+    && capacityBasis !== 'estimated_student_capacity';
+  const percent = hasPercentage ? Math.round(share * 100) : 0;
+  const seats = capacityBasis?.includes('classroom_seats') || (!capacityBasis && kind === 'classroom');
+  const level = crowdLevel(share);
+  const primary = modeled === false ? 'Not modeled' : hasPercentage ? `${percent}%${seats ? ' seats' : ''}` : `${count.toLocaleString()} ${count === 1 ? 'student' : 'students'}`;
+  const secondary = hasPercentage ? level.label : '';
+  return {
+    primary,
+    secondary,
+    percent,
+    hasPercentage,
+    level: hasPercentage ? level.key : 'unmodeled',
+    style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1' },
+    description: hasPercentage ? `${percent}% of ${seats ? 'classroom seats' : 'capacity'}, ${secondary}` : primary,
+  };
+}
+
 /** Rewrites a tag's text when it has changed; returns whether it did. */
 function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null): boolean {
-  const pct = Math.round(b.share * 100);
-  const level = crowdLevel(b.share);
-  const key = `${b.short}|${pct}|${level.key}|${kind}`;
+  const display = activityDisplay({ ...b, kind });
+  const key = `${b.name}|${b.short}|${display.primary}|${display.level}|${kind}`;
   if (key === tag.key) return false;
   tag.key = key;
   if (tag.kind !== kind) {
@@ -304,12 +333,14 @@ function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null)
   }
   tag.short.textContent = b.short;
   tag.pname.textContent = b.short;
-  tag.pct.textContent = `${pct}%`;
-  tag.ppct.textContent = `${pct}%`;
-  tag.word.textContent = level.label;
-  tag.fill.style.width = `${Math.min(100, pct)}%`;
-  tag.root.dataset.level = level.key;
-  for (const [k, v] of Object.entries(crowdLevelStyle(b.share))) tag.root.style.setProperty(k, v);
-  tag.pill.setAttribute('aria-label', `${b.name}: ${pct}% full, ${level.label}${kind ? ` (${KIND_LABEL[kind]})` : ''}`);
+  tag.pct.textContent = display.primary;
+  tag.ppct.textContent = display.primary;
+  tag.word.textContent = display.secondary;
+  tag.word.hidden = !display.secondary;
+  tag.fill.style.width = `${Math.min(100, display.percent)}%`;
+  tag.fill.parentElement!.hidden = !display.hasPercentage;
+  tag.root.dataset.level = display.level;
+  for (const [k, v] of Object.entries(display.style)) tag.root.style.setProperty(k, v);
+  tag.pill.setAttribute('aria-label', `${b.name}: ${display.description}${kind ? ` (${KIND_LABEL[kind]})` : ''}`);
   return true;
 }

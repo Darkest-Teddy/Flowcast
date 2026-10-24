@@ -96,7 +96,7 @@ export function SourceDataPanel({ data, locations, selectedBuilding, campus, wee
   const visibleEvents = useMemo(() => data.events.filter((event) => event.start.slice(0, 10) <= date && (event.end ?? event.start).slice(0, 10) >= date), [data.events, date]);
   const mappedGroups = groups.filter((group) => group.locations.some((location) => {
     const source = data.locations[location.id];
-    return source && (source.meetings.length > 0 || source.evidence.length > 0 || source.hours.length > 0);
+    return location.estimatedProfile || location.estimatedHousingProfile || source && (source.meetings.length > 0 || source.evidence.length > 0 || source.hours.length > 0);
   }));
   const restricted = selection.rows.filter((row) => row.meeting.calendarRestricted).length;
 
@@ -139,6 +139,19 @@ export function SourceDataPanel({ data, locations, selectedBuilding, campus, wee
           )}
           {ranked.length > 20 && <p className="source-caption">Showing 20 of {ranked.length} listings, with current and upcoming meetings first.</p>}
           {selection.evidence.length > 0 && <><h3>Building details</h3><EvidenceList evidence={selection.evidence} /></>}
+          {selected.locations.filter(location => location.estimatedProfile || location.estimatedHousingProfile).map(location => {
+            const profile = location.estimatedProfile;
+            const housing = location.estimatedHousingProfile;
+            const estimate = profile ?? housing!;
+            const windows = profile?.weekdayWindows.filter(day => day.weekday === weekday).flatMap(day => day.windows) ?? [];
+            return <div className="source-hours" key={`estimate:${location.id}`}>
+              <h3>Activity estimate</h3>
+              <strong>{location.name}</strong>
+              <span>{housing ? `${housing.capacity.toLocaleString()} estimated beds · ${Math.round(housing.occupancyRate * 100)}% occupied` : `${profile!.dailyParticipants} daily participant limit · ${profile!.durationMinutes}-minute visits`}</span>
+              {profile && <span>{WEEKDAYS[weekday]}: {windows.length ? windows.map(([start, end]) => `${formatClock(start)}–${formatClock(end)}`).join(', ') : 'No estimated activities'}</span>}
+              <details><summary>Model assumptions</summary><p>{estimate.note}</p><p>{estimate.proxy}</p><p>Confidence: {estimate.confidence}. These are simulation estimates.</p></details>
+            </div>;
+          })}
           {selection.hours.some((item) => item.entries.length > 0) && <>
             <h3>Hours</h3>
             {selection.hours.map(({ location, entries }) => entries.map((entry, index) => (
@@ -154,7 +167,7 @@ export function SourceDataPanel({ data, locations, selectedBuilding, campus, wee
           {selection.hours.filter(({ location, entries }) => !entries.length && ['dining', 'library', 'gym'].includes(location.kind)).map(({ location }) => (
             <p className="source-caption" key={`hours-status:${location.id}`}>{location.name}: {data.locations[location.id]?.hoursStatus === 'restricted' ? 'Event or team access; not open recreation.' : `No verified service hours for ${date}.`}</p>
           ))}
-          {selection.evidence.length === 0 && selection.rows.length === 0 && !selection.hours.some((item) => item.entries.length > 0) && <p className="source-caption">No building details available.</p>}
+          {selection.evidence.length === 0 && selection.rows.length === 0 && !selection.hours.some((item) => item.entries.length > 0) && !selected.locations.some(location => location.estimatedProfile || location.estimatedHousingProfile) && <p className="source-caption">No building details available.</p>}
         </section>
       ) : (
         <section aria-label="Buildings with saved source data">

@@ -1,0 +1,1753 @@
+{
+  "population": 36977,
+  "locations": [
+    {
+      "id": "warren",
+      "name": "Warren Towers (Tower A)",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 600,
+      "capacityBasis": "verified_reopened_component",
+      "estimate": null,
+      "homes": 600,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 600,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "myles",
+      "name": "Myles Standish Hall",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 730,
+      "capacityBasis": "planning_document_post_renovation",
+      "estimate": null,
+      "homes": 730,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 730,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "stuvi",
+      "name": "Student Village",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 802,
+      "capacityBasis": "inventory_derived",
+      "estimate": null,
+      "homes": 802,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 802,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "claflin",
+      "name": "Claflin Hall",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 600,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "claflin",
+        "campus": "charles-river",
+        "studentLevel": "undergraduate",
+        "capacity": 600,
+        "occupancyRate": 0.95,
+        "capacityRange": [
+          450,
+          750
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Equal share of published approximately 1,800 West Campus residential spaces across three halls",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 570,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 570,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "kilachand",
+      "name": "Kilachand Hall",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 198,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 443,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 131,
+      "peakDate": "2026-10-20",
+      "peakTime": "09:30:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "cas",
+      "name": "College of Arts and Sciences",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 2817,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 65404,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 2290,
+      "peakDate": "2026-10-20",
+      "peakTime": "11:15:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "cds",
+      "name": "Computing & Data Sciences",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 632,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 11610,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 516,
+      "peakDate": "2026-10-21",
+      "peakTime": "12:20:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "questrom",
+      "name": "Questrom School of Business",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 1924,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 32656,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 1637,
+      "peakDate": "2026-10-22",
+      "peakTime": "14:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "photonics",
+      "name": "Photonics Center",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 948,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 11608,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 577,
+      "peakDate": "2026-10-20",
+      "peakTime": "09:30:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "epic",
+      "name": "Engineering Product Innovation Center",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 609,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 9662,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 506,
+      "peakDate": "2026-10-22",
+      "peakTime": "15:30:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "mugar",
+      "name": "Mugar Memorial Library",
+      "kind": "library",
+      "modeled": true,
+      "capacity": 800,
+      "capacityBasis": "configured_model_capacity",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 1021,
+      "optionalVisits": 20741,
+      "estimatedVisits": 0,
+      "peak": 797,
+      "peakDate": "2026-10-21",
+      "peakTime": "16:14:37",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "pardee",
+      "name": "Pardee Library",
+      "kind": "library",
+      "modeled": true,
+      "capacity": 200,
+      "capacityBasis": "configured_model_capacity",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 4520,
+      "estimatedVisits": 0,
+      "peak": 200,
+      "peakDate": "2026-10-19",
+      "peakTime": "15:17:06",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "gsu",
+      "name": "George Sherman Union",
+      "kind": "dining",
+      "modeled": true,
+      "capacity": 600,
+      "capacityBasis": "configured_model_capacity",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 1748,
+      "estimatedVisits": 0,
+      "peak": 250,
+      "peakDate": "2026-10-24",
+      "peakTime": "12:35:08",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "warren-dining",
+      "name": "Warren Towers Dining Hall",
+      "kind": "dining",
+      "modeled": true,
+      "capacity": 500,
+      "capacityBasis": "configured_model_capacity",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 3820,
+      "estimatedVisits": 0,
+      "peak": 314,
+      "peakDate": "2026-10-25",
+      "peakTime": "13:46:39",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "agganis",
+      "name": "Agganis Arena",
+      "kind": "gym",
+      "modeled": true,
+      "capacity": 1500,
+      "capacityBasis": "estimated_student_capacity",
+      "estimate": {
+        "locationId": "agganis",
+        "campus": "charles-river",
+        "purpose": "arena",
+        "studentLevel": "any",
+        "weekdayWindows": [
+          {
+            "weekday": 0,
+            "windows": [
+              [
+                50400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 1,
+            "windows": [
+              [
+                50400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 2,
+            "windows": [
+              [
+                50400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 3,
+            "windows": [
+              [
+                50400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 4,
+            "windows": [
+              [
+                50400,
+                64800
+              ]
+            ]
+          }
+        ],
+        "durationMinutes": 120,
+        "attendanceProbability": 0.8,
+        "capacity": 120,
+        "dailyParticipants": 120,
+        "capacityRange": [
+          60,
+          180
+        ],
+        "participantRange": [
+          60,
+          180
+        ],
+        "confidence": "low",
+        "basis": "estimated_student_activity",
+        "proxy": "Conservative student-use fraction of configured 1500-person size proxy (data-pipeline/campuses/charles-river.json) and mapped facility purpose",
+        "note": "Team practice scenario only; excludes public gym access, employees and spectators. No actual practice schedule is asserted. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+      },
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 600,
+      "estimatedVisits": 600,
+      "peak": 120,
+      "peakDate": "2026-10-19",
+      "peakTime": "15:57:39",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "fitrec",
+      "name": "Fitness and Recreation Center",
+      "kind": "gym",
+      "modeled": true,
+      "capacity": 1200,
+      "capacityBasis": "configured_model_capacity",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 72,
+      "optionalVisits": 10124,
+      "estimatedVisits": 0,
+      "peak": 423,
+      "peakDate": "2026-10-22",
+      "peakTime": "21:54:54",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "dewolfe",
+      "name": "DeWolfe Boathouse",
+      "kind": "gym",
+      "modeled": true,
+      "capacity": 150,
+      "capacityBasis": "estimated_student_capacity",
+      "estimate": {
+        "locationId": "dewolfe",
+        "campus": "charles-river",
+        "purpose": "rowing",
+        "studentLevel": "any",
+        "weekdayWindows": [
+          {
+            "weekday": 0,
+            "windows": [
+              [
+                21600,
+                32400
+              ],
+              [
+                57600,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 1,
+            "windows": [
+              [
+                21600,
+                32400
+              ],
+              [
+                57600,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 2,
+            "windows": [
+              [
+                21600,
+                32400
+              ],
+              [
+                57600,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 3,
+            "windows": [
+              [
+                21600,
+                32400
+              ],
+              [
+                57600,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 4,
+            "windows": [
+              [
+                21600,
+                32400
+              ],
+              [
+                57600,
+                64800
+              ]
+            ]
+          }
+        ],
+        "durationMinutes": 90,
+        "attendanceProbability": 0.8,
+        "capacity": 60,
+        "dailyParticipants": 75,
+        "capacityRange": [
+          30,
+          90
+        ],
+        "participantRange": [
+          38,
+          112
+        ],
+        "confidence": "low",
+        "basis": "estimated_student_activity",
+        "proxy": "Conservative student-use fraction of configured 150-person size proxy (data-pipeline/campuses/charles-river-additions.json) and mapped facility purpose",
+        "note": "Team practice scenario only; excludes public gym access, employees and spectators. No actual practice schedule is asserted. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+      },
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 375,
+      "estimatedVisits": 375,
+      "peak": 54,
+      "peakDate": "2026-10-23",
+      "peakTime": "16:29:24",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "stuvi2",
+      "name": "Student Village 2 (33 Harry Agganis Way)",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 960,
+      "capacityBasis": "published_residential_description",
+      "estimate": null,
+      "homes": 960,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 960,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "rich",
+      "name": "Rich Hall",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 600,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "rich",
+        "campus": "charles-river",
+        "studentLevel": "undergraduate",
+        "capacity": 600,
+        "occupancyRate": 0.95,
+        "capacityRange": [
+          450,
+          750
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Equal share of published approximately 1,800 West Campus residential spaces across three halls",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 570,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 570,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "sleeper",
+      "name": "Sleeper Hall",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 600,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "sleeper",
+        "campus": "charles-river",
+        "studentLevel": "undergraduate",
+        "capacity": 600,
+        "occupancyRate": 0.95,
+        "capacityRange": [
+          450,
+          750
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Equal share of published approximately 1,800 West Campus residential spaces across three halls",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 570,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 570,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "west-dining",
+      "name": "West Campus Dining Hall",
+      "kind": "dining",
+      "modeled": true,
+      "capacity": 840,
+      "capacityBasis": "published",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 5423,
+      "estimatedVisits": 0,
+      "peak": 448,
+      "peakDate": "2026-10-24",
+      "peakTime": "13:00:41",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "comm-1019",
+      "name": "1019 Commonwealth Avenue",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 300,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "comm-1019",
+        "campus": "charles-river",
+        "studentLevel": "undergraduate",
+        "capacity": 300,
+        "occupancyRate": 0.9,
+        "capacityRange": [
+          225,
+          375
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/charles-river-additions.json); not a published bed count",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 270,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 270,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "towers",
+      "name": "The Towers",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 521,
+      "capacityBasis": "dated_population_description",
+      "estimate": null,
+      "homes": 521,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 521,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "hojo",
+      "name": "575 Commonwealth Avenue",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 550,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "hojo",
+        "campus": "charles-river",
+        "studentLevel": "undergraduate",
+        "capacity": 550,
+        "occupancyRate": 0.9,
+        "capacityRange": [
+          412,
+          688
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/charles-river-additions.json); not a published bed count",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 495,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 495,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "danielsen",
+      "name": "Danielsen Hall",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 200,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "danielsen",
+        "campus": "charles-river",
+        "studentLevel": "undergraduate",
+        "capacity": 200,
+        "occupancyRate": 0.9,
+        "capacityRange": [
+          150,
+          250
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/charles-river-additions.json); not a published bed count",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 180,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 180,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "marciano",
+      "name": "Marciano Commons",
+      "kind": "dining",
+      "modeled": true,
+      "capacity": 920,
+      "capacityBasis": "published",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 4690,
+      "estimatedVisits": 0,
+      "peak": 375,
+      "peakDate": "2026-10-25",
+      "peakTime": "13:44:33",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "law-tower",
+      "name": "School of Law (Law Tower)",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 1530,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 11756,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 936,
+      "peakDate": "2026-10-21",
+      "peakTime": "14:30:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "com",
+      "name": "College of Communication",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 903,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 11213,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 695,
+      "peakDate": "2026-10-20",
+      "peakTime": "14:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "cfa",
+      "name": "College of Fine Arts",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 1924,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 14990,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 909,
+      "peakDate": "2026-10-21",
+      "peakTime": "14:30:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "cgs",
+      "name": "College of General Studies",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 1555,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 15308,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 782,
+      "peakDate": "2026-10-21",
+      "peakTime": "12:20:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "sargent",
+      "name": "Sargent College of Health & Rehabilitation Sciences",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 615,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 6196,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 483,
+      "peakDate": "2026-10-22",
+      "peakTime": "09:57:49",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "eng",
+      "name": "College of Engineering (110 Cummington Mall)",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 90,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 710,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 90,
+      "peakDate": "2026-10-19",
+      "peakTime": "10:10:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "bumc-residence",
+      "name": "Medical Student Residence",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 208,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "bumc-residence",
+        "campus": "medical",
+        "studentLevel": "graduate",
+        "capacity": 208,
+        "occupancyRate": 0.85,
+        "capacityRange": [
+          156,
+          260
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/medical.json); not a published bed count",
+        "note": "Estimated home assignment from existing resident roster; neither occupied beds nor exact building capacity is observed. Graduate allocation uses graduate agents only."
+      },
+      "homes": 177,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 177,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "bumc-instructional",
+      "name": "Chobanian & Avedisian School of Medicine Instructional Building",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 1338,
+      "capacityBasis": "deduplicated_classroom_seats",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 6569,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 604,
+      "peakDate": "2026-10-19",
+      "peakTime": "14:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "bumc-sph",
+      "name": "School of Public Health (Talbot Building)",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 500,
+      "capacityBasis": "estimated_student_capacity",
+      "estimate": {
+        "locationId": "bumc-sph",
+        "campus": "medical",
+        "purpose": "academic",
+        "studentLevel": "graduate",
+        "weekdayWindows": [
+          {
+            "weekday": 0,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 1,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 2,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 3,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 4,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          }
+        ],
+        "durationMinutes": 120,
+        "attendanceProbability": 0.8,
+        "capacity": 150,
+        "dailyParticipants": 200,
+        "capacityRange": [
+          75,
+          225
+        ],
+        "participantRange": [
+          100,
+          300
+        ],
+        "confidence": "low",
+        "basis": "estimated_student_activity",
+        "proxy": "Conservative student-use fraction of configured 500-person size proxy (data-pipeline/campuses/medical.json) and mapped facility purpose",
+        "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+      },
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 1000,
+      "estimatedVisits": 1000,
+      "peak": 87,
+      "peakDate": "2026-10-22",
+      "peakTime": "13:47:35",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "bumc-dental",
+      "name": "Henry M. Goldman School of Dental Medicine",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 400,
+      "capacityBasis": "estimated_student_capacity",
+      "estimate": {
+        "locationId": "bumc-dental",
+        "campus": "medical",
+        "purpose": "academic",
+        "studentLevel": "graduate",
+        "weekdayWindows": [
+          {
+            "weekday": 0,
+            "windows": [
+              [
+                28800,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 1,
+            "windows": [
+              [
+                28800,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 2,
+            "windows": [
+              [
+                28800,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 3,
+            "windows": [
+              [
+                28800,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 4,
+            "windows": [
+              [
+                28800,
+                61200
+              ]
+            ]
+          }
+        ],
+        "durationMinutes": 180,
+        "attendanceProbability": 0.8,
+        "capacity": 120,
+        "dailyParticipants": 160,
+        "capacityRange": [
+          60,
+          180
+        ],
+        "participantRange": [
+          80,
+          240
+        ],
+        "confidence": "low",
+        "basis": "estimated_student_activity",
+        "proxy": "Conservative student-use fraction of configured 400-person size proxy (data-pipeline/campuses/medical.json) and mapped facility purpose",
+        "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+      },
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 800,
+      "estimatedVisits": 800,
+      "peak": 95,
+      "peakDate": "2026-10-19",
+      "peakTime": "13:41:58",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "bumc-cabr",
+      "name": "Center for Advanced Biomedical Research",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 200,
+      "capacityBasis": "estimated_student_capacity",
+      "estimate": {
+        "locationId": "bumc-cabr",
+        "campus": "medical",
+        "purpose": "research",
+        "studentLevel": "graduate",
+        "weekdayWindows": [
+          {
+            "weekday": 0,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 1,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 2,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 3,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 4,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          }
+        ],
+        "durationMinutes": 240,
+        "attendanceProbability": 0.8,
+        "capacity": 80,
+        "dailyParticipants": 100,
+        "capacityRange": [
+          40,
+          120
+        ],
+        "participantRange": [
+          50,
+          150
+        ],
+        "confidence": "low",
+        "basis": "estimated_student_activity",
+        "proxy": "Conservative student-use fraction of configured 200-person size proxy (data-pipeline/campuses/medical.json) and mapped facility purpose",
+        "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+      },
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 498,
+      "estimatedVisits": 498,
+      "peak": 80,
+      "peakDate": "2026-10-19",
+      "peakTime": "13:27:11",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "bumc-conte",
+      "name": "Silvio O. Conte Medical Research Center",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 150,
+      "capacityBasis": "estimated_student_capacity",
+      "estimate": {
+        "locationId": "bumc-conte",
+        "campus": "medical",
+        "purpose": "research",
+        "studentLevel": "graduate",
+        "weekdayWindows": [
+          {
+            "weekday": 0,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 1,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 2,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 3,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          },
+          {
+            "weekday": 4,
+            "windows": [
+              [
+                32400,
+                64800
+              ]
+            ]
+          }
+        ],
+        "durationMinutes": 240,
+        "attendanceProbability": 0.8,
+        "capacity": 60,
+        "dailyParticipants": 75,
+        "capacityRange": [
+          30,
+          90
+        ],
+        "participantRange": [
+          38,
+          112
+        ],
+        "confidence": "low",
+        "basis": "estimated_student_activity",
+        "proxy": "Conservative student-use fraction of configured 150-person size proxy (data-pipeline/campuses/medical.json) and mapped facility purpose",
+        "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+      },
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 374,
+      "estimatedVisits": 374,
+      "peak": 60,
+      "peakDate": "2026-10-19",
+      "peakTime": "13:53:16",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "bumc-library",
+      "name": "Alumni Medical Library",
+      "kind": "library",
+      "modeled": true,
+      "capacity": 250,
+      "capacityBasis": "configured_model_capacity",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 1493,
+      "estimatedVisits": 0,
+      "peak": 93,
+      "peakDate": "2026-10-24",
+      "peakTime": "15:54:39",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "bumc-chequers",
+      "name": "Chequers Cafe",
+      "kind": "dining",
+      "modeled": true,
+      "capacity": 120,
+      "capacityBasis": "configured_model_capacity",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 1985,
+      "estimatedVisits": 0,
+      "peak": 102,
+      "peakDate": "2026-10-19",
+      "peakTime": "13:55:40",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "riverway-house",
+      "name": "Riverway House",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 120,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "riverway-house",
+        "campus": "fenway",
+        "studentLevel": "undergraduate",
+        "capacity": 120,
+        "occupancyRate": 0.9,
+        "capacityRange": [
+          90,
+          150
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 108,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 108,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "longwood-house",
+      "name": "Longwood House",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 70,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "longwood-house",
+        "campus": "fenway",
+        "studentLevel": "undergraduate",
+        "capacity": 70,
+        "occupancyRate": 0.9,
+        "capacityRange": [
+          52,
+          88
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 63,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 63,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "pilgrim-house",
+      "name": "Pilgrim House",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 80,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "pilgrim-house",
+        "campus": "fenway",
+        "studentLevel": "undergraduate",
+        "capacity": 80,
+        "occupancyRate": 0.9,
+        "capacityRange": [
+          60,
+          100
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 72,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 72,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "fenway-center",
+      "name": "Campus Center & Student Residence",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 108,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "fenway-center",
+        "campus": "fenway",
+        "studentLevel": "undergraduate",
+        "capacity": 108,
+        "occupancyRate": 0.9,
+        "capacityRange": [
+          81,
+          135
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 97,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 97,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "fenway-dining",
+      "name": "Fenway Campus Dining Hall",
+      "kind": "dining",
+      "modeled": true,
+      "capacity": 250,
+      "capacityBasis": "configured_model_capacity",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 3937,
+      "estimatedVisits": 0,
+      "peak": 103,
+      "peakDate": "2026-10-25",
+      "peakTime": "13:39:56",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "fenway-fitness",
+      "name": "FitRec at Fenway",
+      "kind": "gym",
+      "modeled": true,
+      "capacity": 30,
+      "capacityBasis": "configured_model_capacity",
+      "estimate": null,
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 610,
+      "estimatedVisits": 0,
+      "peak": 30,
+      "peakDate": "2026-10-22",
+      "peakTime": "18:09:23",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "peabody",
+      "name": "Peabody Hall",
+      "kind": "dorm",
+      "modeled": true,
+      "capacity": 134,
+      "capacityBasis": "estimated_residential_beds",
+      "estimate": {
+        "locationId": "peabody",
+        "campus": "fenway",
+        "studentLevel": "undergraduate",
+        "capacity": 134,
+        "occupancyRate": 0.9,
+        "capacityRange": [
+          100,
+          168
+        ],
+        "occupancyRateRange": [
+          0.75,
+          1
+        ],
+        "confidence": "low",
+        "basis": "estimated_housing",
+        "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
+        "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+      },
+      "homes": 121,
+      "classAssignments": 0,
+      "optionalVisits": 0,
+      "estimatedVisits": 0,
+      "peak": 121,
+      "peakDate": "2026-10-19",
+      "peakTime": "00:00:00",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "fenway-classroom",
+      "name": "Fenway Classroom Building",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 300,
+      "capacityBasis": "estimated_student_capacity",
+      "estimate": {
+        "locationId": "fenway-classroom",
+        "campus": "fenway",
+        "purpose": "academic",
+        "studentLevel": "undergraduate",
+        "weekdayWindows": [
+          {
+            "weekday": 0,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 1,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 2,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 3,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 4,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          }
+        ],
+        "durationMinutes": 90,
+        "attendanceProbability": 0.8,
+        "capacity": 90,
+        "dailyParticipants": 140,
+        "capacityRange": [
+          45,
+          135
+        ],
+        "participantRange": [
+          70,
+          210
+        ],
+        "confidence": "low",
+        "basis": "estimated_student_activity",
+        "proxy": "Conservative student-use fraction of configured 300-person size proxy (data-pipeline/campuses/fenway.json) and mapped facility purpose",
+        "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+      },
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 700,
+      "estimatedVisits": 700,
+      "peak": 43,
+      "peakDate": "2026-10-23",
+      "peakTime": "13:50:52",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "fenway-activities",
+      "name": "Fenway Activities Building",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 400,
+      "capacityBasis": "estimated_student_capacity",
+      "estimate": {
+        "locationId": "fenway-activities",
+        "campus": "fenway",
+        "purpose": "community",
+        "studentLevel": "undergraduate",
+        "weekdayWindows": [
+          {
+            "weekday": 0,
+            "windows": [
+              [
+                46800,
+                72000
+              ]
+            ]
+          },
+          {
+            "weekday": 1,
+            "windows": [
+              [
+                46800,
+                72000
+              ]
+            ]
+          },
+          {
+            "weekday": 2,
+            "windows": [
+              [
+                46800,
+                72000
+              ]
+            ]
+          },
+          {
+            "weekday": 3,
+            "windows": [
+              [
+                46800,
+                72000
+              ]
+            ]
+          },
+          {
+            "weekday": 4,
+            "windows": [
+              [
+                46800,
+                72000
+              ]
+            ]
+          }
+        ],
+        "durationMinutes": 75,
+        "attendanceProbability": 0.8,
+        "capacity": 60,
+        "dailyParticipants": 90,
+        "capacityRange": [
+          30,
+          90
+        ],
+        "participantRange": [
+          45,
+          135
+        ],
+        "confidence": "low",
+        "basis": "estimated_student_activity",
+        "proxy": "Conservative student-use fraction of configured 400-person size proxy (data-pipeline/campuses/fenway.json) and mapped facility purpose",
+        "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+      },
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 450,
+      "estimatedVisits": 450,
+      "peak": 30,
+      "peakDate": "2026-10-20",
+      "peakTime": "18:15:29",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    },
+    {
+      "id": "hawes",
+      "name": "Hawes Building (Wightman Mansion)",
+      "kind": "classroom",
+      "modeled": true,
+      "capacity": 60,
+      "capacityBasis": "estimated_student_capacity",
+      "estimate": {
+        "locationId": "hawes",
+        "campus": "fenway",
+        "purpose": "academic",
+        "studentLevel": "undergraduate",
+        "weekdayWindows": [
+          {
+            "weekday": 0,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 1,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 2,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 3,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          },
+          {
+            "weekday": 4,
+            "windows": [
+              [
+                32400,
+                61200
+              ]
+            ]
+          }
+        ],
+        "durationMinutes": 90,
+        "attendanceProbability": 0.8,
+        "capacity": 24,
+        "dailyParticipants": 40,
+        "capacityRange": [
+          12,
+          36
+        ],
+        "participantRange": [
+          20,
+          60
+        ],
+        "confidence": "low",
+        "basis": "estimated_student_activity",
+        "proxy": "Conservative student-use fraction of configured 60-person size proxy (data-pipeline/campuses/fenway.json) and mapped facility purpose",
+        "note": "Synthetic student-only use; windows, turnout and dwell are estimates, not published classes, opening hours or staff headcounts. Activity capacity is a concurrent student quota, not whole-building occupancy capacity; the separate configured building reference remains unverified."
+      },
+      "homes": 0,
+      "classAssignments": 0,
+      "optionalVisits": 200,
+      "estimatedVisits": 200,
+      "peak": 16,
+      "peakDate": "2026-10-19",
+      "peakTime": "14:27:47",
+      "minutesOverReference": 0,
+      "outsideHoursVisits": 0
+    }
+  ]
+}

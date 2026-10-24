@@ -24,3 +24,15 @@ test('off-map stays are excluded from building occupancy without losing populati
   const playback = new Playback({ day:'Monday',buildings:[],locations:[location],agents:[{id:'a',home:'home',model:0},{id:'b',home:'off-campus',model:0}],trips:[],stays:[{agent:'a',location:'home',start:0,end:86400},{agent:'b',location:'off-campus',start:0,end:86400}] });
   assert.deepEqual(playback.populationAt(36000), {total:2,indoors:1,walking:0,offCampus:1});
 });
+
+test('shared footprint label and percentage refer to the same busiest modeled space', () => {
+  const base={name:'Unknown dorm',short:'Dorm',kind:'dorm',position:[-71,42],building:'shared'};
+  const dorm={...base,id:'dorm',capacity:0,activityModeled:false};
+  const dining={...base,id:'dining',name:'Dining',short:'Dining',kind:'dining',capacity:100,activityModeled:true};
+  const gym={...base,id:'gym',name:'Gym',short:'Gym',kind:'gym',capacity:20,activityModeled:true};
+  const p=new Playback({day:'Monday',buildings:[],locations:[dorm,dining,gym],agents:[],trips:[]});
+  const result=p.byBuilding([{location:dorm,count:0,share:0},{location:dining,count:40,share:.4},{location:gym,count:15,share:.75}]);
+  assert.deepEqual(result.map(r=>[r.name,r.count,r.capacity,r.share,r.modeled]),[['Gym',15,20,.75,true]]);
+  const unknown=p.occupancyAt(0).find(o=>o.location.id==='dorm');
+  assert.equal(unknown.modeled,false);
+});

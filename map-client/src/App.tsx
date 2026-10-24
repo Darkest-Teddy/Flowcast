@@ -3,8 +3,8 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
-import { crowdLayers, crowdLevel, crowdLevelStyle, modelRoofHeights, type RoofHeights } from './layers/crowd';
-import { BuildingTags, type BuildingTagsHandle } from './BuildingTags';
+import { crowdLayers, modelRoofHeights, type RoofHeights } from './layers/crowd';
+import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer } from './layers/placement';
@@ -336,6 +336,7 @@ export default function App() {
       let mobilityKey = '';
       let currentMobility: MobilityView | null = null;
       let buildings: BuildingOccupancy[] = [];
+      let buildingOccupancy: BuildingOccupancy[] = [];
       let buildingsFrom: Occupancy[] | null = null;
       let buildingsPlayback: Playback | null = null;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
@@ -395,7 +396,8 @@ export default function App() {
         const placer = createPlacer(basemap.project);
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
         if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
-          buildings = splitSharedTags(playback.byBuilding(occupancy), occupancy, day.buildings, roofHeights);
+          buildingOccupancy = playback.byBuilding(occupancy);
+          buildings = splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights);
           buildingsFrom = occupancy;
           buildingsPlayback = playback;
         }
@@ -438,10 +440,8 @@ export default function App() {
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows })
             : []),
           ...crowdLayers({
-            // Every tracked building, modelled or not: the glow is light around and on top of
-            // the model (at its real height), never a box over it.
             footprints: day.buildings,
-            buildings,
+            buildings: buildingOccupancy.filter((building) => building.modeled !== false),
             trips: playback.data.trips,
             time: t,
             speed: speedRef.current,
@@ -678,21 +678,25 @@ export default function App() {
               <h2>Campus activity</h2>
               <ol>
                 {ranked.slice(0, 8).map((o) => {
-                  const level = crowdLevel(o.share);
+                  const display = activityDisplay({
+                    count: o.count, capacity: o.location.capacity, share: o.share,
+                    modeled: o.modeled ?? o.location.activityModeled,
+                    capacityBasis: o.location.capacityBasis, kind: o.location.kind,
+                  });
                   return (
                     <li key={o.location.id}>
                       <button
                         className={o.location.building === selected ? 'row selected' : 'row'}
                         onClick={() => select(o)}
                         aria-pressed={o.location.building === selected}
-                        style={crowdLevelStyle(o.share)}
+                        style={display.style}
                       >
                         <span className="name">{o.location.name}</span>
-                        <span className="bar" aria-hidden="true">
-                          <span style={{ width: `${Math.min(100, o.share * 100)}%` }} />
-                        </span>
+                        {display.hasPercentage && <span className="bar" aria-hidden="true">
+                          <span style={{ width: `${Math.min(100, display.percent)}%` }} />
+                        </span>}
                         <span className="value">
-                          <b>{Math.round(o.share * 100)}%</b> · {level.label}
+                          <b>{display.primary}</b>{display.secondary && ` · ${display.secondary}`}
                         </span>
                       </button>
                     </li>
@@ -1049,20 +1053,6 @@ function sailingWeather(weather: ActiveWeather | null, light: LightPreset): bool
   return !weather || !NO_SAILING.has(weather.condition);
 }
 
-function WeatherImpact({ weather }: { weather: ActiveWeather }) {
-  const { note, boost } = weatherImpact(weather.condition);
-  return (
-    <p className="weather-impact">
-      <strong>Weather impact:</strong> {note}.
-      <span className="muted">
-        {weather.sourceLabel}
-        {boost > 0 && ` · dining and library occupancy shown +${Math.round(boost * 100)}%; walking routes unchanged`}
-      </span>
-    </p>
-  );
-}
-
-// Podium roof for dining halls inside a taller building (Warren Towers' dining is on the 4-storey podium).
 const PODIUM_ROOF_M = 16;
 
 /**
@@ -1097,16 +1087,15 @@ function splitSharedTags(
       ? [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length]
       : b.position;
     const main = rest.reduce((a, o) => (o.share > a.share ? o : a));
-    const count = rest.reduce((a, o) => a + o.count, 0);
-    const capacity = rest.reduce((a, o) => a + o.location.capacity, 0);
-    const plainName = (name: string) => name.replace(/\s*\([^)]*\)\s*$/, '');
-    out.push({ ...b, position: centre, name: plainName(main.location.name), short: plainName(main.location.short), count, capacity, share: main.share });
+    out.push({ ...b, position: centre, name: main.location.name, short: main.location.short, count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, capacityBasis: main.location.capacityBasis });
     for (const d of dining) {
       out.push({
         id: `${b.id}#${d.location.id}`,
         name: d.location.name,
         short: d.location.short,
         position: d.location.position,
+        modeled: d.modeled,
+        capacityBasis: d.location.capacityBasis,
         count: d.count,
         capacity: d.location.capacity,
         share: d.share,
@@ -1115,4 +1104,17 @@ function splitSharedTags(
     }
   }
   return out;
+}
+
+function WeatherImpact({ weather }: { weather: ActiveWeather }) {
+  const { note, boost } = weatherImpact(weather.condition);
+  return (
+    <p className="weather-impact">
+      <strong>Weather impact:</strong> {note}.
+      <span className="muted">
+        {weather.sourceLabel}
+        {boost > 0 && ` · dining and library occupancy shown +${Math.round(boost * 100)}%; walking routes unchanged`}
+      </span>
+    </p>
+  );
 }

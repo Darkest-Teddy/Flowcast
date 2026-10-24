@@ -102,11 +102,12 @@ const ring3d = (ring: [number, number][], z: number) => ring.map(([x, y]) => [x,
 let cached: { key: string; footprints: BuildingFootprint[]; glows: Glow[]; flatRoofs: Glow[]; packed: Glow[]; edges: Edge[] } | null = null;
 
 function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupancy[], selectedId: string | null, roofs?: RoofHeights) {
-  const key = `${selectedId}|${roofs?.size}|${buildings.map((b) => `${b.id}:${b.count}`).join()}`;
+  const key = `${selectedId}|${roofs?.size}|${buildings.map((b) => `${b.id}:${b.count}:${b.share}`).join()}`;
   if (cached && cached.key === key && cached.footprints === footprints) return cached;
   const shares = new Map(buildings.map((b) => [b.id, b.share]));
   const glows: Glow[] = [];
   for (const f of footprints) {
+    if (!shares.has(f.id)) continue;
     const geo = footprintGeometry(f);
     if (!geo) continue;
     const share = shares.get(f.id) ?? 0;
