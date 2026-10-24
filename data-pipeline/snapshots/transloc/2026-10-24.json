@@ -1,0 +1,5156 @@
+{
+ "schemaVersion": 1,
+ "source": "https://bu.transloc.com/Services/JSONPRelay.svc/GetStopArrivalTimes?timesPerStopString=500",
+ "timezone": "America/New_York",
+ "date": "2026-10-24",
+ "note": "TransLoc scheduled stop times as published for BU Shuttle routes; estimates are not stored.",
+ "polls": [
+  {
+   "polledAt": 1792875525,
+   "horizons": {
+    "1": 1792882440,
+    "2": 1792879800,
+    "4": 1792882800,
+    "6": 1792889100
+   },
+   "calls": [
+    {
+     "route": 1,
+     "routeStop": 1,
+     "stop": 1,
+     "arrival": 1792875600,
+     "departure": 1792875600
+    },
+    {
+     "route": 1,
+     "routeStop": 1,
+     "stop": 1,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 1,
+     "routeStop": 1,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 1,
+     "routeStop": 2,
+     "stop": 2,
+     "arrival": 1792875720,
+     "departure": 1792875720
+    },
+    {
+     "route": 1,
+     "routeStop": 2,
+     "stop": 2,
+     "arrival": 1792877520,
+     "departure": 1792877520
+    },
+    {
+     "route": 1,
+     "routeStop": 2,
+     "stop": 2,
+     "arrival": 1792879320,
+     "departure": 1792879320
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792875840,
+     "departure": 1792875840
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792877640,
+     "departure": 1792877640
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792879440,
+     "departure": 1792879440
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792875960,
+     "departure": 1792875960
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792877760,
+     "departure": 1792877760
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792879560,
+     "departure": 1792879560
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792876140,
+     "departure": 1792876140
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792877940,
+     "departure": 1792877940
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792879740,
+     "departure": 1792879740
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792876260,
+     "departure": 1792876260
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792878060,
+     "departure": 1792878060
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792875600,
+     "departure": 1792875600
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792881000,
+     "departure": 1792881000
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792876020,
+     "departure": 1792876020
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792877820,
+     "departure": 1792877820
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792879620,
+     "departure": 1792879620
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792881420,
+     "departure": 1792881420
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792876140,
+     "departure": 1792876140
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792877940,
+     "departure": 1792877940
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792879740,
+     "departure": 1792879740
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792881540,
+     "departure": 1792881540
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792876260,
+     "departure": 1792876260
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792878060,
+     "departure": 1792878060
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792881660,
+     "departure": 1792881660
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792876440,
+     "departure": 1792876440
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792878240,
+     "departure": 1792878240
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792880040,
+     "departure": 1792880040
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792881840,
+     "departure": 1792881840
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792876680,
+     "departure": 1792876680
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792878480,
+     "departure": 1792878480
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792880280,
+     "departure": 1792880280
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792882080,
+     "departure": 1792882080
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792876860,
+     "departure": 1792876860
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792878660,
+     "departure": 1792878660
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792880460,
+     "departure": 1792880460
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792882260,
+     "departure": 1792882260
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792877040,
+     "departure": 1792877040
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792878840,
+     "departure": 1792878840
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792880640,
+     "departure": 1792880640
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792882440,
+     "departure": 1792882440
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792875600,
+     "departure": 1792875600
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792875600,
+     "departure": 1792875600
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792876200,
+     "departure": 1792876200
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792875660,
+     "departure": 1792876200
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792877100,
+     "departure": 1792877100
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792878000,
+     "departure": 1792878000
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792878900,
+     "departure": 1792878900
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792879800,
+     "departure": 1792879800
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792875600,
+     "departure": 1792875600
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792875600,
+     "departure": 1792875600
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792876800,
+     "departure": 1792876800
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792881600,
+     "departure": 1792881600
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792876920,
+     "departure": 1792876920
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792879320,
+     "departure": 1792879320
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792881720,
+     "departure": 1792881720
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792877040,
+     "departure": 1792877040
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792879440,
+     "departure": 1792879440
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792881840,
+     "departure": 1792881840
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792877160,
+     "departure": 1792877160
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792879560,
+     "departure": 1792879560
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792881960,
+     "departure": 1792881960
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792877460,
+     "departure": 1792877460
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792882260,
+     "departure": 1792882260
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792875300,
+     "departure": 1792875600
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792877700,
+     "departure": 1792878000
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792880100,
+     "departure": 1792880400
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792882500,
+     "departure": 1792882800
+    },
+    {
+     "route": 4,
+     "routeStop": 55,
+     "stop": 26,
+     "arrival": 1792875720,
+     "departure": 1792875720
+    },
+    {
+     "route": 4,
+     "routeStop": 55,
+     "stop": 26,
+     "arrival": 1792878120,
+     "departure": 1792878120
+    },
+    {
+     "route": 4,
+     "routeStop": 55,
+     "stop": 26,
+     "arrival": 1792880520,
+     "departure": 1792880520
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792875900,
+     "departure": 1792875900
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792880700,
+     "departure": 1792880700
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792876320,
+     "departure": 1792876320
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792878720,
+     "departure": 1792878720
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792881120,
+     "departure": 1792881120
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792878900,
+     "departure": 1792878900
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792881300,
+     "departure": 1792881300
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792876680,
+     "departure": 1792876680
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792879080,
+     "departure": 1792879080
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792881480,
+     "departure": 1792881480
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792876800,
+     "departure": 1792876800
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792881600,
+     "departure": 1792881600
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792883100,
+     "departure": 1792883100
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792884000,
+     "departure": 1792884000
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792884900,
+     "departure": 1792884900
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792885800,
+     "departure": 1792885800
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792886700,
+     "departure": 1792886700
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792887600,
+     "departure": 1792887600
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792883220,
+     "departure": 1792883220
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792884120,
+     "departure": 1792884120
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792885020,
+     "departure": 1792885020
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792885920,
+     "departure": 1792885920
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792886820,
+     "departure": 1792886820
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792887720,
+     "departure": 1792887720
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792883400,
+     "departure": 1792883400
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792884300,
+     "departure": 1792884300
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792885200,
+     "departure": 1792885200
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792886100,
+     "departure": 1792886100
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792887000,
+     "departure": 1792887000
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792887900,
+     "departure": 1792887900
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792883520,
+     "departure": 1792883520
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792884420,
+     "departure": 1792884420
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792885320,
+     "departure": 1792885320
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792886220,
+     "departure": 1792886220
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792887120,
+     "departure": 1792887120
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792888020,
+     "departure": 1792888020
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792883580,
+     "departure": 1792883580
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792884480,
+     "departure": 1792884480
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792885380,
+     "departure": 1792885380
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792886280,
+     "departure": 1792886280
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792887180,
+     "departure": 1792887180
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792888080,
+     "departure": 1792888080
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792883880,
+     "departure": 1792883880
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792884780,
+     "departure": 1792884780
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792885680,
+     "departure": 1792885680
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792886580,
+     "departure": 1792886580
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792887480,
+     "departure": 1792887480
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792888380,
+     "departure": 1792888380
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792884000,
+     "departure": 1792884000
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792884900,
+     "departure": 1792884900
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792885800,
+     "departure": 1792885800
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792886700,
+     "departure": 1792886700
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792887600,
+     "departure": 1792887600
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792888500,
+     "departure": 1792888500
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792884120,
+     "departure": 1792884120
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792885020,
+     "departure": 1792885020
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792885920,
+     "departure": 1792885920
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792886820,
+     "departure": 1792886820
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792887720,
+     "departure": 1792887720
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792888620,
+     "departure": 1792888620
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792884180,
+     "departure": 1792884180
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792885080,
+     "departure": 1792885080
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792885980,
+     "departure": 1792885980
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792886880,
+     "departure": 1792886880
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792887780,
+     "departure": 1792887780
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792888680,
+     "departure": 1792888680
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792884240,
+     "departure": 1792884240
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792885140,
+     "departure": 1792885140
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792886040,
+     "departure": 1792886040
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792886940,
+     "departure": 1792886940
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792887840,
+     "departure": 1792887840
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792888740,
+     "departure": 1792888740
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792884300,
+     "departure": 1792884300
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792885200,
+     "departure": 1792885200
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792886100,
+     "departure": 1792886100
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792887000,
+     "departure": 1792887000
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792887900,
+     "departure": 1792887900
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792888800,
+     "departure": 1792888800
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792884480,
+     "departure": 1792884480
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792885380,
+     "departure": 1792885380
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792886280,
+     "departure": 1792886280
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792887180,
+     "departure": 1792887180
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792888080,
+     "departure": 1792888080
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792888980,
+     "departure": 1792888980
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792884600,
+     "departure": 1792884600
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792885500,
+     "departure": 1792885500
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792886400,
+     "departure": 1792886400
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792887300,
+     "departure": 1792887300
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792888200,
+     "departure": 1792888200
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792889100,
+     "departure": 1792889100
+    }
+   ]
+  },
+  {
+   "polledAt": 1792875870,
+   "horizons": {
+    "1": 1792882440,
+    "2": 1792881000,
+    "4": 1792882800,
+    "6": 1792889100
+   },
+   "calls": [
+    {
+     "route": 1,
+     "routeStop": 1,
+     "stop": 1,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 1,
+     "routeStop": 1,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 1,
+     "routeStop": 2,
+     "stop": 2,
+     "arrival": 1792877520,
+     "departure": 1792877520
+    },
+    {
+     "route": 1,
+     "routeStop": 2,
+     "stop": 2,
+     "arrival": 1792879320,
+     "departure": 1792879320
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792875840,
+     "departure": 1792875840
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792877640,
+     "departure": 1792877640
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792879440,
+     "departure": 1792879440
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792875960,
+     "departure": 1792875960
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792877760,
+     "departure": 1792877760
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792879560,
+     "departure": 1792879560
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792876140,
+     "departure": 1792876140
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792877940,
+     "departure": 1792877940
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792879740,
+     "departure": 1792879740
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792876260,
+     "departure": 1792876260
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792878060,
+     "departure": 1792878060
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792881000,
+     "departure": 1792881000
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792876020,
+     "departure": 1792876020
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792877820,
+     "departure": 1792877820
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792879620,
+     "departure": 1792879620
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792881420,
+     "departure": 1792881420
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792876140,
+     "departure": 1792876140
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792877940,
+     "departure": 1792877940
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792879740,
+     "departure": 1792879740
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792881540,
+     "departure": 1792881540
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792876260,
+     "departure": 1792876260
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792878060,
+     "departure": 1792878060
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792881660,
+     "departure": 1792881660
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792876440,
+     "departure": 1792876440
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792878240,
+     "departure": 1792878240
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792880040,
+     "departure": 1792880040
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792881840,
+     "departure": 1792881840
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792876680,
+     "departure": 1792876680
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792878480,
+     "departure": 1792878480
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792880280,
+     "departure": 1792880280
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792882080,
+     "departure": 1792882080
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792876860,
+     "departure": 1792876860
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792878660,
+     "departure": 1792878660
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792880460,
+     "departure": 1792880460
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792882260,
+     "departure": 1792882260
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792877040,
+     "departure": 1792877040
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792878840,
+     "departure": 1792878840
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792880640,
+     "departure": 1792880640
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792882440,
+     "departure": 1792882440
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792881000,
+     "departure": 1792881000
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792875660,
+     "departure": 1792876200
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792876200,
+     "departure": 1792876200
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792877100,
+     "departure": 1792877100
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792878000,
+     "departure": 1792878000
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792878900,
+     "departure": 1792878900
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792879800,
+     "departure": 1792879800
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792876800,
+     "departure": 1792876800
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792881600,
+     "departure": 1792881600
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792876920,
+     "departure": 1792876920
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792879320,
+     "departure": 1792879320
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792881720,
+     "departure": 1792881720
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792877040,
+     "departure": 1792877040
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792879440,
+     "departure": 1792879440
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792881840,
+     "departure": 1792881840
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792877160,
+     "departure": 1792877160
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792879560,
+     "departure": 1792879560
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792881960,
+     "departure": 1792881960
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792877460,
+     "departure": 1792877460
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792882260,
+     "departure": 1792882260
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792877700,
+     "departure": 1792878000
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792880100,
+     "departure": 1792880400
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792882500,
+     "departure": 1792882800
+    },
+    {
+     "route": 4,
+     "routeStop": 55,
+     "stop": 26,
+     "arrival": 1792878120,
+     "departure": 1792878120
+    },
+    {
+     "route": 4,
+     "routeStop": 55,
+     "stop": 26,
+     "arrival": 1792880520,
+     "departure": 1792880520
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792875900,
+     "departure": 1792875900
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792880700,
+     "departure": 1792880700
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792876320,
+     "departure": 1792876320
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792878720,
+     "departure": 1792878720
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792881120,
+     "departure": 1792881120
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792878900,
+     "departure": 1792878900
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792881300,
+     "departure": 1792881300
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792876680,
+     "departure": 1792876680
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792879080,
+     "departure": 1792879080
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792881480,
+     "departure": 1792881480
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792876800,
+     "departure": 1792876800
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792881600,
+     "departure": 1792881600
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792883100,
+     "departure": 1792883100
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792884000,
+     "departure": 1792884000
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792884900,
+     "departure": 1792884900
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792885800,
+     "departure": 1792885800
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792886700,
+     "departure": 1792886700
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792887600,
+     "departure": 1792887600
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792883220,
+     "departure": 1792883220
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792884120,
+     "departure": 1792884120
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792885020,
+     "departure": 1792885020
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792885920,
+     "departure": 1792885920
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792886820,
+     "departure": 1792886820
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792887720,
+     "departure": 1792887720
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792883400,
+     "departure": 1792883400
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792884300,
+     "departure": 1792884300
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792885200,
+     "departure": 1792885200
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792886100,
+     "departure": 1792886100
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792887000,
+     "departure": 1792887000
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792887900,
+     "departure": 1792887900
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792883520,
+     "departure": 1792883520
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792884420,
+     "departure": 1792884420
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792885320,
+     "departure": 1792885320
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792886220,
+     "departure": 1792886220
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792887120,
+     "departure": 1792887120
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792888020,
+     "departure": 1792888020
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792883580,
+     "departure": 1792883580
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792884480,
+     "departure": 1792884480
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792885380,
+     "departure": 1792885380
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792886280,
+     "departure": 1792886280
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792887180,
+     "departure": 1792887180
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792888080,
+     "departure": 1792888080
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792883880,
+     "departure": 1792883880
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792884780,
+     "departure": 1792884780
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792885680,
+     "departure": 1792885680
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792886580,
+     "departure": 1792886580
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792887480,
+     "departure": 1792887480
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792888380,
+     "departure": 1792888380
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792884000,
+     "departure": 1792884000
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792884900,
+     "departure": 1792884900
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792885800,
+     "departure": 1792885800
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792886700,
+     "departure": 1792886700
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792887600,
+     "departure": 1792887600
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792888500,
+     "departure": 1792888500
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792884120,
+     "departure": 1792884120
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792885020,
+     "departure": 1792885020
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792885920,
+     "departure": 1792885920
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792886820,
+     "departure": 1792886820
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792887720,
+     "departure": 1792887720
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792888620,
+     "departure": 1792888620
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792884180,
+     "departure": 1792884180
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792885080,
+     "departure": 1792885080
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792885980,
+     "departure": 1792885980
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792886880,
+     "departure": 1792886880
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792887780,
+     "departure": 1792887780
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792888680,
+     "departure": 1792888680
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792884240,
+     "departure": 1792884240
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792885140,
+     "departure": 1792885140
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792886040,
+     "departure": 1792886040
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792886940,
+     "departure": 1792886940
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792887840,
+     "departure": 1792887840
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792888740,
+     "departure": 1792888740
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792884300,
+     "departure": 1792884300
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792885200,
+     "departure": 1792885200
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792886100,
+     "departure": 1792886100
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792887000,
+     "departure": 1792887000
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792887900,
+     "departure": 1792887900
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792888800,
+     "departure": 1792888800
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792884480,
+     "departure": 1792884480
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792885380,
+     "departure": 1792885380
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792886280,
+     "departure": 1792886280
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792887180,
+     "departure": 1792887180
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792888080,
+     "departure": 1792888080
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792888980,
+     "departure": 1792888980
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792884600,
+     "departure": 1792884600
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792885500,
+     "departure": 1792885500
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792886400,
+     "departure": 1792886400
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792887300,
+     "departure": 1792887300
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792888200,
+     "departure": 1792888200
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792889100,
+     "departure": 1792889100
+    }
+   ]
+  },
+  {
+   "polledAt": 1792875942,
+   "horizons": {
+    "1": 1792882440,
+    "2": 1792881000,
+    "4": 1792882800,
+    "6": 1792889100
+   },
+   "calls": [
+    {
+     "route": 1,
+     "routeStop": 1,
+     "stop": 1,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 1,
+     "routeStop": 1,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 1,
+     "routeStop": 2,
+     "stop": 2,
+     "arrival": 1792877520,
+     "departure": 1792877520
+    },
+    {
+     "route": 1,
+     "routeStop": 2,
+     "stop": 2,
+     "arrival": 1792879320,
+     "departure": 1792879320
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792875840,
+     "departure": 1792875840
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792877640,
+     "departure": 1792877640
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792879440,
+     "departure": 1792879440
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792875960,
+     "departure": 1792875960
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792877760,
+     "departure": 1792877760
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792879560,
+     "departure": 1792879560
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792876140,
+     "departure": 1792876140
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792877940,
+     "departure": 1792877940
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792879740,
+     "departure": 1792879740
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792876260,
+     "departure": 1792876260
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792878060,
+     "departure": 1792878060
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792881000,
+     "departure": 1792881000
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792876020,
+     "departure": 1792876020
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792877820,
+     "departure": 1792877820
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792879620,
+     "departure": 1792879620
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792881420,
+     "departure": 1792881420
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792876140,
+     "departure": 1792876140
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792877940,
+     "departure": 1792877940
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792879740,
+     "departure": 1792879740
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792881540,
+     "departure": 1792881540
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792876260,
+     "departure": 1792876260
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792878060,
+     "departure": 1792878060
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792881660,
+     "departure": 1792881660
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792876440,
+     "departure": 1792876440
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792878240,
+     "departure": 1792878240
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792880040,
+     "departure": 1792880040
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792881840,
+     "departure": 1792881840
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792876680,
+     "departure": 1792876680
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792878480,
+     "departure": 1792878480
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792880280,
+     "departure": 1792880280
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792882080,
+     "departure": 1792882080
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792876860,
+     "departure": 1792876860
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792878660,
+     "departure": 1792878660
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792880460,
+     "departure": 1792880460
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792882260,
+     "departure": 1792882260
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792877040,
+     "departure": 1792877040
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792878840,
+     "departure": 1792878840
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792880640,
+     "departure": 1792880640
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792882440,
+     "departure": 1792882440
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792881000,
+     "departure": 1792881000
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792875660,
+     "departure": 1792876200
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792876200,
+     "departure": 1792876200
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792877100,
+     "departure": 1792877100
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792878000,
+     "departure": 1792878000
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792878900,
+     "departure": 1792878900
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792879800,
+     "departure": 1792879800
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792876800,
+     "departure": 1792876800
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792881600,
+     "departure": 1792881600
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792876920,
+     "departure": 1792876920
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792879320,
+     "departure": 1792879320
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792881720,
+     "departure": 1792881720
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792877040,
+     "departure": 1792877040
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792879440,
+     "departure": 1792879440
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792881840,
+     "departure": 1792881840
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792877160,
+     "departure": 1792877160
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792879560,
+     "departure": 1792879560
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792881960,
+     "departure": 1792881960
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792877460,
+     "departure": 1792877460
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792882260,
+     "departure": 1792882260
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792877700,
+     "departure": 1792878000
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792880100,
+     "departure": 1792880400
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792882500,
+     "departure": 1792882800
+    },
+    {
+     "route": 4,
+     "routeStop": 55,
+     "stop": 26,
+     "arrival": 1792878120,
+     "departure": 1792878120
+    },
+    {
+     "route": 4,
+     "routeStop": 55,
+     "stop": 26,
+     "arrival": 1792880520,
+     "departure": 1792880520
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792875900,
+     "departure": 1792875900
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792880700,
+     "departure": 1792880700
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792876320,
+     "departure": 1792876320
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792878720,
+     "departure": 1792878720
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792881120,
+     "departure": 1792881120
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792878900,
+     "departure": 1792878900
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792881300,
+     "departure": 1792881300
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792876680,
+     "departure": 1792876680
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792879080,
+     "departure": 1792879080
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792881480,
+     "departure": 1792881480
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792876800,
+     "departure": 1792876800
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792881600,
+     "departure": 1792881600
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792883100,
+     "departure": 1792883100
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792884000,
+     "departure": 1792884000
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792884900,
+     "departure": 1792884900
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792885800,
+     "departure": 1792885800
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792886700,
+     "departure": 1792886700
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792887600,
+     "departure": 1792887600
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792883220,
+     "departure": 1792883220
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792884120,
+     "departure": 1792884120
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792885020,
+     "departure": 1792885020
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792885920,
+     "departure": 1792885920
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792886820,
+     "departure": 1792886820
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792887720,
+     "departure": 1792887720
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792883400,
+     "departure": 1792883400
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792884300,
+     "departure": 1792884300
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792885200,
+     "departure": 1792885200
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792886100,
+     "departure": 1792886100
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792887000,
+     "departure": 1792887000
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792887900,
+     "departure": 1792887900
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792883520,
+     "departure": 1792883520
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792884420,
+     "departure": 1792884420
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792885320,
+     "departure": 1792885320
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792886220,
+     "departure": 1792886220
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792887120,
+     "departure": 1792887120
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792888020,
+     "departure": 1792888020
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792883580,
+     "departure": 1792883580
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792884480,
+     "departure": 1792884480
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792885380,
+     "departure": 1792885380
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792886280,
+     "departure": 1792886280
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792887180,
+     "departure": 1792887180
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792888080,
+     "departure": 1792888080
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792883880,
+     "departure": 1792883880
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792884780,
+     "departure": 1792884780
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792885680,
+     "departure": 1792885680
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792886580,
+     "departure": 1792886580
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792887480,
+     "departure": 1792887480
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792888380,
+     "departure": 1792888380
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792884000,
+     "departure": 1792884000
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792884900,
+     "departure": 1792884900
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792885800,
+     "departure": 1792885800
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792886700,
+     "departure": 1792886700
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792887600,
+     "departure": 1792887600
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792888500,
+     "departure": 1792888500
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792884120,
+     "departure": 1792884120
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792885020,
+     "departure": 1792885020
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792885920,
+     "departure": 1792885920
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792886820,
+     "departure": 1792886820
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792887720,
+     "departure": 1792887720
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792888620,
+     "departure": 1792888620
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792884180,
+     "departure": 1792884180
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792885080,
+     "departure": 1792885080
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792885980,
+     "departure": 1792885980
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792886880,
+     "departure": 1792886880
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792887780,
+     "departure": 1792887780
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792888680,
+     "departure": 1792888680
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792884240,
+     "departure": 1792884240
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792885140,
+     "departure": 1792885140
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792886040,
+     "departure": 1792886040
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792886940,
+     "departure": 1792886940
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792887840,
+     "departure": 1792887840
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792888740,
+     "departure": 1792888740
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792884300,
+     "departure": 1792884300
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792885200,
+     "departure": 1792885200
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792886100,
+     "departure": 1792886100
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792887000,
+     "departure": 1792887000
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792887900,
+     "departure": 1792887900
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792888800,
+     "departure": 1792888800
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792884480,
+     "departure": 1792884480
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792885380,
+     "departure": 1792885380
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792886280,
+     "departure": 1792886280
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792887180,
+     "departure": 1792887180
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792888080,
+     "departure": 1792888080
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792888980,
+     "departure": 1792888980
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792884600,
+     "departure": 1792884600
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792885500,
+     "departure": 1792885500
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792886400,
+     "departure": 1792886400
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792887300,
+     "departure": 1792887300
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792888200,
+     "departure": 1792888200
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792889100,
+     "departure": 1792889100
+    }
+   ]
+  },
+  {
+   "polledAt": 1792875943,
+   "horizons": {
+    "1": 1792882440,
+    "2": 1792881000,
+    "4": 1792882800,
+    "6": 1792889100
+   },
+   "calls": [
+    {
+     "route": 1,
+     "routeStop": 1,
+     "stop": 1,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 1,
+     "routeStop": 1,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 1,
+     "routeStop": 2,
+     "stop": 2,
+     "arrival": 1792877520,
+     "departure": 1792877520
+    },
+    {
+     "route": 1,
+     "routeStop": 2,
+     "stop": 2,
+     "arrival": 1792879320,
+     "departure": 1792879320
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792875840,
+     "departure": 1792875840
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792877640,
+     "departure": 1792877640
+    },
+    {
+     "route": 1,
+     "routeStop": 3,
+     "stop": 3,
+     "arrival": 1792879440,
+     "departure": 1792879440
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792875960,
+     "departure": 1792875960
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792877760,
+     "departure": 1792877760
+    },
+    {
+     "route": 1,
+     "routeStop": 4,
+     "stop": 4,
+     "arrival": 1792879560,
+     "departure": 1792879560
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792876140,
+     "departure": 1792876140
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792877940,
+     "departure": 1792877940
+    },
+    {
+     "route": 1,
+     "routeStop": 5,
+     "stop": 5,
+     "arrival": 1792879740,
+     "departure": 1792879740
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792876260,
+     "departure": 1792876260
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792878060,
+     "departure": 1792878060
+    },
+    {
+     "route": 1,
+     "routeStop": 6,
+     "stop": 6,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 1,
+     "routeStop": 7,
+     "stop": 7,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 1,
+     "routeStop": 8,
+     "stop": 8,
+     "arrival": 1792881000,
+     "departure": 1792881000
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792876020,
+     "departure": 1792876020
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792877820,
+     "departure": 1792877820
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792879620,
+     "departure": 1792879620
+    },
+    {
+     "route": 1,
+     "routeStop": 9,
+     "stop": 9,
+     "arrival": 1792881420,
+     "departure": 1792881420
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792876140,
+     "departure": 1792876140
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792877940,
+     "departure": 1792877940
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792879740,
+     "departure": 1792879740
+    },
+    {
+     "route": 1,
+     "routeStop": 10,
+     "stop": 10,
+     "arrival": 1792881540,
+     "departure": 1792881540
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792876260,
+     "departure": 1792876260
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792878060,
+     "departure": 1792878060
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 1,
+     "routeStop": 11,
+     "stop": 11,
+     "arrival": 1792881660,
+     "departure": 1792881660
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792876440,
+     "departure": 1792876440
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792878240,
+     "departure": 1792878240
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792880040,
+     "departure": 1792880040
+    },
+    {
+     "route": 1,
+     "routeStop": 12,
+     "stop": 12,
+     "arrival": 1792881840,
+     "departure": 1792881840
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792876680,
+     "departure": 1792876680
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792878480,
+     "departure": 1792878480
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792880280,
+     "departure": 1792880280
+    },
+    {
+     "route": 1,
+     "routeStop": 13,
+     "stop": 13,
+     "arrival": 1792882080,
+     "departure": 1792882080
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792876860,
+     "departure": 1792876860
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792878660,
+     "departure": 1792878660
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792880460,
+     "departure": 1792880460
+    },
+    {
+     "route": 1,
+     "routeStop": 14,
+     "stop": 14,
+     "arrival": 1792882260,
+     "departure": 1792882260
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792877040,
+     "departure": 1792877040
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792878840,
+     "departure": 1792878840
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792880640,
+     "departure": 1792880640
+    },
+    {
+     "route": 1,
+     "routeStop": 15,
+     "stop": 15,
+     "arrival": 1792882440,
+     "departure": 1792882440
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 2,
+     "routeStop": 23,
+     "stop": 16,
+     "arrival": 1792881000,
+     "departure": 1792881000
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792875660,
+     "departure": 1792876200
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792876200,
+     "departure": 1792876200
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792877100,
+     "departure": 1792877100
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792878000,
+     "departure": 1792878000
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792878900,
+     "departure": 1792878900
+    },
+    {
+     "route": 2,
+     "routeStop": 52,
+     "stop": 25,
+     "arrival": 1792879800,
+     "departure": 1792879800
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792877400,
+     "departure": 1792877400
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 2,
+     "routeStop": 53,
+     "stop": 16,
+     "arrival": 1792880100,
+     "departure": 1792880100
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792876800,
+     "departure": 1792876800
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 4,
+     "routeStop": 25,
+     "stop": 1,
+     "arrival": 1792881600,
+     "departure": 1792881600
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792876920,
+     "departure": 1792876920
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792879320,
+     "departure": 1792879320
+    },
+    {
+     "route": 4,
+     "routeStop": 26,
+     "stop": 2,
+     "arrival": 1792881720,
+     "departure": 1792881720
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792877040,
+     "departure": 1792877040
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792879440,
+     "departure": 1792879440
+    },
+    {
+     "route": 4,
+     "routeStop": 27,
+     "stop": 3,
+     "arrival": 1792881840,
+     "departure": 1792881840
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792877160,
+     "departure": 1792877160
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792879560,
+     "departure": 1792879560
+    },
+    {
+     "route": 4,
+     "routeStop": 28,
+     "stop": 4,
+     "arrival": 1792881960,
+     "departure": 1792881960
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792877460,
+     "departure": 1792877460
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792879860,
+     "departure": 1792879860
+    },
+    {
+     "route": 4,
+     "routeStop": 29,
+     "stop": 18,
+     "arrival": 1792882260,
+     "departure": 1792882260
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792877700,
+     "departure": 1792878000
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792880100,
+     "departure": 1792880400
+    },
+    {
+     "route": 4,
+     "routeStop": 30,
+     "stop": 19,
+     "arrival": 1792882500,
+     "departure": 1792882800
+    },
+    {
+     "route": 4,
+     "routeStop": 55,
+     "stop": 26,
+     "arrival": 1792878120,
+     "departure": 1792878120
+    },
+    {
+     "route": 4,
+     "routeStop": 55,
+     "stop": 26,
+     "arrival": 1792880520,
+     "departure": 1792880520
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792875900,
+     "departure": 1792875900
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792878300,
+     "departure": 1792878300
+    },
+    {
+     "route": 4,
+     "routeStop": 31,
+     "stop": 20,
+     "arrival": 1792880700,
+     "departure": 1792880700
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792876320,
+     "departure": 1792876320
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792878720,
+     "departure": 1792878720
+    },
+    {
+     "route": 4,
+     "routeStop": 32,
+     "stop": 13,
+     "arrival": 1792881120,
+     "departure": 1792881120
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792876500,
+     "departure": 1792876500
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792878900,
+     "departure": 1792878900
+    },
+    {
+     "route": 4,
+     "routeStop": 33,
+     "stop": 14,
+     "arrival": 1792881300,
+     "departure": 1792881300
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792876680,
+     "departure": 1792876680
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792879080,
+     "departure": 1792879080
+    },
+    {
+     "route": 4,
+     "routeStop": 34,
+     "stop": 15,
+     "arrival": 1792881480,
+     "departure": 1792881480
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792876800,
+     "departure": 1792876800
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792879200,
+     "departure": 1792879200
+    },
+    {
+     "route": 4,
+     "routeStop": 51,
+     "stop": 1,
+     "arrival": 1792881600,
+     "departure": 1792881600
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792883100,
+     "departure": 1792883100
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792884000,
+     "departure": 1792884000
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792884900,
+     "departure": 1792884900
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792885800,
+     "departure": 1792885800
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792886700,
+     "departure": 1792886700
+    },
+    {
+     "route": 6,
+     "routeStop": 38,
+     "stop": 1,
+     "arrival": 1792887600,
+     "departure": 1792887600
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792883220,
+     "departure": 1792883220
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792884120,
+     "departure": 1792884120
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792885020,
+     "departure": 1792885020
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792885920,
+     "departure": 1792885920
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792886820,
+     "departure": 1792886820
+    },
+    {
+     "route": 6,
+     "routeStop": 39,
+     "stop": 2,
+     "arrival": 1792887720,
+     "departure": 1792887720
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792883400,
+     "departure": 1792883400
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792884300,
+     "departure": 1792884300
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792885200,
+     "departure": 1792885200
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792886100,
+     "departure": 1792886100
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792887000,
+     "departure": 1792887000
+    },
+    {
+     "route": 6,
+     "routeStop": 40,
+     "stop": 23,
+     "arrival": 1792887900,
+     "departure": 1792887900
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792883520,
+     "departure": 1792883520
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792884420,
+     "departure": 1792884420
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792885320,
+     "departure": 1792885320
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792886220,
+     "departure": 1792886220
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792887120,
+     "departure": 1792887120
+    },
+    {
+     "route": 6,
+     "routeStop": 41,
+     "stop": 19,
+     "arrival": 1792888020,
+     "departure": 1792888020
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792883580,
+     "departure": 1792883580
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792884480,
+     "departure": 1792884480
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792885380,
+     "departure": 1792885380
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792886280,
+     "departure": 1792886280
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792887180,
+     "departure": 1792887180
+    },
+    {
+     "route": 6,
+     "routeStop": 56,
+     "stop": 26,
+     "arrival": 1792888080,
+     "departure": 1792888080
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792883880,
+     "departure": 1792883880
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792884780,
+     "departure": 1792884780
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792885680,
+     "departure": 1792885680
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792886580,
+     "departure": 1792886580
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792887480,
+     "departure": 1792887480
+    },
+    {
+     "route": 6,
+     "routeStop": 42,
+     "stop": 11,
+     "arrival": 1792888380,
+     "departure": 1792888380
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792884000,
+     "departure": 1792884000
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792884900,
+     "departure": 1792884900
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792885800,
+     "departure": 1792885800
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792886700,
+     "departure": 1792886700
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792887600,
+     "departure": 1792887600
+    },
+    {
+     "route": 6,
+     "routeStop": 43,
+     "stop": 12,
+     "arrival": 1792888500,
+     "departure": 1792888500
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792884120,
+     "departure": 1792884120
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792885020,
+     "departure": 1792885020
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792885920,
+     "departure": 1792885920
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792886820,
+     "departure": 1792886820
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792887720,
+     "departure": 1792887720
+    },
+    {
+     "route": 6,
+     "routeStop": 44,
+     "stop": 13,
+     "arrival": 1792888620,
+     "departure": 1792888620
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792884180,
+     "departure": 1792884180
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792885080,
+     "departure": 1792885080
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792885980,
+     "departure": 1792885980
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792886880,
+     "departure": 1792886880
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792887780,
+     "departure": 1792887780
+    },
+    {
+     "route": 6,
+     "routeStop": 45,
+     "stop": 24,
+     "arrival": 1792888680,
+     "departure": 1792888680
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792884240,
+     "departure": 1792884240
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792885140,
+     "departure": 1792885140
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792886040,
+     "departure": 1792886040
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792886940,
+     "departure": 1792886940
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792887840,
+     "departure": 1792887840
+    },
+    {
+     "route": 6,
+     "routeStop": 46,
+     "stop": 14,
+     "arrival": 1792888740,
+     "departure": 1792888740
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792884300,
+     "departure": 1792884300
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792885200,
+     "departure": 1792885200
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792886100,
+     "departure": 1792886100
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792887000,
+     "departure": 1792887000
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792887900,
+     "departure": 1792887900
+    },
+    {
+     "route": 6,
+     "routeStop": 47,
+     "stop": 22,
+     "arrival": 1792888800,
+     "departure": 1792888800
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792884480,
+     "departure": 1792884480
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792885380,
+     "departure": 1792885380
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792886280,
+     "departure": 1792886280
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792887180,
+     "departure": 1792887180
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792888080,
+     "departure": 1792888080
+    },
+    {
+     "route": 6,
+     "routeStop": 49,
+     "stop": 15,
+     "arrival": 1792888980,
+     "departure": 1792888980
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792884600,
+     "departure": 1792884600
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792885500,
+     "departure": 1792885500
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792886400,
+     "departure": 1792886400
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792887300,
+     "departure": 1792887300
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792888200,
+     "departure": 1792888200
+    },
+    {
+     "route": 6,
+     "routeStop": 54,
+     "stop": 1,
+     "arrival": 1792889100,
+     "departure": 1792889100
+    }
+   ]
+  }
+ ]
+}

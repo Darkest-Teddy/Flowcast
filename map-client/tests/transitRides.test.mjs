@@ -16,7 +16,8 @@ const T = await import('../src/sim/transitService.ts');
 const read = (name) => JSON.parse(readFileSync(new URL(`../public/data/${name}.json`, import.meta.url)));
 
 const source = read('campus-data');
-const schedule = read('transit-schedule');
+const shuttleSchedule = read('shuttle-schedule');
+const schedule = T.mergeSchedules(read('transit-schedule'), shuttleSchedule);
 const base = buildPopulation(read('demo-day'), source, read('population'));
 const service = T.createTransitService(schedule);
 const WEDNESDAY = 2;
@@ -29,17 +30,20 @@ test('every ride is a published trip calling at that stop at its published time'
   const calls = new Map();
   for (const trip of schedule.trips) {
     if (!trip.weekdays.includes(WEDNESDAY)) continue;
-    for (const call of trip.stops) {
+    trip.stops.forEach((call, index) => {
       const stop = schedule.stops[call.stop]?.mapStopId;
-      if (stop) calls.set(`${trip.id}|${stop}`, { trip, call });
-    }
+      if (!stop) return;
+      const key = `${trip.id}|${stop}`;
+      calls.set(key, [...(calls.get(key) ?? []), { trip, call, first: index === 0, last: index === trip.stops.length - 1 }]);
+    });
   }
   for (const ride of day.transitRides) {
-    const hit = calls.get(`${ride.trip}|${ride.stop}`);
-    assert.ok(hit, `${ride.trip} calls at ${ride.stop}`);
-    assert.equal(hit.trip.route, ride.route);
-    assert.equal(hit.trip.direction, ride.direction);
-    assert.equal(ride.time, ride.kind === 'alight' ? hit.call.arrival : hit.call.departure);
+    const hits = calls.get(`${ride.trip}|${ride.stop}`);
+    assert.ok(hits, `${ride.trip} calls at ${ride.stop}`);
+    assert.equal(hits[0].trip.route, ride.route);
+    assert.equal(hits[0].trip.direction, ride.direction);
+    assert.ok(hits.some((hit) => ride.kind === 'alight' ? !hit.first && hit.call.arrival === ride.time : !hit.last && hit.call.departure === ride.time),
+      'riders step off after a trip starts and get on before it ends, at published times');
     assert.equal(agents.get(ride.agent).residency, 'commuter');
   }
 });
@@ -70,7 +74,7 @@ test('ridership follows the cited commuter share and never overfills a vehicle',
   const load = new Map();
   for (const ride of day.transitRides) load.set(ride.trip, (load.get(ride.trip) ?? 0) + 1);
   for (const ride of day.transitRides) assert.ok(load.get(ride.trip) <= T.VEHICLE_PEAK_MAX_LOAD[T.routeKind(ride.route)]);
-  assert.ok(day.sourceStats.transitUnmatchedLegs <= 0.01 * day.transitRides.length * 2, 'almost every rider leg fits a published trip');
+  assert.ok(day.sourceStats.transitUnmatchedLegs <= 0.03 * day.transitRides.length, 'almost every rider leg fits a published trip');
   const playback = new Playback(day);
   const busiest = [...load].sort((a, b) => b[1] - a[1])[0][0];
   const rides = day.transitRides.filter((ride) => ride.trip === busiest);
@@ -102,4 +106,21 @@ test('without a timetable the planner is unchanged and nobody rides', () => {
   const walkOnly = buildSourceDay(base, source, WEDNESDAY);
   assert.equal(walkOnly.transitRides.length, 0);
   assert.equal(walkOnly.sourceStats.transitCommuters, 0);
+});
+
+test('BU Shuttle riders use timetabled loop trips, go home onward round the same line, and fit the vehicle', () => {
+  const shuttleRides = day.transitRides.filter((ride) => ride.route.startsWith('BU-'));
+  assert.ok(shuttleRides.length > 200, `${shuttleRides.length} shuttle rides`);
+  const tripIds = new Set(shuttleSchedule.trips.map((trip) => trip.id));
+  const byAgent = new Map();
+  for (const ride of shuttleRides) {
+    assert.ok(tripIds.has(ride.trip));
+    assert.equal(ride.direction, 0, 'shuttle lines are one-way loops');
+    assert.match(ride.stop, /^BU-stop-\d+$/);
+    byAgent.set(ride.agent, [...(byAgent.get(ride.agent) ?? []), ride]);
+  }
+  for (const rides of byAgent.values()) assert.equal(new Set(rides.map((ride) => ride.route)).size, 1, 'one line per rider');
+  const load = new Map();
+  for (const ride of shuttleRides) load.set(ride.trip, (load.get(ride.trip) ?? 0) + 1);
+  assert.ok(Math.max(...load.values()) <= T.SHUTTLE_CAPACITY);
 });

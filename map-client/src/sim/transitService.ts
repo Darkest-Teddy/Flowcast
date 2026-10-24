@@ -1,10 +1,10 @@
-// Published MBTA service at the campus gateway stops, indexed for the student planner.
+// Published MBTA and BU Shuttle service at the campus gateway stops, indexed for the planner.
 //
 // The planner uses this to put commuting students on real scheduled trips: inbound riders step
 // off a trip at its published arrival time, and outbound riders wait at the stop for the next
-// published departure. Times come from the saved GTFS timetable (transit-schedule.json); no
-// headway, trip or stop is invented. The BU Shuttle has no machine-readable timetable, so it is
-// not part of this service.
+// published departure. MBTA times come from the saved GTFS timetable (transit-schedule.json);
+// BU Shuttle times from shuttle-schedule.json (recorded TransLoc schedules where captured, BU's
+// 2024-25 TransLoc GTFS baseline elsewhere). No headway, trip or stop is invented.
 import type { PublishedScheduleData } from '../transit/publishedSchedule';
 
 const DAY = 86400;
@@ -28,15 +28,25 @@ export const MAX_EARLY_ARRIVAL_SECONDS = 60 * 60;
 export const MIN_WEEKLY_TRIPS = 35;
 /** The opposite-direction stop used for the trip home must be within this walk of the arrival stop. */
 export const MAX_STOP_PAIR_METRES = 400;
+/** Passenger capacity BU configures for every BU Shuttle vehicle in TransLoc (GetVehicleCapacities, October 2026). */
+export const SHUTTLE_CAPACITY = 100;
+export const SHUTTLE_CAPACITY_SOURCE = 'https://bu.transloc.com/Services/JSONPRelay.svc/GetVehicleCapacities';
 /**
  * MBTA Service Delivery Policy (December 2025), Appendix B peak maximum loads: Green Line
  * Type 7/8/9 light rail 100 per car (two-car trains assumed), New Flyer 40-ft bus 54. Modeled
  * students alone must never exceed these; other riders are not modeled.
  */
-export const VEHICLE_PEAK_MAX_LOAD = { subway: 200, bus: 54 } as const;
+export const VEHICLE_PEAK_MAX_LOAD = { subway: 200, bus: 54, shuttle: SHUTTLE_CAPACITY } as const;
 export const VEHICLE_LOAD_SOURCE = 'https://cdn.mbta.com/sites/default/files/2026-01/20260128_Service%20Delivery%20Policy_December%202025.pdf';
 
-export const routeKind = (route: string): 'subway' | 'bus' => (route.startsWith('Green-') ? 'subway' : 'bus');
+export const routeKind = (route: string): 'subway' | 'bus' | 'shuttle' =>
+  (route.startsWith('Green-') ? 'subway' : route.startsWith('BU-') ? 'shuttle' : 'bus');
+
+/** One timetable for the planner and playback: MBTA trips plus BU Shuttle trips (ids are disjoint). */
+export function mergeSchedules(base: PublishedScheduleData, extra: PublishedScheduleData | null): PublishedScheduleData {
+  if (!extra) return base;
+  return { ...base, stops: { ...base.stops, ...extra.stops }, trips: [...base.trips, ...extra.trips] };
+}
 
 export interface StopService { route: string; direction: 0 | 1; weeklyTrips: number }
 
@@ -48,7 +58,8 @@ export interface TransitService {
   readonly referenceWeekStart: string;
   readonly sourceUrl: string;
   services(stop: string): StopService[];
-  visits(stop: string, route: string, direction: 0 | 1, weekday: number): StopVisits | undefined;
+  /** Calls riders can step off (`alight`: not a trip's first call) or get on (`board`: not its last). */
+  visits(stop: string, route: string, direction: 0 | 1, weekday: number, use: 'alight' | 'board'): StopVisits | undefined;
 }
 
 const cache = new WeakMap<PublishedScheduleData, TransitService>();
@@ -59,24 +70,30 @@ export function createTransitService(schedule: PublishedScheduleData): TransitSe
   if (cached) return cached;
   const rows = new Map<string, { arrival: number; departure: number; trip: string }[]>();
   const weekly = new Map<string, Map<string, StopService>>();
+  const add = (key: string, row: { arrival: number; departure: number; trip: string }) => {
+    const list = rows.get(key) ?? [];
+    list.push(row); rows.set(key, list);
+  };
   for (const trip of schedule.trips) {
-    const seen = new Set<string>();
-    for (const call of trip.stops) {
+    const counted = new Set<string>();
+    trip.stops.forEach((call, index) => {
       const stop = schedule.stops[call.stop]?.mapStopId;
-      if (!stop || seen.has(stop) || !(call.arrival <= call.departure) || call.departure >= DAY || call.arrival < 0) continue;
-      seen.add(stop);
+      if (!stop || !(call.arrival <= call.departure) || call.departure >= DAY || call.arrival < 0) return;
       const serviceKey = `${trip.route}|${trip.direction}`;
-      const services = weekly.get(stop) ?? new Map<string, StopService>();
-      const service = services.get(serviceKey) ?? { route: trip.route, direction: trip.direction, weeklyTrips: 0 };
-      service.weeklyTrips += trip.weekdays.length;
-      services.set(serviceKey, service); weekly.set(stop, services);
-      for (const weekday of trip.weekdays) {
-        const key = `${stop}|${trip.route}|${trip.direction}|${weekday}`;
-        const list = rows.get(key) ?? [];
-        list.push({ arrival: call.arrival, departure: call.departure, trip: trip.id });
-        rows.set(key, list);
+      if (!counted.has(stop)) {
+        counted.add(stop);
+        const services = weekly.get(stop) ?? new Map<string, StopService>();
+        const service = services.get(serviceKey) ?? { route: trip.route, direction: trip.direction, weeklyTrips: 0 };
+        service.weeklyTrips += trip.weekdays.length;
+        services.set(serviceKey, service); weekly.set(stop, services);
       }
-    }
+      // A loop calls at its terminus twice: arrive on the last call, leave on the first.
+      for (const weekday of trip.weekdays) {
+        const row = { arrival: call.arrival, departure: call.departure, trip: trip.id };
+        if (index > 0) add(`alight|${stop}|${serviceKey}|${weekday}`, row);
+        if (index < trip.stops.length - 1) add(`board|${stop}|${serviceKey}|${weekday}`, row);
+      }
+    });
   }
   const visits = new Map<string, StopVisits>();
   for (const [key, list] of rows) {
@@ -87,7 +104,7 @@ export function createTransitService(schedule: PublishedScheduleData): TransitSe
     referenceWeekStart: schedule.referenceWeekStart,
     sourceUrl: schedule.sourceUrl,
     services: (stop) => [...(weekly.get(stop)?.values() ?? [])].sort((a, b) => a.route.localeCompare(b.route) || a.direction - b.direction),
-    visits: (stop, route, direction, weekday) => visits.get(`${stop}|${route}|${direction}|${weekday}`),
+    visits: (stop, route, direction, weekday, use) => visits.get(`${use}|${stop}|${route}|${direction}|${weekday}`),
   };
   cache.set(schedule, service);
   return service;

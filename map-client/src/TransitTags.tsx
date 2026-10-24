@@ -250,7 +250,7 @@ export function TransitTags({ ref }: { ref: Ref<TransitTagsHandle> }) {
           const { data, source } = transit;
           // BU shuttle lines only during their service hours, as on the map.
           const routes = new Map(
-            data.routes.filter((r) => r.kind !== 'shuttle' || shuttleInService(r, transit.time, transit.weekday)).map((r) => [r.id, r]),
+            data.routes.filter((r) => r.kind !== 'shuttle' || (source.inService?.(r.id) ?? shuttleInService(r, transit.time, transit.weekday))).map((r) => [r.id, r]),
           );
           const stationItems: GlassTagItem[] = [];
           const stopItems: GlassTagItem[] = [];

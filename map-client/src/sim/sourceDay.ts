@@ -229,7 +229,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
   if (transit) stats.assumptions.push(
     `With the published MBTA timetable loaded, a stable ${Math.round(TRANSIT_COMMUTER_SHARE * 1000) / 10}% of commuting students ride transit: the public-transportation share of all Charles River Campus commuters (employees and students) in BU's 2013–2023 Institutional Master Plan, Section 8.4 (December 2010 data). It is not a student-only or per-campus measurement.`,
     `Riders use one gateway stop for the week, chosen in proportion to published weekly trips of each route direction stopping there (at least ${MIN_WEEKLY_TRIPS}), and return from the nearest stop within ${MAX_STOP_PAIR_METRES} m served the other way. Each walk onto campus starts ${ALIGHT_SECONDS} s after a published arrival (at most ${MAX_EARLY_ARRIVAL_SECONDS / 60} min early); each walk off campus ends with a wait of at most ${MAX_STOP_WAIT_SECONDS / 60} min for a published departure. Legs no published trip fits are walked from the stop and counted as unmatched.`,
-    `The timetable is the saved GTFS reference week of ${transit.referenceWeekStart}, aligned to the scenario by weekday. Origins, transfers and the off-map part of each journey are unknown. BU Shuttle riding is not modeled: it has no machine-readable timetable. Non-riders do not walk in from Green Line platforms.`,
+    `MBTA times are the saved GTFS reference week of ${transit.referenceWeekStart}, aligned to the scenario by weekday. BU Shuttle times are TransLoc's recorded current schedules inside captured windows and BU's 2024–25 TransLoc GTFS baseline elsewhere; shuttle lines are loops, so riders go home onward round the same line. Origins, transfers and the off-map part of each journey are unknown. Non-riders do not walk in from Green Line platforms.`,
   );
   const routes = new Map<string, Route>();
   const adjacent = new Map<string, { to: string; route: Route }[]>();
@@ -350,7 +350,9 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       .some((service) => service.route === route && service.direction === direction && service.weeklyTrips >= MIN_WEEKLY_TRIPS);
     for (const gate of [...gates].sort()) for (const service of transit.services(gate)) {
       if (service.weeklyTrips < MIN_WEEKLY_TRIPS) continue;
-      const back = (1 - service.direction) as 0 | 1;
+      // A loop (every BU Shuttle line) runs one way: the trip home is the same line, onward round the loop.
+      const opposite = (1 - service.direction) as 0 | 1;
+      const back = gates.some((other) => serves(other, service.route, opposite)) ? opposite : service.direction;
       let partner: string | undefined, best = Infinity;
       for (const other of [...gates].sort()) {
         if (!serves(other, service.route, back)) continue;
@@ -710,7 +712,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
   const tripHasRoom = (trip: string, route: string) => (tripLoad.get(trip) ?? 0) < VEHICLE_PEAK_MAX_LOAD[routeKind(route)];
   const matchAlighting = (commute: Commute, weekday: number, earliest: number, wanted: number, latest: number,
     fits: (walkStart: number) => boolean) => {
-    const visits = transit!.visits(commute.inGate, commute.route, commute.inDirection, weekday);
+    const visits = transit!.visits(commute.inGate, commute.route, commute.inDirection, weekday, 'alight');
     if (!visits) return undefined;
     const low = Math.max(earliest, wanted - MAX_EARLY_ARRIVAL_SECONDS);
     const usable = (index: number) => {
@@ -824,7 +826,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     if (commute) moves.forEach((leg, index) => {
       if (leg.to !== 'off-campus') return;
       const stopPoint = leg.route.path.at(-1)!;
-      const visits = transit!.visits(commute.outGate, commute.route, commute.outDirection, weekday);
+      const visits = transit!.visits(commute.outGate, commute.route, commute.outDirection, weekday, 'board');
       const returnLeg = moves.slice(index + 1).find((later) => later.from === 'off-campus');
       const limit = Math.min(leg.arrive + MAX_STOP_WAIT_SECONDS, returnLeg ? returnLeg.depart - ALIGHT_SECONDS - 60 : DAY - 1);
       let best = -1;

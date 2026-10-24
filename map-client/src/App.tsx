@@ -25,7 +25,7 @@ import { buildPopulation, loadPopulation, type PopulationBase } from './sim/popu
 import { advanceTime } from './sim/clock';
 import { dateForWeekday, loadCampusData, WEEKDAYS, type CampusData } from './data/campusData';
 import { buildSourceDay } from './sim/sourceDay';
-import { createTransitService, type TransitService } from './sim/transitService';
+import { createTransitService, mergeSchedules, type TransitService } from './sim/transitService';
 import { waitingCharacters, waitingRiderLayers } from './layers/waitingRiders';
 import { SourceDataPanel } from './SourceDataPanel';
 import type { CampusLocation } from './sim/playback';
@@ -184,7 +184,9 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, timetable, mobilitySnapshot, fields] = await Promise.all([
+      // BU Shuttle timetable (recorded TransLoc schedules + BU's GTFS baseline); MBTA-only without it.
+      const shuttleTimetable = loadPublishedSchedule('/data/shuttle-schedule.json').catch(() => null);
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields] = await Promise.all([
         createBasemap(mapElement, shownLight),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
@@ -205,6 +207,8 @@ export default function App() {
         loadBikeModels().catch(() => null), // Bluebikes riders; plain blocks without them
       ]);
       if (cancelled) return basemap.remove();
+      const shuttleSchedule = await shuttleTimetable;
+      const timetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
