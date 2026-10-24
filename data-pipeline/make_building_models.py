@@ -1300,11 +1300,16 @@ def material_defs():
 
 MATERIALS = material_defs()
 # Lit windows: black base, warm emissive. Drawn as a separate mesh the layer shows at dusk/night.
+# Lit windows: black base, emissive glow, one mesh per campus. Every window quad's TEXCOORD_0 holds
+# its schedule, (on hour, off hour) on a 12..36 h axis (so 26 = 2 AM); buildings.ts switches them
+# with a clock uniform in the shader, so lights come on and go off smoothly as the sim time moves.
 LIT_MATERIALS = [
-    {"name": "lit_warm", "color": (0, 0, 0), "emissive": (255, 178, 92), "texture": False, "rough": 1.0, "metal": 0.0},
-    {"name": "lit_soft", "color": (0, 0, 0), "emissive": (255, 214, 150), "texture": False, "rough": 1.0, "metal": 0.0},
-    {"name": "lit_cool", "color": (0, 0, 0), "emissive": (196, 214, 255), "texture": False, "rough": 1.0, "metal": 0.0},
+    {"name": "lit_warm", "color": (0, 0, 0), "emissive": (236, 170, 104), "texture": False, "rough": 1.0, "metal": 0.0},
+    {"name": "lit_soft", "color": (0, 0, 0), "emissive": (240, 204, 150), "texture": False, "rough": 1.0, "metal": 0.0},
+    {"name": "lit_neutral", "color": (0, 0, 0), "emissive": (232, 228, 210), "texture": False, "rough": 1.0, "metal": 0.0},
+    {"name": "lit_cool", "color": (0, 0, 0), "emissive": (200, 214, 236), "texture": False, "rough": 1.0, "metal": 0.0},
 ]
+DATA_UV = {m["name"] for m in LIT_MATERIALS}
 MAT_INDEX = {m["name"]: i for i, m in enumerate(MATERIALS)}
 TEXTURED = {m["name"] for m in MATERIALS if m["texture"]}
 
@@ -1333,7 +1338,7 @@ class Mesh:
     def prim(self, mat):
         p = self.prims.get(mat)
         if p is None:
-            p = self.prims[mat] = Prim(mat in TEXTURED)
+            p = self.prims[mat] = Prim(mat in TEXTURED or mat in DATA_UV)
         return p
 
     def face(self, mat, pts, uvs=None):
@@ -1593,6 +1598,7 @@ STYLE_BY_ID = {
 LANDMARKS = {
     "way/277434241": "cds", "way/1007090937": "chapel", "relation/20512578": "warren",
     "way/29927783": "stuvi", "way/155291470": "stuvi", "way/102384832": "arena",
+    "way/256604722": "questrom", "way/1026274040": "garage",
     "way/1007090939": "cas", "way/130209089": "mugar", "way/130209090": "gsu", "way/485223499": "lawtower",
 }
 ROWHOUSE_STREETS = ("Bay State Road", "Buswell Street", "Park Drive", "Mountfort Street", "Beacon Street",
@@ -1689,7 +1695,7 @@ class Ctx:
                     self.grid.setdefault((gx, gy), []).append((key, rings))
         self.streets = streets  # [(name, [(x, y), ...])]
         self.lit = None
-        self.lit_rng = random.Random(0)
+        self.floor_plans = {}
         self.heights = {}
 
     def footprint_at(self, p, exclude=()):
@@ -1740,6 +1746,8 @@ class Volume:
         self.merlons = False
         self.terrace = False
         self.lit_share = 0.3
+        self.use = "office"    # how it's lit after dark: see light_windows
+        self.library_floors = ()  # floors lit late like a library (Pardee Library in Questrom)
         self.bands = None      # (upper, ground) band override for a specific building
         self.tint = None       # facade material override, e.g. "facade_3"
         self.fins = None       # (spacing m, depth m, width m, material, from y or None, to y or None)
@@ -1830,34 +1838,127 @@ def build_walls(mesh, v, ctx, rings_o, y0, y1, exclude):
                 vb, vt = band_v(band)
                 mesh.wall(mat, a, b, ys[k], ys[k + 1], (u0, u1, vb, vt))
                 if u0 == 0.0:
-                    light_windows(ctx, v, band, a, b, ys[k], ys[k + 1], int(u1), nrm)
+                    light_windows(ctx, v, band, a, b, ys[k], ys[k + 1], int(u1), nrm, floor=k)
     return info, ys
 
 
-LIT_MATS = (("lit_warm", 0.55), ("lit_soft", 0.33), ("lit_cool", 0.12))
+# How BU's buildings are used after dark, by use class. Each entry builds schedules for whole floors
+# (institutional) or for rooms of 1-3 adjacent windows (housing). Hours are on a 12..36 axis.
+def _floor_plan(ctx, v, floor):
+    """One schedule per (building volume, floor): shared by every wall of that floor."""
+    key = (v.key, floor)
+    plan = ctx.floor_plans.get(key)
+    if plan is None:
+        r = random.Random(h32(f"{v.key}|{floor}"))
+        use = v.use
+        if floor in v.library_floors:
+            use = "library"
+        if use == "office":
+            lit = r.random() < 0.82
+            plan = (lit, 15.0 + r.random() * 2.0, 20.5 + r.random() * 2.0 if r.random() > 0.06 else 23.0 + r.random())
+        elif use == "glass":
+            plan = (r.random() < 0.9, 15.0 + r.random() * 1.5, 21.0 + r.random() * 2.0)
+        elif use == "library":
+            plan = (r.random() < 0.92, 15.0, 25.0 + r.random() * 1.5 if floor <= 3 else 22.5 + r.random() * 2.5)
+        elif use == "medical":
+            plan = (r.random() < 0.85, 15.0, 30.0 if r.random() < 0.25 else 21.0 + r.random() * 5.0)
+        elif use == "arena":
+            plan = (True, 16.0, 23.0)
+        elif use == "church":
+            plan = (True, 16.5, 21.0)
+        elif use == "retail":
+            plan = (True, 15.0, 22.0 + r.random() * 1.5) if floor == 0 else None
+        else:
+            plan = None
+        ctx.floor_plans[key] = plan
+    return plan
 
 
-def light_windows(ctx, v, band, a, b, y0, y1, nbays, nrm, out=0.12):
-    """Glowing quads over a random share of this storey's windows (two sets: dusk, and night-only)."""
+def _room_schedule(r, cosy):
+    """A dorm or apartment room: (used, on, off, morning?)."""
+    if r.random() > (0.42 if cosy else 0.78):
+        return None
+    on = 16.0 + r.random() * 3.5
+    x = r.random()
+    if x < 0.15:
+        off = 21.0 + r.random() * 2.0
+    elif x < 0.65:
+        off = 23.0 + r.random() * 3.0          # 11 PM - 2 AM
+    elif x < 0.92:
+        off = 26.0 + r.random() * 2.0          # 2 - 4 AM
+    else:
+        off = 30.5                             # up all night
+    morning = r.random() < (0.12 if cosy else 0.2)
+    return on, off, morning
+
+
+def light_windows(ctx, v, band, a, b, y0, y1, nbays, nrm, out=0.12, floor=None):
+    """Lit-window quads for one storey of one wall, grouped by floor and room, with schedules."""
     rects = WINDOWS.get(band)
-    if not rects or ctx.lit is None:
+    if not rects or ctx.lit is None or v.use == "none":
         return
-    rng = ctx.lit_rng
-    share = v.lit_share
+    if floor is None:
+        floor = int(max(0.0, y0) // 3.6)
     h = y1 - y0
+    plan = _floor_plan(ctx, v, floor)
+    rng = random.Random(h32(f"{v.key}|{floor}|{a[0]:.1f},{a[1]:.1f}"))
+    housing = plan is None
+    mat_inst = {"office": "lit_cool", "glass": "lit_cool", "medical": "lit_cool", "library": "lit_neutral",
+                "arena": "lit_neutral", "church": "lit_soft", "retail": "lit_soft"}.get(v.use, "lit_neutral")
+    # stairwell / corridor column: one bay per long wall stays dimly lit all night in institutions
+    stair = rng.randrange(nbays) if (not housing and nbays >= 4 and v.use in ("office", "glass", "library", "medical")) else -1
+    room_left = 0
+    room = None
+    merge = band in CURTAIN_BANDS
+    runs = []  # (first bay, last bay, mat, spans) when merging curtain-wall glass into floor plates
     for i in range(nbays):
-        for (x0, py0, x1, py1) in rects:
-            r = rng.random()
-            if r >= share:
+        if housing:
+            if room_left == 0:
+                room_left = 1 + rng.randrange(3)
+                room = _room_schedule(rng, v.use == "cosy")
+            room_left -= 1
+            if room is None:
                 continue
-            target = ctx.lit["dusk"] if r < share * 0.55 else ctx.lit["night"]
-            q = rng.random()
-            mat = "lit_warm" if q < 0.55 else "lit_soft" if q < 0.88 else "lit_cool"
-            t0 = (i + x0 / TEX_W) / nbays
-            t1 = (i + x1 / TEX_W) / nbays
-            p0 = (a[0] + (b[0] - a[0]) * t0 + nrm[0] * out, a[1] + (b[1] - a[1]) * t0 + nrm[1] * out)
-            p1 = (a[0] + (b[0] - a[0]) * t1 + nrm[0] * out, a[1] + (b[1] - a[1]) * t1 + nrm[1] * out)
-            target.wall(mat, p0, p1, y1 - h * py1 / BAND_H, y1 - h * py0 / BAND_H)
+            on, off, morning = room
+            mat = "lit_warm" if rng.random() < 0.6 else "lit_soft"
+            spans = [(on, off)] + ([(29.3 + rng.random() * 0.8, 31.0 + rng.random() * 0.6)] if morning and off < 29 else [])
+        else:
+            if i == stair:
+                spans = [(15.0, 35.9)]
+                mat = "lit_neutral"
+            elif plan and plan[0] and rng.random() > 0.08:
+                spans = [(plan[1] + rng.random() * 0.3, plan[2] + rng.random() * 0.25)]
+                mat = mat_inst
+            else:
+                continue
+        if merge:
+            if runs and runs[-1][1] == i - 1 and runs[-1][2] == mat and (housing or i != stair) and runs[-1][4]:
+                runs[-1][1] = i
+            else:
+                runs.append([i, i, mat, spans, housing or i != stair])
+            continue
+        for (x0, py0, x1, py1) in rects:
+            _lit_quad(ctx, a, b, nrm, out, (i + x0 / TEX_W) / nbays, (i + x1 / TEX_W) / nbays,
+                      y1 - h * py1 / BAND_H, y1 - h * py0 / BAND_H, mat, spans)
+    if merge and runs:
+        x0 = min(r[0] for r in rects) / TEX_W
+        x1 = max(r[2] for r in rects) / TEX_W
+        py0 = min(r[1] for r in rects)
+        py1 = max(r[3] for r in rects)
+        for first, last, mat, spans, _ in runs:
+            _lit_quad(ctx, a, b, nrm, out, (first + x0) / nbays, (last + x1) / nbays,
+                      y1 - h * py1 / BAND_H, y1 - h * py0 / BAND_H, mat, spans)
+
+
+# Glass bands whose windows run edge to edge: a lit floor is drawn as one plate per wall.
+CURTAIN_BANDS = {B_GLASS, B_CDS, B_CDS_FRIT, B_BLUEGLASS, B_LOBBY, B_MED_BRICK, B_SHOP, B_MODERN, B_SERT}
+
+
+def _lit_quad(ctx, a, b, nrm, out, t0, t1, ya, yb, mat, spans):
+    p0 = (a[0] + (b[0] - a[0]) * t0 + nrm[0] * out, a[1] + (b[1] - a[1]) * t0 + nrm[1] * out)
+    p1 = (a[0] + (b[0] - a[0]) * t1 + nrm[0] * out, a[1] + (b[1] - a[1]) * t1 + nrm[1] * out)
+    for on, off in spans:
+        ctx.lit.wall(mat, p0, p1, ya, yb, (on, on, off, off))
 
 
 def build_flat_top(mesh, v, rings_o, y_roof, edges, rng):
@@ -2451,6 +2552,7 @@ def landmark_warren(mesh, b, ctx, rng, vols):
         v.parapet = 1.1
         v.canopy = True
         v.lit_share = 0.35
+        v.use = "retail"
         top = max(top, build_volume(mesh, v, ctx, {b.ref}, rng))
     for v in towers:
         v.top = 56.0  # 18 storeys: the 4-storey podium plus 14 residential floors
@@ -2611,7 +2713,7 @@ def landmark_arena(mesh, b, ctx, rng, vols):
     face_c = (pc[0] + south[0] * (pd / 2), pc[1] + south[1] * (pd / 2))
     band_c = (face_c[0] + south[0] * 0.3, face_c[1] + south[1] * 0.3)
     mesh.box("glass_dark", band_c, east, pw / 2 - 0.5, 0.25, 15.2, 18.0, top_mat="glass_dark")
-    sign_text(mesh, ctx.lit["dusk"] if ctx.lit else None, "AGGANIS ARENA",
+    sign_text(mesh, ctx.lit, "AGGANIS ARENA",
               (band_c[0] + south[0] * 0.25, band_c[1] + south[1] * 0.25), east, south, 15.6, 2.0)
     # loading docks on Harry Agganis Way: the west wall, up towards the back, away from the corner
     east_edges = [e for e in info if e["n"][0] < -0.7 and e["L"] > 15]
@@ -2720,10 +2822,144 @@ def sign_text(mesh, lit_mesh, text, centre, eu, nrm, y0, height, mat="trim_white
                     c2 = (c[0] + nrm[0] * 0.11, c[1] + nrm[1] * 0.11)
                     a = (c2[0] - eu[0] * px * 0.48, c2[1] - eu[1] * px * 0.48)
                     b = (c2[0] + eu[0] * px * 0.48, c2[1] + eu[1] * px * 0.48)
-                    lit_mesh.wall("lit_soft", a, b, yb, yb + px * 0.96)
+                    lit_mesh.wall("lit_neutral", a, b, yb, yb + px * 0.96, (15.0, 15.0, 24.5, 24.5))
 
 
-LANDMARK_FN = {"chapel": landmark_chapel, "cas": landmark_cas, "warren": landmark_warren, "stuvi": landmark_stuvi,
+def landmark_questrom(mesh, b, ctx, rng, vols):
+    """Questrom School of Business, Rafik B. Hariri Building (Canon Associates, 1996; 595 Comm Ave).
+    Sources: a ten-storey block of red brick with concrete trim and half-round lintels, classrooms
+    grouped round a six-storey central atrium (Sergio Castillo's "Earth Orbit" globe), the Pardee
+    Management Library on floors 2-3, visitors' entrance at 1 Silber Way. Modelled as: cast-stone
+    base with round-headed windows, brick upper floors with arched heads, cast-stone band courses
+    over the base and under the top floor, a heavy cornice, stone quoins at the corners, a
+    projecting centre bay on Comm Ave, a glazed arched entrance bay on Silber Way, a glass skylight
+    over the atrium (lit at night) and rooftop plant at the ends."""
+    v = vols[0]
+    v.style = "brick"
+    v.top = 36.0
+    v.levels = 10
+    v.bands = (B_HARIRI, B_HOTEL_BASE, 3.6)
+    v.tint = "facade_0"
+    v.door = False
+    v.mech = False
+    v.parapet = 1.2
+    v.use = "office"
+    v.library_floors = (1, 2)
+    top = build_volume(mesh, v, ctx, {b.ref}, rng)
+    ring_o = offset_ring(v.rings[0], wall_out(v.top))
+    centre, eu, ev, hu, hv = obb(ring_o)
+    ys = storey_lines(v, -0.2, v.top + roof_up(v.top))
+    # cast-stone band courses over the base and under the top floor
+    n = len(ring_o)
+    for i in range(n):
+        a, bb = ring_o[i], ring_o[(i + 1) % n]
+        if dist(a, bb) < 1:
+            continue
+        nrm = right_normal(a, bb)
+        a2 = (a[0] + nrm[0] * 0.25, a[1] + nrm[1] * 0.25)
+        b2 = (bb[0] + nrm[0] * 0.25, bb[1] + nrm[1] * 0.25)
+        for y in (ys[1], ys[2] - 0.2, ys[-2]):
+            mesh.wall("trim_stone", a2, b2, y - 0.55, y)
+            mesh.face("trim_stone", [(a2[0], y, -a2[1]), (b2[0], y, -b2[1]), (bb[0], y, -bb[1]), (a[0], y, -a[1])])
+    # stone quoins at the corners
+    for i in range(n):
+        p0, p1, p2 = ring_o[i - 1], ring_o[i], ring_o[(i + 1) % n]
+        if dist(p0, p1) < 6 or dist(p1, p2) < 6:
+            continue
+        e2 = ((p2[0] - p1[0]) / dist(p1, p2), (p2[1] - p1[1]) / dist(p1, p2))
+        for k, y in enumerate(range(0, int(ys[-1]), 1)):
+            w = 0.9 if k % 2 else 0.55
+            c = (p1[0] + e2[0] * w / 2, p1[1] + e2[1] * w / 2)
+            mesh.box("trim_stone", c, e2, w / 2 + 0.05, 0.08, y + 0.05, y + 0.95)
+    south = min((eu, ev, (-eu[0], -eu[1]), (-ev[0], -ev[1])), key=lambda d: d[1])
+    east = (-south[1], south[0]) if -south[1] > 0 else (south[1], -south[0])
+    # projecting centre bay on Comm Ave: three storeys of cast stone with a tall arched window
+    face = max(ring_o, key=lambda q: q[0] * south[0] + q[1] * south[1])
+    fd = face[0] * south[0] + face[1] * south[1]
+    cd = centre[0] * south[0] + centre[1] * south[1]
+    bay_c = (centre[0] + south[0] * (fd - cd + 1.0), centre[1] + south[1] * (fd - cd + 1.0))
+    mesh.box("trim_stone", bay_c, east, 7.0, 1.2, -0.2, ys[3] + 0.6, top_mat="trim_stone")
+    fa = (bay_c[0] - east[0] * 4.0 + south[0] * 1.25, bay_c[1] - east[1] * 4.0 + south[1] * 1.25)
+    fb = (bay_c[0] + east[0] * 4.0 + south[0] * 1.25, bay_c[1] + east[1] * 4.0 + south[1] * 1.25)
+    lvb, lvt = band_v(B_HOTEL_BASE)
+    mesh.wall("facade_0", fa, fb, 0.4, ys[3] - 0.4, (0.0, 1.0, lvb, lvt))
+    light_windows(ctx, v, B_HOTEL_BASE, fa, fb, 0.4, ys[3] - 0.4, 1, south, out=0.06, floor=0)
+    # glazed arched entrance bay on Silber Way (the west end) with a canopy
+    west = (-east[0], -east[1])
+    wface = max(ring_o, key=lambda q: q[0] * west[0] + q[1] * west[1])
+    wd = wface[0] * west[0] + wface[1] * west[1] - (centre[0] * west[0] + centre[1] * west[1])
+    ec = (centre[0] + west[0] * (wd + 1.5), centre[1] + west[1] * (wd + 1.5))
+    pav = oriented([(ec[0] + sx * 1.5 * west[0] + sy * 6.0 * south[0], ec[1] + sx * 1.5 * west[1] + sy * 6.0 * south[1])
+                    for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
+    gvb, gvt = band_v(B_LOBBY)
+    for i in range(4):
+        a, bb = pav[i], pav[(i + 1) % 4]
+        nb = float(max(1, round(dist(a, bb) / 3.0)))
+        mesh.wall("glassfacade_0", a, bb, -0.2, ys[2], (0.0, nb, gvb, gvt))
+        light_windows(ctx, v, B_LOBBY, a, bb, -0.2, ys[2], int(nb), right_normal(a, bb), floor=0)
+    mesh.flat("trim_stone", [pav], ys[2], True)
+    mesh.box("trim_metal", (ec[0] + west[0] * 2.2, ec[1] + west[1] * 2.2), south, 4.0, 1.4, 3.6, 3.9, top_mat="trim_metal", bottom=True)
+    # atrium skylight: a glass ridge roof over the six-storey atrium in the middle of the block
+    y_r = v.top + roof_up(v.top)
+    sw, sd, rise = 11.0, 6.5, 3.2
+    lo = [(centre[0] + sx * sw * eu[0] + sy * sd * ev[0], centre[1] + sx * sw * eu[1] + sy * sd * ev[1])
+          for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    curb = oriented(lo)
+    mesh.prism("trim_metal", curb, y_r, y_r + 0.6)
+
+    def P(u, w, y):
+        return (centre[0] + eu[0] * u + ev[0] * w, y, -(centre[1] + eu[1] * u + ev[1] * w))
+    y0 = y_r + 0.6
+    for side in (-1, 1):
+        quad = [P(-sw, side * sd, y0), P(sw, side * sd, y0), P(sw, 0, y0 + rise), P(-sw, 0, y0 + rise)]
+        mesh.face("glass_rail", quad if side < 0 else quad[::-1])
+    for end in (-1, 1):
+        tri = [P(end * sw, -sd, y0), P(end * sw, sd, y0), P(end * sw, 0, y0 + rise)]
+        mesh.face("glass_rail", tri if end > 0 else tri[::-1])
+    for k in range(-5, 6):  # glazing bars
+        u = sw * k / 5.5
+        for side in (-1, 1):
+            mesh.face("trim_metal", [P(u - 0.06, side * sd, y0 + 0.02), P(u + 0.06, side * sd, y0 + 0.02),
+                                     P(u + 0.06, 0, y0 + rise + 0.02), P(u - 0.06, 0, y0 + rise + 0.02)][::(1 if side < 0 else -1)])
+    if ctx.lit is not None:  # the atrium glows through the skylight in the evening
+        for side in (-1, 1):
+            quad = [P(-sw + 0.4, side * (sd - 0.3), y0 + 0.05), P(sw - 0.4, side * (sd - 0.3), y0 + 0.05),
+                    P(sw - 0.4, 0, y0 + rise - 0.1), P(-sw + 0.4, 0, y0 + rise - 0.1)]
+            quad = quad if side < 0 else quad[::-1]
+            pr = ctx.lit.prim("lit_soft")
+            base_i = pr.n
+            for q in quad:
+                pr.pos.extend(q)
+                pr.nrm.extend((0.0, 1.0, 0.0))
+                pr.uv.extend((15.5, 23.5))
+            pr.idx.extend((base_i, base_i + 1, base_i + 2, base_i, base_i + 2, base_i + 3))
+            pr.n += 4
+    # rooftop plant at both ends
+    for su in (-0.72, 0.72):
+        mesh.box("mech", (centre[0] + eu[0] * su * hu, centre[1] + eu[1] * su * hu), eu, 6.0, 4.5, y_r, y_r + 3.2, top_mat="roof_metal")
+    return max(top, y0 + rise, y_r + 3.2)
+
+
+def landmark_garage(mesh, b, ctx, rng, vols):
+    """Langsam Garage (278 Babcock St): one level, partly below grade, with New Balance Field on its
+    roof deck (~3.5 m up) behind a ~0.9 m parapet. The deck is left plain for the field layer."""
+    top = 0
+    for v in vols:
+        v.top = 3.5 - ROOF_UP
+        v.levels = 1
+        v.style = "concrete"
+        v.bands = (B_GARAGE, B_GARAGE, 6.0)
+        v.door = False
+        v.mech = False
+        v.cornice = False
+        v.parapet = 0.9
+        v.use = "none"
+        v.roof_mat = "roof_gravel"
+        top = max(top, build_volume(mesh, v, ctx, {b.ref}, rng))
+    return top
+
+
+LANDMARK_FN = {"questrom": landmark_questrom, "garage": landmark_garage, "chapel": landmark_chapel, "cas": landmark_cas, "warren": landmark_warren, "stuvi": landmark_stuvi,
                "arena": landmark_arena, "mugar": landmark_modern, "gsu": landmark_modern, "lawtower": landmark_lawtower,
                "cds": landmark_cds}
 
@@ -2786,7 +3022,6 @@ SPECIAL = {
     "way/1007090940": dict(bands=(B_LIME_STRIP, B_LIME_GROUND, 2.6), top_band=B_LIME),
     "way/1007090941": dict(bands=(B_LIME_STRIP, B_LIME_GROUND, 2.6), top_band=B_LIME),
     "way/485223500": dict(style="limestone", bands=(B_LIME_STRIP, B_LOBBY, 2.8)),          # Redstone Building
-    "way/256604722": dict(style="brick", bands=(B_HARIRI, B_HARIRI, 3.4), tint="facade_0"),  # Questrom
     "way/29557600": dict(style="brick", bands=(B_HOTEL, B_HOTEL_BASE, 3.4), lit=0.5),       # Myles Standish
     "way/29863053": dict(style="brick", bands=(B_HOTEL, B_HOTEL_BASE, 3.4), tint="facade_faded", lit=0.5),  # Kilachand
     "way/29887049": dict(style="gothic", tint="facade_sand"),                               # the Castle
@@ -2804,6 +3039,33 @@ SPECIAL = {
 }
 
 
+LIBRARIES = {"way/130209089", "way/29513254"}  # Mugar (open late), Wheelock library
+HOUSING = {"dormitory", "apartments", "residential", "house", "hotel", "detached"}
+
+
+def use_class(b, style, area, v):
+    btype = b.tags.get("building", "")
+    if b.ref in LIBRARIES or b.tags.get("amenity") == "library":
+        return "library"
+    if LANDMARKS.get(b.ref) == "arena":
+        return "arena"
+    if btype in ("church",) or b.tags.get("amenity") == "place_of_worship":
+        return "church"
+    if btype in ("parking", "roof", "bridge") or b.tags.get("amenity") == "parking":
+        return "none"
+    if style in ("brownstone", "rowbrick", "rowlime") or (btype in HOUSING and is_rowhouse(b, area, v.levels)):
+        return "cosy" if btype not in ("dormitory",) else "dorm"
+    if btype in HOUSING or LANDMARKS.get(b.ref) in ("warren", "stuvi"):
+        return "dorm"
+    if btype in ("retail", "commercial"):
+        return "retail"
+    if b.campus == "medical":
+        return "medical"
+    if style in ("glass", "cds"):
+        return "glass"
+    return "office"
+
+
 def configure(b, v, area):
     style = style_for(b, area, v.levels)
     v.style = style
@@ -2812,6 +3074,7 @@ def configure(b, v, area):
                    "commercial": 0.6, "hotel": 0.45}.get(btype, 0.3)
     if b.campus == "medical" and style == "brick":
         v.bands = (B_MED_BRICK, B_BRICK_GROUND, 3.2)
+    v.use = use_class(b, style, area, v)
     sp = SPECIAL.get(b.ref)
     if sp:
         if "style" in sp:
@@ -2868,7 +3131,7 @@ def build_canopy(mesh, v):
 # glTF writer
 # ------------------------------------------------------------------------------------------------
 
-def write_glb(path, mesh, png=None, materials=None):
+def write_glb(path, mesh, png=None, materials=None, normals=True):
     blob = bytearray()
     views, accessors = [], []
 
@@ -2932,10 +3195,9 @@ def write_glb(path, mesh, png=None, materials=None):
             count = len(order)
             mn = [min(pos[i::3]) for i in range(3)]
             mx = [max(pos[i::3]) for i in range(3)]
-            attrs = {
-                "POSITION": accessor(view(pos.tobytes(), 34962), 5126, count, "VEC3", mn, mx),
-                "NORMAL": accessor(view(nrm.tobytes(), 34962), 5126, count, "VEC3"),
-            }
+            attrs = {"POSITION": accessor(view(pos.tobytes(), 34962), 5126, count, "VEC3", mn, mx)}
+            if normals:
+                attrs["NORMAL"] = accessor(view(nrm.tobytes(), 34962), 5126, count, "VEC3")
             if uv is not None:
                 attrs["TEXCOORD_0"] = accessor(view(uv.tobytes(), 34962), 5126, count, "VEC2")
             ind = accessor(view(idx.tobytes(), 34963), 5123, len(idx), "SCALAR")
@@ -3016,8 +3278,8 @@ def main():
         for el in (medical if cid == "medical" else charles):
             if "building" in el.get("tags", {}):
                 ctx.heights[f"{el['type']}/{el['id']}"] = tag_height(el["tags"])[0]
-        ctx.lit = {"dusk": Mesh(), "night": Mesh()}
-        ctx.lit_rng = random.Random(cid)
+        ctx.lit = Mesh()
+        ctx.floor_plans = {}
         mesh = Mesh()
         entries = []
         for b in mine:
@@ -3041,6 +3303,8 @@ def main():
             c = ring_centroid(outer)
             entries.append({"osm": b.ref, "name": b.name, "center": [round(c[0], 6), round(c[1], 6)],
                             "height": round(top, 1), **({"landmark": kind} if kind else {})})
+            if kind == "garage":
+                entries[-1]["deck"] = 3.5  # roof deck under New Balance Field; "height" includes the parapet
             # Pieces Mapbox's vector tiles carry as separate features: building:part ways and a
             # relation's member ways. Listed so the app's city layer leaves them out too.
             extra = [f"{p['type']}/{p['id']}" for p in b.parts]
@@ -3051,17 +3315,17 @@ def main():
                                     "height": round(top, 1), "partOf": b.ref})
         out = MODELS_DIR / f"buildings-{cid}.glb"
         size = write_glb(out, mesh, png)
-        lights = {}
-        for when, lit in ctx.lit.items():
-            lp = MODELS_DIR / f"buildings-{cid}-lights-{when}.glb"
-            size += write_glb(lp, lit, None, LIT_MATERIALS)
-            lights[when] = f"/models/{lp.name}"
+        for old in MODELS_DIR.glob(f"buildings-{cid}-lights-*.glb"):
+            old.unlink()
+        lp = MODELS_DIR / f"buildings-{cid}-lights.glb"
+        size += write_glb(lp, ctx.lit, None, LIT_MATERIALS, normals=False)
+        lights = {"scheduled": f"/models/{lp.name}"}
         total += size
         manifest["campuses"].append({
             "id": cid, "name": campus["name"], "origin": [campus["origin"][0], campus["origin"][1]],
             "model": f"/models/{out.name}", "lights": lights, "buildings": entries,
         })
-        nlit = sum(m.vert_count() for m in ctx.lit.values()) // 4
+        nlit = ctx.lit.vert_count() // 4
         print(f"  {campus['name']}: {sum(1 for e in entries if 'partOf' not in e)} buildings ({len(entries)} OSM ids), {mesh.vert_count():,} vertices, {nlit:,} lit windows, {size / 1e6:.2f} MB")
     MANIFEST.write_text(json.dumps(manifest, indent=1) + "\n")
     print(f"Total {total / 1e6:.2f} MB. Manifest -> {MANIFEST.relative_to(ROOT)}")
