@@ -1,0 +1,23 @@
+{
+  "_comment": "Manual cross-reference between OSM's raw building tags and BU's real colloquial building names, used by map-client for labels and by mobile's persona-builder home-building dropdown (Section 6.6/9 of the plan). Built from public knowledge and a web search cross-check, NOT scraped from maps.bu.edu's Concept3D platform. TEAM TODO: spot-check these against maps.bu.edu and OSM's actual tags once buildings.geojson is loaded -- names/coordinates here are best-effort starting points, not verified exact matches.",
+  "buildings": [
+    { "common_name": "Warren Towers", "type": "dorm", "approx_address": "700 Commonwealth Ave", "notes": "Three towers: Fairfield (A), Marshall (B), Shields (C). Has its own dining hall." },
+    { "common_name": "George Sherman Union (GSU)", "type": "dining+student_union", "approx_address": "775 Commonwealth Ave", "notes": "Large food court; central student union." },
+    { "common_name": "Mugar Memorial Library", "type": "library", "approx_address": "771 Commonwealth Ave" },
+    { "common_name": "College of Arts & Sciences (CAS)", "type": "classroom", "approx_address": "725 Commonwealth Ave", "notes": "Largest school on campus." },
+    { "common_name": "Questrom School of Business", "type": "classroom", "approx_address": "595 Commonwealth Ave" },
+    { "common_name": "College of Communication (COM)", "type": "classroom", "approx_address": "640 Commonwealth Ave" },
+    { "common_name": "School of Law", "type": "classroom", "approx_address": "765 Commonwealth Ave" },
+    { "common_name": "Duan Family Center for Computing & Data Sciences (CDS)", "type": "classroom", "approx_address": "665 Commonwealth Ave", "notes": "Home of the Faculty of Computing & Data Sciences, which co-runs DS+X." },
+    { "common_name": "Marsh Chapel / Marsh Plaza", "type": "landmark", "approx_address": "735 Commonwealth Ave" },
+    { "common_name": "Agganis Arena", "type": "gym", "approx_address": "925 Commonwealth Ave", "notes": "Hockey/basketball arena, near BU East Green Line stop; good candidate for the 'home sports game' event (Section 3.6)." },
+    { "common_name": "FitRec Center", "type": "gym", "approx_address": "915 Commonwealth Ave" },
+    { "common_name": "Myles Standish Hall", "type": "dorm", "approx_address": "610 Beacon St" },
+    { "common_name": "Claflin Hall", "type": "dorm", "approx_address": "West Campus" },
+    { "common_name": "Sleeper Hall", "type": "dorm", "approx_address": "West Campus" },
+    { "common_name": "Rich Hall", "type": "dorm", "approx_address": "West Campus" },
+    { "common_name": "Shelton Hall", "type": "dorm", "approx_address": "West Campus" },
+    { "common_name": "BU Beach", "type": "outdoor_gathering", "approx_address": "near 100 Bay State Rd", "notes": "Good candidate for the 'clear/sunny' weather event's outdoor bump (Section 3.6)." },
+    { "common_name": "Nickerson Field", "type": "outdoor_gathering", "approx_address": "Allston", "notes": "Outdoor athletic field; alternate sports-game event location." }
+  ]
+}
