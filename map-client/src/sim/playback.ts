@@ -103,7 +103,15 @@ export interface Trip {
   timestamps: number[]; // seconds since midnight, one per path point
 }
 
-export interface Stay { agent: string; location: string; start: number; end: number }
+/** Why an agent occupies a stay. `fixed` stays (published classes) must never be relocated. */
+export type StayPurpose =
+  | { kind: 'class'; fixed: true; meetingId: string; courseCode: string }
+  | { kind: 'dining' | 'library' | 'gym'; fixed: false }
+  | { kind: 'estimated'; fixed: false; purpose: EstimatedActivityProfile['purpose'] }
+  | { kind: 'off-campus-meal' | 'off-campus-outing' | 'unmapped-academic'; fixed: false }
+  | { kind: 'wait'; fixed: false; before: 'class' | 'activity' }
+  | { kind: 'home'; fixed: false };
+export interface Stay { agent: string; location: string; start: number; end: number; purpose?: StayPurpose }
 
 export interface DayData {
   stays?: Stay[];

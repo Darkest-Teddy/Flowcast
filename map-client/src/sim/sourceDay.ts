@@ -1,8 +1,8 @@
-import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
+import { carriedForwardHours, dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
 import { fitrecVisitStart } from '../data/fitrecUsage';
 import { effectiveMeetingIntervals } from '../data/academicCalendar';
 import { courseLevel, countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
-import type { Agent, CampusLocation, DayData, EstimatedActivityProfile, Trip } from './playback';
+import type { Agent, CampusLocation, DayData, EstimatedActivityProfile, StayPurpose, Trip } from './playback';
 
 const DAY = 86400;
 const WALK_SPEED = 1.4;
@@ -28,6 +28,10 @@ const RESIDENT_ACTIVITIES = [
   { kind: 'dining', at: 18, spread: 3, shoulder: [16, 22], minutes: 40, probability: 0.7 },
   { kind: 'gym', at: 17, spread: 5, shoulder: [6, 22], minutes: 55, probability: 0.25 },
 ] as const;
+
+const HOME_PURPOSE: StayPurpose = Object.freeze({ kind: 'home', fixed: false });
+const WAIT_FOR_CLASS: StayPurpose = Object.freeze({ kind: 'wait', fixed: false, before: 'class' });
+const WAIT_FOR_ACTIVITY: StayPurpose = Object.freeze({ kind: 'wait', fixed: false, before: 'activity' });
 
 const estimatedProfile = (location: CampusLocation): EstimatedActivityProfile | undefined => location.estimatedProfile;
 
@@ -607,7 +611,20 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
   const resourceLocations = base.locations.filter(location => ['dining', 'library', 'gym'].includes(location.kind) || estimatedProfile(location));
   const resourceIndex = new Map(resourceLocations.map((location, index) => [location.id, index]));
   const bucketsPerDay = DAY / OPTIONAL_CAPACITY_BUCKET_SECONDS;
-  type PlannedStay = { location: string; start: number; end: number };
+  type PlannedStay = { location: string; start: number; end: number; purpose: StayPurpose };
+  const purposeCache = new WeakMap<WeeklyStop, StayPurpose>();
+  /** Purpose of time spent at a planned stop itself. */
+  const stopPurpose = (stop: WeeklyStop): StayPurpose => {
+    const cached = purposeCache.get(stop);
+    if (cached) return cached;
+    let purpose: StayPurpose;
+    if (stop.meeting) purpose = { kind: 'class', fixed: true, meetingId: stop.meeting.id, courseCode: stop.meeting.courseCode };
+    else if (stop.estimatedProfile) purpose = { kind: 'estimated', fixed: false, purpose: stop.estimatedProfile.purpose };
+    else if (stop.activity && stop.activity !== 'estimated') purpose = { kind: stop.activity, fixed: false };
+    else throw new Error('Planned stop has neither a meeting nor an activity');
+    purposeCache.set(stop, purpose); return purpose;
+  };
+  const waitFor = (stop: WeeklyStop): StayPurpose => stop.meeting ? WAIT_FOR_CLASS : WAIT_FOR_ACTIVITY;
   type PlannedMove = { from: string; to: string; route: Route; depart: number; arrive: number };
   type DayPlan = { stays: PlannedStay[]; moves: PlannedMove[]; walkingSeconds: number };
   const reversed = new WeakMap<Route, Route>();
@@ -629,10 +646,13 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
     let from = home, freeAt = 0, notBeforeDeparture = 0, walkingSeconds = 0, valid = true;
     let currentBasis: WeeklyStop | undefined;
     let outside: { point: [number, number]; arrived: number; dwell: number } | undefined;
-    const addStay = (location: string, start: number, end: number, basis?: WeeklyStop) => {
+    /** Only a stop's own [start, end) carries its purpose (passed explicitly). Gap and lingering time
+     * is home at home, otherwise a non-fixed wait before `next`; it never inherits the prior stop's
+     * class or activity. The only next-less lingering is off-map gateway transfer time before going home. */
+    const addStay = (location: string, start: number, end: number, basis?: WeeklyStop, purpose?: StayPurpose, next?: WeeklyStop) => {
       if (end <= start) return;
       if (start < 0 || end > DAY || (basis && !basis.meeting && !isOpen({ ...basis, start, end }))) { valid = false; return; }
-      stays.push({ location, start, end });
+      stays.push({ location, start, end, purpose: purpose ?? (location === home ? HOME_PURPOSE : next ? waitFor(next) : WAIT_FOR_ACTIVITY) });
     };
     const offReady = (destination: string): number => {
       if (!outside) return freeAt;
@@ -677,7 +697,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
           notBeforeDeparture = freeAt + dwell;
         }
       }
-      if (from === stop.location) addStay(from, freeAt, stop.start, currentBasis);
+      if (from === stop.location) addStay(from, freeAt, stop.start, currentBasis, undefined, stop);
       else {
         const walk = duration(from, stop.location, agent);
         const earliest = Math.max(freeAt, notBeforeDeparture, from === 'off-campus' ? offReady(stop.location) : 0);
@@ -685,11 +705,11 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
         const latest = stop.start - walk;
         const depart = Math.max(earliest, latest - desiredLead);
         if (depart > latest + 1e-7) return undefined;
-        addStay(from, freeAt, depart, currentBasis);
+        addStay(from, freeAt, depart, currentBasis, undefined, stop);
         if (!move(stop.location, depart)) return undefined;
-        addStay(stop.location, freeAt, stop.start, stop);
+        addStay(stop.location, freeAt, stop.start, stop, waitFor(stop));
       }
-      addStay(stop.location, stop.start, stop.end, stop);
+      addStay(stop.location, stop.start, stop.end, stop, stopPurpose(stop));
       if (stop.location === 'off-campus' && outside) outside.dwell += stop.end - stop.start;
       from = stop.location; freeAt = stop.end; notBeforeDeparture = freeAt; currentBasis = stop;
       if (!valid) return undefined;
@@ -699,7 +719,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
       addStay(from, freeAt, depart, currentBasis);
       if (!move(home, depart)) return undefined;
     }
-    addStay(home, freeAt, DAY);
+    addStay(home, freeAt, DAY, undefined, HOME_PURPOSE);
     return valid ? { stays, moves, walkingSeconds } : undefined;
   };
   const presenceKeys = (plan: DayPlan): Set<number> => {
@@ -922,14 +942,20 @@ function sameWeekdayWindows(hours: { date: string | null; windows: [number, numb
   return best?.windows ?? [];
 }
 
-/** Published availability is strict by default. Estimated callers may explicitly request
- * nearest-week or typical-kind assumptions; those windows never establish published hours. */
+/** Published availability is strict by default. `carryForward` repeats a venue's dated hours from
+ * one week away only for dates past its published dated horizon (see `carriedForwardHours`); exact-date
+ * closures, valid weekly schedules and restricted venues always win. Estimated callers may explicitly
+ * request nearest-week or typical-kind assumptions; those windows never establish published hours. */
 export function venueWindows(data: CampusData, location: string, kind: string | undefined, weekday: number,
-  options: { estimatedFallback?: boolean } = {}): [number, number][] {
+  options: { estimatedFallback?: boolean; carryForward?: boolean } = {}): [number, number][] {
   const date = dateForWeekday(data, weekday);
   const hours = data.locations[location]?.hours ?? [];
   const selected = openingHoursForDate(hours, date, weekday);
   if (selected.length) return selected.flatMap((entry) => entry.windows);
+  if (options.carryForward && data.locations[location]?.hoursStatus !== 'restricted') {
+    const carried = carriedForwardHours(hours, date, weekday);
+    if (carried.length) return carried.flatMap((entry) => entry.windows);
+  }
   if (!options.estimatedFallback || data.locations[location]?.hoursStatus === 'restricted') return [];
   if (hours.length) return sameWeekdayWindows(hours, date, weekday);
   return typicalWindows(kind, weekday);
