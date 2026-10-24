@@ -5,62 +5,84 @@ import {
   CalendarSync,
   Gauge,
   Home,
+  LayoutGrid,
   Map,
   Settings,
+  Sparkles,
   ShieldCheck,
   Ticket,
   Upload,
   UserRound,
+  UserRoundCog,
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { useSession } from '../auth/session';
 import { config } from '../config';
 import { Avatar, Button } from '../ui';
-import { AppShell, type NavSection } from './AppShell';
+import { AppShell, type NavItem, type NavSection, type TabBarConfig } from './AppShell';
 import styles from './LayoutFooter.module.css';
 
 export function StudentLayout() {
   const { session, hasRole } = useSession();
 
-  const sections: NavSection[] = [
-    {
-      items: [
-        { to: '/', label: 'Home', icon: Home, end: true },
-        { to: '/schedule', label: 'Schedule', icon: CalendarDays },
-        { to: '/forecasts', label: 'Forecasts', icon: Gauge },
-        { to: '/events', label: 'Events', icon: Ticket },
-        { to: '/event-impact', label: 'Event impact', icon: CalendarRange },
-        { to: '/clubs', label: 'Clubs', icon: Users },
-      ],
-    },
-    {
-      label: 'Account',
-      items: [
-        { to: '/profile', label: 'Profile', icon: UserRound },
-        { to: '/calendars', label: 'Calendars', icon: CalendarSync },
-        { to: '/privacy', label: 'Privacy & data', icon: ShieldCheck },
-        { to: '/settings', label: 'Settings', icon: Settings },
-      ],
-    },
-  ];
+  const home: NavItem = { to: '/', label: 'Home', icon: Home, end: true };
+  const schedule: NavItem = { to: '/schedule', label: 'Schedule', icon: CalendarDays };
+  const forecasts: NavItem = { to: '/forecasts', label: 'Forecasts', icon: Gauge };
+  const events: NavItem = { to: '/events', label: 'Events', icon: Ticket };
+  const eventImpact: NavItem = { to: '/event-impact', label: 'Event impact', icon: CalendarRange };
+  const clubs: NavItem = { to: '/clubs', label: 'Clubs', icon: Users };
+  const account: NavSection = {
+    label: 'Account',
+    items: [
+      { to: '/profile', label: 'Profile', icon: UserRound },
+      { to: '/calendars', label: 'Calendars', icon: CalendarSync },
+      { to: '/privacy', label: 'Privacy & data', icon: ShieldCheck },
+      { to: '/settings', label: 'Settings', icon: Settings },
+    ],
+  };
+  const club: NavSection | null = hasRole('clubOfficer')
+    ? {
+        label: 'Your club',
+        items: [
+          { to: '/club', label: 'Club page', icon: BadgeCheck, end: true },
+          { to: '/club/calendar', label: 'Upload calendar', icon: Upload },
+        ],
+      }
+    : null;
 
-  if (hasRole('clubOfficer')) {
-    sections.push({
-      label: 'Your club',
-      items: [
-        { to: '/club', label: 'Club page', icon: BadgeCheck, end: true },
-        { to: '/club/calendar', label: 'Upload calendar', icon: Upload },
+  const sections: NavSection[] = [{ items: [home, schedule, forecasts, events, eventImpact, clubs] }, account];
+  if (club) sections.push(club);
+
+  // Phones: five tabs, and an Account tab whose menu holds the rest of the sidebar, plus the
+  // top bar's Get started (no room for it up there) and the Admin link from the sidebar footer.
+  const tabBar: TabBarConfig = {
+    tabs: [home, schedule, forecasts, events, clubs],
+    more: {
+      label: 'Account',
+      icon: UserRoundCog,
+      header: session && (
+        <div className={styles.footer}>
+          <Avatar name={session.user.name} />
+          <span className={styles.name}>{session.user.name}</span>
+        </div>
+      ),
+      sections: [
+        account,
+        { label: 'More', items: [eventImpact, { to: '/welcome', label: 'Get started', icon: Sparkles }] },
+        ...(club ? [club] : []),
+        ...(hasRole('admin') ? [{ label: 'Admin', items: [{ to: '/admin', label: 'Admin area', icon: LayoutGrid }] }] : []),
       ],
-    });
-  }
+    },
+  };
 
   return (
     <AppShell
       sections={sections}
+      tabBar={tabBar}
       topbarActions={
         <>
-          <Button variant="ghost" to="/welcome">Get started</Button>
+          <Button variant="ghost" to="/welcome" className={styles.wideOnly}>Get started</Button>
           <Button variant="primary" href={config.mapUrl} icon={<Map aria-hidden />}>Open the map</Button>
         </>
       }

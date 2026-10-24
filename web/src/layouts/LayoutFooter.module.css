@@ -18,9 +18,9 @@
 .admin {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
-  padding: 1px 6px;
+  padding: 1px var(--space-2);
   border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-capsule);
   color: var(--color-ink-secondary);
 }
 
@@ -46,4 +46,11 @@
 .back:hover {
   color: var(--color-ink);
   text-decoration: none;
+}
+
+/* Top bar actions that move into the Account menu on phones (860px and under, like AppShell). */
+@media (max-width: 860px) {
+  .wideOnly {
+    display: none;
+  }
 }
