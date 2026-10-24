@@ -17,6 +17,16 @@ class MapDataTests(unittest.TestCase):
         cls.day = json.loads(DEFAULT_MAP.read_text())
         cls.bundle = build_bundle(cls.datasets, cls.day)
 
+    def test_fitrec_observations_and_calendar_are_bundled_with_dated_evidence(self):
+        usage = self.bundle['fitrecUsage']
+        self.assertEqual(usage, self.datasets['fitrec_usage']['usage'])
+        self.assertEqual(self.bundle['academicCalendar'], self.datasets['academic_calendar']['calendar'])
+        evidence = self.bundle['locations']['fitrec']['evidence']
+        visits = next(row for row in evidence if row['id'] == 'fitrec:hourly-visits')
+        self.assertEqual(visits['value'], sum(row['visits'] for row in usage['observations']))
+        self.assertIn(usage['periodStart'], visits['note'])
+        self.assertFalse(any(row['label'] == 'FitRec daily visits (more than)' for row in evidence))
+
     def test_hours_audit_replaces_undated_snapshots_and_department_hours(self):
         datasets = copy.deepcopy(self.datasets)
         closed = {"date": "2026-10-24", "windows": [], "text": "Closed", "sourceUrl": "https://www.bu.edu/", "qualifier": None}

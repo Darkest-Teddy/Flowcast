@@ -1,4 +1,6 @@
-import { dateForWeekday, meetingActiveOnDate, openingHoursForDate, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
+import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
+import { fitrecVisitStart } from '../data/fitrecUsage';
+import { effectiveMeetingIntervals } from '../data/academicCalendar';
 import { courseLevel, countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
 import type { Agent, CampusLocation, DayData, EstimatedActivityProfile, Trip } from './playback';
 
@@ -332,8 +334,7 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
       const id = meeting.sourceSectionKey ?? `${meeting.courseCode}:${meeting.section}`;
       if (!countsTowardDegreeLoad(meeting.courseCode)) { excludedNonDegree.add(id); continue; }
       const section: Section = sections.get(id) ?? { id, course: meeting.courseCode, campus: campusOf(locations.get(source.id)!), stops: [], aliases: [] };
-      for (const interval of meeting.intervals) {
-        if (!meetingActiveOnDate(meeting, dates[interval.weekday])) continue;
+      for (const interval of effectiveMeetingIntervals(meeting, data)) {
         const weekday = interval.weekday, start = interval.startSec - weekday * DAY, end = interval.endSec - weekday * DAY;
         if (weekday < 0 || weekday > 6 || start < 0 || start >= end || end > DAY || !Number.isFinite(start + end)) continue;
         const pool = `${meeting.sharedKey ?? meeting.id}:${weekday}:${start}:${end}`;
@@ -618,9 +619,10 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
           const seed = `${agent.id}:${weekday}:activity:${index}`;
           if (fraction(`${seed}:attend`) >= activity.probability) continue;
           const start = (activity.at + fraction(`${seed}:time`) * activity.spread) * 3600;
-          if (!resident && (start < classStart || start + activity.minutes * 60 > classEnd)) continue;
+          const withinClassDay = (time: number) => resident || (time >= classStart && time + activity.minutes * 60 <= classEnd);
           const offCampusMeal = activity.kind === 'dining' && fraction(`${seed}:off-campus`) < MODELED_OFF_CAMPUS_MEAL_SHARE;
           if (offCampusMeal) {
+            if (!withinClassDay(start)) continue;
             const stop: WeeklyStop = { location: 'off-campus', start, end: start + activity.minutes * 60, weekday, pool: '', activity: 'off-campus-meal' };
             const proposed = [...stops, stop].sort((a, b) => a.start - b.start);
             const keys = (agent.home === 'off-campus' || accessRoute(agent, agent.home)) && feasible(proposed, agent) ? capacityFor(proposed) : undefined;
@@ -632,7 +634,11 @@ function buildWeek(base: DayData, data: CampusData): (weekday: number) => Source
           const candidates: { stop: WeeklyStop; proposed: WeeklyStop[]; weight: number; keys: Set<number> }[] = [];
           for (const location of base.locations) {
             if (location.kind !== activity.kind || campusOf(location) !== campus) continue;
-            const stop: WeeklyStop = { location: location.id, start, end: start + activity.minutes * 60, weekday, pool: '', activity: activity.kind };
+            const visitStart = location.id === 'fitrec' && activity.kind === 'gym'
+              ? fitrecVisitStart(data.fitrecUsage, dateForWeekday(data, weekday), fraction(`${seed}:fitrec-hour`), fraction(`${seed}:fitrec-minute`)) ?? start
+              : start;
+            if (!withinClassDay(visitStart)) continue;
+            const stop: WeeklyStop = { location: location.id, start: visitStart, end: visitStart + activity.minutes * 60, weekday, pool: '', activity: activity.kind };
             if (!isOpen(stop)) continue;
             const proposed = [...stops, stop].sort((a, b) => a.start - b.start);
             if (!feasible(proposed, agent)) continue;

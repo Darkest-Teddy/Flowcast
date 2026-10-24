@@ -498,3 +498,37 @@ test('database section keys keep same-label sessions as separate enrollment opti
   assert.equal(publicDay.sourceStats.eligibleWeeklySections,1);
   for(const agent of base.agents) assert.equal(publicDay.sourceAssignments.filter(row=>row.agentId===agent.id).length,2);
 });
+
+test('Registrar substitute weekday moves attendance without changing class clock time or adding Tuesday classes',()=>{
+  const {base,data}=fixture();
+  data.term='FALL 2026'; data.referenceWeekStart='2026-10-12';
+  data.academicCalendar=JSON.parse(readFileSync(new URL('../../data-pipeline/output/academic_calendar.json',import.meta.url))).calendar;
+  data.locations.class.meetings=[
+    meeting('monday-class',0,9*3600,10*3600,{courseCode:'CAS MA 123'}),
+    meeting('tuesday-class',1,11*3600,12*3600,{courseCode:'CAS MA 124'}),
+  ];
+  const monday=buildSourceDay(base,data,0),tuesday=buildSourceDay(base,data,1);
+  assert.equal(monday.sourceAssignments.length,0);
+  assert.ok(tuesday.sourceAssignments.length>0);
+  assert.ok(tuesday.sourceAssignments.every(row=>row.meetingId==='monday-class'&&row.startSec===9*3600&&row.endSec===10*3600));
+  validate(monday);validate(tuesday);
+});
+
+test('FitRec observations drive gym arrival timing while published closure still wins', () => {
+  const {base,data}=fixture();
+  base.locations.find(row=>row.id==='gym').id='fitrec';
+  base.walkRoutes=Object.fromEntries(Object.entries(base.walkRoutes).map(([key,value])=>[key.split('>').map(id=>id==='gym'?'fitrec':id).join('>'),value]));
+  data.locations.fitrec={...data.locations.gym,id:'fitrec'};
+  delete data.locations.gym;
+  data.locations.class.meetings=[];
+  base.agents=Array.from({length:100},(_,i)=>({...base.agents[0],id:`fitrec-${i}`}));
+  data.fitrecUsage={metric:'visits',observations:[{date:'2026-10-19',hour:10,visits:200}]};
+  const day=buildSourceDay(base,data,0);
+  const visits=day.sourceActivities.filter(row=>row.locationId==='fitrec');
+  assert.ok(visits.length>0);
+  assert.ok(visits.every(row=>row.startSec>=10*3600&&row.startSec<11*3600));
+  validate(day);
+  const closed=structuredClone(data);
+  closed.locations.fitrec.hours=[{date:'2026-10-19',windows:[],text:'Closed',sourceUrl:'source',qualifier:null}];
+  assert.equal(buildSourceDay(base,closed,0).sourceActivities.filter(row=>row.locationId==='fitrec').length,0);
+});

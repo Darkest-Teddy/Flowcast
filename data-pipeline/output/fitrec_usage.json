@@ -1,0 +1,653 @@
+{
+  "schemaVersion": 1,
+  "dataset": "fitrec_usage",
+  "generatedAt": "2026-10-24T19:51:15.986261+00:00",
+  "timezone": "America/New_York",
+  "status": "ok",
+  "usage": {
+    "sourceUrl": "https://www.bu.edu/fitrec/peak-quiet-hours/",
+    "reportUrl": "https://app.powerbi.com/view?r=eyJrIjoiYmFkYTZlY2QtMTkwYi00ODNhLTkzNmEtN2I2ZmJmODUzMjk0IiwidCI6ImQ1N2QzMmNjLWMxMjEtNDg4Zi1iMDdiLWRmZTcwNTY4MGM3MSIsImMiOjN9",
+    "modelRefreshedAt": "2026-10-24T06:41:22.67",
+    "metric": "visits",
+    "periodStart": "2026-10-17",
+    "periodEnd": "2026-10-23",
+    "observations": [
+      {
+        "date": "2026-10-17",
+        "hour": 7,
+        "visits": 35
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 8,
+        "visits": 141
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 9,
+        "visits": 161
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 10,
+        "visits": 196
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 11,
+        "visits": 164
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 12,
+        "visits": 177
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 13,
+        "visits": 147
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 14,
+        "visits": 219
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 15,
+        "visits": 230
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 16,
+        "visits": 259
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 17,
+        "visits": 214
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 18,
+        "visits": 175
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 19,
+        "visits": 193
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 20,
+        "visits": 189
+      },
+      {
+        "date": "2026-10-17",
+        "hour": 21,
+        "visits": 69
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 7,
+        "visits": 33
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 8,
+        "visits": 154
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 9,
+        "visits": 150
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 10,
+        "visits": 181
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 11,
+        "visits": 180
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 12,
+        "visits": 101
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 13,
+        "visits": 177
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 14,
+        "visits": 148
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 15,
+        "visits": 183
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 16,
+        "visits": 215
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 17,
+        "visits": 252
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 18,
+        "visits": 237
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 19,
+        "visits": 198
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 20,
+        "visits": 181
+      },
+      {
+        "date": "2026-10-18",
+        "hour": 21,
+        "visits": 61
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 5,
+        "visits": 16
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 6,
+        "visits": 202
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 7,
+        "visits": 148
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 8,
+        "visits": 165
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 9,
+        "visits": 160
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 10,
+        "visits": 188
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 11,
+        "visits": 225
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 12,
+        "visits": 212
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 13,
+        "visits": 188
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 14,
+        "visits": 250
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 15,
+        "visits": 285
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 16,
+        "visits": 286
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 17,
+        "visits": 407
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 18,
+        "visits": 443
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 19,
+        "visits": 295
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 20,
+        "visits": 308
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 21,
+        "visits": 238
+      },
+      {
+        "date": "2026-10-19",
+        "hour": 22,
+        "visits": 56
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 5,
+        "visits": 5
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 6,
+        "visits": 209
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 7,
+        "visits": 162
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 8,
+        "visits": 148
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 9,
+        "visits": 158
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 10,
+        "visits": 193
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 11,
+        "visits": 197
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 12,
+        "visits": 200
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 13,
+        "visits": 169
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 14,
+        "visits": 186
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 15,
+        "visits": 243
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 16,
+        "visits": 267
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 17,
+        "visits": 413
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 18,
+        "visits": 365
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 19,
+        "visits": 373
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 20,
+        "visits": 354
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 21,
+        "visits": 201
+      },
+      {
+        "date": "2026-10-20",
+        "hour": 22,
+        "visits": 62
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 5,
+        "visits": 7
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 6,
+        "visits": 200
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 7,
+        "visits": 147
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 8,
+        "visits": 174
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 9,
+        "visits": 138
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 10,
+        "visits": 199
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 11,
+        "visits": 186
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 12,
+        "visits": 196
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 13,
+        "visits": 154
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 14,
+        "visits": 257
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 15,
+        "visits": 303
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 16,
+        "visits": 294
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 17,
+        "visits": 391
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 18,
+        "visits": 404
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 19,
+        "visits": 363
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 20,
+        "visits": 381
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 21,
+        "visits": 244
+      },
+      {
+        "date": "2026-10-21",
+        "hour": 22,
+        "visits": 58
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 5,
+        "visits": 4
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 6,
+        "visits": 158
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 7,
+        "visits": 149
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 8,
+        "visits": 132
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 9,
+        "visits": 156
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 10,
+        "visits": 178
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 11,
+        "visits": 180
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 12,
+        "visits": 229
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 13,
+        "visits": 174
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 14,
+        "visits": 198
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 15,
+        "visits": 327
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 16,
+        "visits": 255
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 17,
+        "visits": 489
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 18,
+        "visits": 471
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 19,
+        "visits": 376
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 20,
+        "visits": 332
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 21,
+        "visits": 193
+      },
+      {
+        "date": "2026-10-22",
+        "hour": 22,
+        "visits": 55
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 5,
+        "visits": 5
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 6,
+        "visits": 137
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 7,
+        "visits": 123
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 8,
+        "visits": 139
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 9,
+        "visits": 157
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 10,
+        "visits": 175
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 11,
+        "visits": 210
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 12,
+        "visits": 196
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 13,
+        "visits": 234
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 14,
+        "visits": 244
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 15,
+        "visits": 287
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 16,
+        "visits": 311
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 17,
+        "visits": 357
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 18,
+        "visits": 365
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 19,
+        "visits": 269
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 20,
+        "visits": 158
+      },
+      {
+        "date": "2026-10-23",
+        "hour": 21,
+        "visits": 67
+      }
+    ],
+    "limitations": "Published hourly entry counts, not occupancy or unique visitors. Preserves the public report filters, including excluded gear and staff pass codes. Missing cells are unreported, not zero. A recent week is a timing profile, not a forecast of attendance."
+  },
+  "sources": [
+    {
+      "url": "https://www.bu.edu/fitrec/peak-quiet-hours/",
+      "requestedUrl": "https://www.bu.edu/fitrec/peak-quiet-hours/",
+      "retrievedAt": "2026-10-24T19:51:13.273980+00:00",
+      "sha256": "582c08aa392c4a80286d408ea7ec1d1a06fb54156849c08cfc7a63f9702d7a60",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/526e28297573171837246f077dfd4b0360ec43c5a00e45ba5804f21c5fb59494.body",
+      "cacheUsed": false
+    },
+    {
+      "url": "https://app.powerbi.com/view?r=eyJrIjoiYmFkYTZlY2QtMTkwYi00ODNhLTkzNmEtN2I2ZmJmODUzMjk0IiwidCI6ImQ1N2QzMmNjLWMxMjEtNDg4Zi1iMDdiLWRmZTcwNTY4MGM3MSIsImMiOjN9",
+      "requestedUrl": "https://app.powerbi.com/view?r=eyJrIjoiYmFkYTZlY2QtMTkwYi00ODNhLTkzNmEtN2I2ZmJmODUzMjk0IiwidCI6ImQ1N2QzMmNjLWMxMjEtNDg4Zi1iMDdiLWRmZTcwNTY4MGM3MSIsImMiOjN9",
+      "retrievedAt": "2026-10-24T19:51:13.926336+00:00",
+      "sha256": "ead10ee0dcfea0b9c86fbf0d51606b2471fd7130ef3c2390b8fed20df0bca41a",
+      "contentType": "text/html; charset=utf-8",
+      "rawPath": "data-pipeline/.cache/sources/69b41908fb748c168e85295ba1b8d700f7168a99801d129274b64ca4a5f090c5.body",
+      "cacheUsed": false
+    },
+    {
+      "url": "https://wabi-us-north-central-g-primary-api.analysis.windows.net/public/reports/bada6ecd-190b-483a-936a-7b6fbf853294/modelsAndExploration?preferReadOnlySession=true",
+      "requestedUrl": "https://wabi-us-north-central-g-primary-api.analysis.windows.net/public/reports/bada6ecd-190b-483a-936a-7b6fbf853294/modelsAndExploration?preferReadOnlySession=true",
+      "retrievedAt": "2026-10-24T19:51:14.795680+00:00",
+      "sha256": "bb94a547004964f5eab6c2f38ac7ce28ac9c2888afaa5f0ff09e0fc5f11b6a87",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/.cache/sources/172f40a8c504592fdc1c5652aec85a516bbf4e0a61843e850b4e55e96ff4ed8a.body",
+      "cacheUsed": false
+    },
+    {
+      "url": "https://wabi-us-north-central-g-primary-api.analysis.windows.net/public/reports/querydata",
+      "requestedUrl": "https://wabi-us-north-central-g-primary-api.analysis.windows.net/public/reports/querydata",
+      "retrievedAt": "2026-10-24T19:51:15.979585+00:00",
+      "sha256": "8e62e976b7a4ae67d70bd5fa8b21e62fd9b0507ae6aa14c60a57414867bc7a53",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/.cache/sources/72d0b12c71577900995d40fec87ab83b2f0fdd6e83a197c8ce40d8f2972ae5cd.body",
+      "cacheUsed": false
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}

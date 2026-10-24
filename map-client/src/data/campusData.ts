@@ -1,3 +1,6 @@
+import type { FitrecUsage } from './fitrecUsage';
+import type { AcademicCalendar } from './academicCalendar';
+
 export interface Evidence {
   id: string;
   label: string;
@@ -69,6 +72,8 @@ export interface SourceEvent {
 }
 
 export interface CampusData {
+  academicCalendar?: AcademicCalendar;
+  fitrecUsage?: FitrecUsage;
   schemaVersion: 1;
   term: string;
   collectedAt: string;

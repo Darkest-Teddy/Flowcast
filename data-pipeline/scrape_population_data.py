@@ -8,7 +8,7 @@ import sys
 
 from common import CACHE, OUTPUT, Fetcher, ScrapeError, envelope, utc_now, write_json
 
-COLLECTORS = ("catalog", "events", "dining", "libraries", "housing", "signals")
+COLLECTORS = ("catalog", "events", "dining", "libraries", "housing", "signals", "academic_calendar", "fitrec_usage")
 ACCESS_LIMITS = [
     {"source": "Campus Density Mapping", "status": "institutional_access_required",
      "url": "https://www.bu.edu/tech/services/admin/campus-operations-systems/campus-density-mapping/",

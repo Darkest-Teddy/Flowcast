@@ -12,11 +12,13 @@ import re
 import tempfile
 from zoneinfo import ZoneInfo
 
+from academic_calendar import effective_intervals
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_INPUT = ROOT / "data-pipeline" / "output"
 DEFAULT_MAP = ROOT / "map-client" / "public" / "data" / "demo-day.json"
 DEFAULT_OUTPUT = ROOT / "map-client" / "public" / "data" / "campus-data.json"
-DATASETS = ("catalog", "events", "dining", "housing", "libraries", "signals", "opening_hours", "residential_availability")
+DATASETS = ("catalog", "events", "dining", "housing", "libraries", "signals", "opening_hours", "residential_availability", "academic_calendar", "fitrec_usage")
 
 # These aliases refer to existing mapped buildings, never inferred nearby coordinates.
 BUILDING_ALIASES = {
@@ -59,7 +61,7 @@ def calendar_restricted(notes):
     return False
 
 
-def catalog_course_coverage(catalog, week_start=None):
+def catalog_course_coverage(catalog, week_start=None, calendar=None):
     """Count offerings, never seats, enrollment, components, or meeting frequency."""
     signatures = defaultdict(set)
     restricted = 0
@@ -69,11 +71,8 @@ def catalog_course_coverage(catalog, week_start=None):
             continue
         if not row.get("buildingCode") or not row.get("intervals"):
             continue
-        for interval in row["intervals"]:
-            if week_start is not None:
-                stamp = (week_start + timedelta(days=interval["weekday"])).isoformat()
-                if row.get("validFrom", stamp) > stamp or row.get("validTo", stamp) < stamp:
-                    continue
+        intervals = effective_intervals(row, week_start, calendar, term=catalog.get("term")) if week_start is not None else row["intervals"]
+        for interval in intervals:
             signatures[row["courseCode"]].add((row["buildingCode"], row.get("roomCode", ""),
                 interval["weekday"], interval["startSec"], interval["endSec"]))
     equivalent = defaultdict(list)
@@ -299,7 +298,18 @@ def build_bundle(datasets, day, input_files=None):
         item = evidence(record, f"{record['intersection']}, {record['startLocal']}-{record['endLocal']}")
         item["note"] = "Collection dates: "+", ".join(record["collectionDates"])+". "+record["limitations"]
         global_evidence.append(item)
-    for record in datasets["signals"]["fitrecMetrics"]:
+    fitrec = datasets.get("fitrec_usage", {}).get("usage")
+    calendar = datasets.get("academic_calendar", {}).get("calendar")
+    if fitrec:
+        item = {"id": "fitrec:hourly-visits", "label": "FitRec visits in observed period",
+                "value": sum(row["visits"] for row in fitrec["observations"]), "unit": "visits",
+                "basis": "Published hourly entry counts", "publishedAt": fitrec["modelRefreshedAt"],
+                "sourceUrl": fitrec["sourceUrl"],
+                "note": f"{fitrec['periodStart']} to {fitrec['periodEnd']}. Entries, not unique people or simultaneous occupancy. Relative timing shapes modeled gym visits; missing counts are not closures."}
+        global_evidence.append(item)
+        if "fitrec" in locations:
+            locations["fitrec"]["evidence"].append(item)
+    for record in ([] if fitrec else datasets["signals"]["fitrecMetrics"]):
         item = evidence(record, "FitRec daily visits (more than)")
         global_evidence.append(item)
         if "fitrec" in locations:
@@ -328,8 +338,10 @@ def build_bundle(datasets, day, input_files=None):
     return {
         "schemaVersion": 1, "term": catalog.get("term", "FALL 2026"), "collectedAt": collected_at,
         "referenceWeekStart": week_start.isoformat(),
-        "catalogCourseCodes": catalog_course_coverage(catalog, week_start)["courseCodes"],
-        "catalogCourseCoverage": catalog_course_coverage(catalog, week_start),
+        **({"academicCalendar": calendar} if calendar else {}),
+        **({"fitrecUsage": fitrec} if fitrec else {}),
+        "catalogCourseCodes": catalog_course_coverage(catalog, week_start, calendar)["courseCodes"],
+        "catalogCourseCoverage": catalog_course_coverage(catalog, week_start, calendar),
         **({"hackathonCatalogCoverage": catalog["hackathonCoverage"]} if "hackathonCoverage" in catalog else {}),
         "coverage": {"coursePages": counts.get("coursePagesParsed", len(catalog.get("courses", []))),
                      "uniqueCourses": counts.get("uniqueCourseCodes", len({m['courseCode'] for m in catalog['meetings']})),
@@ -347,6 +359,8 @@ def build_bundle(datasets, day, input_files=None):
         "signals": sorted(global_evidence, key=lambda e: e["id"]),
         "assumptions": [
             "Published class times drive fictional student plans; enrollment and attendance are unknown.",
+            "General Registrar term dates, suspensions and substitute weekdays apply only to covered course prefixes; separate professional-school calendars remain unavailable. Exam dates do not create meetings.",
+            "FitRec entry counts shape relative gym arrival timing using the latest same-weekday observation no more than 28 days old. Attendance probability and visit duration remain modeled; stale or absent profiles use the generic timing assumption.",
             "Published room seats only cap assigned synthetic attendance; they are not observed enrollment or headcounts.",
             "Only explicit building aliases with existing mapped routes are joined; no nearby-building guessing.",
             "Date/session-restricted rows are retained for inspection, not expanded as ordinary weekly classes.",

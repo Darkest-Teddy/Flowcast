@@ -119,6 +119,8 @@ data-pipeline/.venv/bin/python data-pipeline/scrape_dining.py
 data-pipeline/.venv/bin/python data-pipeline/scrape_libraries.py
 data-pipeline/.venv/bin/python data-pipeline/scrape_housing.py --max-pages 45
 data-pipeline/.venv/bin/python data-pipeline/scrape_signals.py
+data-pipeline/.venv/bin/python data-pipeline/scrape_academic_calendar.py
+data-pipeline/.venv/bin/python data-pipeline/scrape_fitrec_usage.py
 ```
 
 Each collector supports `--help`, `--output`, `--cache-dir`, `--offline`, `--refresh`, and `--delay`. The runner instead uses `--output-dir` and adds `--only` to select categories:
@@ -260,3 +262,11 @@ venues remain explicitly unmapped. The map displays source facts with dates and 
 while `map-client/src/sim/sourceDay.ts` generates fictional student attendance against
 published class times. Historical library counts, registrations, residential baselines,
 and dining volumes are not treated as live occupancy.
+
+## FitRec visits and the Registrar calendar
+
+`fitrec_usage.json` saves the public [FitRec peak/quiet-hours report](https://www.bu.edu/fitrec/peak-quiet-hours/): hourly entry counts for its last seven reported dates, preserving the published Power BI visual filters. Missing cells remain absent. The bundle replaces the older generic FitRec daily-visits evidence with this dated snapshot. The gym planner samples relative arrival timing from the latest same-weekday observation on or before the simulated date, at most 28 days old. Opening hours, travel feasibility, and capacity still apply. Attendance probability and dwell time remain assumptions; entries are neither unique visitors nor simultaneous occupancy. If no recent profile exists, the existing generic gym timing remains in use.
+
+`academic_calendar.json` saves the [Registrar semester calendar](https://www.bu.edu/reg/calendars/semester/) for Fall 2026 and Spring 2027. Class plans and course-coverage weights honor term boundaries, suspended dates, recesses, and substitute weekdays. Section validity dates apply to the actual attendance date. Exam periods do not generate invented meetings. The general calendar applies only to the listed course prefixes: professional schools with separately published calendars and unknown prefixes retain their source schedules.
+
+Both collectors support `--refresh` and cached `--offline` acquisition. Committed normalized snapshots are sufficient for offline builds; no raw cache, API credentials, or VPN is needed for these two sources.
