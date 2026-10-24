@@ -10,6 +10,7 @@ import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
+import { calibrateCapacities } from './sim/calibrate';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
@@ -198,7 +199,7 @@ export default function App() {
 
       baseDayRef.current = day;
       setSourceData(snapshot);
-      const playback = new Playback(snapshot ? buildSourceDay(day, snapshot, 2) : day);
+      const playback = new Playback(calibrateCapacities(snapshot ? buildSourceDay(day, snapshot, 2) : day));
       playbackRef.current = playback;
       setRange([0, 86400]);
       setCampuses(day.campuses ?? []);
@@ -392,7 +393,7 @@ export default function App() {
 
   const changeDay = (value: number) => {
     if (!baseDayRef.current || !sourceData) return;
-    playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value));
+    playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(baseDayRef.current, sourceData, value)));
     setWeekday(value);
     setHud((prev) => ({
       time: timeRef.current,
