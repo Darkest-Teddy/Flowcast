@@ -165,3 +165,14 @@ export function trackGeometry(tracks: Track[]): TrackGeometry {
   }
   return { beds, rails, ties };
 }
+
+/** Polygons hugging each above-ground track, `halfWidth` metres either side of it. */
+export function trackCorridors(tracks: Track[], halfWidth: number): [number, number][][] {
+  return tracks.flatMap((track) =>
+    surfaceRuns(track).map((run) => {
+      const left = offsetPath(run, -halfWidth);
+      const right = offsetPath(run, halfWidth);
+      return [...left, ...right.reverse(), left[0]];
+    }),
+  );
+}
