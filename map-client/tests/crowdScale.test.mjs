@@ -151,9 +151,11 @@ test('crowd text keeps 4.5:1 and fills 3:1 on every surface they sit on', () => 
   }
 });
 
-test('ink keeps 4.5:1 on glass over every canvas gradient stop', () => {
+test('ink keeps 4.5:1 on glass and on the bare canvas gradient, at every stop', () => {
   for (const [name, theme, on] of [['light', light, lightSurfaces], ['dark', dark, darkSurfaces]]) {
     const glassOnly = Object.fromEntries(Object.entries(on).filter(([k]) => k.includes('glass')));
+    // Page descriptions, empty states and status lines sit straight on the gradient.
+    for (const stop of stops(theme['--canvas-gradient'])) glassOnly[`canvas ${stop}`] = stop;
     assertContrast(theme['--color-ink'], glassOnly, 4.5, `${name} ink`);
     assertContrast(theme['--color-ink-secondary'], glassOnly, 4.5, `${name} ink-secondary`);
     assertContrast(theme['--glass-ink-tertiary'], glassOnly, 4.5, `${name} glass-ink-tertiary`);
