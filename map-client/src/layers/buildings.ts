@@ -4,7 +4,10 @@
 // procedurally detailed model (per-building facades from reference photos, cornices, mansards,
 // fins, hand-tuned landmarks such as CDS, Marsh Chapel and Warren Towers) and merges each campus
 // into ONE GLB, so the whole of BU costs three ScenegraphLayer instances and a handful of draw
-// calls. At dusk and night two small extra GLBs per campus add warm lit windows.
+// calls. A second GLB per campus holds every window that can light up after dark; each window
+// carries its own on/off times (in TEXCOORD_0), and a clock uniform switches them in the shader,
+// so lights come on through dusk, peak in the evening and go off through the small hours as the
+// sim clock moves, at no per-frame CPU cost.
 //
 // Model frame: metres, +x east, +y up, +z south (glTF convention), relative to the campus origin.
 // Every OSM id in the manifest (buildings, their building:part pieces and relation members) is
@@ -12,6 +15,7 @@
 import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
+import { daylightAt } from '../map/daylight';
 
 export interface BuildingModelEntry {
   osm: string; // e.g. "way/277434241", the same ids as demo-day.json's buildings
@@ -28,8 +32,8 @@ export interface CampusModel {
   name: string;
   origin: [number, number]; // [lng, lat] of the model's (0, 0, 0)
   model: string; // URL of the GLB
-  /** Lit-window meshes: `dusk` glows at dusk and night, `night` adds more windows at night. */
-  lights?: { dusk?: string; night?: string };
+  /** Lit-window mesh with per-window schedules. */
+  lights?: { scheduled?: string };
   buildings: BuildingModelEntry[];
 }
 
@@ -38,7 +42,7 @@ export interface BuildingModelManifest {
   campuses: CampusModel[];
 }
 
-/** Parsed GLBs, keyed by campus id (lit-window meshes as `<id>:dusk` and `<id>:night`). */
+/** Parsed GLBs, keyed by campus id (the lit-window mesh as `<id>:scheduled`). */
 export type BuildingModels = Record<string, unknown>;
 
 export async function loadBuildingManifest(url = '/data/building-models.json'): Promise<BuildingModelManifest> {
@@ -68,9 +72,12 @@ export async function loadBuildings(url?: string) {
 export type BuildingLight = 'dawn' | 'day' | 'dusk' | 'night';
 
 export interface BuildingLayerOptions {
-  /** Match Mapbox Standard's lightPreset: tints the models, and lights a random share of windows
-   *  at dusk (warm glow) and more of them at night. */
+  /** The current Mapbox light preset: tints the models when `clock` isn't given or in manual mode. */
   lightPreset?: BuildingLight;
+  /** Sim time, seconds since Boston midnight. Drives the window lights (and, with `auto`, the tint). */
+  clock?: number;
+  /** Auto lighting: tint and window brightness follow the sun's altitude at `clock`. */
+  auto?: boolean;
   /** Only draw these campuses (ids from the manifest). Default: all. */
   campuses?: string[];
   visible?: boolean;
@@ -82,13 +89,15 @@ export interface BuildingLayerOptions {
 }
 
 // deck.gl lights the models with its own default lights, which are brighter than Mapbox's dusk
-// and night presets; these multipliers keep them sitting in the scene.
+// and night presets; these multipliers keep them sitting in the scene (manual presets).
 const LIGHT_TINT: Record<BuildingLight, [number, number, number, number]> = {
   day: [255, 255, 255, 255],
   dawn: [236, 220, 214, 255],
   dusk: [206, 196, 214, 255],
   night: [120, 128, 158, 255],
 };
+// How strongly windows show under each manual preset.
+const WINDOW_STRENGTH: Record<BuildingLight, number> = { day: 0, dawn: 0.6, dusk: 0.85, night: 1 };
 
 interface Instance {
   position: [number, number, number];
@@ -101,26 +110,85 @@ export function lowPitchDepthBias(pitch: number): number {
   return 3e6 * t * t;
 }
 
-type ModelWithParameters = { parameters?: Record<string, unknown>; setParameters?: (p: Record<string, unknown>) => void };
-type SceneNode = { model?: ModelWithParameters };
+type ModelLike = {
+  parameters?: Record<string, unknown>;
+  setParameters?: (p: Record<string, unknown>) => void;
+  shaderInputs?: { setProps(props: Record<string, unknown>): void };
+};
+type SceneNode = { model?: ModelLike };
+
+const WINDOW_UNIFORMS = `\
+uniform windowLightsUniforms {
+  float hour;
+  float strength;
+} windowLights;
+`;
+
+/** Window schedules: TEXCOORD_0 = (on hour, off hour) on a 12..36 h axis; `hour` on the same axis. */
+const windowLights = {
+  name: 'windowLights',
+  vs: WINDOW_UNIFORMS,
+  fs: WINDOW_UNIFORMS,
+  uniformTypes: { hour: 'f32', strength: 'f32' },
+  defaultUniforms: { hour: 21, strength: 1 },
+} as const;
+
+const WINDOW_FILTER = `
+  {
+    float on = geometry.uv.x;
+    float off = geometry.uv.y;
+    float h = windowLights.hour;
+    // ~15 sim minutes to switch, so a fast-forward reads as lights gradually going on and off
+    float k = smoothstep(on, on + 0.25, h) * (1.0 - smoothstep(off - 0.25, off, h)) * windowLights.strength;
+    if (k < 0.02) discard;
+    color.rgb *= k;
+  }
+`;
+
+interface ExtraProps {
+  extraDepthBias: number;
+  /** Lit-window mesh: set the schedule uniforms. Hour on the 12..36 axis; strength 0..1. */
+  windowClock: { hour: number; strength: number } | null;
+}
 
 /**
- * ScenegraphLayer that pulls itself forward in the depth buffer when the camera looks almost
- * straight down. In interleaved mode Mapbox's depth for flat or nearly flat views drifts far from
- * deck.gl's, and Standard's 2D building footprints then paint over the roofs (the "Top" camera
- * showed beige footprints instead of the models). Above ~30 deg pitch nothing changes.
+ * ScenegraphLayer with two additions:
+ * - pulls itself forward in the depth buffer when the camera looks almost straight down (in
+ *   interleaved mode Mapbox's depth for flat views drifts from deck.gl's, and Standard's 2D
+ *   building footprints then paint over the roofs);
+ * - for the lit-window mesh, a tiny shader module that switches each window on and off by its
+ *   own schedule against a clock uniform.
  */
-class BuildingModelLayer extends ScenegraphLayer<Instance, { extraDepthBias: number }> {
+class BuildingModelLayer extends ScenegraphLayer<Instance, ExtraProps> {
   static layerName = 'BuildingModelLayer';
+  getShaders() {
+    const shaders = super.getShaders();
+    if (!this.props.windowClock) return shaders;
+    return {
+      ...shaders,
+      modules: [...shaders.modules, windowLights],
+      inject: { ...(shaders.inject ?? {}), 'fs:DECKGL_FILTER_COLOR': WINDOW_FILTER },
+    };
+  }
   draw(opts: Parameters<ScenegraphLayer<Instance>['draw']>[0]) {
     const pitch = (this.context.viewport as unknown as { pitch?: number }).pitch ?? 60;
     const units = this.props.extraDepthBias + lowPitchDepthBias(pitch);
     // luma.gl: gl.polygonOffset(factor = depthBias, units = depthBiasSlopeScale)
     const offset = { depthBias: units ? -1 : 0, depthBiasSlopeScale: -units };
+    const clock = this.props.windowClock;
     const scenegraph = (this.state as { scenegraph?: { traverse(cb: (node: SceneNode) => void): void } }).scenegraph;
-    scenegraph?.traverse((node) => node.model?.setParameters?.({ ...node.model.parameters, ...offset }));
+    scenegraph?.traverse((node) => {
+      node.model?.setParameters?.({ ...node.model.parameters, ...offset });
+      if (clock) node.model?.shaderInputs?.setProps({ windowLights: clock });
+    });
     super.draw(opts);
   }
+}
+
+/** Sim seconds since midnight -> hours on the 12..36 axis the window schedules use. */
+function scheduleHour(seconds: number): number {
+  const h = (((seconds / 3600) % 24) + 24) % 24;
+  return h < 12 ? h + 24 : h;
 }
 
 export function buildingModelLayers(
@@ -128,16 +196,27 @@ export function buildingModelLayers(
   models: BuildingModels,
   options: BuildingLayerOptions = {},
 ) {
-  const { lightPreset = 'dusk', campuses, visible = true, opacity = 1, depthBias = 0 } = options;
-  const tint = LIGHT_TINT[lightPreset];
-  const lit = lightPreset === 'night' ? ['dusk', 'night'] : lightPreset === 'dusk' ? ['dusk'] : [];
+  const { lightPreset = 'dusk', clock, auto = false, campuses, visible = true, opacity = 1, depthBias = 0 } = options;
+  let tint = LIGHT_TINT[lightPreset];
+  let strength = WINDOW_STRENGTH[lightPreset];
+  let hour = scheduleHour(clock ?? 21 * 3600);
+  if (auto && clock !== undefined) {
+    const d = daylightAt(clock);
+    tint = d.tint;
+    strength = d.windows;
+  } else if (strength > 0 && hour >= 12 && hour < 17.5) {
+    // A manual dusk/night preset at a daytime clock: show a typical evening instead.
+    hour = lightPreset === 'night' ? 21.5 : 19;
+  }
   const layers: BuildingModelLayer[] = [];
   for (const c of manifest.campuses) {
     if (!models[c.id] || (campuses && !campuses.includes(c.id))) continue;
-    const parts = [{ id: c.id, key: c.id, color: tint }];
-    // Lit windows: emissive, so they glow whatever the tint; untinted.
-    for (const when of lit) {
-      if (models[`${c.id}:${when}`]) parts.push({ id: `${c.id}-lights-${when}`, key: `${c.id}:${when}`, color: [255, 255, 255, 255] });
+    const parts: { id: string; key: string; color: [number, number, number, number]; windowClock: ExtraProps['windowClock'] }[] = [
+      { id: c.id, key: c.id, color: tint, windowClock: null },
+    ];
+    // Lit windows: emissive, so untinted; skipped entirely in daylight.
+    if (strength > 0.01 && models[`${c.id}:scheduled`]) {
+      parts.push({ id: `${c.id}-lights`, key: `${c.id}:scheduled`, color: [255, 255, 255, 255], windowClock: { hour, strength } });
     }
     for (const part of parts) {
       layers.push(
@@ -148,16 +227,17 @@ export function buildingModelLayers(
           getPosition: (d) => d.position,
           // glTF is y-up; roll 90 stands it on the map: +x east, +y up, -z north.
           getOrientation: [0, 0, 90],
-          // An accessor, not a constant: deck only re-evaluates it (on lightPreset change, via
-          // updateTriggers) when it's a function.
-          getColor: () => part.color as [number, number, number, number],
+          // An accessor, not a constant: deck only re-evaluates it (on change, via updateTriggers)
+          // when it's a function.
+          getColor: () => part.color,
           sizeScale: 1,
           _lighting: 'pbr',
           visible,
           opacity,
           pickable: false,
           extraDepthBias: depthBias,
-          updateTriggers: { getColor: lightPreset },
+          windowClock: part.windowClock,
+          updateTriggers: { getColor: part.color.map(Math.round).join(',') },
           // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
           slot: 'middle',
         }),

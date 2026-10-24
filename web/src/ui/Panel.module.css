@@ -1,0 +1,36 @@
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+}
+
+.padded {
+  padding: var(--space-4);
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-text);
+}
+
+.description {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}

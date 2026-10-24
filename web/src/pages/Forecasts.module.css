@@ -1,0 +1,84 @@
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legend i {
+  display: block;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-xs);
+}
+
+.range {
+  color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.places {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin-top: var(--space-8);
+}
+
+.placeHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.placeHead h2 {
+  font-size: var(--text-lg);
+}
+
+.summary {
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary strong {
+  color: var(--color-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.sep {
+  margin-left: var(--space-4);
+  color: var(--color-ink-tertiary);
+}
+
+.hourList {
+  margin-top: var(--space-8);
+}
+
+@media (max-width: 560px) {
+  .sep {
+    display: block;
+    margin-left: 0;
+  }
+}

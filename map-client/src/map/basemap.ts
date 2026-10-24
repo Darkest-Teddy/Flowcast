@@ -218,6 +218,7 @@ function addTrafficLayer(map: import('mapbox-gl').Map) {
     ],
     // Worst congestion drawn last, so a red stretch is never covered by the green beside it.
     layout: {
+      visibility: 'none', // off until the Transit tab's Traffic toggle turns it on
       'line-cap': 'round',
       'line-join': 'round',
       'line-sort-key': byLevel((l) => TRAFFIC_LEVELS.indexOf(l), 0) as never,
