@@ -6,21 +6,40 @@ import {
 } from './incidentActivities';
 export type { IncidentAction, IncidentActivity, IncidentContext, IncidentDecision } from './incidentActivities';
 export { ACTIVITY_DECISION_ASSUMPTIONS, ACTIVITY_DECISION_LIMITATIONS } from './incidentActivities';
+import { DISASTER_ASSUMPTIONS, hazardZone, isDisasterKind, type DisasterKind } from './disasters';
+export { DISASTER_ASSUMPTIONS, DISASTER_LIMITATIONS, isDisasterKind, type DisasterKind } from './disasters';
+import { computeCasualties, type CasualtyEvent } from './casualties';
+export { CASUALTY_ASSUMPTIONS, CASUALTY_LIMITATIONS, computeCasualties, type CasualtyEvent } from './casualties';
 
-export type IncidentKind = 'fire-drill' | 'building-closure';
+export type IncidentKind = 'fire-drill' | 'building-closure' | 'fire' | 'earthquake' | 'meteor';
 export interface Incident {
   id: string;
   kind: IncidentKind;
   locationId: string;
-  /** Seconds since midnight. Requested closure is [start, start + duration); drill clearance can extend it. */
+  /** Seconds since midnight. Requested closure is [start, start + duration); drill clearance can extend it.
+   * For fire, earthquake and meteor the duration only sets the active response; damaged buildings stay closed until midnight. */
   start: number;
   duration: number;
+  /** Earthquake and meteor hazard radius around the target location (defaults 250 m and 100 m). Other kinds: 0 or omitted. */
+  radiusMetres?: number;
+}
+/** Hazard zone of a fire, earthquake or meteor scenario. Model-derived and uncalibrated. */
+export interface IncidentHazard {
+  radiusMetres: number;
+  /** Exits start no earlier than this (earthquake shaking and sheltering); equals start otherwise. */
+  responseStartsAt: number;
+  /** End of the visible active fire, shaking or impact response (start + duration). Affected
+   * locations do not reopen then: they stay closed until IncidentResult.endsAt, the end of the day. */
+  activeUntil: number;
+  affectedLocationIds: string[];
+  affectedBuildingIds: string[];
 }
 
 /**
  * evacuated: drill occupant walked to the modeled assembly point.
  * interrupted: closure occupant waited at the nearest saved-route location and returned to finish the activity.
  * cancelled: the remaining visit was dropped (closure occupant left early on the next saved walk, or an arrival skipped an expired visit).
+ *   Disaster visits are always cancelled unless relocated: damaged buildings never reopen the same day.
  * delayed: arrival waited or turned back, then made the visit after reopening.
  * relocated: closure occupant or arrival moved its optional activity to another open venue.
  */
@@ -49,9 +68,15 @@ export interface IncidentResult {
   assemblyLocation: CampusLocation | null;
   participants: IncidentParticipant[];
   requestedEndsAt: number;
+  /** When access reopens. Disasters: 86400 (damaged buildings stay closed for the rest of the day). */
   endsAt: number;
   /** Measured metric distance from the drill assembly point to the nearest saved footprint edge; null for closures. */
   assemblyClearanceMetres?: number | null;
+  /** Present only for fire, earthquake and meteor scenarios. */
+  hazard?: IncidentHazard;
+  /** Illustrative injuries and fatalities (disasters only; same array as day.casualties), sorted by at then agentId.
+   * The day's stays and trips stay the planned paths; playback stops each person at their event. */
+  casualties?: CasualtyEvent[];
 }
 
 /** Illustrative, uncalibrated assumptions; not a building evacuation assessment. */
@@ -253,16 +278,36 @@ function footprintClearance(point: [number, number], polygons: [number, number][
 /** Pure transform. Drill reopening can extend beyond the requested duration for clearance and muster; closures cannot. */
 export function applyIncident(day: DayData, incident: Incident, context?: IncidentContext): IncidentResult {
   const requestedEndsAt = incident.start + incident.duration;
-  if (!incident.id?.trim() || !['fire-drill', 'building-closure'].includes(incident.kind)
+  if (!incident.id?.trim() || !['fire-drill', 'building-closure', 'fire', 'earthquake', 'meteor'].includes(incident.kind)
     || !Number.isFinite(incident.start) || incident.start < 0 || !Number.isFinite(incident.duration)
     || incident.duration <= 0 || !Number.isFinite(requestedEndsAt) || requestedEndsAt > DAY)
     throw new Error('Invalid incident: id, kind, start and positive duration within one day required');
+  const disaster = isDisasterKind(incident.kind) ? DISASTER_ASSUMPTIONS[incident.kind] : undefined;
+  const radiusMetres = incident.radiusMetres ?? disaster?.defaultRadiusMetres ?? 0;
+  const spreads = incident.kind === 'earthquake' || incident.kind === 'meteor';
+  if (!Number.isFinite(radiusMetres) || radiusMetres < 0 || radiusMetres > DISASTER_ASSUMPTIONS.maxRadiusMetres || !spreads && radiusMetres !== 0)
+    throw new Error(`Invalid incident: radiusMetres must be 0–${DISASTER_ASSUMPTIONS.maxRadiusMetres} for earthquakes and meteors, and 0 or omitted otherwise`);
+  if (disaster && incident.duration < disaster.minDurationSeconds)
+    throw new Error(`Invalid incident: a ${incident.kind} needs a duration of at least ${disaster.minDurationSeconds / 60} minutes`);
   const target = day.locations.find(location => location.id === incident.locationId);
-  if (!target || target.kind === 'off-campus' || target.kind === 'outdoor' || target.id === 'off-campus')
-    throw new Error('Incident target must be an existing on-campus indoor location');
+  if (!target || target.kind === 'off-campus' || target.id === 'off-campus' || target.kind === 'outdoor' && !spreads)
+    throw new Error(spreads ? 'Incident target must be an existing on-campus location' : 'Incident target must be an existing on-campus indoor location');
   const drill = incident.kind === 'fire-drill';
-  const blocked = new Set(day.locations.filter(location => location.id === target.id
+  const zone = disaster ? hazardZone(day, target, radiusMetres) : undefined;
+  const blocked = new Set(zone ? zone.locationIds : day.locations.filter(location => location.id === target.id
     || target.building && location.building === target.building).map(location => location.id));
+  // Disasters damage every affected building for the rest of the simulated day. The requested
+  // duration only bounds the active response (hazard.activeUntil); nobody re-enters before midnight.
+  const allDay = !!zone;
+  const closedUntil = allDay ? DAY : requestedEndsAt;
+  const responseStartsAt = incident.start + (disaster?.responseDelaySeconds ?? 0);
+  const reactionMin = disaster?.reactionMinSeconds ?? INCIDENT_ASSUMPTIONS.reactionMinSeconds;
+  const reactionMax = disaster?.reactionMaxSeconds ?? INCIDENT_ASSUMPTIONS.reactionMaxSeconds;
+  // Exit and return flows are per building footprint (or per location without one), never campus-wide.
+  const locationBuilding = new Map(day.locations.map(location => [location.id, location.building]));
+  const flowKey = (id: string) => locationBuilding.get(id) || `location:${id}`;
+  const heights = new Map<string, number>();
+  for (const building of day.buildings) heights.set(building.id, Math.max(heights.get(building.id) ?? 0, building.height));
   const byAgent = timelines(day);
   const routes = new Map([...blocked].map(id => [id, routesFrom(day, id, blocked)]));
   const speeds = new Map(day.agents.map(agent => [agent.id, agent.walkSpeed ?? 1.4]));
@@ -274,11 +319,11 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
   const occupants = [...byAgent].flatMap(([id, events]) => {
     const event = events.find(e => e.stay && e.start <= incident.start && incident.start < e.end && blocked.has(e.to));
     if (!event) return [];
-    const height = Math.max(0, ...day.buildings.filter(b => b.id === target.building).map(b => b.height));
-    const reaction = INCIDENT_ASSUMPTIONS.reactionMinSeconds
-      + (INCIDENT_ASSUMPTIONS.reactionMaxSeconds - INCIDENT_ASSUMPTIONS.reactionMinSeconds) * hash(`${incident.id}:${id}:reaction`);
+    const building = locationBuilding.get(event.to);
+    const height = Math.max(0, building ? heights.get(building) ?? 0 : 0);
+    const reaction = reactionMin + (reactionMax - reactionMin) * hash(`${incident.id}:${id}:reaction`);
     const stairs = Math.floor(height / INCIDENT_ASSUMPTIONS.floorHeightMetres * hash(`${id}:floor`)) * INCIDENT_ASSUMPTIONS.stairSecondsPerFloor;
-    return [{ id, event, ready: incident.start + reaction + stairs }];
+    return [{ id, event, ready: responseStartsAt + reaction + stairs }];
   }).sort((a, b) => a.ready - b.ready || a.id.localeCompare(b.id));
   const joins = (id: string, event: Event, route: WalkRoute) => {
     const events = byAgent.get(id)!, index = events.indexOf(event);
@@ -323,12 +368,19 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
     .filter(([to]) => !to.startsWith('incident:'))
     .sort((a, b) => a[1].cumulative.at(-1)! - b[1].cumulative.at(-1)! || a[0].localeCompare(b[0]))]));
   const waitFor = (id: string, event: Event) => waitRoutes.get(event.to)!.find(([, route]) => joins(id, event, route));
-  // First saved walk that leaves the closed footprint after `index`, passing only through closed locations.
+  // First saved walk that leaves the closed footprint after `index`, passing only through closed locations
+  // of the same footprint (a walk into another hazard building is never an early exit).
   const exitWalk = (events: Event[], index: number) => {
+    const own = flowKey(events[index].to);
     for (let i = index + 1; i < events.length; i++) {
       if (events[i].trip && !blocked.has(events[i].to)) return i;
-      if (!blocked.has(events[i].to)) return -1;
+      if (!blocked.has(events[i].to) || events[i].trip && flowKey(events[i].to) !== own) return -1;
     }
+    return -1;
+  };
+  // First saved walk to a location outside the whole hazard zone (disasters: every zone visit is cancelled).
+  const zoneExit = (events: Event[], index: number) => {
+    for (let i = index + 1; i < events.length; i++) if (events[i].trip && !blocked.has(events[i].to)) return i;
     return -1;
   };
 
@@ -397,11 +449,13 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
   };
 
   const participants: IncidentParticipant[] = [];
-  let exit = incident.start, endsAt = requestedEndsAt;
+  const exits = new Map<string, number>();
+  let endsAt = closedUntil;
   for (const occupant of occupants) {
-    const queued = Math.max(occupant.ready, exit + 1 / INCIDENT_ASSUMPTIONS.exitPersonsPerSecond);
+    const key = flowKey(occupant.event.to);
+    const queued = Math.max(occupant.ready, (exits.get(key) ?? incident.start) + 1 / INCIDENT_ASSUMPTIONS.exitPersonsPerSecond);
     if (drill) {
-      exit = queued;
+      exits.set(key, queued); const exit = queued;
       const assemblyAt = exit + evacuation!.get(occupant.event.to)!.cumulative.at(-1)! / speedOf(occupant.id);
       endsAt = Math.max(endsAt, assemblyAt + INCIDENT_ASSUMPTIONS.musterSeconds);
       participants.push({ agentId: occupant.id, role: 'occupant', departAt: exit, assemblyAt, releaseAt: 0, resumedAt: 0, outcome: 'evacuated' });
@@ -410,26 +464,31 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       const leave = leaveIndex >= 0 ? events[leaveIndex] : undefined;
       const wait = waitFor(occupant.id, occupant.event);
       const walkSeconds = wait ? wait[1].cumulative.at(-1)! / speedOf(occupant.id) : Infinity;
-      const backBy = Math.max(queued + walkSeconds, requestedEndsAt) + walkSeconds;
+      const backBy = Math.max(queued + walkSeconds, closedUntil) + walkSeconds;
+      const relocationLeaveIndex = allDay ? zoneExit(events, index) : leaveIndex;
       const forcedLeave = !!leave && (leave.start <= backBy || !wait);
       const activity = activityAt(events, index);
       let action: 'wait' | 'leave' | 'relocate' = forcedLeave ? 'leave' : 'wait';
-      let reason = forcedLeave ? (wait ? 'schedule leaves before reopening' : 'no saved walk to a waiting place') : 'waits nearby for reopening';
+      let reason = allDay ? (forcedLeave ? 'building closed for the rest of the day; leaves on the saved walk' : 'building closed for the rest of the day; waits outside the zone')
+        : forcedLeave ? (wait ? 'schedule leaves before reopening' : 'no saved walk to a waiting place') : 'waits nearby for reopening';
       let relocation: Relocation | undefined;
-      if (leave && leave.start <= queued) reason = 'scheduled departure precedes the exit slot';
+      // Nobody walks out during earthquake shaking: a scheduled departure only stands once the response has started.
+      const scheduledFirst = !!leave && leave.start <= queued && leave.start >= responseStartsAt;
+      if (scheduledFirst) reason = 'scheduled departure precedes the exit slot';
       else if (POLICY_KINDS.has(activity.kind)) {
         const min = minimumUseful(activity.kind), waitUseful = wait ? activity.end - backBy : -Infinity;
         const need = activity.end - Math.max(incident.start, activity.start);
         const eaten = activity.kind === 'dining' ? Math.max(0, incident.start - activity.start) / (activity.end - activity.start) : 0;
-        const leaveOk = !!leave && !fixedBetween(events, index, leaveIndex, activity.index)
+        // Disasters: later classes in a damaged building are cancelled too, so leaving is always allowed.
+        const leaveOk = !!leave && (allDay || !fixedBetween(events, index, leaveIndex, activity.index)
           && (forcedLeave || leave.to === agentHome.get(occupant.id) || leave.to === 'off-campus'
-            || leave.start - queued <= ACTIVITY_DECISION_ASSUMPTIONS.earlyLeaveHorizonSeconds);
+            || leave.start - queued <= ACTIVITY_DECISION_ASSUMPTIONS.earlyLeaveHorizonSeconds));
         const waitOk = !!wait && !forcedLeave && waitUseful >= min;
         let relocationWhy = '';
         if (RELOCATABLE_KINDS.has(activity.kind) && eaten < ACTIVITY_DECISION_ASSUMPTIONS.mealFinishedShare) {
-          if (!leave || fixedBetween(events, index, leaveIndex, activity.index)) relocationWhy = 'a later class in the building cannot be skipped';
+          if (!allDay && (!leave || fixedBetween(events, index, leaveIndex, activity.index))) relocationWhy = 'a later class in the building cannot be skipped';
           else {
-            const found = findRelocation(occupant.id, events, index, activity.kind, queued, need, leaveIndex);
+            const found = findRelocation(occupant.id, events, index, activity.kind, queued, need, relocationLeaveIndex);
             const useful = found.relocation ? found.relocation.activityEnd - found.relocation.arrive : 0;
             if (found.relocation && (!waitOk || useful > waitUseful)) relocation = found.relocation;
             else relocationWhy = found.relocation ? 'waiting keeps more activity time than moving' : found.why;
@@ -443,21 +502,22 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
         } else if (waitOk) {
           action = 'wait'; reason = (activity.kind === 'class' ? 'fixed class; enough time remains after reopening' : 'enough time remains after reopening') + suffix;
         } else if (leaveOk) {
-          action = 'leave'; reason = (forcedLeave ? 'schedule leaves before reopening' : 'too little time would remain after reopening') + suffix;
+          action = 'leave'; reason = (allDay ? 'building closed for the rest of the day; leaves on the saved walk'
+            : forcedLeave ? 'schedule leaves before reopening' : 'too little time would remain after reopening') + suffix;
         } else if (wait) {
-          action = 'wait'; reason = 'too little time would remain, but no early saved walk' + suffix;
+          action = 'wait'; reason = (allDay ? 'building closed for the rest of the day; waits outside the zone' : 'too little time would remain, but no early saved walk') + suffix;
         } else if (leave) action = 'leave';
       }
       if (action === 'wait' && !wait) throw new Error(`No saved walk route out of the closed building for ${occupant.id}`);
       // A scheduled departure before the queued exit slot is kept as-is and does not consume exit flow.
-      const natural = action === 'leave' && leave!.start <= queued;
+      const natural = action === 'leave' && leave!.start <= queued && leave!.start >= responseStartsAt;
       const departAt = natural ? leave!.start : queued;
-      if (!natural) exit = queued;
+      if (!natural) exits.set(key, queued);
       if (departAt >= DAY) throw new Error('Invalid incident: building clearing must finish before midnight');
       if (relocation) { relocations.set(occupant.id, relocation); ledger.reserve(relocation.venue.id, relocation.arrive, relocation.activityEnd); }
       participants.push({ agentId: occupant.id, role: 'occupant', departAt,
         assemblyAt: null, releaseAt: 0, resumedAt: 0,
-        outcome: action === 'relocate' ? 'relocated' : action === 'leave' ? 'cancelled' : 'interrupted',
+        outcome: action === 'relocate' ? 'relocated' : action === 'leave' || allDay ? 'cancelled' : 'interrupted',
         ...(action === 'wait' ? { waitLocationId: wait![0] } : {}),
         ...(relocation ? { relocationId: relocation.venue.id } : {}),
         decision: { activity: activity.kind, action, reason, at: departAt,
@@ -474,17 +534,17 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
     affected.set(id, { event: inbound, at });
     // An optional activity not yet walked to may move to an open alternative instead of waiting.
     const index = events.indexOf(inbound), activity = events[index + 1]?.stay ? activityAt(events, index + 1) : undefined;
-    const leaveIndex = exitWalk(events, index);
+    const leaveIndex = allDay ? zoneExit(events, index) : exitWalk(events, index);
     let relocation: Relocation | undefined;
     if (activity && at === inbound.start && RELOCATABLE_KINDS.has(activity.kind) && leaveIndex >= 0
-      && !fixedBetween(events, index + 1, leaveIndex, activity.index)) {
+      && (allDay || !fixedBetween(events, index + 1, leaveIndex, activity.index))) {
       const waitUseful = activity.end - (endsAt + (inbound.end - inbound.start));
       const found = findRelocation(id, events, index, activity.kind, at, activity.end - activity.start, leaveIndex);
       if (found.relocation && (waitUseful < minimumUseful(activity.kind) || found.relocation.activityEnd - found.relocation.arrive > waitUseful))
         relocation = found.relocation;
     }
     if (relocation) { relocations.set(id, relocation); ledger.reserve(relocation.venue.id, relocation.arrive, relocation.activityEnd); }
-    participants.push({ agentId: id, role: 'arrival', departAt: at, assemblyAt: null, releaseAt: endsAt, resumedAt: 0,
+    participants.push({ agentId: id, role: 'arrival', departAt: at, assemblyAt: null, releaseAt: allDay ? at : endsAt, resumedAt: 0,
       outcome: relocation ? 'relocated' : 'delayed',
       ...(relocation ? { relocationId: relocation.venue.id, decision: { activity: activity!.kind, action: 'relocate' as const, at,
         destinationId: relocation.venue.id, reason: 'moves to an open alternative with room' } } : {}) });
@@ -509,7 +569,59 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
     if (end > at && at < DAY) trips.push({ agent, from, to, path: route.path, timestamps: route.cumulative.map(d => at + d / speedOf(agent)) });
     return end;
   };
-  let returnIndex = 0;
+  // Return flow is per footprint, like exits.
+  const returns = new Map<string, number>();
+  const returnSlot = (id: string) => { const key = flowKey(id), n = returns.get(key) ?? 0; returns.set(key, n + 1); return n; };
+  // Saved walks to and from off-campus gateways (any person's, either direction), for rejoining a
+  // schedule whose next stop outside the zone is reached through a gateway.
+  let gateways: Map<string, WalkRoute[]> | undefined;
+  // Buckets by coordinates rounded to ~1 cm; samePoint still decides the match.
+  const pointKey = (point: number[]) => `${point[0].toFixed(7)},${point[1].toFixed(7)}`;
+  const gatewayWalk = (from: string, start: [number, number], to: string, end: [number, number]) => {
+    if (!gateways) {
+      gateways = new Map();
+      for (const trip of day.trips) {
+        if ((trip.from === 'off-campus') === (trip.to === 'off-campus') || blocked.has(trip.from) || blocked.has(trip.to)) continue;
+        const speed = speeds.get(trip.agent)!;
+        if (!Number.isFinite(speed) || speed <= 0) continue;
+        const route = { path: trip.path, cumulative: trip.timestamps.map(t => (t - trip.timestamps[0]) * speed) };
+        if (route.cumulative.at(-1)! <= 0) continue;
+        for (const [key, value] of [[`${trip.from}>${trip.to}`, route], [`${trip.to}>${trip.from}`, reverse(route)]] as const) {
+          const bucket = `${key}>${pointKey(value.path[0])}>${pointKey(value.path.at(-1)!)}`;
+          const list = gateways.get(bucket) ?? []; list.push(value); gateways.set(bucket, list);
+        }
+      }
+    }
+    let best: WalkRoute | undefined;
+    for (const route of gateways.get(`${from}>${to}>${pointKey(start)}>${pointKey(end)}`) ?? [])
+      if (samePoint(route.path[0], start) && samePoint(route.path.at(-1)!, end) && (!best || route.cumulative.at(-1)! < best.cumulative.at(-1)!)) best = route;
+    return best;
+  };
+  /** Disasters: from a place outside the zone, skip every saved zone visit after `index` and rejoin the
+   * itinerary at its next stop outside the zone, by the saved return or a saved walk only. Without one,
+   * the person stays where they are for the rest of the day; nobody is moved without a walk. */
+  const continueOutside = (id: string, events: Event[], index: number, location: string, point: [number, number],
+    availableAt: number, purpose?: StayPurpose) => {
+    const next = zoneExit(events, index), leave = next >= 0 ? events[next] : undefined;
+    if (leave) {
+      if (leave.to === location && (location === 'off-campus' || samePoint(leave.trip!.path.at(-1)!, point))) {
+        const until = Math.max(availableAt, leave.end);
+        stay(id, location, availableAt, until, purpose);
+        return { location, availableAt: until, cursor: next + 1, rejoined: true };
+      }
+      const end = leave.trip!.path.at(-1)!;
+      const routed = location !== 'off-campus' && leave.to !== 'off-campus' ? routesOf(location).get(leave.to) : undefined;
+      const direct = routed && samePoint(routed.path[0], point) && samePoint(routed.path.at(-1)!, end) ? routed
+        : location === 'off-campus' || leave.to === 'off-campus' ? gatewayWalk(location, point, leave.to, end) : undefined;
+      if (direct) {
+        const depart = Math.max(availableAt, leave.end - direct.cumulative.at(-1)! / speedOf(id));
+        stay(id, location, availableAt, depart, purpose);
+        return { location: leave.to, availableAt: walk(id, location, leave.to, direct, depart), cursor: next + 1, rejoined: true };
+      }
+    }
+    stay(id, location, availableAt, DAY, purpose);
+    return { location, availableAt: DAY, cursor: events.length, rejoined: false };
+  };
   for (const participant of participants) {
     const id = participant.agentId, { event, at } = affected.get(id)!;
     const events = byAgent.get(id)!;
@@ -530,6 +642,14 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       availableAt = walk(id, plan.venue.id, location, plan.toNext, plan.activityEnd);
       cursor = plan.leaveIndex + 1;
       participant.releaseAt = participant.departAt;
+    } else if (participant.role === 'occupant' && allDay && participant.waitLocationId) {
+      // Damaged building: wait outside the zone, then rejoin the schedule outside it. No return walk.
+      const [waitId, route] = waitFor(id, event)!;
+      remain(id, event, at, participant.departAt);
+      const arrived = walk(id, event.to, waitId, route, participant.departAt);
+      participant.releaseAt = participant.departAt;
+      ({ location, availableAt, cursor } = continueOutside(id, events, cursor, waitId, route.path.at(-1)!, arrived,
+        waitPurpose(participant.decision!.activity)));
     } else if (participant.role === 'occupant' && participant.outcome === 'cancelled') {
       // Leave early on the saved walk(s) out of the footprint; the next activity starts at its original time.
       const leaveIndex = exitWalk(events, cursor);
@@ -549,7 +669,7 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       const [waitId, route] = waitFor(id, event)!;
       remain(id, event, at, participant.departAt);
       const arrived = walk(id, event.to, waitId, route, participant.departAt);
-      participant.releaseAt = Math.max(arrived, requestedEndsAt + returnIndex++ / INCIDENT_ASSUMPTIONS.returnPersonsPerSecond);
+      participant.releaseAt = Math.max(arrived, closedUntil + returnSlot(event.to) / INCIDENT_ASSUMPTIONS.returnPersonsPerSecond);
       stay(id, waitId, arrived, participant.releaseAt, waitPurpose(participant.decision!.activity));
       availableAt = walk(id, waitId, event.to, reverse(route), participant.releaseAt);
       location = event.to;
@@ -594,7 +714,7 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       // Only people re-entering for a still-active activity join the return queue; others leave at reopening.
       const activeUntil = policy ? Math.max(event.end, activity.end) : event.end;
       const reenters = !skips && !early && activeUntil > endsAt + back;
-      participant.releaseAt = reenters ? endsAt + returnIndex++ / INCIDENT_ASSUMPTIONS.returnPersonsPerSecond : endsAt;
+      participant.releaseAt = reenters ? endsAt + returnSlot(event.to) / INCIDENT_ASSUMPTIONS.returnPersonsPerSecond : endsAt;
       stay(id, assemblyId, participant.assemblyAt!, participant.releaseAt);
       availableAt = participant.releaseAt;
       const resume = !skips && !early && left > 0;
@@ -633,46 +753,85 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
         trips.push({ agent: id, from: event.to, to: location, path: back.path, timestamps: back.cumulative.map(t => at + t) });
         availableAt = at + partial.cumulative.at(-1)!;
       }
-      const reopenedAt = Math.max(endsAt, availableAt);
-      // A visit is expired when the saved schedule leaves the footprint before a post-reopening approach could arrive.
-      const leaveIndex = exitWalk(events, cursor);
-      const leave = leaveIndex >= 0 ? events[leaveIndex] : undefined;
-      if (leave && leave.start <= reopenedAt + approach) {
-        if (leave.to === location && samePoint(leave.trip!.path.at(-1)!, event.trip!.path[0])) {
-          // The saved return reaches this origin: omit the round trip.
-          stay(id, location, availableAt, reopenedAt);
-          availableAt = reopenedAt; cursor = leaveIndex + 1; participant.outcome = 'cancelled';
-        } else {
-          const direct = location !== 'off-campus' && leave.to !== 'off-campus' ? routesFrom(day, location, blocked).get(leave.to) : undefined;
-          if (direct && samePoint(direct.path[0], event.trip!.path[0]) && samePoint(direct.path.at(-1)!, leave.trip!.path.at(-1)!)) {
-            // Go straight to the next activity, arriving no later than originally scheduled when time allows.
-            const depart = Math.max(availableAt, leave.end - direct.cumulative.at(-1)! / speedOf(id));
-            stay(id, location, availableAt, depart);
-            availableAt = walk(id, location, leave.to, direct, depart);
-            location = leave.to; cursor = leaveIndex + 1; participant.outcome = 'cancelled';
+      if (allDay) {
+        // Damaged zone: the visit is cancelled. An origin inside the zone (a walk between two hazard
+        // buildings) continues to the nearest waiting place outside it first.
+        let point = event.trip!.path[0];
+        if (blocked.has(location)) {
+          const wait = waitRoutes.get(location)!.find(([, route]) => samePoint(route.path[0], point));
+          if (!wait) throw new Error(`No saved walk route out of the hazard zone for ${id}`);
+          availableAt = walk(id, location, wait[0], wait[1], availableAt);
+          location = wait[0]; point = wait[1].path.at(-1)!;
+          participant.waitLocationId = wait[0];
+        }
+        ({ location, availableAt, cursor } = continueOutside(id, events, cursor, location, point, availableAt));
+        participant.outcome = 'cancelled';
+      } else {
+        if (blocked.has(location) && availableAt < endsAt) {
+          // Multi-building hazards: a walk between two hazard locations turns back to an origin that is
+          // itself excluded, so continue to the nearest waiting place outside the zone and return at reopening.
+          const wait = waitRoutes.get(location)!.find(([, route]) => samePoint(route.path[0], event.trip!.path[0]));
+          if (!wait) throw new Error(`No saved walk route out of the hazard zone for ${id}`);
+          const arrived = walk(id, location, wait[0], wait[1], availableAt);
+          const leaveAt = Math.max(arrived, endsAt);
+          stay(id, wait[0], arrived, leaveAt);
+          availableAt = walk(id, wait[0], location, reverse(wait[1]), leaveAt);
+          participant.waitLocationId = wait[0];
+        }
+        const reopenedAt = Math.max(endsAt, availableAt);
+        // A visit is expired when the saved schedule leaves the footprint before a post-reopening approach could arrive.
+        const leaveIndex = exitWalk(events, cursor);
+        const leave = leaveIndex >= 0 ? events[leaveIndex] : undefined;
+        if (leave && leave.start <= reopenedAt + approach) {
+          if (leave.to === location && samePoint(leave.trip!.path.at(-1)!, event.trip!.path[0])) {
+            // The saved return reaches this origin: omit the round trip.
+            stay(id, location, availableAt, reopenedAt);
+            availableAt = reopenedAt; cursor = leaveIndex + 1; participant.outcome = 'cancelled';
+          } else {
+            const direct = location !== 'off-campus' && leave.to !== 'off-campus' ? routesFrom(day, location, blocked).get(leave.to) : undefined;
+            if (direct && samePoint(direct.path[0], event.trip!.path[0]) && samePoint(direct.path.at(-1)!, leave.trip!.path.at(-1)!)) {
+              // Go straight to the next activity, arriving no later than originally scheduled when time allows.
+              const depart = Math.max(availableAt, leave.end - direct.cumulative.at(-1)! / speedOf(id));
+              stay(id, location, availableAt, depart);
+              availableAt = walk(id, location, leave.to, direct, depart);
+              location = leave.to; cursor = leaveIndex + 1; participant.outcome = 'cancelled';
+            }
           }
         }
-      }
-      if (participant.outcome !== 'cancelled') {
-        stay(id, location, availableAt, reopenedAt);
-        availableAt = reopenedAt;
+        if (participant.outcome !== 'cancelled') {
+          stay(id, location, availableAt, reopenedAt);
+          availableAt = reopenedAt;
+        }
       }
     }
     if (participant.role === 'arrival' && participant.outcome !== 'relocated') {
       const visit = events[events.indexOf(event) + 1];
       const activity = visit?.stay && blocked.has(visit.to) ? activityAt(events, events.indexOf(visit)) : { kind: 'unknown' as const };
       participant.decision = participant.outcome === 'cancelled'
-        ? { activity: activity.kind, action: 'cancel', at, destinationId: location, reason: 'visit would end before the building reopens' }
+        ? { activity: activity.kind, action: 'cancel', at, destinationId: location,
+          reason: allDay ? 'building closed for the rest of the day; visit cancelled' : 'visit would end before the building reopens' }
         : { activity: activity.kind, action: 'wait', at, destinationId: event.to,
           reason: at > event.start ? 'turns back on its approach and visits after reopening' : 'waits at origin and visits after reopening' };
     }
     participant.resumedAt = availableAt;
     let offMapArrival: { at: number; point: [number, number] } | undefined = location === 'off-campus'
-      ? participant.role === 'arrival'
+      ? participant.role === 'arrival' && event.from === 'off-campus'
         ? { at: at + (at - event.start), point: event.trip!.path[0] }
         : { at: availableAt, point: events[cursor - 1].trip!.path.at(-1)! }
       : undefined;
-    for (const item of events.slice(cursor)) {
+    for (let k = cursor; k < events.length; k++) {
+      const item = events[k];
+      if (allDay && blocked.has(item.to)) {
+        // Damaged zone: skip every later visit and rejoin the schedule at the next stop outside it.
+        const point = item.trip ? item.trip.path[0] : events.slice(0, k).filter(e => e.trip).at(-1)?.trip!.path.at(-1);
+        if (!point) fail(`no saved position before a hazard-zone visit for ${id}`);
+        const from = item.trip ? item.from : location;
+        const next = continueOutside(id, events, k, from, point!, availableAt);
+        if (next.location !== from) offMapArrival = next.location === 'off-campus'
+          ? { at: next.availableAt, point: events[next.cursor - 1].trip!.path.at(-1)! } : undefined;
+        location = next.location; availableAt = next.availableAt; k = next.cursor - 1;
+        continue;
+      }
       if (item.trip) {
         const gatewayReady = item.from === 'off-campus' && offMapArrival
           ? offMapArrival.at + gatewaySeconds(offMapArrival.point, item.trip.path[0], speedOf(id)) : 0;
@@ -722,7 +881,24 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       && offMap.some(item => Math.abs(item.start - endOf(trip)) < EPS && item.end > ride.time));
     return walk ? { ...ride, waitStart: endOf(walk) } : cancelled;
   });
-  return { day: { ...day, locations: assemblyLocation ? [...day.locations, assemblyLocation] : day.locations, trips, stays,
-    ...(transitRides ? { transitRides } : {}) },
-    affectedAgents: affected.size, assemblyLocation, assemblyClearanceMetres, participants, requestedEndsAt, endsAt };
+  const result = { ...day, locations: assemblyLocation ? [...day.locations, assemblyLocation] : day.locations, trips, stays,
+    ...(transitRides ? { transitRides } : {}) };
+  // New scenarios never return a malformed day: late egress, waiting or return walks that would
+  // run past midnight (or any other gap or overlap) reject instead.
+  let casualties: CasualtyEvent[] | undefined;
+  if (zone) {
+    try { timelines(result); }
+    catch (error) { throw new Error(`Invalid incident: the ${incident.kind} response and recovery must fit within the day (${(error as Error).message})`); }
+    // Post-process the complete transformed timeline: exposure uses only modeled positions up to each event.
+    casualties = computeCasualties(result, { kind: incident.kind as DisasterKind, start: incident.start, activeUntil: requestedEndsAt, target,
+      radiusMetres, affectedLocationIds: zone.locationIds, affectedBuildingIds: zone.buildingIds });
+  }
+  const outDay: DayData = casualties ? { ...result, casualties } : result;
+  // Casualty-only people (e.g. through-walkers) count once alongside planning participants.
+  const affectedAgents = new Set([...affected.keys(), ...(casualties ?? []).map(event => event.agentId)]).size;
+  return { day: outDay,
+    affectedAgents, assemblyLocation, assemblyClearanceMetres, participants, requestedEndsAt, endsAt,
+    ...(zone ? { hazard: { radiusMetres, responseStartsAt, activeUntil: requestedEndsAt,
+      affectedLocationIds: zone.locationIds, affectedBuildingIds: zone.buildingIds } } : {}),
+    ...(casualties ? { casualties } : {}) };
 }

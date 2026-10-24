@@ -19,6 +19,11 @@ import { mergeMaterialPrimitives } from './gltf-materials';
 import { MaterialScenegraphLayer } from './material-scenegraph';
 import { daylightAt } from '../map/daylight';
 import { gltfExtent, setCullBox, type CullBox } from './culling';
+import {
+  buildingDamageModule, damageUniforms, tagBuildings, DAMAGE_FS, DAMAGE_FS_DECL, DAMAGE_VS, DAMAGE_VS_DECL, DAMAGE_WINDOW_FS,
+  type DamageUniforms, type TaggedModel,
+} from './buildingDamage';
+import type { BuildingDamageFrame, DamageFootprint } from '../sim/disasterDamage';
 
 export interface BuildingModelEntry {
   osm: string; // e.g. "way/277434241", the same ids as demo-day.json's buildings
@@ -104,6 +109,13 @@ export interface BuildingLayerOptions {
    *  buildings are left on underneath them (then ~1200 at normal pitch); 0 by default because
    *  basemap.excludeBuildings() drops BU's buildings from the city layer. */
   depthBias?: number;
+  /** Modeled disaster damage (sim/disasterDamage.ts damageAt). Damaged buildings collapse, lean,
+   *  char and lose or burn their lit windows in the shader; neighbours are untouched. */
+  damage?: readonly BuildingDamageFrame[];
+  /** Every saved footprint (day.buildings). With it each campus is tagged once, on first damage,
+   *  and overhangs are told apart from neighbours exactly; without it only damaged ids are tagged
+   *  (re-tagged when a new one appears). */
+  footprints?: readonly Pick<DamageFootprint, 'id' | 'polygon'>[];
 }
 
 // deck.gl lights the models with its own default lights, which are brighter than Mapbox's dusk
@@ -151,15 +163,15 @@ const windowLights = {
   defaultUniforms: { hour: 21, strength: 1 },
 } as const;
 
-const WINDOW_FILTER = `
+const windowFilter = (damage: boolean) => `
   {
     float on = geometry.uv.x;
     float off = geometry.uv.y;
     float h = windowLights.hour;
     // ~15 sim minutes to switch, so a fast-forward reads as lights gradually going on and off
     float k = smoothstep(on, on + 0.25, h) * (1.0 - smoothstep(off - 0.25, off, h)) * windowLights.strength;
-    if (k < 0.02) discard;
-    color.rgb *= k;
+${damage ? DAMAGE_WINDOW_FS : '    float flowGlow = 0.0;\n'}    if (k < 0.02 && flowGlow < 0.02) discard;
+    color.rgb = color.rgb * k + vec3(1.0, 0.45, 0.12) * flowGlow;
   }
 `;
 
@@ -167,6 +179,9 @@ interface ExtraProps {
   extraDepthBias: number;
   /** Lit-window mesh: set the schedule uniforms. Hour on the 12..36 axis; strength 0..1. */
   windowClock: { hour: number; strength: number } | null;
+  /** Set (with a tagged scenegraph) once the campus has damage: the slot uniforms and a version
+   *  that changes only when they do, so unchanged frames upload nothing but `elapsed`. */
+  damageUniforms: { version: number; uniforms: DamageUniforms } | null;
 }
 
 /**
@@ -181,12 +196,23 @@ class BuildingModelLayer extends MaterialScenegraphLayer<Instance, ExtraProps> {
   static layerName = 'BuildingModelLayer';
   getShaders() {
     const shaders = super.getShaders();
-    if (!this.props.windowClock) return shaders;
-    return {
-      ...shaders,
-      modules: [...shaders.modules, windowLights],
-      inject: { ...(shaders.inject ?? {}), 'fs:DECKGL_FILTER_COLOR': WINDOW_FILTER },
-    };
+    const damage = !!this.props.damageUniforms && this.context.device?.type !== 'webgpu';
+    if (!this.props.windowClock && !damage) return shaders;
+    const inject: Record<string, string> = { ...(shaders.inject ?? {}) };
+    const modules = [...shaders.modules];
+    if (damage) {
+      modules.push(buildingDamageModule);
+      inject['vs:#decl'] = (inject['vs:#decl'] ?? '') + DAMAGE_VS_DECL;
+      inject['fs:#decl'] = (inject['fs:#decl'] ?? '') + DAMAGE_FS_DECL;
+      inject['vs:DECKGL_FILTER_SIZE'] = (inject['vs:DECKGL_FILTER_SIZE'] ?? '') + DAMAGE_VS;
+    }
+    if (this.props.windowClock) {
+      modules.push(windowLights);
+      inject['fs:DECKGL_FILTER_COLOR'] = windowFilter(damage);
+    } else {
+      inject['fs:DECKGL_FILTER_COLOR'] = (inject['fs:DECKGL_FILTER_COLOR'] ?? '') + DAMAGE_FS;
+    }
+    return { ...shaders, modules, inject };
   }
   draw(opts: Parameters<ScenegraphLayer<Instance>['draw']>[0]) {
     const pitch = (this.context.viewport as unknown as { pitch?: number }).pitch ?? 60;
@@ -194,13 +220,73 @@ class BuildingModelLayer extends MaterialScenegraphLayer<Instance, ExtraProps> {
     // luma.gl: gl.polygonOffset(factor = depthBias, units = depthBiasSlopeScale)
     const offset = { depthBias: units ? -1 : 0, depthBiasSlopeScale: -units };
     const clock = this.props.windowClock;
+    const damage = this.props.damageUniforms;
     const scenegraph = (this.state as { scenegraph?: { traverse(cb: (node: SceneNode) => void): void } }).scenegraph;
     scenegraph?.traverse((node) => {
       node.model?.setParameters?.({ ...node.model.parameters, ...offset });
       if (clock) node.model?.shaderInputs?.setProps({ windowLights: clock });
+      if (damage && node.model?.shaderInputs) {
+        const { elapsed, map, slotA, slotB } = damage.uniforms;
+        // Arrays only when they changed (or for a newly built model); the clock every frame.
+        const fresh = uploadedDamage.get(node.model) !== damage.version;
+        node.model.shaderInputs.setProps({ buildingDamage: fresh ? { elapsed, map, slotA, slotB } : { elapsed } });
+        if (fresh) uploadedDamage.set(node.model, damage.version);
+      }
     });
     super.draw(opts);
   }
+}
+
+const uploadedDamage = new WeakMap<object, number>();
+
+// Damage tagging per campus GLB: built lazily on the campus's first damage and kept (also after a
+// reset, with zeroed slots) so later scenarios and rewinds reuse the same GPU geometry. With
+// `footprints` every building of the campus is tagged the first time; a damaged id the tags don't
+// cover (no footprint list, or a building missing from it) triggers one re-tag.
+interface CampusDamage {
+  tagged: Map<string, TaggedModel>; // by model key (campus id, `<id>:scheduled`)
+  ids: Set<string>;
+  last: DamageUniforms | null;
+  version: number;
+}
+const damageCache = new WeakMap<CampusModel, CampusDamage>();
+const inBox = (box: CullBox, p: readonly number[]) => p[0] >= box[0] && p[0] <= box[3] && p[1] >= box[1] && p[1] <= box[4];
+const sameArray = (a: Float32Array, b: Float32Array) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false; return true; };
+
+function campusDamage(c: CampusModel, models: BuildingModels, box: CullBox | null, options: BuildingLayerOptions): CampusDamage | null {
+  const frames = box ? (options.damage ?? []).filter(f => inBox(box, f.center)) : [];
+  let state = damageCache.get(c);
+  if (!state && !frames.length) return null;
+  const missing = frames.some(f => !state?.ids.has(f.id));
+  if (!state || missing) {
+    const footprints: Pick<DamageFootprint, 'id' | 'polygon'>[] = [];
+    for (const f of options.footprints ?? []) if (box && f.polygon.some(p => inBox(box, p))) footprints.push(f);
+    for (const f of frames) if (!footprints.some(p => p.id === f.id)) for (const ring of f.rings) footprints.push({ id: f.id, polygon: ring });
+    // The model's own massing rings (CDS's stacked pieces, Warren's towers) cover what the saved ground ring misses.
+    const known = new Set(footprints.map(f => f.id));
+    for (const b of c.buildings) {
+      const id = b.partOf ?? b.osm;
+      if (known.has(id)) for (const v of b.volumes ?? []) footprints.push({ id, polygon: v.ring });
+    }
+    const tagged = new Map<string, TaggedModel>();
+    for (const key of [c.id, `${c.id}:scheduled`]) {
+      if (!models[key]) continue;
+      const t = tagBuildings(models[key], c.origin, footprints);
+      if (t) tagged.set(key, t);
+    }
+    if (!tagged.size) return null;
+    // Ids that couldn't be tagged (no usable ring) count as covered, so they don't re-tag every frame.
+    const ids = new Set([...tagged.values().next().value!.index.keys(), ...frames.map(f => f.id)]);
+    state = { tagged, ids, last: null, version: (state?.version ?? 0) + 1 };
+    damageCache.set(c, state);
+  }
+  const index = state.tagged.get(c.id)?.index ?? state.tagged.values().next().value!.index;
+  const next = damageUniforms(frames, index, options.clock);
+  if (next.shared && !state.last) console.warn(`Building damage: ${next.shared} buildings in ${c.id} share damage slots (more than the shader's limit).`);
+  const last = state.last;
+  if (!last || !sameArray(last.map, next.map) || !sameArray(last.slotA, next.slotA) || !sameArray(last.slotB, next.slotB)) state.version++;
+  state.last = next;
+  return state;
 }
 
 // One instance per campus, built once, with the campus model's real extent. The layers are rebuilt
@@ -255,6 +341,7 @@ export function buildingModelLayers(
   for (const c of manifest.campuses) {
     if (!models[c.id] || (campuses && !campuses.includes(c.id))) continue;
     const { data, box } = campusInstance(c, models[c.id]);
+    const damage = campusDamage(c, models, box, options);
     const parts: { id: string; key: string; color: [number, number, number, number]; windowClock: ExtraProps['windowClock'] }[] = [
       { id: c.id, key: c.id, color: tint, windowClock: null },
     ];
@@ -269,7 +356,7 @@ export function buildingModelLayers(
         new BuildingModelLayer({
           id: `building-models-${part.id}`,
           data,
-          scenegraph: models[part.key] as never,
+          scenegraph: (damage?.tagged.get(part.key)?.gltf ?? models[part.key]) as never,
           getPosition: (d) => d.position,
           // glTF is y-up; roll 90 stands it on the map: +x east, +y up, -z north.
           getOrientation: [0, 0, 90],
@@ -283,6 +370,7 @@ export function buildingModelLayers(
           pickable: false,
           extraDepthBias: depthBias,
           windowClock: part.windowClock,
+          damageUniforms: damage?.tagged.has(part.key) && damage.last ? { version: damage.version, uniforms: damage.last } : null,
           updateTriggers: { getColor: part.color.map(Math.round).join(',') },
           // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
           slot: 'middle',

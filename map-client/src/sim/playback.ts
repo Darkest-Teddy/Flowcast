@@ -2,6 +2,7 @@
 // The server will eventually own this (plan Section 8.1); until then the client
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
 import { createOccupancyIndex, type OccupancyIndex } from './occupancyIndex';
+import type { CasualtyEvent } from './casualties';
 
 export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'outdoor' | 'off-campus';
 
@@ -147,6 +148,8 @@ export interface DayData {
   walkRoutes?: Record<string, { path: [number, number][]; cumulative: number[] }>;
   /** Walks from transit stops to nearby locations, keyed "stopId>locationId" (see sim/riders.ts). */
   stopRoutes?: Record<string, WalkRoute>;
+  /** Disaster scenarios only: at most one terminal event per agent, sorted by time then agent id. */
+  casualties?: CasualtyEvent[];
 }
 
 export interface WalkRoute {
@@ -208,6 +211,9 @@ export class Playback {
   private trailWindow: { first: number; last: number; trips: Trip[] } | null = null;
   private readonly ridesByTrip = new Map<string, TransitRide[]>();
   private readonly waitingBuckets = new Map<number, TransitRide[]>();
+  /** Sorted copy of data.casualties; the caller's array is never reordered. */
+  private readonly casualties: CasualtyEvent[];
+  private readonly casualtyByAgent = new Map<string, CasualtyEvent>();
 
   readonly data: DayData;
 
@@ -226,7 +232,14 @@ export class Playback {
       this.agents.set(agent.id, agent);
       this.tripsByAgent.set(agent.id, []);
     }
-    for (const trip of data.trips) {
+    this.casualties = validateCasualties(data.casualties, this.agents);
+    for (const event of this.casualties) this.casualtyByAgent.set(event.agentId, event);
+    // Walks are cut at an agent's casualty event, so neither markers nor trails show later movement.
+    // The clipped copies are built once: trail candidates stay stable and rewinding needs no rebuild.
+    for (const original of data.trips) {
+      const event = this.casualtyByAgent.get(original.agent);
+      const trip = event ? clipTrip(original, event.at) : original;
+      if (!trip) continue;
       const list = this.tripsByAgent.get(trip.agent) ?? [];
       list.push(trip);
       this.tripsByAgent.set(trip.agent, list);
@@ -301,6 +314,7 @@ export class Playback {
     let count = 0;
     for (const ride of this.ridesByTrip.get(trip) ?? []) {
       if (ride.cancelledAt !== undefined && t >= ride.cancelledAt) continue;
+      if (this.isCasualty(ride.agent, t)) continue;
       if (ride.kind === 'alight' ? t < ride.time : t >= ride.time) count++;
     }
     return count;
@@ -312,6 +326,7 @@ export class Playback {
     for (const ride of this.waitingBuckets.get(Math.floor(t / 300)) ?? []) {
       if (ride.cancelledAt !== undefined && t >= ride.cancelledAt) continue;
       if (ride.waitStart! > t || t >= ride.time) continue;
+      if (this.isCasualty(ride.agent, t)) continue;
       out.push({ id: ride.agent, model: this.agents.get(ride.agent)?.model ?? 0, stop: ride.stop, route: ride.route,
         direction: ride.direction, position: ride.position, boardsAt: ride.time });
     }
@@ -343,7 +358,7 @@ export class Playback {
 
   /** Stationary outdoor people are distinct from walkers and off-map students. */
   outdoorAt(t: number): WalkingAgent[] {
-    return this.outdoorStays.filter(({ stay }) => stay.start <= t && t < stay.end).map(({ stay, location }) => ({
+    return this.outdoorStays.filter(({ stay }) => stay.start <= t && t < stay.end && !this.isCasualty(stay.agent, t)).map(({ stay, location }) => ({
       id: stay.agent,
       model: this.agents.get(stay.agent)!.model,
       position: [location.position[0], location.position[1], 0],
@@ -357,7 +372,25 @@ export class Playback {
     const indoors = occupancy.reduce((sum, entry) => sum + (entry.location.kind === 'outdoor' ? 0 : entry.count), 0);
     const outdoors = occupancy.reduce((sum, entry) => sum + (entry.location.kind === 'outdoor' ? entry.count : 0), 0);
     const walking = this.walkingAt(t).length;
-    return { total: this.data.agents.length, indoors, outdoors, walking, offCampus: this.data.agents.length - indoors - outdoors - walking };
+    let injured = 0, fatalities = 0;
+    for (const event of this.casualtiesAt(t)) if (event.outcome === 'fatality') fatalities++; else injured++;
+    const total = this.data.agents.length;
+    return { total, indoors, outdoors, walking, offCampus: total - indoors - outdoors - walking - injured - fatalities,
+      injured, fatalities, alive: total - fatalities };
+  }
+
+  /** Casualty events that have happened by time t (inclusive), in time then agent order. Never includes future events. */
+  casualtiesAt(t: number): CasualtyEvent[] {
+    if (!Number.isFinite(t)) return [];
+    let lo = 0, hi = this.casualties.length;
+    while (lo < hi) { const mid = (lo + hi) >>> 1; if (this.casualties[mid].at <= t) lo = mid + 1; else hi = mid; }
+    return this.casualties.slice(0, lo);
+  }
+
+  /** From its event onward an injured or killed agent leaves every normal category. Rewinding before it restores them. */
+  private isCasualty(agentId: string, t: number): boolean {
+    const event = this.casualtyByAgent.get(agentId);
+    return event !== undefined && t >= event.at;
   }
 
   /**
@@ -389,10 +422,21 @@ export class Playback {
 
   /** Head count per location at time t: each agent is at its last destination, or home before its first trip. */
   occupancyAt(t: number): Occupancy[] {
-    const counts = this.stayOccupancy?.countsAt(t) ?? new Map<string, number>();
+    // Copy before removing casualties so an index that ever caches its maps is never corrupted for rewinds.
+    const counts = new Map(this.stayOccupancy?.countsAt(t) ?? []);
     if (this.data.stays) {
-      if (!this.stayOccupancy) {
-        for (const stays of this.staysByAgent.values()) {
+      if (this.stayOccupancy) {
+        // Remove each active casualty's scheduled stay using the index's own rule: on-map, nonzero, start <= t < end.
+        for (const event of this.casualtiesAt(t)) {
+          for (const stay of this.staysByAgent.get(event.agentId) ?? []) {
+            if (stay.location === 'off-campus' || stay.start === stay.end || stay.start > t || t >= stay.end) continue;
+            const count = counts.get(stay.location) ?? 0;
+            if (count <= 1) counts.delete(stay.location); else counts.set(stay.location, count - 1);
+          }
+        }
+      } else {
+        for (const [agentId, stays] of this.staysByAgent) {
+          if (this.isCasualty(agentId, t)) continue;
           const stay = stays.find((entry) => entry.start <= t && t < entry.end);
           if (stay && stay.location !== 'off-campus') counts.set(stay.location, (counts.get(stay.location) ?? 0) + 1);
         }
@@ -403,6 +447,7 @@ export class Playback {
       });
     }
     for (const [agentId, trips] of this.tripsByAgent) {
+      if (this.isCasualty(agentId, t)) continue;
       let where: string | null = this.agents.get(agentId)!.home;
       for (const trip of trips) {
         if (trip.timestamps[0] > t) break;
@@ -415,6 +460,47 @@ export class Playback {
       return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false };
     });
   }
+}
+
+const CASUALTY_OUTCOMES = new Set(['injured', 'fatality']);
+const CASUALTY_CAUSES = new Set(['fire', 'earthquake', 'meteor']);
+
+/** Checks every record without mutating it; returns a sorted copy (time, then agent id). */
+function validateCasualties(events: readonly CasualtyEvent[] | undefined, agents: ReadonlyMap<string, Agent>): CasualtyEvent[] {
+  if (events === undefined) return [];
+  if (!Array.isArray(events)) throw new Error('Invalid casualties: expected an array');
+  const seen = new Set<string>();
+  for (const event of events) {
+    const id = event?.agentId;
+    if (typeof id !== 'string' || !agents.has(id)) throw new Error(`Casualty for unknown student: ${String(id)}`);
+    if (seen.has(id)) throw new Error(`More than one casualty event for student: ${id}`);
+    seen.add(id);
+    if (!CASUALTY_OUTCOMES.has(event.outcome)) throw new Error(`Invalid casualty outcome for ${id}`);
+    if (!CASUALTY_CAUSES.has(event.cause)) throw new Error(`Invalid casualty cause for ${id}`);
+    if (typeof event.at !== 'number' || !Number.isFinite(event.at) || event.at < 0 || event.at > 86400) throw new Error(`Invalid casualty time for ${id}`);
+    const p = event.position;
+    if (!Array.isArray(p) || p.length !== 2 || !p.every(Number.isFinite) || Math.abs(p[0]) > 180 || Math.abs(p[1]) > 90) {
+      throw new Error(`Invalid casualty position for ${id}`);
+    }
+    if (event.buildingId !== undefined && typeof event.buildingId !== 'string') throw new Error(`Invalid casualty building for ${id}`);
+  }
+  return [...events].sort((a, b) => a.at - b.at || (a.agentId < b.agentId ? -1 : a.agentId > b.agentId ? 1 : 0));
+}
+
+/** The part of a walk before `at`, ending at its interpolated position; null when the walk starts at or after `at`. */
+function clipTrip(trip: Trip, at: number): Trip | null {
+  const ts = trip.timestamps;
+  if (ts[0] >= at) return null;
+  if (ts[ts.length - 1] <= at) return trip;
+  let i = 1;
+  while (ts[i] <= at) i++;
+  const a = trip.path[i - 1], b = trip.path[i];
+  const f = ts[i] === ts[i - 1] ? 0 : (at - ts[i - 1]) / (ts[i] - ts[i - 1]);
+  const end: [number, number] = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+  const path = trip.path.slice(0, i);
+  const timestamps = ts.slice(0, i);
+  if (ts[i - 1] < at) { path.push(end); timestamps.push(at); }
+  return { ...trip, path, timestamps };
 }
 
 export function occupancyShare(count: number, capacity: number): number {

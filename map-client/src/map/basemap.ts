@@ -21,7 +21,7 @@ export interface Basemap {
    * detailed models). Mapbox Standard can't hide single buildings, and its own copies (e.g.
    * Warren Towers as one 56 m block, podium included) poke through our models. Mapbox only.
    */
-  excludeBuildings(osmIds: number[]): void;
+  excludeBuildings(osmIds: number[], areas?: [number, number][][]): void;
   /** Remove the base map's own 3D models (trees) inside these polygons. Mapbox only. */
   clipModels(polygons: [number, number][][]): void;
   /** Live traffic needs Mapbox's traffic tiles (a token); the fallback has none. */
@@ -346,6 +346,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         const filter = ['all', ['==', ['get', 'extrude'], 'true'], ['!', ['in', ['id'], ['literal', osmIds]]]];
         if (map.getLayer(CITY_BUILDINGS)) {
           map.setFilter(CITY_BUILDINGS, filter as never);
+          if (map.getLayer(ROOF_SNOW)) map.setFilter(ROOF_SNOW, filter as never);
           return;
         }
         map.addLayer({
@@ -436,12 +437,43 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
   tameInteractions(map);
   paceMapRendering(map);
   await new Promise<void>((resolve) => map.once('load', () => resolve()));
+  let excludedIds: number[] = [];
+  let exclusionBounds: number[][] = [];
+  let exclusionKey = '';
+  const refreshExclusions = () => {
+    const layer = map.getLayer('building-3d');
+    if (!layer || !('source' in layer) || typeof layer.source !== 'string') return;
+    const ids = new Set<number | string>(excludedIds);
+    if (exclusionBounds.length) {
+      // MapLibre's `within` expression does not support polygon features.
+      const features = map.querySourceFeatures(layer.source, { sourceLayer: 'building' });
+      for (const feature of features) {
+        if (feature.id == null) continue;
+        const geometry = feature.geometry;
+        const points = geometry.type === 'Polygon' ? geometry.coordinates.flat()
+          : geometry.type === 'MultiPolygon' ? geometry.coordinates.flat(2) : [];
+        if (points.length && exclusionBounds.some(([west, south, east, north]) =>
+          points.every(([lng, lat]) => lng >= west && lng <= east && lat >= south && lat <= north))) ids.add(feature.id);
+      }
+    }
+    const sorted = [...ids].sort((a, b) => String(a).localeCompare(String(b)));
+    const key = JSON.stringify(sorted);
+    if (key === exclusionKey) return;
+    exclusionKey = key;
+    map.setFilter('building-3d', ['!', ['in', ['id'], ['literal', sorted]]] as never);
+  };
+  map.on('idle', refreshExclusions);
   return {
     kind: 'maplibre',
     // MapboxOverlay implements MapLibre's IControl too; the two interfaces only differ in typings.
     addControl: (control) => map.addControl(control as unknown as maplibregl.IControl),
     setLightPreset: () => {},
-    excludeBuildings: () => {},
+    excludeBuildings: (osmIds, areas = []) => {
+      excludedIds = osmIds;
+      exclusionBounds = areas.map(ring => [Math.min(...ring.map(p => p[0])), Math.min(...ring.map(p => p[1])),
+        Math.max(...ring.map(p => p[0])), Math.max(...ring.map(p => p[1]))]);
+      refreshExclusions();
+    },
     clipModels: () => {},
     supportsTraffic: false,
     setTrafficVisible: () => {},
