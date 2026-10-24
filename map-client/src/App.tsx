@@ -9,7 +9,7 @@ import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTa
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer } from './layers/placement';
 import { cullLayers } from './layers/culling';
-import { buildingModelLayers, loadBuildings } from './layers/buildings';
+import { buildingModelLayers, campusBounds, DEFERRED_CAMPUSES, loadBuildings, loadCampusModels } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
@@ -159,6 +159,7 @@ export default function App() {
   const baseDayRef = useRef<PopulationBase | null>(null);
   // Published MBTA service the students ride (null: timetable unavailable, gateways are walk-only).
   const transitServiceRef = useRef<TransitService | undefined>(undefined);
+  const loadDeferredRef = useRef<((campus: string) => void) | null>(null);
   const playbackRef = useRef<Playback | null>(null);
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [campus, setCampus] = useState('charles-river');
@@ -354,6 +355,11 @@ export default function App() {
       requestAnimationFrame(() => requestAnimationFrame(reveal));
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
+      // Deferred campuses (buildings.ts): load their models once the view comes near them.
+      const deferred = detailedBuildings
+        ? DEFERRED_CAMPUSES.flatMap((id) => { const b = campusBounds(detailedBuildings.manifest, id, 0); return b ? [{ id, bounds: b }] : []; })
+        : [];
+      loadDeferredRef.current = (id: string) => { if (detailedBuildings) void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id); };
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       const volumes = modelVolumes(detailedBuildings?.manifest);
       let last = performance.now();
@@ -473,6 +479,14 @@ export default function App() {
           monuments: monuments?.monuments ?? null,
           fields: fields?.fields ?? null,
         });
+        // What's in view (with a margin): walkers outside it aren't drawn, and a deferred campus
+        // starts loading when the view approaches it.
+        const view = expandBounds(basemap.visibleBounds(), 0.25);
+        // A tilted view's bounds reach to the horizon, so nearness is judged from the camera's centre.
+        const camera = basemap.getCamera();
+        for (const d of deferred) {
+          if (!detailedBuildings!.models[d.id] && (camera.zoom < 14.5 || metresToBox(camera.center, d.bounds) < DEFERRED_LOAD_METRES)) loadDeferredRef.current?.(d.id);
+        }
         const frameLayers = [
           ...(detailedBuildings
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows })
@@ -497,7 +511,7 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(thinForZoom(nearView(walking, basemap.getCamera().center, q.walkerRadius), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
+          ...agentLayers(thinForZoom(inView(nearView(walking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
           ...incidentFrameLayers,
           ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
@@ -545,6 +559,7 @@ export default function App() {
 
   const goToCampus = (c: Campus) => {
     setCampus(c.id);
+    loadDeferredRef.current?.(c.id);
     // The Charles River Campus is long and thin and needs the wide default shot; the others fit closer in.
     if (c.id === 'charles-river') basemapRef.current?.flyTo(INITIAL_VIEW.center, INITIAL_VIEW.zoom);
     else basemapRef.current?.flyTo(c.center, 16.4);
@@ -1114,6 +1129,24 @@ function nearView(walkers: WalkingAgent[], center: [number, number], radius: num
     const dy = (w.position[1] - center[1]) * 110_540;
     return dx * dx + dy * dy <= r2;
   });
+}
+
+/** Bounds grown by `share` of their size on every side. */
+function expandBounds([w, s, e, n]: [number, number, number, number], share: number): [number, number, number, number] {
+  const dx = (e - w) * share;
+  const dy = (n - s) * share;
+  return [w - dx, s - dy, e + dx, n + dy];
+}
+/** A deferred campus loads once the camera centre is this close to its buildings. */
+const DEFERRED_LOAD_METRES = 1500;
+function metresToBox([lng, lat]: [number, number], [w, s, e, n]: [number, number, number, number]): number {
+  const dx = (lng < w ? w - lng : lng > e ? lng - e : 0) * 111_320 * Math.cos((lat * Math.PI) / 180);
+  const dy = (lat < s ? s - lat : lat > n ? lat - n : 0) * 110_540;
+  return Math.hypot(dx, dy);
+}
+/** Walkers inside these bounds (people off screen, e.g. on the Medical Campus, aren't drawn). */
+function inView(walkers: WalkingAgent[], [w, s, e, n]: [number, number, number, number]): WalkingAgent[] {
+  return walkers.filter(({ position: [x, y] }) => x >= w && x <= e && y >= s && y <= n);
 }
 
 // Level of detail for walkers: from far out the figures are drawn several times life size, so the
