@@ -9,7 +9,7 @@ import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTa
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer } from './layers/placement';
 import { cullLayers } from './layers/culling';
-import { buildingModelLayers, loadBuildings } from './layers/buildings';
+import { buildingModelLayers, landmarkClips, loadBuildings } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
@@ -209,6 +209,10 @@ export default function App() {
       // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
       // Standard's own 3D buildings are off).
       basemap.excludeBuildings([...modelled].map((ref) => Number(ref.split('/')[1])).concat(fields ? fieldBuildingIds(fields) : []));
+      // The base map's own 3D models hidden under ours (Standard's Fenway Park), plus, once the
+      // transit data is in, the Green Line trackbed (no trees on it). One clip layer for both.
+      const clips = landmarkClips(detailedBuildings?.manifest);
+      if (clips.length) basemap.clipModels(clips);
 
       if (transitData) {
         // BU's own shuttles join the MBTA data: same tracks, snapping and panels.
@@ -228,7 +232,7 @@ export default function App() {
         feed.start();
         transitRef.current = { data: transitData, feed, schedule: timetable ? new PublishedTransit(transitData, feed.tracks, timetable) : null, models: vehicleModels };
         // Keep the base map's trees off the Green Line trackbed.
-        basemap.clipModels(trackCorridors(feed.tracks.filter((t) => t.route.startsWith('Green-')), 3.2));
+        basemap.clipModels([...clips, ...trackCorridors(feed.tracks.filter((t) => t.route.startsWith('Green-')), 3.2)]);
       }
 
       if (bikeData) {
