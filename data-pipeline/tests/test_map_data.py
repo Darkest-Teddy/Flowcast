@@ -1,4 +1,5 @@
 import hashlib
+import copy
 import json
 from pathlib import Path
 import tempfile
@@ -15,6 +16,27 @@ class MapDataTests(unittest.TestCase):
         cls.datasets = {name: json.loads((DEFAULT_INPUT / f'{name}.json').read_text()) for name in DATASETS}
         cls.day = json.loads(DEFAULT_MAP.read_text())
         cls.bundle = build_bundle(cls.datasets, cls.day)
+
+    def test_hours_audit_replaces_undated_snapshots_and_department_hours(self):
+        datasets = copy.deepcopy(self.datasets)
+        closed = {"date": "2026-10-24", "windows": [], "text": "Closed", "sourceUrl": "https://www.bu.edu/", "qualifier": None}
+        datasets['opening_hours'] = {"locations": [
+            {"locationId": "mugar", "status": "published", "hours": [closed]},
+            {"locationId": "agganis", "status": "restricted", "hours": [], "reason": "Event-only access"},
+        ]}
+        result = build_bundle(datasets, self.day)
+        self.assertEqual(result['locations']['mugar']['hours'], [closed])
+        self.assertEqual(result['locations']['agganis']['hoursStatus'], 'restricted')
+
+    def test_hours_audit_rejects_undated_unscoped_or_invalid_windows(self):
+        for hours in [
+            {"date": None, "windows": [[0, 3600]]},
+            {"date": None, "weekday": 7, "windows": [[0, 3600]]},
+            {"date": "2026-10-24", "windows": [[7200, 3600]]},
+        ]:
+            datasets = {**self.datasets, "opening_hours": {"locations": [{"locationId": "gsu", "status": "published", "hours": [hours]}]}}
+            with self.assertRaises(ValueError):
+                build_bundle(datasets, self.day)
 
     def test_every_source_meeting_is_mapped_or_reported_without_invented_locations(self):
         bundle = self.bundle
@@ -68,7 +90,8 @@ class MapDataTests(unittest.TestCase):
         self.assertNotIn(tower_a['id'], [row['id'] for row in all_local])
         self.assertNotIn(west['id'], [row['id'] for row in all_local])
         warren = self.bundle['locations']['warren']['evidence']
-        self.assertEqual([row['value'] for row in warren], [1800])
+        self.assertEqual(sorted(row['value'] for row in warren), [600, 1800])
+        self.assertEqual(next(row for row in warren if row['value'] == 600)['basis'], 'dated_availability')
         self.assertTrue(any(row['id'] == west['id'] for row in self.bundle['signals']))
         self.assertEqual(self.bundle['locations']['stuvi']['evidence'][0]['value'], 802)
 
@@ -91,7 +114,7 @@ class MapDataTests(unittest.TestCase):
         self.assertTrue(any(row['date'] == '2026-10-19' for row in self.bundle['locations']['mugar']['hours']))
         dining = self.bundle['locations']['warren-dining']['hours']
         self.assertTrue(dining)
-        self.assertTrue(all(row['date'] is None and 'unverified' in row['qualifier'] for row in dining))
+        self.assertTrue(all(row['date'] is not None or isinstance(row.get('weekday'), int) for row in dining))
 
     def test_hidden_and_conflicting_event_locations_stay_unmapped(self):
         events = {row['name']: row for row in self.bundle['events']}
