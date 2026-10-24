@@ -14,7 +14,6 @@ import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color, Layer } from '@deck.gl/core';
 import { lowPitchDepthBias } from './buildings';
-import { labelWidth, type LabelPlacer } from './placement';
 
 type LngLat = [number, number];
 type RGB = [number, number, number];
@@ -116,18 +115,14 @@ export type FieldLight = 'dawn' | 'day' | 'dusk' | 'night';
 
 export interface FieldLayerOptions {
   zoom: number;
-  /** Shared with the other label layers so no two labels overlap. */
-  placer: LabelPlacer;
   /** Mapbox Standard's lightPreset: the floodlights are on at dusk and night. */
   lightPreset?: FieldLight;
 }
 
 /** The goals, stands and poles are a few pixels across below this zoom: skip them. Turf stays. */
 const DETAIL_ZOOM = 16;
-const LABEL_ZOOM = 16;
-const LABEL_HEIGHT = 36;
-const NAME_SIZE = 12;
-const ACCENT: Color = [120, 196, 140, 190]; // turf green rule, distinct from the monuments' bronze
+/** Field name tags (PlaceTags.tsx) from this zoom. */
+export const LABEL_ZOOM = 16;
 
 // Same multipliers as the building and monument models, so concrete and aluminium sit in the
 // scene at dusk and night. Emissive materials (lit lenses, the scoreboards) are not tinted.
@@ -263,11 +258,7 @@ class FieldModelLayer<D> extends ScenegraphLayer<D> {
   }
 }
 
-function labelText(f: Field) {
-  return `${f.name}\n${f.subtitle}`;
-}
-
-export function fieldLayers(data: FieldData, { zoom, placer, lightPreset = 'dusk' }: FieldLayerOptions) {
+export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk' }: FieldLayerOptions) {
   const { fields, models } = data;
   const g = geometry(data);
   const on = lit(lightPreset);
@@ -275,18 +266,6 @@ export function fieldLayers(data: FieldData, { zoom, placer, lightPreset = 'dusk
   const tint = MODEL_TINT[lightPreset];
   const [tr, tg, tb] = TURF_TINT[lightPreset];
   const shade = (c: RGB): Color => [c[0] * tr, c[1] * tg, c[2] * tb, 255];
-
-  const candidates = zoom >= LABEL_ZOOM ? fields : [];
-  const lifts = placer.place(candidates, {
-    position: (f) => f.label,
-    width: (f) => labelWidth(labelText(f), NAME_SIZE, 20),
-    height: LABEL_HEIGHT,
-    direction: -1,
-    gap: 4,
-    maxLift: 2,
-  });
-  const labelled = candidates.filter((f) => lifts.has(f));
-  const liftKey = labelled.map((f) => `${f.id}:${lifts.get(f)}`).join();
 
   const towerModels = new Map<string, TowerInstance[]>();
   for (const t of g.towers) {
@@ -418,32 +397,5 @@ export function fieldLayers(data: FieldData, { zoom, placer, lightPreset = 'dusk
           slot: 'middle',
         }),
     ),
-    new TextLayer<Field>({
-      id: 'field-labels',
-      data: labelled,
-      getPosition: (f) => at(f.label, f.altitude + 1),
-      getText: labelText,
-      getSize: NAME_SIZE,
-      getColor: [244, 245, 247, 255],
-      // The panels' dark glass (styles.css --panel), with a thin turf-green rule.
-      getBackgroundColor: [17, 20, 28, 214],
-      getBorderColor: ACCENT,
-      getBorderWidth: 1,
-      background: true,
-      backgroundPadding: [8, 4],
-      getTextAnchor: 'middle',
-      getAlignmentBaseline: 'bottom',
-      getPixelOffset: (f) => [0, -6 - LABEL_HEIGHT * (lifts.get(f) ?? 0)],
-      fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-      fontWeight: 500,
-      characterSet: 'auto',
-      lineHeight: 1.3,
-      billboard: true,
-      pickable: false,
-      parameters: { depthCompare: 'always' },
-      updateTriggers: { getPixelOffset: liftKey },
-      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
-      slot: 'top',
-    }),
   ];
 }

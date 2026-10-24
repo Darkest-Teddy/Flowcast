@@ -306,6 +306,31 @@ def offset_ring(r, d, max_miter=3.0):
     return out
 
 
+def offset_ring_var(r, ds, max_miter=3.0):
+    """Like offset_ring, but each edge i (r[i] -> r[i+1]) moves its own distance ds[i]."""
+    n = len(r)
+    out = []
+    for i in range(n):
+        p0, p1, p2 = r[i - 1], r[i], r[(i + 1) % n]
+        n0, n1 = right_normal(p0, p1), right_normal(p1, p2)
+        d0, d1 = ds[i - 1], ds[i]
+        det = n0[0] * n1[1] - n0[1] * n1[0]
+        if abs(det) < 0.05:  # nearly straight: average
+            d = (d0 + d1) / 2
+            m = (n0[0] + n1[0], n0[1] + n1[1])
+            ml = math.hypot(*m) or 1.0
+            out.append((p1[0] + m[0] / ml * d, p1[1] + m[1] / ml * d))
+            continue
+        x = (d0 * n1[1] - d1 * n0[1]) / det
+        y = (n0[0] * d1 - n1[0] * d0) / det
+        lim = max_miter * max(abs(d0), abs(d1), 0.05)
+        L = math.hypot(x, y)
+        if L > lim:
+            x, y = x / L * lim, y / L * lim
+        out.append((p1[0] + x, p1[1] + y))
+    return out
+
+
 def inset_ok(orig, inset):
     """An inward offset is usable if it kept its orientation, every edge direction and some area."""
     a0, a1 = signed_area(orig), signed_area(inset)
@@ -724,12 +749,13 @@ def triangulate(rings):
 # A wall quad samples one band, with u repeating once per window bay along the wall.
 # ------------------------------------------------------------------------------------------------
 
-TEX_W, BAND_H, NBANDS = 128, 64, 32
+TEX_W, BAND_H, NBANDS = 128, 64, 35
 B_BRICK, B_BRICK_GROUND, B_BROWNSTONE, B_LIME, B_LIME_GROUND, B_GLASS, B_LOBBY, B_CONCRETE, \
     B_MODERN, B_SHOP, B_WOOD, B_METAL, B_BUFF, B_CONCRETE_GROUND, B_CDS, B_LANCET = range(16)
 # Building-specific storeys, painted from reference photos (see BUILDING_NOTES).
 B_WARREN, B_GARAGE, B_CDS_FRIT, B_SERT, B_SERT_TOWER, B_HARIRI, B_HOTEL, B_HOTEL_BASE, \
     B_TERRA, B_TRACERY, B_TERRACOTTA, B_MED_BRICK, B_PHOTONICS, B_SERT_TOWER_G, B_LIME_STRIP, B_BLUEGLASS = range(16, 32)
+B_QUESTROM, B_QUESTROM_BASE, B_TUDOR = 32, 33, 34
 BLANK_U = (0.03, 0.19)  # a window-free strip of every band, for short wall pieces
 
 
@@ -1044,17 +1070,15 @@ def paint_specific_bands(cv, rng):
     stone = (214, 204, 180)      # Indiana limestone, warm cream (~#D6CCB4)
     glass_t, glass_b = (66, 80, 96), (34, 42, 54)
 
-    # Warren Towers (1965): brown brick veneer, narrow vertical dorm windows in aluminium surrounds
+    # Warren Towers (1965), from photos: tan masonry, one narrow window per bay between piers
     oy = B_WARREN * BAND_H
-    paint_brick(cv, oy, (138, 75, 60), (156, 138, 124), rng, var=7)
-    for x0 in (16, 52, 88):
-        paint_window(cv, oy, x0, 10, x0 + 24, 54, (176, 178, 180), (64, 74, 86), (34, 40, 50), rng, fw=2, cols=0, rows=1)
-        cv.shade(x0 - 2, oy + 10, x0, oy + 54, 0.75)
-    cv.rect(0, oy + 56, TEX_W, oy + 59, (170, 164, 154), rng, 2)
+    paint_brick(cv, oy, (186, 168, 142), (198, 186, 168), rng, var=4)
+    paint_window(cv, oy, 40, 8, 88, 56, (150, 156, 164), (70, 84, 100), (40, 48, 60), rng, fw=3, cols=0, rows=1)
+    cv.rect(36, oy + 56, 92, oy + 60, (200, 190, 172), rng, 2)
 
-    # Warren podium: garage floors behind brick, long horizontal openings
+    # Warren podium / garages: tan masonry, long horizontal openings
     oy = B_GARAGE * BAND_H
-    paint_brick(cv, oy, (132, 72, 58), (152, 134, 120), rng, var=7)
+    paint_brick(cv, oy, (184, 166, 140), (196, 184, 166), rng, var=4)
     cv.rect(10, oy + 18, 118, oy + 44, (38, 38, 40))
     for y in range(18, 44):
         for x in range(10, 118):
@@ -1198,6 +1222,49 @@ def paint_specific_bands(cv, rng):
         cv.rect(48, oy + y0, 80, oy + y0 + 1, (58, 58, 54))
     cv.rect(48, oy + 57, 80, oy + 63, (92, 86, 76))
 
+    # Questrom (Hariri Building), from photos: warm red brick; wide and narrow rectangular windows,
+    # each under a white louvred sunshade panel, on cast-stone sills
+    oy = B_QUESTROM * BAND_H
+    paint_brick(cv, oy, (196, 132, 114), (212, 194, 182), rng, var=5)  # warm salmon-pink brick (photo)
+    for x0, x1 in ((10, 80), (92, 118)):
+        cv.rect(x0 - 2, oy + 10, x1 + 2, oy + 25, (240, 238, 232))       # bold white louvred sunshade
+        for y in range(13, 25, 4):
+            cv.rect(x0, oy + y, x1, oy + y + 1, (188, 190, 192))
+        paint_window(cv, oy, x0, 25, x1, 52, (196, 198, 200), (82, 96, 112), (46, 56, 70), rng, fw=2, cols=1 if x1 - x0 > 40 else 0, rows=0)
+        cv.rect(x0 - 2, oy + 52, x1 + 2, oy + 55, (214, 208, 196))
+
+    # Questrom base: cream cast stone, square piers, recessed glazing with a transom
+    oy = B_QUESTROM_BASE * BAND_H
+    paint_stone(cv, oy, (232, 228, 218), (206, 202, 192), rng, course=16, block=64, var=3)
+    cv.rect(18, oy + 8, 110, oy + 64, (64, 64, 66))
+    paint_glass(cv, oy, 22, 12, 106, 64, (98, 108, 116), (140, 128, 108), rng)
+    register_window(oy, 22, 12, 106, 64)
+    cv.rect(22, oy + 26, 106, oy + 28, (70, 72, 76))
+    cv.rect(63, oy + 12, 65, oy + 64, (70, 72, 76))
+
+    # The Castle (Tudor Revival, 1915), from photos: buff Amherst sandstone ashlar, three-light
+    # mullioned and transomed windows with arched heads, a carved hood mould over each
+    oy = B_TUDOR * BAND_H
+    paint_stone(cv, oy, (210, 192, 156), (186, 168, 134), rng, course=8, block=22, var=6)
+    sand = (222, 206, 172)
+    cv.rect(24, oy + 8, 104, oy + 12, sand, rng, 2)           # hood mould
+    cv.rect(22, oy + 12, 26, oy + 16, sand)
+    cv.rect(102, oy + 12, 106, oy + 16, sand)
+    for x0 in (30, 56, 82):
+        for y in range(13, 54):
+            hw = 9 if y >= 19 else math.sqrt(max(0, 81 - (19 - y) ** 2 * 2.2))
+            for x in range(int(x0 + 8 - hw), int(x0 + 8 + hw)):
+                c = mix((88, 96, 104), (48, 52, 60), (y - 13) / 41)
+                if (x + y) % 6 == 0 or (x - y) % 6 == 0:   # leaded diamond quarries
+                    c = (c[0] * 0.75, c[1] * 0.75, c[2] * 0.75)
+                cv.put(x, oy + y, c)
+        register_window(oy, x0, 19, x0 + 16, 54)
+    cv.rect(26, oy + 13, 30, oy + 54, sand)                    # mullions and surround
+    for x0 in (46, 72, 98):
+        cv.rect(x0, oy + 13, x0 + 10 if x0 < 98 else x0 + 4, oy + 54, sand)
+    cv.rect(26, oy + 33, 102, oy + 35, sand)                   # transom
+    cv.rect(24, oy + 54, 104, oy + 58, sand, rng, 2)           # sill
+
     # newer blue-green reflective curtain wall
     oy = B_BLUEGLASS * BAND_H
     paint_glass(cv, oy, 0, 0, TEX_W, 64, (110, 150, 168), (64, 98, 118), rng)
@@ -1257,6 +1324,10 @@ PLAIN = {
     "glass_rail": (150, 172, 180), "fin_white": (226, 228, 226), "fin_metal": (120, 126, 132),
     "concrete_fin": (184, 178, 164), "water_tank": (112, 92, 72), "hatch": (120, 120, 118),
     "fin_rust": (160, 126, 104), "fin_sand": (205, 187, 154), "copper": (110, 156, 136),
+    "awning": (150, 172, 192), "stone_cream": (216, 210, 196), "tan_pier": (190, 172, 146),
+    "penthouse": (206, 210, 212), "brick_salmon": (192, 128, 110),
+    "sandstone": (212, 194, 158), "sand_trim": (226, 212, 180), "slate_grey": (112, 118, 126),
+    "copper_green": (112, 160, 138), "chimney_brick": (150, 76, 58),
 }
 FAMILY_BAND = {"brick": B_BRICK, "brownstone": B_BROWNSTONE, "limestone": B_LIME, "glass": B_GLASS,
                "concrete": B_CONCRETE, "modern": B_MODERN, "buff": B_BUFF, "metal": B_METAL, "wood": B_WOOD}
@@ -1598,7 +1669,7 @@ STYLE_BY_ID = {
 LANDMARKS = {
     "way/277434241": "cds", "way/1007090937": "chapel", "relation/20512578": "warren",
     "way/29927783": "stuvi", "way/155291470": "stuvi", "way/102384832": "arena",
-    "way/256604722": "questrom", "way/1026274040": "garage",
+    "way/256604722": "questrom", "way/1026274040": "garage", "way/29887049": "castle", "way/1007090933": "theology",
     "way/1007090939": "cas", "way/130209089": "mugar", "way/130209090": "gsu", "way/485223499": "lawtower",
 }
 ROWHOUSE_STREETS = ("Bay State Road", "Buswell Street", "Park Drive", "Mountfort Street", "Beacon Street",
@@ -1805,15 +1876,17 @@ def build_walls(mesh, v, ctx, rings_o, y0, y1, exclude):
                 continue
             nrm = right_normal(ra, rb)
             mid = ((ra[0] + rb[0]) / 2, (ra[1] + rb[1]) / 2)
-            party = False
-            neighbour_h = 0.0
-            if v.party:
-                for t in (0.5, 0.2, 0.8):
-                    probe = (ra[0] + (rb[0] - ra[0]) * t + nrm[0] * 1.2, ra[1] + (rb[1] - ra[1]) * t + nrm[1] * 1.2)
-                    key = ctx.footprint_at(probe, exclude)
-                    if key:
-                        party = True
-                        neighbour_h = max(neighbour_h, ctx.heights.get(key, y1))
+            if getattr(v, "edges", None):
+                party, neighbour_h, _ = v.edges[ri][i]
+            else:
+                party, neighbour_h = False, 0.0
+                if v.party:
+                    for t in (0.5, 0.2, 0.8):
+                        probe = (ra[0] + (rb[0] - ra[0]) * t + nrm[0] * 1.2, ra[1] + (rb[1] - ra[1]) * t + nrm[1] * 1.2)
+                        key = ctx.footprint_at(probe, exclude)
+                        if key:
+                            party = True
+                            neighbour_h = max(neighbour_h, ctx.heights.get(key, y1))
             info.append({"a": a, "b": b, "ra": ra, "rb": rb, "L": L, "n": nrm, "mid": mid, "party": party, "outer": ri == 0})
             first = 0
             if party:
@@ -1866,6 +1939,8 @@ def _floor_plan(ctx, v, floor):
             plan = (True, 16.0, 23.0)
         elif use == "church":
             plan = (True, 16.5, 21.0)
+        elif use == "venue":  # the Castle: events and the pub in the evening
+            plan = (r.random() < 0.85, 16.3, 23.0 + r.random() * 1.5)
         elif use == "retail":
             plan = (True, 15.0, 22.0 + r.random() * 1.5) if floor == 0 else None
         else:
@@ -1903,7 +1978,7 @@ def light_windows(ctx, v, band, a, b, y0, y1, nbays, nrm, out=0.12, floor=None):
     plan = _floor_plan(ctx, v, floor)
     rng = random.Random(h32(f"{v.key}|{floor}|{a[0]:.1f},{a[1]:.1f}"))
     housing = plan is None
-    mat_inst = {"office": "lit_cool", "glass": "lit_cool", "medical": "lit_cool", "library": "lit_neutral",
+    mat_inst = {"venue": "lit_warm", "office": "lit_cool", "glass": "lit_cool", "medical": "lit_cool", "library": "lit_neutral",
                 "arena": "lit_neutral", "church": "lit_soft", "retail": "lit_soft"}.get(v.use, "lit_neutral")
     # stairwell / corridor column: one bay per long wall stays dimly lit all night in institutions
     stair = rng.randrange(nbays) if (not housing and nbays >= 4 and v.use in ("office", "glass", "library", "medical")) else -1
@@ -1969,13 +2044,14 @@ def build_flat_top(mesh, v, rings_o, y_roof, edges, rng):
     lip = 0.15 if family == "glass" else 0.4
     ch = 0.35 if family == "glass" else 0.55
     top = y_roof + p
-    rings_c = [offset_ring(r, lip) for r in rings_o]
+    edges = getattr(v, "edges", None) or [[(False, 0, False)] * len(r) for r in rings_o]
+    rings_c = [offset_ring_var(r, [0.0 if f[2] else lip for f in fl]) for r, fl in zip(rings_o, edges)]
     rings_in = v.rings
-    for ro, rc, ri in zip(rings_o, rings_c, rings_in):
+    for ro, rc, ri, fl in zip(rings_o, rings_c, rings_in, edges):
         n = len(ro)
         for i in range(n):
             j = (i + 1) % n
-            if dist(ro[i], ro[j]) < 0.05:
+            if dist(ro[i], ro[j]) < 0.05 or fl[i][2]:
                 continue
             # frieze between the top storey and the cornice
             if top - ch > y_roof:
@@ -1998,7 +2074,8 @@ def build_flat_top(mesh, v, rings_o, y_roof, edges, rng):
                 mesh.wall("glass_rail", rc[i], rc[j], top, top + 1.05)
                 mesh.wall("glass_rail", rc[j], rc[i], top, top + 1.05)
     roof_mat = v.roof_mat or ("roof_dark", "roof_light", "roof_gravel")[h32(v.key + "r") % 3]
-    mesh.flat(roof_mat, rings_in, y_roof, True)
+    slab = [offset_ring_var(r, [-SHARED_INSET if f[2] else 0.0 for f in fl]) for r, fl in zip(rings_in, edges)]
+    mesh.flat(roof_mat, slab, y_roof, True)
     if v.merlons:
         for ro, ri in zip(rings_o, rings_in):
             n = len(ro)
@@ -2142,15 +2219,18 @@ def mansard_top(mesh, v, rings_o, y_eave, front_edges):
     centre, eu, ev, hu, hv = obb(ring)
     d = min(1.3, hv * 0.35)
     r = v.mansard
-    inset = offset_ring(ring, -d)
-    if not inset_ok(ring, inset):
+    shared = [f[2] for f in (getattr(v, "edges", None) or [[(False, 0, False)] * len(ring)])[0]]
+    inset = offset_ring_var(ring, [0.0 if sh else -d for sh in shared])
+    if not inset_ok(ring, offset_ring(ring, -d)):
         return None
     trim = CORNICE_MAT[cornice]
-    # cornice at the eave
-    ring_c = offset_ring(ring, 0.35)
+    # cornice at the eave (not on shared party walls: the neighbour's cornice continues it)
+    ring_c = offset_ring_var(ring, [0.0 if sh else 0.35 for sh in shared])
     n = len(ring)
     for i in range(n):
         j = (i + 1) % n
+        if shared[i]:
+            continue
         mesh.wall(trim, ring_c[i], ring_c[j], y_eave - 0.45, y_eave + 0.15)
         mesh.face(trim, [(ring[i][0], y_eave - 0.45, -ring[i][1]), (ring[j][0], y_eave - 0.45, -ring[j][1]),
                          (ring_c[j][0], y_eave - 0.45, -ring_c[j][1]), (ring_c[i][0], y_eave - 0.45, -ring_c[i][1])])
@@ -2159,6 +2239,9 @@ def mansard_top(mesh, v, rings_o, y_eave, front_edges):
     y0 = y_eave + 0.15
     for i in range(n):
         j = (i + 1) % n
+        if shared[i]:
+            mesh.wall("wall_" + family, ring[i], ring[j], y_eave - 0.45, y0 + r)  # gable end of the mansard
+            continue
         mesh.face("slate", [(ring[i][0], y0, -ring[i][1]), (ring[j][0], y0, -ring[j][1]),
                             (inset[j][0], y0 + r, -inset[j][1]), (inset[i][0], y0 + r, -inset[i][1])])
     mesh.flat("roof_dark", [inset], y0 + r, True)
@@ -2314,9 +2397,37 @@ def add_arcade(mesh, v, info, fronts, ys):
         mesh.face(trim, [(a[0], h, -a[1]), (b[0], h, -b[1]), (b2[0], h, -b2[1]), (a2[0], h, -a2[1])])
 
 
+SHARED_INSET = 0.04  # shared party walls sit just inside the footprint, so neighbours never overlap
+
+
+def party_edges(v, ctx, exclude):
+    """Per ring, per edge: (party?, neighbour height, shared?). Shared = a neighbour at least as tall
+    stands against this wall, so it gets no outward offset, cornice or parapet (rowhouses)."""
+    out = []
+    for ring in v.rings:
+        flags = []
+        n = len(ring)
+        for i in range(n):
+            ra, rb = ring[i], ring[(i + 1) % n]
+            party, nh = False, 0.0
+            if v.party and dist(ra, rb) > 0.05:
+                nrm = right_normal(ra, rb)
+                for t in (0.5, 0.2, 0.8):
+                    probe = (ra[0] + (rb[0] - ra[0]) * t + nrm[0] * 1.2, ra[1] + (rb[1] - ra[1]) * t + nrm[1] * 1.2)
+                    key = ctx.footprint_at(probe, exclude)
+                    if key:
+                        party = True
+                        nh = max(nh, ctx.heights.get(key, v.top))
+            flags.append((party, nh, party and nh >= v.top - 0.6))
+        out.append(flags)
+    return out
+
+
 def build_volume(mesh, v, ctx, exclude, rng):
     """Walls, ground floor, doors and roof for one volume. Returns the top of the model (m)."""
-    rings_o = [offset_ring(r, wall_out(v.top)) for r in v.rings]
+    v.edges = party_edges(v, ctx, exclude)
+    rings_o = [offset_ring_var(r, [-SHARED_INSET if f[2] else wall_out(v.top) for f in fl])
+               for r, fl in zip(v.rings, v.edges)]
     y0 = v.base - 0.3 if v.base > 0.5 else -0.2
     y_eave = v.top + roof_up(v.top)
     info, ys = build_walls(mesh, v, ctx, rings_o, y0, y_eave, exclude)
@@ -2345,8 +2456,24 @@ def build_volume(mesh, v, ctx, exclude, rng):
         for e in fronts[:1]:
             a, b, L, nrm = e["a"], e["b"], e["L"], e["n"]
             eu = ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
-            c = ((a[0] + b[0]) / 2 + nrm[0] * 0.9, (a[1] + b[1]) / 2 + nrm[1] * 0.9)
-            mesh.box("trim_metal", c, eu, L / 2 * 0.9, 0.9, ys[1] - 0.6, ys[1] - 0.3, top_mat="trim_metal", bottom=True)
+            if v.canopy == "barrel":
+                # a long curved awning (quarter barrel) springing from the wall over the sidewalk
+                d, h0 = 3.2, ys[1] - 0.4
+                a0 = (a[0] + eu[0] * L * 0.05, a[1] + eu[1] * L * 0.05)
+                b0 = (b[0] - eu[0] * L * 0.05, b[1] - eu[1] * L * 0.05)
+                K = 6
+                pts = [(d * math.sin(math.pi / 2 * k / K), h0 - 2.4 + 2.4 * math.cos(math.pi / 2 * k / K) + 2.4 * 0) for k in range(K + 1)]
+                pts = [(d * (1 - math.cos(math.pi / 2 * k / K)), h0 - 2.0 * (1 - math.sin(math.pi / 2 * k / K)) + 0.0) for k in range(K + 1)]
+                pts = [(d * math.sin(math.pi / 2 * k / K), h0 - 2.2 + 2.2 * math.cos(math.pi / 2 * k / K)) for k in range(K + 1)]
+                for k in range(K):
+                    (o0, y0_), (o1, y1_) = pts[k], pts[k + 1]
+                    q = [(a0[0] + nrm[0] * o0, y0_, -(a0[1] + nrm[1] * o0)), (b0[0] + nrm[0] * o0, y0_, -(b0[1] + nrm[1] * o0)),
+                         (b0[0] + nrm[0] * o1, y1_, -(b0[1] + nrm[1] * o1)), (a0[0] + nrm[0] * o1, y1_, -(a0[1] + nrm[1] * o1))]
+                    mesh.face("awning", q[::-1])
+                    mesh.face("trim_metal", q)
+            else:
+                c = ((a[0] + b[0]) / 2 + nrm[0] * 0.9, (a[1] + b[1]) / 2 + nrm[1] * 0.9)
+                mesh.box("trim_metal", c, eu, L / 2 * 0.9, 0.9, ys[1] - 0.6, ys[1] - 0.3, top_mat="trim_metal", bottom=True)
     top = y_eave
     if v.roof == "mansard" and len(v.rings) == 1:
         t = mansard_top(mesh, v, rings_o, y_eave, fronts[:1])
@@ -2391,7 +2518,7 @@ def build_volume(mesh, v, ctx, exclude, rng):
 # Landmarks
 # ------------------------------------------------------------------------------------------------
 
-def tower(mesh, ring, y0, y1, storeys, spacing, key, roof="pyramid", band=B_LANCET, pinnacles=True, cap=None):
+def tower(mesh, ring, y0, y1, storeys, spacing, key, roof="pyramid", band=B_LANCET, pinnacles=True, cap=None, cap_ratio=0.55):
     """A square gothic tower: lancet storeys, crenellated parapet, corner pinnacles, low pyramid."""
     ring = oriented(ring, True)
     ro = ring
@@ -2434,15 +2561,15 @@ def tower(mesh, ring, y0, y1, storeys, spacing, key, roof="pyramid", band=B_LANC
         pass
     elif roof == "pyramid":
         inner = offset_ring(ro, -0.6)
-        mesh.pyramid(cap or "slate", inner, y1 + 0.6, y1 + 0.6 + side * 0.55)
-        top = max(top, y1 + 0.6 + side * 0.55)
+        mesh.pyramid(cap or "slate", inner, y1 + 0.6, y1 + 0.6 + side * cap_ratio)
+        top = max(top, y1 + 0.6 + side * cap_ratio)
     return top
 
 
 def landmark_chapel(mesh, b, ctx, rng, vols):
     """Marsh Chapel (Cram & Ferguson, 1950): Indiana-limestone collegiate Gothic nave with
-    buttresses and pinnacles, a steep slate roof, corner turrets and a slender spire, and a great
-    traceried window on the end facing Marsh Plaza and Comm Ave. (The 350 ft bell tower planned
+    buttresses and pinnacles, a steep slate roof, a great traceried window in the gable facing
+    Marsh Plaza, flanked by two slender pinnacles (checked against photos). (The 350 ft bell tower planned
     behind it was never built, so there is no big tower.)"""
     v = vols[0]
     ring = v.rings[0]
@@ -2492,28 +2619,30 @@ def landmark_chapel(mesh, b, ctx, rng, vols):
         tvb, tvt = band_v(B_TRACERY)
         mesh.wall("facade_0", p0, p1, 3.0, nave_eave + rise * 0.42, (0.0, 1.0, tvb, tvt))
         light_windows(ctx, v, B_TRACERY, p0, p1, 3.0, nave_eave + rise * 0.42, 1, nrm, out=0.1)
-    # corner turrets with spirelets, and a slender spire on the ridge
+    # photos: two slender octagonal pinnacles flank the plaza gable and rise well above it; the
+    # gable has a carved stone coping with a cross; lower flat-roofed aisles at the sides
     top = ridge
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            c = (centre[0] + eu[0] * sx * (hu - 0.6) + ev[0] * sy * (hv - 0.6),
-                 centre[1] + eu[1] * sx * (hu - 0.6) + ev[1] * sy * (hv - 0.6))
-            oct_ = [(c[0] + 1.3 * math.cos(math.pi / 8 + k * math.pi / 4), c[1] + 1.3 * math.sin(math.pi / 8 + k * math.pi / 4)) for k in range(8)]
-            mesh.prism("trim_stone", oct_, -0.2, nave_eave + 4.5)
-            mesh.pyramid("trim_stone", oct_, nave_eave + 4.5, nave_eave + 9.5)
-            top = max(top, nave_eave + 9.5)
-    sq = [(centre[0] + sx * 1.3 * eu[0] + sy * 1.3 * ev[0], centre[1] + sx * 1.3 * eu[1] + sy * 1.3 * ev[1])
-          for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    mesh.prism("copper", sq, ridge - 1.5, ridge + 2.5)
-    mesh.pyramid("copper", sq, ridge + 2.5, ridge + 11.0)
-    return max(top, ridge + 11.0)
+    if south_edge:
+        a, bb, nrm, L = south_edge
+        e2 = ((bb[0] - a[0]) / L, (bb[1] - a[1]) / L)
+        mid = ((a[0] + bb[0]) / 2, (a[1] + bb[1]) / 2)
+        for sx in (-1, 1):
+            c = (mid[0] + e2[0] * sx * (L / 2 - 1.6) - nrm[0] * 0.6, mid[1] + e2[1] * sx * (L / 2 - 1.6) - nrm[1] * 0.6)
+            oct_ = [(c[0] + 0.95 * math.cos(math.pi / 8 + k * math.pi / 4), c[1] + 0.95 * math.sin(math.pi / 8 + k * math.pi / 4)) for k in range(8)]
+            mesh.prism("trim_stone", oct_, -0.2, ridge + 1.5)
+            mesh.pyramid("trim_stone", oct_, ridge + 1.5, ridge + 8.5)
+            top = max(top, ridge + 8.5)
+        cross = (mid[0] - nrm[0] * 0.3, mid[1] - nrm[1] * 0.3)
+        mesh.box("trim_stone", cross, e2, 0.12, 0.12, ridge, ridge + 2.2)
+        mesh.box("trim_stone", (cross[0], cross[1]), e2, 0.55, 0.12, ridge + 1.3, ridge + 1.55)
+    return max(top, ridge + 2.2)
 
 
-def landmark_cas(mesh, b, ctx, rng, vols):
-    """CAS (Central Campus, 1939-48): a long Indiana-limestone block in sleek collegiate Gothic
-    modelled on the Palais des Papes: tall vertical bays of pointed casements, a battlemented flat
-    roof, and a slightly raised, battlemented entrance bay on Comm Ave. (No central tower: the
-    sources describe small turrets by the chapel courtyard, not a CAS tower.)"""
+def landmark_cas(mesh, b, ctx, rng, vols, plaza_side="west"):
+    """CAS (and the School of Theology): long Indiana-limestone blocks in sleek collegiate Gothic
+    (Cram & Ferguson, 1939-50): tall vertical bays of pointed casements and a battlemented roof.
+    Photos show a square stone tower with tall lancets and a steep pyramidal stone spire at the end
+    of each block facing Marsh Plaza, so the plaza is framed by two spires with the chapel between."""
     v = vols[0]
     v.style = "gothic"
     v.roof = "flat"
@@ -2524,41 +2653,67 @@ def landmark_cas(mesh, b, ctx, rng, vols):
     top = build_volume(mesh, v, ctx, {b.ref}, rng)
     ring = v.rings[0]
     centre, eu, ev, hu, hv = obb(ring)
-    side = ev if ev[1] < 0 else (-ev[0], -ev[1])  # towards the south (Comm Ave)
-    s = 11.0
-    tc = (centre[0] + side[0] * (hv - s / 2 + 1.5), centre[1] + side[1] * (hv - s / 2 + 1.5))
-    sq = [(tc[0] + sx * s / 2 * eu[0] + sy * s / 2 * ev[0], tc[1] + sx * s / 2 * eu[1] + sy * s / 2 * ev[1])
+    long_ax = eu if abs(eu[0]) > abs(eu[1]) else ev
+    toward = long_ax if (long_ax[0] > 0) == (plaza_side == "east") else (-long_ax[0], -long_ax[1])
+    across = (-toward[1], toward[0])
+    half_long = hu if long_ax is eu else hv
+    s = 10.5
+    tc = (centre[0] + toward[0] * (half_long - s / 2 - 1.0), centre[1] + toward[1] * (half_long - s / 2 - 1.0))
+    sq = [(tc[0] + sx * s / 2 * toward[0] + sy * s / 2 * across[0], tc[1] + sx * s / 2 * toward[1] + sy * s / 2 * across[1])
           for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    t = tower(mesh, sq, -0.2, v.top + ROOF_UP + 2.5, 5, 2.8, b.ref + "t", roof=None, band=B_LIME_STRIP, pinnacles=False)
+    y1 = v.top + ROOF_UP + 10.0
+    t = tower(mesh, sq, -0.2, y1, 4, 2.6, b.ref + "t", roof="pyramid", band=B_LANCET, pinnacles=True,
+              cap="trim_stone", cap_ratio=1.25)
     return max(top, t)
 
 
+def landmark_theology(mesh, b, ctx, rng, vols):
+    return landmark_cas(mesh, b, ctx, rng, vols, plaza_side="east")
+
+
 def landmark_warren(mesh, b, ctx, rng, vols):
-    """Warren Towers (1965): three 18-storey brick towers (Fairfield, Marshall, Shields) with
-    narrow vertical windows, on a 4-storey podium (garage on floors 1-3, dining on the 4th) with
-    shops and a canopy along Comm Ave, and a metal-panel mechanical screen on each roof."""
+    """Warren Towers (1965), checked against photos: three 18-storey towers (Fairfield, Marshall,
+    Shields) in tan masonry with narrow window columns between projecting piers and a single
+    vertical window strip on each end face, on a 4-storey tan podium (ribbon windows on the dining
+    floor) with a long curved blue-grey awning over the Comm Ave shops; small rooftop boxes."""
+    # The three towers are the relation pieces under OSM's named tower parts (Fairfield, Marshall,
+    # Shields); everything else (including the 566 m2 east-end piece) is podium.
+    tower_rings = []
+    for el in b.parts:
+        if str(el.get("tags", {}).get("name", "")).endswith("Tower"):
+            for o, inn in element_rings(el):
+                tower_rings.append(local_rings(ctx.frame, o, inn)[0])
     towers, podium = [], []
     for v in vols:
-        (towers if abs(signed_area(v.rings[0])) < 750 else podium).append(v)
+        c = ring_centroid(v.rings[0])
+        (towers if any(point_in_ring(c, r) for r in tower_rings) else podium).append(v)
+    if len(towers) != 3:
+        # OSM part names missing or changed: the 7 pieces run west to east podium, TOWER, podium,
+        # TOWER, podium, TOWER, podium. (Never pick by size: the 566 m2 east-end podium piece is
+        # smaller than a tower and became a fourth tower that way.)
+        ordered = sorted(vols, key=lambda v: ring_centroid(v.rings[0])[0])
+        towers = [ordered[i] for i in (1, 3, 5)] if len(ordered) == 7 else towers
+        podium = [v for v in vols if v not in towers]
     top = 0
     pod_h = 15.5
     for v in podium:
         v.top = pod_h
         v.levels = 4
-        v.style = "brick"
+        v.style = "buff"
         v.bands = (B_GARAGE, B_SHOP, 3.2)
-        v.top_band = B_WARREN
+        v.top_band = B_BUFF
         v.mech = False
         v.parapet = 1.1
-        v.canopy = True
+        v.canopy = "barrel"
         v.lit_share = 0.35
         v.use = "retail"
         top = max(top, build_volume(mesh, v, ctx, {b.ref}, rng))
     for v in towers:
         v.top = 56.0  # 18 storeys: the 4-storey podium plus 14 residential floors
         v.levels = 18
-        v.style = "brick"
-        v.bands = (B_WARREN, B_GARAGE, 3.0)
+        v.style = "buff"
+        v.bands = (B_WARREN, B_GARAGE, 2.5)
+        v.fins = (2.5, 0.45, 0.45, "tan_pier", None, None)
         v.base = 0.0
         v.ground = True
         v.door = False
@@ -2570,12 +2725,8 @@ def landmark_warren(mesh, b, ctx, rng, vols):
         y = v.top + ROOF_UP
         ring = [(centre[0] + sx * hu * 0.62 * eu[0] + sy * hv * 0.7 * ev[0], centre[1] + sx * hu * 0.62 * eu[1] + sy * hv * 0.7 * ev[1])
                 for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-        mvb, mvt = band_v(B_METAL)
         ring = oriented(ring)
-        for i in range(4):
-            a2, b2 = ring[i], ring[(i + 1) % 4]
-            mesh.wall("facade_3", a2, b2, y, y + 4.6, (0.0, max(1.0, round(dist(a2, b2) / 1.2)), mvb, mvt))
-        mesh.flat("roof_light", [ring], y + 4.6, True)
+        mesh.prism("tan_pier", ring, y, y + 3.4, top_mat="roof_light")
         top = max(top, t, y + 4.6)
     return top
 
@@ -2759,7 +2910,12 @@ def landmark_lawtower(mesh, b, ctx, rng, vols):
         y = v.top + ROOF_UP + 1.4
         mesh.box("trim_concrete", centre, eu, hu * 0.7, hv * 0.62, y - 1.4, y + 3.2, top_mat="roof_light")
         mesh.box("trim_concrete", (centre[0] + eu[0] * hu * 0.2, centre[1] + eu[1] * hu * 0.2), eu, hu * 0.36, hv * 0.4, y + 3.2, y + 6.0, top_mat="roof_light")
-        top = max(top, t, y + 6.0)
+        # photos: a tall lattice antenna mast on the crown
+        mc = (centre[0] + eu[0] * hu * 0.2, centre[1] + eu[1] * hu * 0.2)
+        mesh.box("trim_metal", mc, eu, 0.35, 0.35, y + 6.0, y + 22.0, top_mat="trim_metal")
+        for k in range(4):
+            mesh.box("trim_metal", mc, eu, 1.2 - k * 0.25, 0.08, y + 8 + k * 3.5, y + 8.2 + k * 3.5)
+        top = max(top, t, y + 22.0)
     return top
 
 
@@ -2826,30 +2982,50 @@ def sign_text(mesh, lit_mesh, text, centre, eu, nrm, y0, height, mat="trim_white
 
 
 def landmark_questrom(mesh, b, ctx, rng, vols):
-    """Questrom School of Business, Rafik B. Hariri Building (Canon Associates, 1996; 595 Comm Ave).
-    Sources: a ten-storey block of red brick with concrete trim and half-round lintels, classrooms
-    grouped round a six-storey central atrium (Sergio Castillo's "Earth Orbit" globe), the Pardee
-    Management Library on floors 2-3, visitors' entrance at 1 Silber Way. Modelled as: cast-stone
-    base with round-headed windows, brick upper floors with arched heads, cast-stone band courses
-    over the base and under the top floor, a heavy cornice, stone quoins at the corners, a
-    projecting centre bay on Comm Ave, a glazed arched entrance bay on Silber Way, a glass skylight
-    over the atrium (lit at night) and rooftop plant at the ends."""
-    v = vols[0]
-    v.style = "brick"
-    v.top = 36.0
-    v.levels = 10
-    v.bands = (B_HARIRI, B_HOTEL_BASE, 3.6)
-    v.tint = "facade_0"
-    v.door = False
-    v.mech = False
-    v.parapet = 1.2
-    v.use = "office"
-    v.library_floors = (1, 2)
-    top = build_volume(mesh, v, ctx, {b.ref}, rng)
-    ring_o = offset_ring(v.rings[0], wall_out(v.top))
+    """Questrom School of Business, Rafik B. Hariri Building (Canon Associates, 1996), rebuilt from
+    photos (Wikimedia Commons: "BU School of Management", "Boston University Graduate School of
+    Management", Blandford Street station views). What they show:
+    - a big flat-topped block of warm red brick that steps back in tiers: full footprint to about
+      the 7th floor, a ~3 m setback for two more floors, then a top storey set back again, with a
+      light-grey metal penthouse and a ridged glass skylight (over the six-storey atrium) on the roof;
+    - rectangular windows in wide and narrow pairs, each under a white louvred sunshade panel,
+      on cast-stone sills;
+    - light cast-stone band courses where the tiers step, a tall cast-stone base with square piers
+      and recessed glazing, and stone coping on every parapet;
+    - a tall recessed glass slot (stone-framed curtain wall) in the middle of the Comm Ave front over
+      the main entrance, and a second, narrower one towards the east end."""
+    v0 = vols[0]
+    raw = v0.rings[0]
+    tiers = [(raw, 0.0, 26.0, 7)]
+    r1 = offset_ring(raw, -3.0)
+    if inset_ok(raw, r1):
+        tiers.append((r1, 26.0, 33.0, 2))
+        r2 = offset_ring(raw, -6.0)
+        if inset_ok(raw, r2):
+            tiers.append((r2, 33.0, 36.5, 1))
+    top = 0
+    tier_vols = []
+    for k, (ring, base, height, levels) in enumerate(tiers):
+        v = Volume(v0.key if k == 0 else f"{v0.key}#t{k}", [ring], base, height, levels, "brick")
+        v.tags = v0.tags
+        v.bands = (B_QUESTROM, B_QUESTROM_BASE, 4.2)
+        v.tint = "facade_0"
+        v.door = False
+        v.mech = False
+        v.cornice = True
+        v.parapet = 0.9
+        v.party = False
+        v.use = "office"
+        v.library_floors = (1, 2) if k == 0 else ()
+        if k:
+            v.ground = False
+        top = max(top, build_volume(mesh, v, ctx, {b.ref}, rng))
+        tier_vols.append(v)
+    v = tier_vols[0]
+    ring_o = offset_ring(raw, wall_out(v.top))
     centre, eu, ev, hu, hv = obb(ring_o)
     ys = storey_lines(v, -0.2, v.top + roof_up(v.top))
-    # cast-stone band courses over the base and under the top floor
+    # cast-stone band course over the base, and one under the first setback
     n = len(ring_o)
     for i in range(n):
         a, bb = ring_o[i], ring_o[(i + 1) % n]
@@ -2858,86 +3034,251 @@ def landmark_questrom(mesh, b, ctx, rng, vols):
         nrm = right_normal(a, bb)
         a2 = (a[0] + nrm[0] * 0.25, a[1] + nrm[1] * 0.25)
         b2 = (bb[0] + nrm[0] * 0.25, bb[1] + nrm[1] * 0.25)
-        for y in (ys[1], ys[2] - 0.2, ys[-2]):
-            mesh.wall("trim_stone", a2, b2, y - 0.55, y)
-            mesh.face("trim_stone", [(a2[0], y, -a2[1]), (b2[0], y, -b2[1]), (bb[0], y, -bb[1]), (a[0], y, -a[1])])
-    # stone quoins at the corners
-    for i in range(n):
-        p0, p1, p2 = ring_o[i - 1], ring_o[i], ring_o[(i + 1) % n]
-        if dist(p0, p1) < 6 or dist(p1, p2) < 6:
-            continue
-        e2 = ((p2[0] - p1[0]) / dist(p1, p2), (p2[1] - p1[1]) / dist(p1, p2))
-        for k, y in enumerate(range(0, int(ys[-1]), 1)):
-            w = 0.9 if k % 2 else 0.55
-            c = (p1[0] + e2[0] * w / 2, p1[1] + e2[1] * w / 2)
-            mesh.box("trim_stone", c, e2, w / 2 + 0.05, 0.08, y + 0.05, y + 0.95)
+        for y, hgt in ((ys[1], 1.1), (ys[-2], 0.7)):
+            mesh.wall("stone_cream", a2, b2, y - hgt, y)
+            mesh.face("stone_cream", [(a2[0], y, -a2[1]), (b2[0], y, -b2[1]), (bb[0], y, -bb[1]), (a[0], y, -a[1])])
+            mesh.face("stone_cream", [(a[0], y - hgt, -a[1]), (bb[0], y - hgt, -bb[1]), (b2[0], y - hgt, -b2[1]), (a2[0], y - hgt, -a2[1])])
     south = min((eu, ev, (-eu[0], -eu[1]), (-ev[0], -ev[1])), key=lambda d: d[1])
     east = (-south[1], south[0]) if -south[1] > 0 else (south[1], -south[0])
-    # projecting centre bay on Comm Ave: three storeys of cast stone with a tall arched window
     face = max(ring_o, key=lambda q: q[0] * south[0] + q[1] * south[1])
-    fd = face[0] * south[0] + face[1] * south[1]
-    cd = centre[0] * south[0] + centre[1] * south[1]
-    bay_c = (centre[0] + south[0] * (fd - cd + 1.0), centre[1] + south[1] * (fd - cd + 1.0))
-    mesh.box("trim_stone", bay_c, east, 7.0, 1.2, -0.2, ys[3] + 0.6, top_mat="trim_stone")
-    fa = (bay_c[0] - east[0] * 4.0 + south[0] * 1.25, bay_c[1] - east[1] * 4.0 + south[1] * 1.25)
-    fb = (bay_c[0] + east[0] * 4.0 + south[0] * 1.25, bay_c[1] + east[1] * 4.0 + south[1] * 1.25)
-    lvb, lvt = band_v(B_HOTEL_BASE)
-    mesh.wall("facade_0", fa, fb, 0.4, ys[3] - 0.4, (0.0, 1.0, lvb, lvt))
-    light_windows(ctx, v, B_HOTEL_BASE, fa, fb, 0.4, ys[3] - 0.4, 1, south, out=0.06, floor=0)
-    # glazed arched entrance bay on Silber Way (the west end) with a canopy
-    west = (-east[0], -east[1])
-    wface = max(ring_o, key=lambda q: q[0] * west[0] + q[1] * west[1])
-    wd = wface[0] * west[0] + wface[1] * west[1] - (centre[0] * west[0] + centre[1] * west[1])
-    ec = (centre[0] + west[0] * (wd + 1.5), centre[1] + west[1] * (wd + 1.5))
-    pav = oriented([(ec[0] + sx * 1.5 * west[0] + sy * 6.0 * south[0], ec[1] + sx * 1.5 * west[1] + sy * 6.0 * south[1])
+    fd = face[0] * south[0] + face[1] * south[1] - (centre[0] * south[0] + centre[1] * south[1])
+    # tall glass slots in stone frames on the Comm Ave front
+    gvb, gvt = band_v(B_GLASS)
+    for along, w in ((0.0, 9.0), (0.62 * hu, 4.5)):
+        c = (centre[0] + east[0] * along + south[0] * (fd + 0.35), centre[1] + east[1] * along + south[1] * (fd + 0.35))
+        y0, y1 = ys[1] + 0.2, ys[-2] - 0.8
+        mesh.box("stone_cream", (c[0] - east[0] * (w / 2 + 0.5), c[1] - east[1] * (w / 2 + 0.5)), east, 0.5, 0.4, ys[1], ys[-2], top_mat="stone_cream")
+        mesh.box("stone_cream", (c[0] + east[0] * (w / 2 + 0.5), c[1] + east[1] * (w / 2 + 0.5)), east, 0.5, 0.4, ys[1], ys[-2], top_mat="stone_cream")
+        ga = (c[0] - east[0] * w / 2, c[1] - east[1] * w / 2)
+        gb = (c[0] + east[0] * w / 2, c[1] + east[1] * w / 2)
+        nb = max(1, round(w / 3.0))
+        storeys = max(1, round((y1 - y0) / 3.6))
+        for k in range(storeys):
+            ya = y0 + (y1 - y0) * k / storeys
+            yb = y0 + (y1 - y0) * (k + 1) / storeys
+            mesh.wall("glassfacade_0", ga, gb, ya, yb, (0.0, float(nb), gvb, gvt))
+            light_windows(ctx, v, B_GLASS, ga, gb, ya, yb, nb, south, out=0.06, floor=k + 1)
+    # two tall projecting brick bays on the Comm Ave front, rising to the first setback (photo)
+    qvb, qvt = band_v(B_QUESTROM)
+    for along in (-0.45 * hu, 0.36 * hu):
+        c = (centre[0] + east[0] * along + south[0] * (fd + 0.9), centre[1] + east[1] * along + south[1] * (fd + 0.9))
+        bay_ring = oriented([(c[0] + sx * 4.5 * east[0] + sy * 1.2 * south[0], c[1] + sx * 4.5 * east[1] + sy * 1.2 * south[1])
+                             for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
+        for i in range(4):
+            a, bb = bay_ring[i], bay_ring[(i + 1) % 4]
+            for k in range(1, len(ys) - 1):
+                mesh.wall("facade_0", a, bb, ys[k], ys[k + 1], (0.0, max(1.0, round(dist(a, bb) / 4.2)), qvb, qvt))
+            mesh.wall("stone_cream", a, bb, -0.2, ys[1])
+        mesh.prism("stone_cream", offset_ring(bay_ring, 0.25), ys[-1], ys[-1] + 0.9, top_mat="stone_cream")
+    # main entrance: recessed under the centre slot, with a stone portal
+    pc = (centre[0] + south[0] * (fd + 0.6), centre[1] + south[1] * (fd + 0.6))
+    mesh.box("stone_cream", pc, east, 6.0, 0.6, ys[1] - 1.1, ys[1] + 0.3, top_mat="stone_cream")
+    # roof: metal penthouse to the west, ridged glass skylight over the atrium in the middle
+    t2 = tier_vols[-1]
+    y_r = t2.top + roof_up(t2.top)
+    # photos: a long, prominent light-grey ribbed metal penthouse runs along the top
+    pc_ = (centre[0] - east[0] * hu * 0.12, centre[1] - east[1] * hu * 0.12)
+    pen = oriented([(pc_[0] + sx * hu * 0.62 * east[0] + sy * hv * 0.30 * south[0], pc_[1] + sx * hu * 0.62 * east[1] + sy * hv * 0.30 * south[1])
                     for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
-    gvb, gvt = band_v(B_LOBBY)
-    for i in range(4):
-        a, bb = pav[i], pav[(i + 1) % 4]
-        nb = float(max(1, round(dist(a, bb) / 3.0)))
-        mesh.wall("glassfacade_0", a, bb, -0.2, ys[2], (0.0, nb, gvb, gvt))
-        light_windows(ctx, v, B_LOBBY, a, bb, -0.2, ys[2], int(nb), right_normal(a, bb), floor=0)
-    mesh.flat("trim_stone", [pav], ys[2], True)
-    mesh.box("trim_metal", (ec[0] + west[0] * 2.2, ec[1] + west[1] * 2.2), south, 4.0, 1.4, 3.6, 3.9, top_mat="trim_metal", bottom=True)
-    # atrium skylight: a glass ridge roof over the six-storey atrium in the middle of the block
-    y_r = v.top + roof_up(v.top)
-    sw, sd, rise = 11.0, 6.5, 3.2
-    lo = [(centre[0] + sx * sw * eu[0] + sy * sd * ev[0], centre[1] + sx * sw * eu[1] + sy * sd * ev[1])
-          for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    curb = oriented(lo)
-    mesh.prism("trim_metal", curb, y_r, y_r + 0.6)
+    mesh.prism("penthouse", pen, y_r, y_r + 4.6, top_mat="roof_light")
+    for i in range(4):  # standing ribs
+        a, bb = pen[i], pen[(i + 1) % 4]
+        L = dist(a, bb)
+        e2 = ((bb[0] - a[0]) / L, (bb[1] - a[1]) / L)
+        nrm = right_normal(a, bb)
+        for k in range(1, int(L // 2.4)):
+            c = (a[0] + e2[0] * k * 2.4 + nrm[0] * 0.08, a[1] + e2[1] * k * 2.4 + nrm[1] * 0.08)
+            mesh.box("roof_metal", c, e2, 0.08, 0.08, y_r, y_r + 4.6)
+    sw, sd, rise = 7.0, 4.5, 2.4
+    sk = (centre[0] + east[0] * hu * 0.72, centre[1] + east[1] * hu * 0.72)
+    lo = oriented([(sk[0] + sx * sw * east[0] + sy * sd * south[0], sk[1] + sx * sw * east[1] + sy * sd * south[1])
+                   for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
+    mesh.prism("trim_metal", lo, y_r, y_r + 0.8)
 
     def P(u, w, y):
-        return (centre[0] + eu[0] * u + ev[0] * w, y, -(centre[1] + eu[1] * u + ev[1] * w))
-    y0 = y_r + 0.6
-    for side in (-1, 1):
-        quad = [P(-sw, side * sd, y0), P(sw, side * sd, y0), P(sw, 0, y0 + rise), P(-sw, 0, y0 + rise)]
-        mesh.face("glass_rail", quad if side < 0 else quad[::-1])
-    for end in (-1, 1):
-        tri = [P(end * sw, -sd, y0), P(end * sw, sd, y0), P(end * sw, 0, y0 + rise)]
-        mesh.face("glass_rail", tri if end > 0 else tri[::-1])
-    for k in range(-5, 6):  # glazing bars
-        u = sw * k / 5.5
-        for side in (-1, 1):
-            mesh.face("trim_metal", [P(u - 0.06, side * sd, y0 + 0.02), P(u + 0.06, side * sd, y0 + 0.02),
-                                     P(u + 0.06, 0, y0 + rise + 0.02), P(u - 0.06, 0, y0 + rise + 0.02)][::(1 if side < 0 else -1)])
-    if ctx.lit is not None:  # the atrium glows through the skylight in the evening
-        for side in (-1, 1):
-            quad = [P(-sw + 0.4, side * (sd - 0.3), y0 + 0.05), P(sw - 0.4, side * (sd - 0.3), y0 + 0.05),
-                    P(sw - 0.4, 0, y0 + rise - 0.1), P(-sw + 0.4, 0, y0 + rise - 0.1)]
-            quad = quad if side < 0 else quad[::-1]
-            pr = ctx.lit.prim("lit_soft")
-            base_i = pr.n
-            for q in quad:
-                pr.pos.extend(q)
-                pr.nrm.extend((0.0, 1.0, 0.0))
-                pr.uv.extend((15.5, 23.5))
-            pr.idx.extend((base_i, base_i + 1, base_i + 2, base_i, base_i + 2, base_i + 3))
-            pr.n += 4
-    # rooftop plant at both ends
-    for su in (-0.72, 0.72):
-        mesh.box("mech", (centre[0] + eu[0] * su * hu, centre[1] + eu[1] * su * hu), eu, 6.0, 4.5, y_r, y_r + 3.2, top_mat="roof_metal")
-    return max(top, y0 + rise, y_r + 3.2)
+        return (sk[0] + east[0] * u + south[0] * w, y, -(sk[1] + east[1] * u + south[1] * w))
+    y0 = y_r + 0.8
+    # three parallel glass ridges (photos show a ridged glazed roof)
+    for r in range(3):
+        w0 = -sd + 2 * sd * r / 3
+        w1 = w0 + 2 * sd / 3
+        wm = (w0 + w1) / 2
+        for (wa, wb) in ((w0, wm), (wm, w1)):
+            ha = y0 + (rise if wa == wm else 0)
+            hb = y0 + (rise if wb == wm else 0)
+            q = [P(-sw, wa, ha), P(sw, wa, ha), P(sw, wb, hb), P(-sw, wb, hb)]
+            mesh.face("glass_rail", q)
+            mesh.face("glass_rail", q[::-1])
+            if ctx.lit is not None:
+                pr = ctx.lit.prim("lit_soft")
+                base_i = pr.n
+                for qq in q:
+                    pr.pos.extend((qq[0], qq[1] - 0.05, qq[2]))
+                    pr.nrm.extend((0.0, 1.0, 0.0))
+                    pr.uv.extend((15.5, 23.5))
+                pr.idx.extend((base_i, base_i + 1, base_i + 2, base_i, base_i + 2, base_i + 3, base_i, base_i + 2, base_i + 1, base_i, base_i + 3, base_i + 2))
+                pr.n += 4
+        for end in (-1, 1):
+            tri = [P(end * sw, w0, y0), P(end * sw, w1, y0), P(end * sw, wm, y0 + rise)]
+            mesh.face("glass_rail", tri)
+            mesh.face("glass_rail", tri[::-1])
+    return max(top, y_r + 4.6, y0 + rise)
+
+
+def _gable(mesh, a, b, nrm, y_eave, rise, depth, wall_mat, roof_mat, trim_mat, finial=True):
+    """A cross gable on wall a->b: triangular stone gable face with a coped edge and finial, and a
+    small pitched roof running back into the main roof."""
+    L = dist(a, b)
+    e2 = ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+    m = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+    apex = (m[0], y_eave + rise, -m[1])
+    mesh.face(wall_mat, [(a[0], y_eave, -a[1]), (b[0], y_eave, -b[1]), apex])
+    back = (-nrm[0] * depth, -nrm[1] * depth)
+    a2 = (a[0] + back[0], a[1] + back[1])
+    b2 = (b[0] + back[0], b[1] + back[1])
+    m2 = (m[0] + back[0], m[1] + back[1])
+    ov = 0.35  # eaves overhang
+    ao = (a[0] - e2[0] * ov + nrm[0] * ov, a[1] - e2[1] * ov + nrm[1] * ov)
+    bo = (b[0] + e2[0] * ov + nrm[0] * ov, b[1] + e2[1] * ov + nrm[1] * ov)
+    mo = (m[0] + nrm[0] * ov, m[1] + nrm[1] * ov)
+    yl = y_eave - ov * rise / (L / 2)
+    for (p, q, pb, qb) in (((ao, mo, a2, m2)), ((mo, bo, m2, b2))):
+        yp = yl if p is ao else y_eave + rise
+        yq = y_eave + rise if q is mo else yl
+        quad = [(p[0], yp, -p[1]), (q[0], yq, -q[1]), (qb[0], yq if q is mo else y_eave, -qb[1]), (pb[0], yp if p is mo else y_eave, -pb[1])]
+        mesh.face(roof_mat, quad[::-1])
+        mesh.face(roof_mat, quad)
+    # coping along the gable edges and a stone finial on the apex
+    for p, q in ((a, m), (m, b)):
+        yp = y_eave if p is a else y_eave + rise
+        yq = y_eave + rise if q is m else y_eave
+        pp = (p[0] + nrm[0] * 0.15, p[1] + nrm[1] * 0.15)
+        qq = (q[0] + nrm[0] * 0.15, q[1] + nrm[1] * 0.15)
+        mesh.face(trim_mat, [(pp[0], yp, -pp[1]), (qq[0], yq, -qq[1]), (qq[0], yq + 0.35, -qq[1]), (pp[0], yp + 0.35, -pp[1])])
+    if finial:
+        sq = [(m[0] + sx * 0.3, m[1] + sy * 0.3) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        mesh.prism(trim_mat, sq, y_eave + rise, y_eave + rise + 0.9)
+        mesh.pyramid(trim_mat, sq, y_eave + rise + 0.9, y_eave + rise + 1.7)
+    return y_eave + rise + 1.7
+
+
+def landmark_castle(mesh, b, ctx, rng, vols):
+    """The Castle, Dahod Family Alumni Center (Chapman & Frazer, c. 1915; 225 Bay State Rd), rebuilt
+    from Wikimedia Commons photos: a Tudor Revival mansion of buff Amherst sandstone, three storeys
+    under steep grey-slate roofs with copper-green flashing; several steep cross gables with coped
+    edges and stone finials; a square battlemented entrance tower with a Gothic arched doorway; three-
+    light mullioned and transomed leaded windows with hood moulds; tall stone chimney stacks (and one
+    red-brick stack at the back); and a raised terrace with a stone balustrade along the street.
+    Warm light glows through the leaded windows in the evening."""
+    v = vols[0]
+    v.style = "gothic"
+    v.top = 11.0
+    v.levels = 3
+    v.bands = (B_TUDOR, B_TUDOR, 4.8)
+    v.tint = "facade_0"
+    v.use = "venue"
+    v.party = False
+    v.door = False
+    v.ground = True
+    rings_o = [offset_ring(r, wall_out(v.top)) for r in v.rings]
+    y_eave = v.top + roof_up(v.top)
+    info, ys = build_walls(mesh, v, ctx, rings_o, -0.2, y_eave, {b.ref})
+    ring_o = rings_o[0]
+    centre, eu, ev, hu, hv = obb(ring_o)
+    # stone string courses between storeys and a moulded eaves course
+    n = len(ring_o)
+    for i in range(n):
+        a, bb = ring_o[i], ring_o[(i + 1) % n]
+        if dist(a, bb) < 0.5:
+            continue
+        nrm = right_normal(a, bb)
+        a2 = (a[0] + nrm[0] * 0.18, a[1] + nrm[1] * 0.18)
+        b2 = (bb[0] + nrm[0] * 0.18, bb[1] + nrm[1] * 0.18)
+        for y, hgt in ((ys[1], 0.3), (ys[2], 0.3), (y_eave, 0.5)):
+            mesh.wall("sand_trim", a2, b2, y - hgt, y)
+            mesh.face("sand_trim", [(a2[0], y, -a2[1]), (b2[0], y, -b2[1]), (bb[0], y, -bb[1]), (a[0], y, -a[1])])
+    # steep slate roof (hipped, ridge along the longer axis) with a copper ridge
+    v.roof_mat = "slate_grey"
+    ridge = pitched_top(mesh, v, ring_o, y_eave, "hipped", rise=7.0)
+    long_ax, half = (eu, hu) if hu >= hv else (ev, hv)
+    for sgn in (-1, 1):
+        pass
+    mesh.box("copper_green", centre, long_ax, max(0.5, half - (min(hu, hv))), 0.22, ridge - 0.15, ridge + 0.12, top_mat="copper_green")
+    top = ridge + 0.12
+    # cross gables on every long-enough outer wall facing a street or the river (photos: 2-3 per side)
+    fronts = street_edges(v, info, ctx, v.tags)
+    front = fronts[0] if fronts else max(info, key=lambda e: e["L"])
+    for e in sorted([e for e in info if e["outer"] and e["L"] > 5.5], key=lambda e: -e["L"])[:5]:
+        L = e["L"]
+        w = min(L * 0.6, 10.0)
+        e2 = ((e["b"][0] - e["a"][0]) / L, (e["b"][1] - e["a"][1]) / L)
+        t = 0.3 if e is front else 0.5
+        c = (e["a"][0] + e2[0] * L * t, e["a"][1] + e2[1] * L * t)
+        ga = (c[0] - e2[0] * w / 2 + e["n"][0] * 0.05, c[1] - e2[1] * w / 2 + e["n"][1] * 0.05)
+        gb = (c[0] + e2[0] * w / 2 + e["n"][0] * 0.05, c[1] + e2[1] * w / 2 + e["n"][1] * 0.05)
+        top = max(top, _gable(mesh, ga, gb, e["n"], y_eave, w * 1.0, 6.5, "sandstone", "slate_grey", "sand_trim"))
+        # attic window in the gable
+        wa = (c[0] - e2[0] * 1.0 + e["n"][0] * 0.1, c[1] - e2[1] * 1.0 + e["n"][1] * 0.1)
+        wb = (c[0] + e2[0] * 1.0 + e["n"][0] * 0.1, c[1] + e2[1] * 1.0 + e["n"][1] * 0.1)
+        tvb, tvt = band_v(B_TUDOR)
+        mesh.wall("facade_0", wa, wb, y_eave + 0.5, y_eave + 2.6, (0.0, 1.0, tvb, tvt))
+        light_windows(ctx, v, B_TUDOR, wa, wb, y_eave + 0.5, y_eave + 2.6, 1, e["n"], out=0.06, floor=3)
+    # battlemented entrance tower on the street front, Gothic arched doorway
+    a, bb, nrm = front["a"], front["b"], front["n"]
+    L = front["L"]
+    e2 = ((bb[0] - a[0]) / L, (bb[1] - a[1]) / L)
+    tc = (a[0] + e2[0] * L * 0.72 + nrm[0] * 1.2, a[1] + e2[1] * L * 0.72 + nrm[1] * 1.2)
+    ts = 3.4
+    tring = oriented([(tc[0] + sx * ts * e2[0] + sy * ts * nrm[0], tc[1] + sx * ts * e2[1] + sy * ts * nrm[1])
+                      for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
+    ty = y_eave + 2.5
+    tvb, tvt = band_v(B_TUDOR)
+    for i in range(4):
+        p0, p1 = tring[i], tring[(i + 1) % 4]
+        for k in range(3):
+            mesh.wall("facade_0", p0, p1, ys[k] if k else -0.2, ys[k + 1] if k < 2 else ty, (0.0, 1.0, tvb, tvt))
+    mesh.flat("roof_dark", [tring], ty, True)
+    rc = offset_ring(tring, 0.25)
+    for i in range(4):
+        p0, p1 = rc[i], rc[(i + 1) % 4]
+        mesh.wall("sand_trim", p0, p1, ty - 0.4, ty + 0.5)
+        Lq = dist(p0, p1)
+        eq = ((p1[0] - p0[0]) / Lq, (p1[1] - p0[1]) / Lq)
+        nq = right_normal(p0, p1)
+        for m in range(4):
+            c = (p0[0] + eq[0] * Lq * (m + 0.5) / 4 - nq[0] * 0.2, p0[1] + eq[1] * Lq * (m + 0.5) / 4 - nq[1] * 0.2)
+            mesh.box("sand_trim", c, eq, 0.45, 0.2, ty + 0.5, ty + 1.3)
+    top = max(top, ty + 1.3)
+    door_c = (tc[0] + nrm[0] * (ts + 0.08), tc[1] + nrm[1] * (ts + 0.08))
+    mesh.box("sand_trim", door_c, e2, 1.3, 0.12, -0.2, 3.6, top_mat="sand_trim")
+    mesh.box("door", (door_c[0] + nrm[0] * 0.1, door_c[1] + nrm[1] * 0.1), e2, 0.8, 0.06, 0.0, 2.9, top_mat="door")
+    sq = [(door_c[0] + nrm[0] * 0.18 + e2[0] * dx, door_c[1] + nrm[1] * 0.18 + e2[1] * dx) for dx in (-0.8, 0.8)]
+    mesh.face("door", [(sq[0][0], 2.9, -sq[0][1]), (sq[1][0], 2.9, -sq[1][1]), ((sq[0][0] + sq[1][0]) / 2, 3.5, -(sq[0][1] + sq[1][1]) / 2)])
+    # chimney stacks: tall stone stacks with pots, one red-brick stack at the back
+    stacks = [(0.55, 0.6, "sandstone"), (-0.5, 0.3, "sandstone"), (0.1, -0.7, "chimney_brick")]
+    for su, sv, mat in stacks:
+        c = (centre[0] + eu[0] * su * hu + ev[0] * sv * hv, centre[1] + eu[1] * su * hu + ev[1] * sv * hv)
+        mesh.box(mat, c, eu, 0.9, 0.55, y_eave, ridge + 2.6, top_mat="sand_trim")
+        mesh.box("sand_trim", c, eu, 1.05, 0.7, ridge + 2.0, ridge + 2.3, top_mat="sand_trim")
+        for k in (-0.45, 0.0, 0.45):
+            mesh.box("chimney_brick", (c[0] + eu[0] * k, c[1] + eu[1] * k), eu, 0.13, 0.13, ridge + 2.6, ridge + 3.3)
+        top = max(top, ridge + 3.3)
+    # raised terrace with a stone balustrade along the street front
+    ta = (a[0] + nrm[0] * 0.3, a[1] + nrm[1] * 0.3)
+    tb = (bb[0] + nrm[0] * 0.3, bb[1] + nrm[1] * 0.3)
+    depth = 4.5
+    terr = oriented([ta, tb, (tb[0] + nrm[0] * depth, tb[1] + nrm[1] * depth), (ta[0] + nrm[0] * depth, ta[1] + nrm[1] * depth)])
+    mesh.prism("sandstone", terr, -0.2, 1.5, top_mat="roof_gravel")
+    ea, eb = (ta[0] + nrm[0] * depth, ta[1] + nrm[1] * depth), (tb[0] + nrm[0] * depth, tb[1] + nrm[1] * depth)
+    mesh.wall("sand_trim", ea, eb, 1.5, 1.65)
+    k = int(L / 0.35)
+    for m in range(k + 1):
+        c = (ea[0] + (eb[0] - ea[0]) * m / k - nrm[0] * 0.1, ea[1] + (eb[1] - ea[1]) * m / k - nrm[1] * 0.1)
+        mesh.box("sand_trim", c, e2, 0.07, 0.07, 1.65, 2.35)
+    mesh.box("sand_trim", ((ea[0] + eb[0]) / 2 - nrm[0] * 0.1, (ea[1] + eb[1]) / 2 - nrm[1] * 0.1), e2, L / 2, 0.16, 2.35, 2.5, top_mat="sand_trim")
+    for p_ in (ea, eb):
+        mesh.box("sandstone", (p_[0] - nrm[0] * 0.1, p_[1] - nrm[1] * 0.1), e2, 0.3, 0.3, 1.5, 2.8, top_mat="sand_trim")
+    return top
 
 
 def landmark_garage(mesh, b, ctx, rng, vols):
@@ -2959,7 +3300,7 @@ def landmark_garage(mesh, b, ctx, rng, vols):
     return top
 
 
-LANDMARK_FN = {"questrom": landmark_questrom, "garage": landmark_garage, "chapel": landmark_chapel, "cas": landmark_cas, "warren": landmark_warren, "stuvi": landmark_stuvi,
+LANDMARK_FN = {"castle": landmark_castle, "theology": landmark_theology, "questrom": landmark_questrom, "garage": landmark_garage, "chapel": landmark_chapel, "cas": landmark_cas, "warren": landmark_warren, "stuvi": landmark_stuvi,
                "arena": landmark_arena, "mugar": landmark_modern, "gsu": landmark_modern, "lawtower": landmark_lawtower,
                "cds": landmark_cds}
 
@@ -3024,7 +3365,6 @@ SPECIAL = {
     "way/485223500": dict(style="limestone", bands=(B_LIME_STRIP, B_LOBBY, 2.8)),          # Redstone Building
     "way/29557600": dict(style="brick", bands=(B_HOTEL, B_HOTEL_BASE, 3.4), lit=0.5),       # Myles Standish
     "way/29863053": dict(style="brick", bands=(B_HOTEL, B_HOTEL_BASE, 3.4), tint="facade_faded", lit=0.5),  # Kilachand
-    "way/29887049": dict(style="gothic", tint="facade_sand"),                               # the Castle
     "way/29581513": dict(style="brick", bands=(B_PHOTONICS, B_BRICK_GROUND, 3.0)),         # Photonics
     "way/102385045": dict(style="brick", bands=(B_BRICK, B_LOBBY, 3.2), top_band=B_GLASS),  # FitRec
     "way/697017104": dict(style="glass", fins=(1.3, 0.7, 0.35, "fin_sand", None, None)),   # LSEB

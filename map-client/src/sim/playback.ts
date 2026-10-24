@@ -76,6 +76,8 @@ export interface BuildingOccupancy {
   count: number;
   capacity: number;
   share: number;
+  /** Tag height in metres when it isn't the building's roof (a dining hall in a tower's podium). */
+  roof?: number;
 }
 
 export interface Agent {

@@ -47,11 +47,11 @@
   ],
   "bearing": 245,
   "altitude": 23.0,
-  "height": 23.4,
+  "height": 27.9,
   "source": {
    "position": "https://www.openstreetmap.org/node/7599402961",
-   "details": "OSM tags direction=245;65 (double-sided), lit=yes; 60 ft square (Wikipedia, 'Citgo sign'); on the roof of 660 Beacon St, whose model top is 23.0 m in building-models.json; logo geometry from Wikimedia Commons File:Citgo_logo.svg; frame and catwalk from Commons photos (2017, 2025).",
-   "unverified": "Height of the frame above the roof (about 5 m, judged from photos). The sign was taken down in May 2026 to be reinstalled about 120 ft east and 30 ft higher on the same property (Boston Globe, 29 May 2026; a Sept 2026 Commons photo shows the new frame). This entry is the long-standing position."
+   "details": "OSM tags direction=245;65 (double-sided), lit=yes; 60 ft square (Wikipedia, 'Citgo sign'); on the roof of 660 Beacon St, whose model top is 23.0 m in building-models.json; logo geometry from Wikimedia Commons File:Citgo_logo.svg; truss, pyramid trimark, 39 white light rows and 18 lit triangles from the Boston Landmarks Commission Citgo Sign study report (2018); frame and catwalk also from Commons photos (2017, 2025).",
+   "unverified": "Height of the truss: the Landmarks report says the sign is held 40 ft above the roof by a 90 ft truss (inconsistent); modelled at 9.5 m (31 ft), as photos suggest. The sign was taken down in May 2026 to be reinstalled about 120 ft east and 30 ft higher on the same property (Boston Globe, 29 May 2026; a Sept 2026 Commons photo shows the new frame). This entry is the long-standing position."
   }
  },
  {

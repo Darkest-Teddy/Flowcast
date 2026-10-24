@@ -276,7 +276,19 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     addTrafficLayer(map);
     // Distance haze: the tilted camera would otherwise show the whole region out to the
     // horizon. Fading out a few km away keeps the eye on campus and central Boston.
-    const baseFog = { range: [0.8, 3.2] as [number, number], 'horizon-blend': 0.25 };
+    // The haze doubles as the sky: Mapbox draws the sky from the fog colours, and the defaults are
+    // flat grey. These follow the light (measure-light brightness): clear blue by day, warm at
+    // the horizon at dawn and dusk, deep navy at night.
+    const skyBy = (night: string, dusk: string, day: string) =>
+      ['interpolate', ['linear'], ['measure-light', 'brightness'], 0.1, night, 0.25, dusk, 0.5, day] as unknown as string;
+    const baseFog = {
+      range: [0.8, 3.2] as [number, number],
+      'horizon-blend': 0.12,
+      color: skyBy('#1d2538', '#e9b48c', '#dcebf7'), // at the horizon
+      'high-color': skyBy('#0c1426', '#5d6fa8', '#5aa2e6'), // the sky above it
+      'space-color': skyBy('#05070f', '#2a3560', '#3d8be0'), // straight up
+      'star-intensity': ['interpolate', ['linear'], ['measure-light', 'brightness'], 0.1, 0.35, 0.25, 0] as unknown as number,
+    };
     const dryGround: Record<string, string> = {}; // Standard's own ground colours, as first changed
     const appliedGround: Record<string, string> = {};
     map.setFog(baseFog);

@@ -689,3 +689,14 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 @media (prefers-reduced-motion: reduce) {
   .gtag-pill, .gtag:not(.is-solo) .gtag-card { transition: none; }
 }
+
+/* Place tags (PlaceTags.tsx): monuments, landmarks and art in warm bronze; open spaces and fields
+   in green. Same pill and card as the transit tags. */
+.gtag--place { --accent-rgb: 214, 178, 112; }
+.gtag--place.is-area { --accent-rgb: 134, 214, 150; }
+.gtag--place.is-field { --accent-rgb: 120, 196, 140; }
+.gtag--place .gtag-pill { padding: 2px 9px 2px 4px; gap: 5px; }
+.gtag--place .gtag-picon { width: 16px; height: 16px; color: rgb(var(--accent-rgb)); }
+.gtag--place .gtag-picon svg { width: 13px; height: 13px; }
+.gtag--place .gtag-icon svg { width: 15px; height: 15px; }
+.gtag--place .gtag-stats { font-weight: 500; }

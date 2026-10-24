@@ -299,7 +299,8 @@ export function effectFor(condition: Condition, strength: number, wind: { fromDe
     case 'cloudy':
       return {
         ...dry,
-        fog: fog([0.6, 3.2], 'hsl(220, 14%, 22%)', 'hsl(213, 14%, 84%)', 'hsl(220, 16%, 18%)', 'hsl(213, 16%, 76%)'),
+        // Overcast: a soft blue-grey sky rather than flat grey (the sky colours come from fog).
+        fog: fog([0.6, 3.2], 'hsl(220, 14%, 22%)', 'hsl(212, 20%, 84%)', 'hsl(220, 18%, 16%)', 'hsl(212, 30%, 66%)'),
         overlay: { tint: '#dde2ea', haze: 0.15, hazeTone: 'cool', lightning: false },
       };
     case 'fog':
