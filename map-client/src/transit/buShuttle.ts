@@ -1,9 +1,11 @@
 // BU's own shuttle ("the BUS") from BU's TransLoc feed: routes, stops, live vehicles and
 // arrival estimates. The feed is open to browsers (CORS *), so the map polls it directly.
 // Results are shaped like the MBTA data so the same tracks, snapping and panels handle both.
+import { parseObservationTime, ShuttleObservationClock } from './liveFreshness';
 import type { Arrival, TransitArea, TransitRoute, TransitStop } from './mbta';
 
 const API = 'https://bu.transloc.com/Services/JSONPRelay.svc';
+const observationClock = new ShuttleObservationClock();
 export const BU_RED = '#CC0000';
 
 interface TlRouteStop {
@@ -25,6 +27,7 @@ interface TlRoute {
 }
 
 export interface ShuttleVehicleReport {
+  observedAt: number | null;
   id: string;
   route: string;
   position: [number, number];
@@ -171,9 +174,10 @@ export async function loadShuttles(areas: TransitArea[]): Promise<ShuttleData> {
 export async function pollShuttleVehicles(): Promise<ShuttleVehicleReport[]> {
   const res = await fetch(`${API}/GetMapVehiclePoints`);
   if (!res.ok) throw new Error(`BU shuttle vehicles: ${res.status}`);
-  const json: { VehicleID: number; RouteID: number; Latitude: number; Longitude: number; Heading: number; GroundSpeed: number; Name: string }[] =
+  const json: { VehicleID: number; RouteID: number; Latitude: number; Longitude: number; Heading: number; GroundSpeed: number; Name: string; TimeStamp: string | null }[] =
     await res.json();
   return json.map((v) => ({
+    observedAt: observationClock.observe(`BU-${v.VehicleID}`, parseObservationTime(v.TimeStamp)),
     id: `BU-${v.VehicleID}`,
     route: shuttleRouteId(v.RouteID),
     position: [v.Longitude, v.Latitude],

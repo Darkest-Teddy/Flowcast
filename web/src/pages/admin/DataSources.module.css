@@ -1,0 +1,18 @@
+.quiet {
+  color: var(--color-ink-tertiary);
+  white-space: nowrap;
+}
+
+.rowActions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.message {
+  margin-top: var(--space-4);
+}
+
+.none {
+  position: relative;
+}

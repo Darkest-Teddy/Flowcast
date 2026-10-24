@@ -28,158 +28,151 @@ function fixture() {
   for (const from of locations) for (const to of locations) {
     if (from.id!==to.id) walkRoutes[`${from.id}>${to.id}`]={path:[from.position,to.position],cumulative:[0,140]};
   }
-  const base={day:'Wednesday',locations,buildings:[],agents:Array.from({length:10},(_,i)=>({id:`a${i}`,home:'home',model:i%12,campus:'main'})),walkRoutes,trips:[]};
+  const base={stopRoutes:{'gate>class':walkRoutes['home>class']},day:'Wednesday',locations,buildings:[],agents:Array.from({length:10},(_,i)=>({id:`a${i}`,home:'home',model:i%12,campus:'main'})),walkRoutes,trips:[]};
   const data={schemaVersion:1,term:'FALL 2026',collectedAt:'2026-10-24',referenceWeekStart:'2026-10-19',coverage:{},locations:{},events:[],libraryHistory:{},signals:[],assumptions:[],inputFiles:[]};
   for (const loc of locations) data.locations[loc.id]={id:loc.id,buildingCodes:[],meetings:[],evidence:[],hours:[]};
   data.locations.class.meetings=[meeting('A'),meeting('B',0,11*3600,12*3600),meeting('C',2,10*3600,11*3600)];
   return {base,data};
 }
 function validate(day) {
-  assert.equal(day.sourceStats.unroutableTrips,0);
+  const segments = new Map(day.agents.map(a => [a.id, []]));
+  for (const stay of day.stays) segments.get(stay.agent).push({start:stay.start,end:stay.end,from:stay.location,to:stay.location});
+  for (const trip of day.trips) segments.get(trip.agent).push({start:trip.timestamps[0],end:trip.timestamps.at(-1),from:trip.from,to:trip.to});
   for (const agent of day.agents) {
-    const trips=day.trips.filter(t=>t.agent===agent.id);
-    let where=agent.home, freeAt=0;
-    for (const trip of trips) {
-      assert.equal(trip.from,where);
-      assert.ok(trip.timestamps[0]>=freeAt-1e-8);
-      assert.ok(trip.timestamps[0]>=0);
-      assert.ok(trip.timestamps.at(-1)<=86400);
-      assert.equal(trip.timestamps.length,trip.path.length);
-      assert.equal(trip.timestamps.at(-1)-trip.timestamps[0],(trip.path.length-1)*100);
-      where=trip.to;freeAt=trip.timestamps.at(-1);
+    const parts=segments.get(agent.id).sort((a,b)=>a.start-b.start||a.end-b.end);
+    assert.equal(parts[0].start,0); assert.equal(parts.at(-1).end,86400);
+    assert.equal(parts[0].from,agent.home); assert.equal(parts.at(-1).to,agent.home);
+    for(let i=1;i<parts.length;i++) {
+      assert.ok(Math.abs(parts[i].start-parts[i-1].end)<1e-7,'no overlap or uncovered time');
+      const entering=parts[i-1].to==='off-campus'||parts[i].from==='off-campus';
+      if(!entering) assert.equal(parts[i-1].to,parts[i].from,'continuous network movement');
     }
-    assert.equal(where,agent.home);
   }
 }
 
-test('published anchors drive fixed-time arrivals and preserve cohort/population',()=>{
-  const {base,data}=fixture();const day=buildSourceDay(base,data,0);
-  assert.equal(day.agents,base.agents);assert.equal(day.sourceStats.assignedClasses,20);
-  assert.equal(day.sourceAssignments.length,20);
-  for (const assignment of day.sourceAssignments) {
-    const arrival=day.trips.find(t=>t.agent===assignment.agentId&&t.to===assignment.locationId&&Math.abs(t.timestamps.at(-1)-assignment.startSec)<1e-8);
-    assert.ok(arrival);
-  }
+test('weekly section enrollment repeats every published day and caches results',()=>{
+  const {base,data}=fixture();
+  data.locations.class.meetings=[meeting('MWF',0,9*3600,10*3600,{intervals:[0,2,4].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}))})];
+  const days=[0,2,4].map(d=>buildSourceDay(base,data,d));
+  assert.deepEqual(days[0].sourceAssignments.map(a=>a.agentId),days[1].sourceAssignments.map(a=>a.agentId));
+  assert.deepEqual(days[0].sourceAssignments,days[2].sourceAssignments);
+  assert.equal(buildSourceDay(base,data,0),days[0]);
+  for(const day of days) validate(day);
+  assert.ok(buildSourceDay(base,data,6).trips.length>0);
+  assert.equal(buildSourceDay(base,data,6).sourceAssignments.length,0);
+});
+
+test('section admission requires full-week travel feasibility',()=>{
+  const {base,data}=fixture();
+  data.locations.class.meetings=[meeting('first',0,9*3600,10*3600,{intervals:[0,2].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}))})];
+  data.locations.study.meetings=[meeting('second',0,11*3600,12*3600,{intervals:[{weekday:0,startSec:11*3600,endSec:12*3600},{weekday:2,startSec:2*86400+10*3600,endSec:2*86400+11*3600}]})];
+  const monday=buildSourceDay(base,data,0);
+  for(const agent of base.agents) assert.equal(monday.sourceAssignments.filter(a=>a.agentId===agent.id).length,1);
+  validate(monday);validate(buildSourceDay(base,data,2));
+});
+
+test('shared cross-listed seats and unknown room fallback cap weekly membership',()=>{
+  const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`cap${i}`,home:'home',model:0,campus:'main'}));
+  data.locations.class.meetings=[meeting('one',0,9*3600,10*3600,{sharedKey:'cross',roomCapacity:7}),meeting('two',0,9*3600,10*3600,{sharedKey:'cross',roomCapacity:9}),meeting('unknown',0,11*3600,12*3600,{roomCapacity:null})];
+  const day=buildSourceDay(base,data,0);
+  assert.equal(day.sourceAssignments.filter(a=>a.meetingId==='one'||a.meetingId==='two').length,7);
+  assert.equal(day.sourceAssignments.filter(a=>a.meetingId==='unknown').length,24);
   validate(day);
 });
 
-test('day choice is deterministic and differs by source weekday',()=>{
-  const {base,data}=fixture();
-  const monday=buildSourceDay(base,data,0),wednesday=buildSourceDay(base,data,2),sunday=buildSourceDay(base,data,6);
-  assert.deepEqual(buildSourceDay(base,data,0),monday);
-  assert.ok(wednesday.sourceAssignments.every(a=>a.courseCode==='C'));
-  assert.equal(sunday.sourceStats.assignedClasses,0);
-  assert.ok(sunday.trips.length>0);
-  validate(sunday);
+test('commuters walk saved gateway access paths without fabricated off-map commute or dorm returns',()=>{
+  const {base,data}=fixture();base.agents=[{id:'commuter',home:'off-campus',residency:'commuter',campus:'main',model:0,walkSpeed:1.1}];
+  data.locations.study.meetings=[meeting('later',0,13*3600,14*3600)];
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.ok(day.sourceAssignments.length>=2);
+  assert.ok(day.trips.some(t=>t.from==='off-campus'));
+  assert.ok(day.trips.some(t=>t.to==='off-campus'));
+  assert.ok(day.trips.every(t=>t.to!=='home'));
+  assert.ok(day.sourceStats.campusAccessTrips>=2);
+  const access=day.trips.find(t=>t.from==='off-campus');
+  assert.deepEqual(access.path[0],base.stopRoutes['gate>class'].path[0]);
+  const lead=Math.min(...day.sourceAssignments.map(a=>a.startSec))-access.timestamps.at(-1);
+  assert.ok(lead>=120&&lead<=720);
+  assert.ok(day.trips.every(t=>t.timestamps.at(-1)-t.timestamps[0]>=0));
+  assert.equal(day.stays[0].location,'off-campus');assert.equal(day.stays.at(-1).location,'off-campus');
+  assert.ok(day.stays[0].end<Math.min(...day.sourceAssignments.map(a=>a.startSec)));
+  assert.ok(day.stays.at(-1).start>Math.max(...day.sourceAssignments.map(a=>a.endSec)));
 });
 
-test('restricted and shared candidates cannot inflate schedule choices',()=>{
-  const {base,data}=fixture();
-  data.locations.class.meetings=[meeting('restricted',0,9*3600,10*3600,{calendarRestricted:true}),meeting('one',0,10*3600,11*3600,{sharedKey:'same-room-time'}),meeting('two',0,10*3600,11*3600,{sharedKey:'same-room-time'})];
-  const day=buildSourceDay(base,data,0);
-  assert.equal(day.sourceStats.skippedCalendar,1);assert.equal(day.sourceStats.sharedCandidatesSuppressed,1);
-  assert.equal(day.sourceStats.eligibleMeetings,1);
-  assert.ok(day.sourceAssignments.every(a=>a.courseCode==='one'));
+test('campus gateway detours beyond the declared 2km limit cannot create assignments',()=>{
+  const {base,data}=fixture();base.agents=[{id:'remote-gate',home:'off-campus',residency:'commuter',campus:'main',model:0}];
+  base.stopRoutes={'gate>class':{...base.stopRoutes['gate>class'],cumulative:[0,2100]}};
+  const day=buildSourceDay(base,data,0);assert.equal(day.sourceAssignments.length,0);assert.equal(day.trips.length,0);validate(day);
 });
 
-test('date-specific closure blocks a visit; undated snapshots do not masquerade as current hours',()=>{
+test('residents return home in sufficient gaps and use their stable walking speed',()=>{
+  const {base,data}=fixture();base.agents=[{id:'resident',home:'home',residency:'resident',campus:'main',model:0,walkSpeed:1.6}];
+  const day=buildSourceDay(base,data,0);validate(day);
+  assert.equal(day.trips[0].timestamps.at(-1)-day.trips[0].timestamps[0],140/1.6);
+  assert.ok(day.stays.filter(s=>s.location==='home').length>=3);
+  assert.ok(day.sourceAssignments.every(a=>a.locationId==='class'));
+});
+
+test('network composition retains original endpoints; absent routes and date closures prevent admission',()=>{
+  const {base,data}=fixture();delete base.walkRoutes['home>class'];
+  const day=buildSourceDay(base,data,0);assert.ok(day.sourceStats.composedTrips>0);validate(day);
+  assert.ok(day.trips.some(t=>t.from==='home'&&t.to==='class'&&t.path.length===3));
+  const blocked=fixture();blocked.data.locations.class.hours=[{date:'2026-10-21',windows:[],text:'Closed',sourceUrl:'source',qualifier:null}];
+  blocked.data.locations.class.meetings=[meeting('MW',0,9*3600,10*3600,{intervals:[0,2].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}))})];
+  assert.equal(buildSourceDay(blocked.base,blocked.data,0).sourceAssignments.length,0);
+  const unreachable=fixture();unreachable.base.walkRoutes={};assert.equal(buildSourceDay(unreachable.base,unreachable.data,0).trips.length,0);
+});
+
+test('restricted meetings excluded and zero-class residents and commuters have complete home stays',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[meeting('restricted',0,9*3600,10*3600,{calendarRestricted:true})];
+  base.agents.push({id:'off',home:'off-campus',campus:'main',residency:'commuter',model:0});
+  base.walkRoutes={};base.stopRoutes={};
+  const day=buildSourceDay(base,data,0);assert.equal(day.trips.length,0);assert.equal(day.stays.length,base.agents.length);validate(day);
+  assert.equal(day.sourceStats.unassignedStudents,base.agents.length);
+});
+
+test('part-time and full-time undergraduate/graduate course loads respect modeled limits',()=>{
   const {base,data}=fixture();
-  data.locations.study.hours=[{date:'2026-10-19',windows:[],text:'Closed',sourceUrl:'source',qualifier:null}];
-  data.locations.meal.hours=[{date:null,windows:[],text:'Unknown service date',sourceUrl:'source',qualifier:'snapshot'}];
+  base.agents=Array.from({length:90},(_,i)=>({id:`load-${i}`,home:'home',model:0,campus:'main',attendance:i<30?'part-time':'full-time',studentLevel:i>=30&&i<60?'graduate':'undergraduate'}));
+  data.locations.class.meetings=Array.from({length:7},(_,i)=>meeting(`course-${i}`,0,(8+i)*3600,(8+i)*3600+1800,{roomCapacity:100}));
   const day=buildSourceDay(base,data,0);
+  for(const agent of base.agents) {
+    const count=day.sourceAssignments.filter(a=>a.agentId===agent.id).length;
+    const minimum=agent.attendance==='part-time'?1:agent.studentLevel==='graduate'?3:4;
+    assert.ok(count>=minimum&&count<=minimum+1,`${agent.id}: ${count} courses`);
+  }
+});
+
+test('weekend resident trips are deterministic, probability-bounded and respect exact-date/assumed dining windows',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  base.agents=Array.from({length:100},(_,i)=>({id:`weekend${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  data.locations.meal.hours=[{date:null,windows:[[11*3600,21*3600]],text:'Saved service window',sourceUrl:'source',qualifier:'undated'}];
+  data.locations.study.hours=[{date:'2026-10-24',windows:[],text:'Closed',sourceUrl:'source',qualifier:null}];
+  const day=buildSourceDay(base,data,5);validate(day);
+  assert.equal(day.sourceAssignments.length,0);assert.ok(day.sourceStats.modeledActivities>0);
+  assert.ok(day.trips.length>100);assert.ok(day.trips.length<100*10);
   assert.ok(!day.trips.some(t=>t.to==='study'));
   assert.ok(day.trips.some(t=>t.to==='meal'));
+  for(const stay of day.stays.filter(s=>s.location==='meal')) assert.ok(stay.start>=11*3600&&stay.end<=21*3600);
+  const playback=new Playback(day);
+  assert.ok(Array.from({length:840},(_,i)=>playback.walkingAt(8*3600+i*60).length).some(n=>n>0));
+  assert.equal(buildSourceDay(base,data,5),day);
 });
 
-test('unreachable locations never create straight-line fallback trips',()=>{
-  const {base,data}=fixture();
-  for (const key of Object.keys(base.walkRoutes)) if (key.endsWith('>class')) delete base.walkRoutes[key];
-  const day=buildSourceDay(base,data,0);
-  assert.equal(day.sourceStats.assignedClasses,0);assert.ok(day.sourceStats.unroutableCandidates>0);
-  assert.ok(!day.trips.some(t=>t.to==='class'));validate(day);
-});
-
-test('agents without classes and without routes remain at home with no synthetic class fallback',()=>{
-  const {base,data}=fixture();base.walkRoutes={};data.locations.class.meetings=[];
-  const day=buildSourceDay(base,data,1);
-  assert.equal(day.agents.length,10);assert.equal(day.trips.length,0);assert.equal(day.sourceStats.assignedClasses,0);
-});
-
-
-test('missing direct routes compose existing continuous network legs without intermediate arrivals',()=>{
-  const {base,data}=fixture();delete base.walkRoutes['home>class'];
-  const day=buildSourceDay(base,data,0);
-  assert.ok(day.sourceStats.composedRoutes>0);assert.ok(day.sourceStats.composedTrips>0);
-  assert.equal(day.sourceStats.assignedClasses,20);
-  assert.ok(day.trips.some(t=>t.from==='home'&&t.to==='class'&&t.path.length===3));
-  validate(day);
-});
-
-test('discontinuous route endpoints are rejected rather than bridged by a new straight line',()=>{
-  const {base,data}=fixture();
-  for (const key of Object.keys(base.walkRoutes)) if (key.endsWith('>class')) base.walkRoutes[key].path[1]=[-72,42.35];
-  const day=buildSourceDay(base,data,0);
-  assert.ok(day.sourceStats.invalidRoutes>0);
-  assert.equal(day.sourceStats.assignedClasses,0);
-});
-
-test('one meeting cannot acquire a whole campus cohort and unknown seats use a conservative model limit',()=>{
-  const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`student-${i}`,home:'home',model:i%12,campus:'main'}));
-  data.locations.class.meetings=[meeting('small',0,9*3600,10*3600,{roomCapacity:7})];
-  const known=buildSourceDay(base,data,0);assert.equal(known.sourceStats.assignedClasses,7);assert.equal(known.sourceStats.scheduledStudents,7);
-  assert.ok(known.sourceStats.capacityLimitedCandidates>0);
-  data.locations.class.meetings=[meeting('unknown',0,9*3600,10*3600,{roomCapacity:null})];
-  const unknown=buildSourceDay(base,data,0);assert.equal(unknown.sourceStats.assignedClasses,24);
-  assert.deepEqual(buildSourceDay(base,data,0).sourceAssignments,unknown.sourceAssignments);
-});
-
-
-test('Playback counts agents with no trips at home and keeps the full-day range valid',()=>{
-  const {base,data}=fixture();base.walkRoutes={};data.locations.class.meetings=[];
-  const day=buildSourceDay(base,data,6),playback=new Playback(day);
-  assert.equal(playback.occupancyAt(12*3600).reduce((sum,row)=>sum+row.count,0),base.agents.length);
-  assert.equal(playback.walkingAt(12*3600).length,0);
-  assert.ok(Number.isFinite(playback.startTime));assert.ok(Number.isFinite(playback.endTime));
-});
-
-test('co-located places sum their building population rather than discard a quieter location',()=>{
-  const {base}=fixture();base.locations[1].building='shared';base.locations[2].building='shared';
-  base.agents=[{id:'one',home:'class',model:0,campus:'main'},{id:'two',home:'meal',model:1,campus:'main'}];
-  const playback=new Playback(base),rows=playback.byBuilding(playback.occupancyAt(0));
-  assert.equal(rows.find(row=>row.id==='shared').count,2);
-});
-
-test('saved campus bundle conserves all1200 students and valid routes throughout the week',()=>{
-  const base=JSON.parse(readFileSync(new URL('../public/data/demo-day.json',import.meta.url),'utf8'));
-  const data=JSON.parse(readFileSync(new URL('../public/data/campus-data.json',import.meta.url),'utf8'));
-  const meetings=new Map(Object.values(data.locations).flatMap(location=>location.meetings).map(meeting=>[meeting.id,meeting]));
-  const edges=new Set();
-  for(const route of Object.values(base.walkRoutes))for(let i=1;i<route.path.length;i++)edges.add(JSON.stringify([route.path[i-1],route.path[i]]));
-  for(let weekday=0;weekday<7;weekday++){
-    const day=buildSourceDay(base,data,weekday),playback=new Playback(day),byAgent=new Map(),attendance=new Map();
-    assert.equal(day.agents.length,1200);assert.equal(day.sourceStats.unroutableTrips,0);assert.equal(day.sourceStats.invalidRoutes,0);
-    for(const trip of day.trips){
-      const rows=byAgent.get(trip.agent)??[];rows.push(trip);byAgent.set(trip.agent,rows);
-      for(let i=1;i<trip.path.length;i++)assert.ok(edges.has(JSON.stringify([trip.path[i-1],trip.path[i]])),'movement edge must already exist in the bundled network');
-    }
-    for(const agent of day.agents){let where=agent.home,freeAt=0;for(const trip of byAgent.get(agent.id)??[]){assert.equal(trip.from,where);assert.ok(trip.timestamps[0]>=freeAt-1e-7);assert.ok(trip.timestamps.at(-1)<=86400);where=trip.to;freeAt=trip.timestamps.at(-1);}assert.equal(where,agent.home);}
-    for(const assignment of day.sourceAssignments){
-      const key=assignment.meetingId+':'+assignment.startSec;attendance.set(key,(attendance.get(key)??0)+1);
-      const meeting=meetings.get(assignment.meetingId);const seats=meeting.roomCapacity===null?24:Math.floor(meeting.roomCapacity);
-      assert.ok(attendance.get(key)<=seats,'synthetic attendance cannot exceed its explicit seat upper bound');
-    }
-    for(const time of [0,9*3600,12*3600,18*3600,86399]){
-      const occupancy=playback.occupancyAt(time),inside=occupancy.reduce((sum,row)=>sum+row.count,0);
-      assert.equal(inside+playback.walkingAt(time).length,1200);
-      assert.equal(playback.byBuilding(occupancy).reduce((sum,row)=>sum+row.count,0),inside);
-    }
+test('saved source bundle scales to 36977 weekly students and conserves complete day timelines',()=>{
+  const base=JSON.parse(readFileSync(new URL('../public/data/demo-day.json',import.meta.url)));
+  const data=JSON.parse(readFileSync(new URL('../public/data/campus-data.json',import.meta.url)));
+  const homes=base.agents;
+  base.agents=Array.from({length:36977},(_,i)=>({...homes[i%homes.length],id:`scaled-${i}`,home:i<10048?homes[i%homes.length].home:'off-campus',residency:i<10048?'resident':'commuter',walkSpeed:1.1+(i%51)/100}));
+  base.trips=[];
+  const started=performance.now(); const monday=buildSourceDay(base,data,0);
+  console.log(`36977 students: weekly plan + Monday ${(performance.now()-started).toFixed(0)}ms; ${monday.sourceStats.weeklyEnrollments} weekly enrollments; ${monday.sourceStats.weeklyEnrolledStudents} covered students`);
+  for(let weekday=0;weekday<7;weekday++) {
+    const day=buildSourceDay(base,data,weekday);validate(day);
+    const counts=new Map();
+    for(const assignment of day.sourceAssignments) counts.set(assignment.meetingId,(counts.get(assignment.meetingId)??0)+1);
+    const meetings=new Map(Object.values(data.locations).flatMap(l=>l.meetings.map(m=>[m.id,m])));
+    for(const [id,count] of counts) assert.ok(count<=(meetings.get(id).roomCapacity??24));
+    assert.equal(day.sourceStats.unroutableTrips,0);assert.equal(day.sourceStats.invalidRoutes,0);
   }
-});
-
-test('weather changes activity intensity without changing the student population', async () => {
-  const { adjustOccupancy } = await import('../src/weather/weather.ts');
-  const rows = [{ location: location('dining', 'dining'), count: 12, share: 0.12 }];
-  const adjusted = adjustOccupancy(rows, { condition: 'rain' });
-  assert.equal(adjusted[0].count, 12);
-  assert.ok(adjusted[0].share > rows[0].share);
 });

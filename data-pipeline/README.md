@@ -13,6 +13,20 @@ The normalized public datasets in [`output/`](output/) are committed. Use them d
 - [`output/campus-wide/coverage.json`](output/campus-wide/coverage.json): per-school coverage and explicit schedule/capacity gaps.
 - The other category JSON files contain the saved events, dining, library, housing, and supplemental-signal records.
 
+Additional saved inputs for population scale and traffic:
+
+| Snapshot / collector | Source and use |
+|---|---|
+| `population.json` / `scrape_population.py` | BU 2025–26 Common Data Set and FY2026 fact sheet. Census headcount and attendance cohorts are distinct from FTE, staff, and residence capacity. |
+| `transit_schedule.json` / `scrape_transit_schedule.py` | Official MBTA GTFS, reference week October 19–25, 2026. Arrival/departure times, calendar exceptions, and previous-day after-midnight service. |
+| `road_counts.json` / `scrape_road_counts.py` | Boston Streets Hourly Bike Counts feature service, including motor vehicles. Latest available campaign per site; 15 sites in campus/approach bounds. |
+| `bluebikes.json` / `scrape_bluebikes.py` | September 2026 public trip archive. 13,788 trips with both endpoints in the study areas; weekday/hour OD means include zero-activity dates. These riders are not assumed to be BU students. |
+| `pedestrian_counts.json` / `scrape_pedestrian_counts.py` | Saved Warren Towers 2023 intersection counts mapped to three verified intersections. Pooled Wednesday/Thursday observations are not expanded to other weekdays. Incomplete or historical CTPS counts are excluded. |
+
+Each snapshot retains provenance and coverage. Each collector supports cached offline replay; refreshing is explicit. `fetch_bikes.py` is the merged dock replay feature (selected actual day near BU docks), while `scrape_bluebikes.py` retains month-wide aggregate flows. The two views have different geographic coverage and must not be summed.
+
+`build_runtime_data.py` and `build_mobility_data.py` produce compact browser bundles from these committed files. No network requests run during `npm run prepare:data` or production builds. Run the complete acquisition/parser suite from this directory with `.venv/bin/python -m unittest discover -s tests -v`.
+
 The campus-wide folder also retains discovered URLs and parsed JSONL records for resuming an intentional update. Root and campus-wide catalogs are identical snapshots. Raw HTTP response bodies and run logs remain local; published provenance uses repository-relative cache paths, and the cache is not required to consume these JSON datasets.
 
 ## Refresh the data only when needed
