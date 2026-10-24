@@ -42,7 +42,8 @@ KINDS = ("dorm", "classroom", "library", "dining", "gym")
 REQUIRED_FIELDS = ("id", "name", "kind", "lat", "lon", "capacity", "osm")
 # Peak share of a campus's simulated population expected in each kind of place at once. Capacities
 # are scaled per campus, so "% full" means the same thing for 40 agents as for the real campus.
-KIND_PEAK_SHARE = {"dorm": 1.1, "classroom": 0.75, "dining": 0.4, "library": 0.3, "gym": 0.15}
+TARGET_PEAK = 0.85  # how full each kind of place is at its busiest simulated moment
+MAX_PEAK = 1.05  # no single building peaks above this
 METRES_PER_LEVEL = 3.6
 DEFAULT_LEVELS = 4
 SNAP_WARN_METRES = 150  # a location this far from its campus walk network probably has a bad bbox
@@ -297,12 +298,19 @@ def build_routes(coords, graph, locations):
     return routes
 
 
-def plan_day(rng, by_kind):
-    """A rough MWF day: home -> classes (with a meal and maybe study/gym between) -> home.
+CLASS_MINUTES = 50
+GAP_FILL_MINUTES = 60  # a free gap at least this long gets filled (library, food or home)
 
-    Places are picked in proportion to their real capacity, so big buildings draw big crowds.
-    Kinds the campus doesn't have are skipped. With no dorm, the agent "lives" at a classroom
-    building and the day simply ends after its last stop (no trip home)."""
+
+def plan_day(rng, by_kind):
+    """A rough MWF day as (location_id, start_minute, end_minute) stops, home first and last.
+
+    Classes, meals, study and the gym have real end times, so people leave when class lets out
+    instead of sitting in the classroom until their next stop. Long gaps get filled the way
+    students fill them: the library, a dining hall or back home. Places are picked in proportion
+    to their real capacity, so big buildings draw big crowds. Kinds the campus doesn't have are
+    skipped. With no dorm, the agent "lives" at a classroom building and the day simply ends
+    after its last stop (no trip home)."""
 
     def pick(kind):
         if kind not in by_kind:
@@ -312,21 +320,68 @@ def plan_day(rng, by_kind):
 
     has_dorm = "dorm" in by_kind
     home = pick("dorm") or pick("classroom") or pick(next(iter(by_kind)))
-    slots = sorted(rng.sample(MWF_SLOTS, rng.randint(2, 4)))
-    stops = []  # (location_id, arrive_by_minute)
-    for slot in slots:
-        stops.append((pick("classroom"), slot))
+
+    planned = []  # (location, start, end)
+    for slot in sorted(rng.sample(MWF_SLOTS, rng.randint(2, 4))):
+        planned.append((pick("classroom"), slot, slot + CLASS_MINUTES))
     lunch = rng.randint(11 * 60 + 30, 13 * 60 + 45)
-    stops.append((pick("dining"), lunch))
+    planned.append((pick("dining"), lunch, lunch + rng.randint(25, 50)))
     if rng.random() < 0.55:
-        stops.append((pick("library"), rng.randint(14 * 60, 19 * 60)))
+        study = rng.randint(14 * 60, 19 * 60)
+        planned.append((pick("library"), study, study + rng.randint(60, 150)))
     if rng.random() < 0.25:
-        stops.append((pick("gym"), rng.randint(16 * 60, 20 * 60)))
-    stops.append((pick("dining"), rng.randint(17 * 60 + 30, 19 * 60 + 30)))
-    stops = sorted((s for s in stops if s[0] is not None), key=lambda s: s[1])
+        workout = rng.randint(16 * 60, 20 * 60)
+        planned.append((pick("gym"), workout, workout + rng.randint(45, 90)))
+    dinner = rng.randint(17 * 60 + 30, 19 * 60 + 30)
+    planned.append((pick("dining"), dinner, dinner + rng.randint(30, 60)))
+
+    # Drop anything a kind the campus lacks, and anything that overlaps an earlier stop.
+    day = []
+    for loc, begin, finish in sorted((p for p in planned if p[0] is not None), key=lambda p: p[1]):
+        if day and begin < day[-1][2] + 10:
+            continue
+        day.append((loc, begin, finish))
+
+    # Fill long gaps between stops.
+    filled = []
+    for i, stop in enumerate(day):
+        filled.append(stop)
+        if i + 1 == len(day):
+            break
+        gap_start, gap_end = stop[2] + 10, day[i + 1][1] - 15
+        if gap_end - gap_start < GAP_FILL_MINUTES:
+            continue
+        roll = rng.random()
+        filler = (pick("library") if roll < 0.5 else pick("dining") if roll < 0.7 else home if has_dorm else None)
+        if filler:
+            filled.append((filler, gap_start, gap_end))
+
+    day_start = filled[0][1] - 30 if filled else 8 * 60
+    stops = [(home, 0, day_start)] + filled
     if has_dorm:
-        stops.append((home, rng.randint(20 * 60, 22 * 60)))
+        evening = max(stops[-1][2] + 10, rng.randint(20 * 60, 22 * 60))
+        stops.append((home, evening, 24 * 60))
     return home, stops
+
+
+def occupancy_timeline(agents, trips, step=300):
+    """Head count per location every `step` seconds from 6 AM to midnight."""
+    by_agent = {}
+    for t in trips:
+        by_agent.setdefault(t["agent"], []).append(t)
+    for v in by_agent.values():
+        v.sort(key=lambda t: t["timestamps"][0])
+    for now in range(6 * 3600, 24 * 3600, step):
+        counts = {}
+        for agent in agents:
+            where = agent["home"]
+            for trip in by_agent.get(agent["id"], []):
+                if trip["timestamps"][0] > now:
+                    break
+                where = None if now < trip["timestamps"][-1] else trip["to"]
+            if where:
+                counts[where] = counts.get(where, 0) + 1
+        yield counts
 
 
 def simulate_campus(rng, campus, agent_count, first_index):
@@ -348,13 +403,16 @@ def simulate_campus(rng, campus, agent_count, first_index):
         speed = rng.uniform(1.1, 1.5)  # metres per second
         home, stops = plan_day(rng, by_kind)
         agents.append({"id": agent_id, "home": home, "model": rng.randrange(12), "campus": campus["id"]})
-        here, free_at = home, 0
-        for dest, arrive_by in stops:
+        here, free_at = home, stops[0][2] * 60
+        for dest, arrive_by, leave_at in stops[1:]:
             if dest == here:
+                free_at = leave_at * 60
                 continue
             path, cumulative = routes[(here, dest)]
             duration = cumulative[-1] / speed
-            depart = max(free_at, arrive_by * 60 - duration - rng.uniform(60, 600))
+            # Leave once the last stop is over (a few minutes late, like people do), early
+            # enough to make the next one.
+            depart = max(free_at + rng.uniform(0, 300), arrive_by * 60 - duration - rng.uniform(60, 600))
             trips.append({
                 "agent": agent_id,
                 "from": here,
@@ -362,12 +420,29 @@ def simulate_campus(rng, campus, agent_count, first_index):
                 "path": path,
                 "timestamps": [round(depart + c / speed, 1) for c in cumulative],
             })
-            here, free_at = dest, depart + duration + 25 * 60
+            here, free_at = dest, max(depart + duration + 10 * 60, leave_at * 60)
+
+    # Calibrate: each kind's capacity is sized so its busiest simulated moment is TARGET_PEAK
+    # full, then split across buildings by their real-world size. Without this, fixed guesses
+    # left dining halls at 200% at dinner and libraries at 170% in the late afternoon.
+    kind_of = {loc["id"]: loc["kind"] for loc in campus["locations"]}
+    kind_peak, loc_peak = {}, {}
+    for counts in occupancy_timeline(agents, trips):
+        per_kind = {}
+        for loc_id, n in counts.items():
+            per_kind[kind_of[loc_id]] = per_kind.get(kind_of[loc_id], 0) + n
+            loc_peak[loc_id] = max(loc_peak.get(loc_id, 0), n)
+        for kind, n in per_kind.items():
+            kind_peak[kind] = max(kind_peak.get(kind, 0), n)
 
     locations = []
     for loc in campus["locations"]:
         kind_total = sum(by_kind[loc["kind"]][1])
-        capacity = max(5, round(max(1, loc["capacity"]) / kind_total * agent_count * KIND_PEAK_SHARE[loc["kind"]]))
+        share_of_kind = max(1, loc["capacity"]) / kind_total
+        capacity = round(kind_peak.get(loc["kind"], 1) * share_of_kind / TARGET_PEAK)
+        # With only ~40 agents on a small campus, chance pile-ups can overfill a small building;
+        # cap that at MAX_PEAK so "Packed" stays believable.
+        capacity = max(5, capacity, round(loc_peak.get(loc["id"], 0) / MAX_PEAK))
         locations.append({
             "id": loc["id"], "name": loc["name"], "short": loc["short"], "kind": loc["kind"],
             "position": [loc["lon"], loc["lat"]], "capacity": capacity, "building": loc["osm"], "campus": campus["id"],
