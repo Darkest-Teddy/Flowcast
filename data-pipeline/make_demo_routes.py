@@ -185,7 +185,11 @@ def stitch_rings(segments):
     return rings
 
 
-def fetch_footprints(refs, height_overrides, campus_of):
+def ring_centre(ring):
+    return (sum(p[0] for p in ring) / len(ring), sum(p[1] for p in ring) / len(ring))
+
+
+def fetch_footprints(refs, height_overrides, campus_of, part_heights=None):
     """Footprint rings for OSM refs ("way/1", "relation/2"). Returns (buildings, unresolved refs)."""
     ways = ",".join(r.split("/")[1] for r in refs if r.startswith("way/"))
     rels = ",".join(r.split("/")[1] for r in refs if r.startswith("relation/"))
@@ -211,7 +215,14 @@ def fetch_footprints(refs, height_overrides, campus_of):
         except ValueError:  # e.g. height="20 m"
             height = height_overrides.get(ref) or DEFAULT_LEVELS * METRES_PER_LEVEL
         for ring in rings:
-            buildings.append({"id": ref, "name": tags.get("name"), "polygon": ring, "height": height, "campus": campus_of.get(ref)})
+            # A multi-part building (Warren Towers: three towers on a podium) can give a height per
+            # part: the part whose centre is within 15 m of a listed centre gets that height.
+            ring_height = height
+            for part in (part_heights or {}).get(ref, []):
+                cx, cy = ring_centre(ring)
+                if haversine(cy, cx, part["center"][1], part["center"][0]) < 15:
+                    ring_height = part["height"]
+            buildings.append({"id": ref, "name": tags.get("name"), "polygon": ring, "height": ring_height, "campus": campus_of.get(ref)})
     return buildings, sorted(set(refs) - found)
 
 
@@ -471,7 +482,8 @@ def main():
     all_locs = [loc for c in campuses for loc in c["locations"]]
     heights = {loc["osm"]: loc["height"] for loc in all_locs if loc.get("height")}
     campus_of = {loc["osm"]: loc["campus"] for loc in all_locs}
-    buildings, unresolved = fetch_footprints(sorted(campus_of), heights, campus_of)
+    part_heights = {loc["osm"]: loc["partHeights"] for loc in all_locs if loc.get("partHeights")}
+    buildings, unresolved = fetch_footprints(sorted(campus_of), heights, campus_of, part_heights)
     for ref in unresolved:
         users = ", ".join(loc["id"] for loc in all_locs if loc["osm"] == ref)
         warn(f"footprint {ref} not found in OSM (used by {users}); it won't be drawn")

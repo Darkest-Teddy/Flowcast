@@ -33,7 +33,9 @@ export interface TransitRoute {
   textColor: string;
   directions: [string, string]; // by direction_id
   // Points in travel order; `underground` lists [first, last] point-index spans in a tunnel.
-  paths: { direction: 0 | 1; path: [number, number][]; underground?: [number, number][] }[];
+  // `isTrack`: the path is already this direction's own track (snapped onto the real rails), so
+  // it gets no extra right-hand offset.
+  paths: { direction: 0 | 1; path: [number, number][]; underground?: [number, number][]; isTrack?: boolean }[];
 }
 
 export interface TransitArea {
@@ -125,6 +127,15 @@ interface ApiResource {
   relationships: Record<string, { data: { id: string } | null }>;
 }
 
+/** What the map draws transit from: the live feeds (MbtaFeed) or the schedule (ScheduledTransit). */
+export interface TransitSource {
+  readonly tracks: Track[];
+  readonly state: { arrivals: Arrival[] };
+  positionsAt(now: number): Vehicle[];
+  nextArrivals(stopId: string, now?: number): Arrival[];
+  nextEachWay(stopId: string, now?: number): Partial<Record<0 | 1, Arrival>>;
+}
+
 /** Polls the MBTA and keeps the latest vehicles and arrivals; call positionsAt() every frame. */
 export class MbtaFeed {
   state: FeedState = { vehicles: [], arrivals: [], updatedAt: null, error: null };
@@ -150,8 +161,8 @@ export class MbtaFeed {
     this.stopIds = data.stops.filter((s) => s.kind !== 'shuttle').map((s) => s.id).join(',');
     for (const stop of data.stops) for (const platform of stop.platforms) this.stopForPlatform.set(platform, stop.id);
     this.tracks = data.routes.flatMap((route) =>
-      route.paths.map(({ direction, path, underground }) =>
-        makeTrack(route.id, direction, path, TRACK_OFFSET[route.kind], underground),
+      route.paths.map(({ direction, path, underground, isTrack }) =>
+        makeTrack(route.id, direction, path, isTrack ? 0 : TRACK_OFFSET[route.kind], underground),
       ),
     );
   }

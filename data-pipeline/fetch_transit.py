@@ -26,6 +26,12 @@ OVERPASS = "https://overpass-api.de/api/interpreter"
 CACHE = Path(__file__).resolve().parent / ".cache" / "overpass"
 # A path point within this many metres of an OSM rail tunnel is underground.
 TUNNEL_MATCH_METRES = 15
+# Each direction's track: the MBTA shape shifted this far right (right-hand running), then
+# snapped onto the nearest real OSM rail within RAIL_SNAP_METRES. Mapbox draws those same OSM
+# rails, so ours sit exactly on top of them instead of beside them (no "four sets of rails").
+TRACK_OFFSET_METRES = 2.0
+RAIL_SNAP_METRES = 7.0
+DENSIFY_METRES = 5.0  # so the snapped track follows curves instead of cutting chords
 OUT = Path(__file__).resolve().parent.parent / "map-client" / "public" / "data" / "transit.json"
 
 # Campus ids match data-pipeline/campuses/*.json. bbox is (west, south, east, north).
@@ -122,6 +128,74 @@ def tunnel_segments():
     return segs
 
 
+def rail_segments():
+    """Surface Green Line rails from OSM: ((lng, lat), (lng, lat), way_id) segments."""
+    w = min(a["bbox"][0] for a in AREAS)
+    s = min(a["bbox"][1] for a in AREAS)
+    e = max(a["bbox"][2] for a in AREAS)
+    n = max(a["bbox"][3] for a in AREAS)
+    ways = overpass(f'[out:json][timeout:60];way["railway"="light_rail"][!"tunnel"]({s - 0.01},{w - 0.01},{n + 0.01},{e + 0.01});out geom;')
+    segs = []
+    for way in ways:
+        g = [(p["lon"], p["lat"]) for p in way["geometry"]]
+        segs += [(a, b, way["id"]) for a, b in zip(g, g[1:])]
+    return segs
+
+
+def _local(p, lat0):
+    return ((p[0]) * 111320 * math.cos(math.radians(lat0)), p[1] * 110540)
+
+
+def _unlocal(x, y, lat0):
+    return [round(x / (111320 * math.cos(math.radians(lat0))), 7), round(y / 110540, 7)]
+
+
+def densify(path, step):
+    lat0 = path[0][1]
+    out = [path[0]]
+    for a, b in zip(path, path[1:]):
+        ax, ay = _local(a, lat0)
+        bx, by = _local(b, lat0)
+        n = max(1, int(math.hypot(bx - ax, by - ay) // step))
+        out += [_unlocal(ax + (bx - ax) * k / n, ay + (by - ay) * k / n, lat0) for k in range(1, n + 1)]
+    return out
+
+
+def offset_right(path, metres):
+    lat0 = path[0][1]
+    xy = [_local(p, lat0) for p in path]
+    out = []
+    for i in range(len(xy)):
+        a, b = xy[max(0, i - 1)], xy[min(len(xy) - 1, i + 1)]
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length = math.hypot(dx, dy) or 1
+        out.append(_unlocal(xy[i][0] + dy / length * metres, xy[i][1] - dx / length * metres, lat0))
+    return out
+
+
+def snap_to_rails(path, rails):
+    """Move each point onto the nearest OSM rail (same way as its neighbours where ambiguous)."""
+    lat0 = path[0][1]
+    local_rails = [(_local(a, lat0), _local(b, lat0), wid) for a, b, wid in rails]
+    picks = []
+    for p in path:
+        px, py = _local(p, lat0)
+        best = None
+        for (ax, ay), (bx, by), wid in local_rails:
+            dx, dy = bx - ax, by - ay
+            f = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / ((dx * dx + dy * dy) or 1)))
+            qx, qy = ax + dx * f, ay + dy * f
+            d = math.hypot(px - qx, py - qy)
+            if best is None or d < best[0]:
+                best = (d, qx, qy, wid)
+        picks.append(best if best and best[0] <= RAIL_SNAP_METRES else None)
+    out = []
+    for i, p in enumerate(path):
+        pick = picks[i]
+        out.append(_unlocal(pick[1], pick[2], lat0) if pick else p)
+    return out, sum(pick is not None for pick in picks)
+
+
 def underground_spans(path, segs):
     """[start, end] point-index spans of `path` that run through a tunnel."""
     def metres_to_segment(p, a, b):
@@ -191,7 +265,8 @@ def main():
 
     print("Fetching Green Line tunnels from OpenStreetMap...", file=sys.stderr)
     tunnels = tunnel_segments()
-    print(f"  {len(tunnels)} tunnel segments", file=sys.stderr)
+    rails = rail_segments()
+    print(f"  {len(tunnels)} tunnel segments, {len(rails)} surface rail segments", file=sys.stderr)
     routes = get("/routes", {"filter[id]": ",".join(route_ids)})["data"]
     patterns = get("/route_patterns", {"filter[route]": ",".join(route_ids), "include": "representative_trip.shape"})
     shapes = {i["id"]: i["attributes"]["polyline"] for i in patterns.get("included", []) if i["type"] == "shape"}
@@ -213,9 +288,14 @@ def main():
                 for run in clip(shape, area["bbox"]):
                     entry = {"direction": direction, "path": run}
                     if attrs["type"] in (0, 1):
+                        # This direction's own track, on the real rails (see TRACK_OFFSET_METRES).
+                        track, matched = snap_to_rails(offset_right(densify(run, DENSIFY_METRES), TRACK_OFFSET_METRES), rails)
+                        print(f"  {rid} dir {direction}: {matched}/{len(track)} points on OSM rails", file=sys.stderr)
+                        entry["path"] = track
+                        entry["isTrack"] = True  # already the track itself: the map adds no offset
                         # Kenmore, Hynes and the D past Fenway run underground: the map draws no
                         # track there and trains vanish into the portal.
-                        entry["underground"] = underground_spans(run, tunnels)
+                        entry["underground"] = underground_spans(track, tunnels)
                     paths.append(entry)
         is_green = rid.startswith("Green-")
         out_routes.append({
