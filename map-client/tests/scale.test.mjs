@@ -12,6 +12,7 @@ registerHooks({resolve(specifier, context, next) {
 const { buildPopulation } = await import('../src/sim/population.ts');
 const { buildSourceDay } = await import('../src/sim/sourceDay.ts');
 const { Playback } = await import('../src/sim/playback.ts');
+const { openingHoursForDate, dateForWeekday } = await import('../src/data/campusData.ts');
 const read = name => JSON.parse(readFileSync(new URL(`../public/data/${name}.json`, import.meta.url)));
 
 test('bundled population and weekly schedules conserve all people and physical trip speeds', () => {
@@ -23,7 +24,19 @@ test('bundled population and weekly schedules conserve all people and physical t
   for (let weekday = 0; weekday < 7; weekday++) {
     const day = buildSourceDay(base, source, weekday);
     const playback = new Playback(day);
+    assert.ok(day.sourceStats.modeledOffCampusMeals > 0, 'off-campus meals are represented without adding people');
+    for (const activity of day.sourceActivities) {
+      if (activity.kind === 'off-campus-meal') continue;
+      const windows = openingHoursForDate(source.locations[activity.locationId]?.hours ?? [], dateForWeekday(source,weekday),weekday).flatMap(h=>h.windows);
+      assert.ok(windows.some(([start,end])=>start<=activity.startSec && activity.endSec<=end), `${activity.locationId} optional visits require published hours`);
+    }
     const agents = new Map(day.agents.map(a => [a.id,a]));
+    const diningHours = new Map(day.locations.filter(l=>l.kind==='dining').map(l=>[l.id,
+      openingHoursForDate(source.locations[l.id]?.hours ?? [], dateForWeekday(source,weekday),weekday).flatMap(h=>h.windows)]));
+    for (const stay of day.stays) {
+      if (!diningHours.has(stay.location)) continue;
+      assert.ok(diningHours.get(stay.location).some(([start,end])=>start<=stay.start && stay.end<=end), `${stay.location} dining stays must fit their entire opening window`);
+    }
     const timelines = new Map(day.agents.map(a => [a.id, []]));
     for (const stay of day.stays) timelines.get(stay.agent).push([stay.start, stay.end]);
     for (const trip of day.trips) timelines.get(trip.agent).push([trip.timestamps[0],trip.timestamps.at(-1)]);
@@ -42,6 +55,13 @@ test('bundled population and weekly schedules conserve all people and physical t
       assert.ok(counts.offCampus >= 0);
       assert.equal(counts.indoors + counts.walking + counts.offCampus, counts.total);
       assert.ok(playback.occupancyAt(time).every(o => Number.isFinite(o.share)));
+      for (const occupancy of playback.occupancyAt(time).filter(o => o.location.kind === 'dining')) {
+        const hours = openingHoursForDate(source.locations[occupancy.location.id]?.hours ?? [], dateForWeekday(source, weekday), weekday);
+        if (!hours.some(h => h.windows.some(([start,end]) => start <= time && time < end))) {
+          assert.equal(occupancy.count, 0, `${occupancy.location.id} cannot host diners outside verified hours`);
+        }
+      }
+      for (const id of ['agganis', 'dewolfe']) assert.equal(playback.occupancyAt(time).find(o => o.location.id === id)?.count ?? 0, 0);
     }
     for (const trip of day.trips) {
       assert.ok(mapped.has(trip.from) || trip.from === 'off-campus');
