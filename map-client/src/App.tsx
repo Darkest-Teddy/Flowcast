@@ -42,7 +42,7 @@ import {
   type BikeTrip,
   type DockEstimate,
 } from './bikes/bluebikes';
-import { bikeLayers, bikeTooltip } from './layers/bikes';
+import { bikeLayers, bikeTooltip, loadBikeModels } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
@@ -187,6 +187,7 @@ export default function App() {
         loadPublishedSchedule().catch((error: Error) => { setScheduleError(error.message); return null; }),
         loadMobility().catch((error: Error) => { setMobilityError(error.message); return null; }),
         loadFields().catch(() => null),
+        loadBikeModels().catch(() => null), // Bluebikes riders; plain blocks without them
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
