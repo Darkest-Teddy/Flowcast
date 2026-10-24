@@ -1,0 +1,986 @@
+{
+  "source": "BTD Comm Ave timings (2012, BU Transportation Master Plan)",
+  "sourceUrl": "https://www.bu.edu/community/files/2016/03/2013-2023-BU-Charles-River-Campus-Transportation-Master-Plan_January-17-2013.pdf",
+  "reportDate": "2012-05-16",
+  "scenario": "Existing Conditions",
+  "limitations": "Historical weekday plans; phase windows approximate actuated controllers. Time-of-day switch hours and off-peak reuse are simulation assumptions, not published schedules.",
+  "intersections": [
+    {
+      "name": "Commonwealth Ave & Babcock St",
+      "node": 2,
+      "at": [
+        [
+          -71.1211,
+          42.3519
+        ]
+      ],
+      "AM": [
+        100,
+        48,
+        [
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 0,
+            "green": 47,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 0,
+            "green": 70,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 74,
+            "green": 20,
+            "yellow": 3,
+            "allRed": 3
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        66,
+        [
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 0,
+            "green": 47,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 0,
+            "green": 73,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 77,
+            "green": 27,
+            "yellow": 3,
+            "allRed": 3
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 580,
+        "PM": 631
+      }
+    },
+    {
+      "name": "Commonwealth Ave & Harry Agganis Way / Pleasant St",
+      "node": 3,
+      "at": [
+        [
+          -71.11812,
+          42.35153
+        ],
+        [
+          -71.11856,
+          42.35166
+        ],
+        [
+          -71.11872,
+          42.3513
+        ]
+      ],
+      "AM": [
+        100,
+        65,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 51,
+            "yellow": 3,
+            "allRed": 2
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 56,
+            "green": 22,
+            "yellow": 3,
+            "allRed": 3
+          },
+          {
+            "start": 84,
+            "green": 0,
+            "yellow": 0,
+            "allRed": 16,
+            "label": "Exclusive pedestrian phase"
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        49,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 74,
+            "yellow": 3,
+            "allRed": 2
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 79,
+            "green": 25,
+            "yellow": 3,
+            "allRed": 3
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 584,
+        "PM": 634
+      }
+    },
+    {
+      "name": "Commonwealth Ave & Buick St / St Paul St",
+      "node": 4,
+      "at": [
+        [
+          -71.11559,
+          42.35126
+        ]
+      ],
+      "AM": [
+        100,
+        82,
+        [
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 0,
+            "green": 47,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 0,
+            "green": 72,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 76,
+            "green": 20,
+            "yellow": 3,
+            "allRed": 1
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        23,
+        [
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 0,
+            "green": 42,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 0,
+            "green": 66,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 70,
+            "green": 36,
+            "yellow": 3,
+            "allRed": 1
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 587,
+        "PM": 637
+      }
+    },
+    {
+      "name": "Commonwealth Ave & Amory St",
+      "node": 5,
+      "at": [
+        [
+          -71.11388,
+          42.35076
+        ]
+      ],
+      "AM": [
+        100,
+        92,
+        [
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 0,
+            "green": 22,
+            "yellow": 3,
+            "allRed": 2
+          },
+          {
+            "start": 27,
+            "green": 0,
+            "yellow": 0,
+            "allRed": 12,
+            "label": "Exclusive pedestrian phase"
+          },
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 39,
+            "green": 56,
+            "yellow": 3,
+            "allRed": 2
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        13,
+        [
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 0,
+            "green": 22,
+            "yellow": 3,
+            "allRed": 2
+          },
+          {
+            "start": 27,
+            "green": 0,
+            "yellow": 0,
+            "allRed": 12,
+            "label": "Exclusive pedestrian phase"
+          },
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 39,
+            "green": 66,
+            "yellow": 3,
+            "allRed": 2
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 591,
+        "PM": 639
+      }
+    },
+    {
+      "name": "Commonwealth Ave & BU Bridge / Essex St",
+      "node": 6,
+      "at": [
+        [
+          -71.11075,
+          42.35069
+        ]
+      ],
+      "AM": [
+        100,
+        11,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 48,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "NB"
+            ],
+            "start": 52,
+            "green": 25,
+            "yellow": 3,
+            "allRed": 4
+          },
+          {
+            "moves": [
+              "SB"
+            ],
+            "start": 52,
+            "green": 41,
+            "yellow": 3,
+            "allRed": 4
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        104,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 48,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "NB"
+            ],
+            "start": 52,
+            "green": 22,
+            "yellow": 3,
+            "allRed": 4
+          },
+          {
+            "moves": [
+              "SB"
+            ],
+            "start": 52,
+            "green": 51,
+            "yellow": 3,
+            "allRed": 4
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 594,
+        "PM": 641
+      }
+    },
+    {
+      "name": "Commonwealth Ave & Carlton St / University Rd",
+      "node": 8,
+      "at": [
+        [
+          -71.10927,
+          42.35015
+        ]
+      ],
+      "AM": [
+        100,
+        83,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 38,
+            "yellow": 4,
+            "allRed": 3
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 45,
+            "green": 47,
+            "yellow": 4,
+            "allRed": 4
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        13,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 30,
+            "yellow": 4,
+            "allRed": 3
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 37,
+            "green": 65,
+            "yellow": 4,
+            "allRed": 4
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 598,
+        "PM": 644
+      }
+    },
+    {
+      "name": "Commonwealth Ave & St Mary's St",
+      "node": 9,
+      "at": [
+        [
+          -71.10638,
+          42.35015
+        ]
+      ],
+      "AM": [
+        100,
+        60,
+        [
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 0,
+            "green": 31,
+            "yellow": 4,
+            "allRed": 2
+          },
+          {
+            "start": 37,
+            "green": 0,
+            "yellow": 0,
+            "allRed": 23,
+            "label": "Exclusive pedestrian phase"
+          },
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 60,
+            "green": 71,
+            "yellow": 4,
+            "allRed": 2
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        23,
+        [
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 0,
+            "green": 33,
+            "yellow": 4,
+            "allRed": 2
+          },
+          {
+            "start": 39,
+            "green": 0,
+            "yellow": 0,
+            "allRed": 23,
+            "label": "Exclusive pedestrian phase"
+          },
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 62,
+            "green": 81,
+            "yellow": 4,
+            "allRed": 2
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 601,
+        "PM": 646
+      }
+    },
+    {
+      "name": "Commonwealth Ave & Cummington Mall",
+      "node": 10,
+      "at": [
+        [
+          -71.10513,
+          42.3497
+        ]
+      ],
+      "AM": [
+        100,
+        13,
+        [
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 0,
+            "green": 40,
+            "yellow": 4,
+            "allRed": 2
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 46,
+            "green": 20,
+            "yellow": 4,
+            "allRed": 3
+          },
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 73,
+            "green": 67,
+            "yellow": 4,
+            "allRed": 2
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        101,
+        [
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 0,
+            "green": 62,
+            "yellow": 4,
+            "allRed": 2
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 68,
+            "green": 14,
+            "yellow": 4,
+            "allRed": 3
+          },
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 89,
+            "green": 83,
+            "yellow": 4,
+            "allRed": 2
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 604,
+        "PM": 648
+      }
+    },
+    {
+      "name": "Commonwealth Ave & Granby St",
+      "node": 11,
+      "at": [
+        [
+          -71.10344,
+          42.34977
+        ]
+      ],
+      "AM": [
+        100,
+        54,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 65,
+            "yellow": 4,
+            "allRed": 2
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 71,
+            "green": 22,
+            "yellow": 4,
+            "allRed": 3
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        68,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 68,
+            "yellow": 4,
+            "allRed": 2
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 74,
+            "green": 29,
+            "yellow": 4,
+            "allRed": 3
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 607,
+        "PM": 650
+      }
+    },
+    {
+      "name": "Commonwealth Ave & Silber Way / Blandford St",
+      "node": 12,
+      "at": [
+        [
+          -71.10042,
+          42.3494
+        ]
+      ],
+      "AM": [
+        100,
+        98,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 58,
+            "yellow": 4,
+            "allRed": 2
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 64,
+            "green": 29,
+            "yellow": 4,
+            "allRed": 3
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        18,
+        [
+          {
+            "moves": [
+              "EB",
+              "WB"
+            ],
+            "start": 0,
+            "green": 67,
+            "yellow": 4,
+            "allRed": 2
+          },
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 73,
+            "green": 30,
+            "yellow": 4,
+            "allRed": 3
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 610,
+        "PM": 652
+      }
+    },
+    {
+      "name": "Kenmore Square (Commonwealth Ave & Beacon St)",
+      "node": 13,
+      "at": [
+        [
+          -71.09488,
+          42.34917
+        ]
+      ],
+      "AM": [
+        100,
+        28,
+        [
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 0,
+            "green": 19,
+            "yellow": 4,
+            "allRed": 5
+          },
+          {
+            "moves": [
+              "SB"
+            ],
+            "start": 0,
+            "green": 19,
+            "yellow": 4,
+            "allRed": 5
+          },
+          {
+            "moves": [
+              "NB"
+            ],
+            "start": 28,
+            "green": 38,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "SW",
+              "WB"
+            ],
+            "start": 28,
+            "green": 68,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "NE"
+            ],
+            "start": 70,
+            "green": 22,
+            "yellow": 4,
+            "allRed": 4
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        81,
+        [
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 0,
+            "green": 27,
+            "yellow": 4,
+            "allRed": 5
+          },
+          {
+            "moves": [
+              "SB"
+            ],
+            "start": 0,
+            "green": 27,
+            "yellow": 4,
+            "allRed": 5
+          },
+          {
+            "moves": [
+              "NB"
+            ],
+            "start": 36,
+            "green": 37,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "SW",
+              "WB"
+            ],
+            "start": 36,
+            "green": 70,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "NE"
+            ],
+            "start": 77,
+            "green": 25,
+            "yellow": 4,
+            "allRed": 4
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 613,
+        "PM": 654
+      }
+    },
+    {
+      "name": "Mountfort St & St Mary's St",
+      "node": 45,
+      "at": [
+        [
+          -71.10677,
+          42.3486
+        ]
+      ],
+      "AM": [
+        100,
+        95,
+        [
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 0,
+            "green": 31,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "start": 35,
+            "green": 0,
+            "yellow": 0,
+            "allRed": 20,
+            "label": "Exclusive pedestrian phase"
+          },
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 55,
+            "green": 25,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 84,
+            "green": 12,
+            "yellow": 3,
+            "allRed": 1
+          }
+        ]
+      ],
+      "PM": [
+        110,
+        74,
+        [
+          {
+            "moves": [
+              "NB",
+              "SB"
+            ],
+            "start": 0,
+            "green": 33,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "start": 37,
+            "green": 0,
+            "yellow": 0,
+            "allRed": 20,
+            "label": "Exclusive pedestrian phase"
+          },
+          {
+            "moves": [
+              "WB"
+            ],
+            "start": 57,
+            "green": 33,
+            "yellow": 3,
+            "allRed": 1
+          },
+          {
+            "moves": [
+              "EB"
+            ],
+            "start": 94,
+            "green": 12,
+            "yellow": 3,
+            "allRed": 1
+          }
+        ]
+      ],
+      "sourcePages": {
+        "AM": 626,
+        "PM": 665
+      }
+    }
+  ]
+}

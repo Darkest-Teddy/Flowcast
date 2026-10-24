@@ -32,6 +32,10 @@ export interface Split {
 }
 
 export interface TimingPlan {
+  basis?: 'published' | 'reused' | 'proposed' | 'estimated';
+  source?: string;
+  sourceUrl?: string;
+  sourceDate?: string;
   name: string; // "AM peak", "Midday", ...
   from: number; // seconds since midnight, inclusive
   to: number; // exclusive; may be past 86400 to wrap midnight
@@ -190,5 +194,7 @@ export function timingLabel(time: number, group: string): string {
   if (!t) return 'Timing: simulated (no plan loaded)';
   const plan = planAt(time, group);
   const note = plan.note ? ` (${plan.note})` : '';
-  return `Timing: ${t.source}, ${plan.name} plan${note} · ${Math.round(plan.cycle)} s cycle`;
+  const basis = { published: 'Published timing', reused: 'Reused published timing', proposed: 'Proposed timing', estimated: 'Estimated timing' };
+  const label = plan.basis ? basis[plan.basis] : 'Timing';
+  return `${label}: ${plan.source ?? t.source}, ${plan.name} plan${note} · ${Math.round(plan.cycle)} s cycle`;
 }
