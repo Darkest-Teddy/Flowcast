@@ -1,12 +1,28 @@
 // Bluebikes on the map: the replayed day's real rides as blue riders with fading trails, and
 // BU's docks as rings. Riders are blocks at true bike proportions (exaggerated as the camera pulls
 // back, like the MBTA vehicles) so they read differently from the walking characters.
-import { ScatterplotLayer } from '@deck.gl/layers';
+import { ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import { TripsLayer } from '@deck.gl/geo-layers';
 import { SimpleMeshLayer } from '@deck.gl/mesh-layers';
 import { CubeGeometry } from '@luma.gl/engine';
 import type { Color } from '@deck.gl/core';
-import { formatDate, typicalAt, type BikeData, type BikeStation, type BikeTrip, type BluebikesFeed, type RidingBike } from '../bikes/bluebikes';
+import {
+  formatDate,
+  typicalAt,
+  type BikeData,
+  type BikeStation,
+  type BikeTrip,
+  type BluebikesFeed,
+  type DockEstimate,
+  type RidingBike,
+} from '../bikes/bluebikes';
+import { labelWidth, type LabelPlacer } from './placement';
+
+// Dock ring colour: blue normally, red when no bikes, amber when there's nowhere to park.
+const DOCK_EMPTY: Color = [220, 38, 38, 255];
+const DOCK_FULL: Color = [245, 166, 35, 255];
+const DOCK_TAG_ZOOM = 16;
+const DOCK_TAG_HEIGHT = 34;
 import { formatClock } from '../sim/playback';
 
 export const BIKE_BLUE: Color = [37, 99, 235, 255];
@@ -26,10 +42,30 @@ export interface BikeLayerInput {
   time: number;
   speed: number;
   zoom: number;
+  /** Bikes and empty docks per station id at the shown time (live, or estimated). */
+  dockStatus?: Map<string, DockEstimate>;
+  /** Shared label placer so dock tags don't overlap building or station labels. */
+  placer?: LabelPlacer;
 }
 
-export function bikeLayers({ data, trips, riding, time, speed, zoom }: BikeLayerInput) {
+const dockTagText = (s: BikeStation, e: DockEstimate) => `${s.short}\n${e.estimated ? 'Est. ' : ''}${e.bikes} bikes · ${e.docks} docks`;
+const dockRing = (e: DockEstimate | undefined): Color => (!e ? BIKE_BLUE : e.bikes === 0 ? DOCK_EMPTY : e.docks === 0 ? DOCK_FULL : BIKE_BLUE);
+
+export function bikeLayers({ data, trips, riding, time, speed, zoom, dockStatus, placer }: BikeLayerInput) {
   const scale = riderScale(zoom);
+  const statusKey = dockStatus ? [...dockStatus.values()].map((e) => `${e.bikes}/${e.docks}/${+e.estimated}`).join() : '';
+  const tagged = dockStatus && placer && zoom >= DOCK_TAG_ZOOM ? data.stations.filter((s) => dockStatus.has(s.id)) : [];
+  const lifts = placer
+    ? placer.place(tagged, {
+        position: (s) => s.position,
+        width: (s) => labelWidth(dockTagText(s, dockStatus!.get(s.id)!), 11),
+        height: DOCK_TAG_HEIGHT,
+        direction: 1,
+        gap: 10,
+        maxLift: 1,
+      })
+    : new Map<BikeStation, number>();
+  const shown = tagged.filter((s) => lifts.has(s));
   return [
     new TripsLayer<BikeTrip>({
       id: 'bike-trails',
@@ -70,12 +106,43 @@ export function bikeLayers({ data, trips, riding, time, speed, zoom }: BikeLayer
       getRadius: 7,
       radiusUnits: 'pixels',
       getFillColor: [255, 255, 255, 255],
-      getLineColor: BIKE_BLUE,
+      getLineColor: (s) => dockRing(dockStatus?.get(s.id)),
       getLineWidth: 3,
+      updateTriggers: { getLineColor: statusKey },
       lineWidthUnits: 'pixels',
       stroked: true,
       pickable: true,
       parameters: { depthCompare: 'always' },
+      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+      slot: 'top',
+    }),
+    new TextLayer<BikeStation>({
+      id: 'bike-dock-tags',
+      data: shown,
+      getPosition: (s) => s.position,
+      getText: (s) => dockTagText(s, dockStatus!.get(s.id)!),
+      getSize: 11,
+      getColor: [255, 255, 255, 255],
+      getBackgroundColor: (s) => {
+        const ring = dockRing(dockStatus!.get(s.id));
+        // Bluebikes blue normally; the warning colours (darkened for text contrast) when empty or full.
+        return ring === BIKE_BLUE ? [29, 78, 216, 235] : ring === DOCK_EMPTY ? [185, 28, 28, 240] : [146, 90, 10, 240];
+      },
+      getBorderColor: [255, 255, 255, 140],
+      getBorderWidth: 1,
+      background: true,
+      backgroundPadding: [6, 3],
+      getTextAnchor: 'middle',
+      getAlignmentBaseline: 'top',
+      getPixelOffset: (s) => [0, 10 + DOCK_TAG_HEIGHT * (lifts.get(s) ?? 0)],
+      fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+      fontWeight: 600,
+      characterSet: 'auto',
+      lineHeight: 1.25,
+      billboard: true,
+      pickable: true,
+      parameters: { depthCompare: 'always' },
+      updateTriggers: { getText: statusKey, getBackgroundColor: statusKey, getPixelOffset: shown.map((s) => lifts.get(s)).join() },
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'top',
     }),

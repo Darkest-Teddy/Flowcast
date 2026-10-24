@@ -32,6 +32,10 @@ export interface TransitRoute {
   color: string; // "#00843D"
   textColor: string;
   directions: [string, string]; // by direction_id
+  /** BU shuttles: when the line runs (see buShuttle.ts); undefined = always shown. */
+  service?: import('./buShuttle').ServiceWindow;
+  /** BU Night line: drawn with the blue night bus. */
+  night?: boolean;
   // Points in travel order; `underground` lists [first, last] point-index spans in a tunnel.
   // `isTrack`: the path is already this direction's own track (snapped onto the real rails), so
   // it gets no extra right-hand offset.

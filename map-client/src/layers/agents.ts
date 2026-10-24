@@ -28,10 +28,10 @@ export function loadCharacterModels(): Promise<LoadedModels> {
   return Promise.all(CHARACTER_MODELS.map((url) => load(url, GLTFLoader)));
 }
 
-function phaseOf(id: string): number {
+export function phaseOf(id: string, phases = PHASES): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
-  return Math.abs(h) % PHASES;
+  return Math.abs(h) % phases;
 }
 
 // Metres per model unit for a real ~1.8 m person (the Kenney characters are ~0.78 units tall).
@@ -48,12 +48,29 @@ export interface AgentLayerOptions {
   highlightId?: string | null;
 }
 
-export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time: number, options: AgentLayerOptions) {
-  const { zoom, highlightId = null } = options;
+/** Which Kenney clip a set of characters plays: 'walk' for walkers, 'idle' for people standing about. */
+export type CharacterClip = 'walk' | 'idle';
+
+export interface CharacterLayerOptions extends AgentLayerOptions {
+  /** Layer id prefix; one layer per model and phase, `${id}-${model}-${phase}`. */
+  id: string;
+  clip?: CharacterClip;
+  pickable?: boolean;
+  /** Keep a model/phase layer with nobody in it, but don't draw it. */
+  hideEmpty?: boolean;
+}
+
+/** Characters bucketed by model and animation phase into GPU-instanced layers, all playing one clip. */
+export function characterLayers(items: WalkingAgent[], models: LoadedModels, time: number, options: CharacterLayerOptions) {
+  const { zoom, highlightId = null, id, clip = 'walk', pickable = true, hideEmpty = false } = options;
+  // Idle: one layer per model (each model sways at its own offset), since every extra layer is
+  // another render pass in interleaved mode.
+  const phases = clip === 'walk' ? PHASES : 1;
+  const animationFor = (model: number, phase: number) => (clip === 'walk' ? ANIMATIONS[phase] : IDLE_ANIMATIONS[model % IDLE_ANIMATIONS.length]);
   const sizeScale = walkerScale(zoom);
   const buckets = new Map<string, WalkingAgent[]>();
-  for (const agent of walking) {
-    const key = `${agent.model % models.length}-${phaseOf(agent.id)}`;
+  for (const agent of items) {
+    const key = `${agent.model % models.length}-${phaseOf(agent.id, phases)}`;
     const list = buckets.get(key) ?? [];
     list.push(agent);
     buckets.set(key, list);
@@ -61,16 +78,17 @@ export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time:
 
   const layers = [];
   for (let model = 0; model < models.length; model++) {
-    for (let phase = 0; phase < PHASES; phase++) {
+    for (let phase = 0; phase < phases; phase++) {
       const key = `${model}-${phase}`;
+      const data = buckets.get(key) ?? [];
       layers.push(
         new ScenegraphLayer<WalkingAgent>({
-          id: `agents-${key}`,
-          data: buckets.get(key) ?? [],
+          id: `${id}-${key}`,
+          data,
           scenegraph: models[model] as never,
           // Layers persist across frames, so these stay referentially stable and the clock
           // is only configured once per layer.
-          _animations: ANIMATIONS[phase],
+          _animations: animationFor(model, phase),
           _lighting: 'pbr',
           sizeScale,
           sizeMinPixels: 22,
@@ -78,7 +96,8 @@ export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time:
           getOrientation: (d) => [0, YAW_OFFSET - d.bearing, 90],
           getColor: (d) => (d.id === highlightId ? [255, 214, 10, 255] : [255, 255, 255, 255]),
           updateTriggers: { getColor: highlightId, getPosition: time, getOrientation: time },
-          pickable: true,
+          pickable,
+          ...(hideEmpty ? { visible: data.length > 0 } : {}),
           // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
           slot: 'middle',
         }),
@@ -88,11 +107,27 @@ export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time:
   return layers;
 }
 
+export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time: number, options: AgentLayerOptions) {
+  return characterLayers(walking, models, time, { ...options, id: 'agents', clip: 'walk' });
+}
+
 const ANIMATIONS = Array.from({ length: PHASES }, (_, phase) => ({
   '*': { playing: false },
   walk: {
     playing: true,
     startTime: (phase / PHASES) * WALK_CYCLE_SECONDS,
     speed: 1.15 + phase * 0.07,
+  },
+}));
+
+// Standing about: Kenney's 'idle' clip (a slow sway), offset per character model so a waiting
+// crowd of mixed characters doesn't sway in step.
+const IDLE_CYCLE_SECONDS = 1.333;
+const IDLE_ANIMATIONS = CHARACTER_MODELS.map((_, model) => ({
+  '*': { playing: false },
+  idle: {
+    playing: true,
+    startTime: (((model * 5) % CHARACTER_MODELS.length) / CHARACTER_MODELS.length) * IDLE_CYCLE_SECONDS,
+    speed: 0.85 + (model % 4) * 0.08,
   },
 }));
