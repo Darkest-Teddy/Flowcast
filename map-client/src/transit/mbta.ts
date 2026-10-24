@@ -127,6 +127,15 @@ interface ApiResource {
   relationships: Record<string, { data: { id: string } | null }>;
 }
 
+/** What the map draws transit from: the live feeds (MbtaFeed) or the schedule (ScheduledTransit). */
+export interface TransitSource {
+  readonly tracks: Track[];
+  readonly state: { arrivals: Arrival[] };
+  positionsAt(now: number): Vehicle[];
+  nextArrivals(stopId: string, now?: number): Arrival[];
+  nextEachWay(stopId: string, now?: number): Partial<Record<0 | 1, Arrival>>;
+}
+
 /** Polls the MBTA and keeps the latest vehicles and arrivals; call positionsAt() every frame. */
 export class MbtaFeed {
   state: FeedState = { vehicles: [], arrivals: [], updatedAt: null, error: null };
