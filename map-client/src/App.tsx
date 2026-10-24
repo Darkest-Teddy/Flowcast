@@ -7,6 +7,7 @@ import { crowdLayers, crowdLevel } from './layers/crowd';
 import { createPlacer } from './layers/placement';
 import { buildingModelLayers, loadBuildings } from './layers/buildings';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
+import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { Playback, formatClock, loadDay, type Campus, type Occupancy, type WalkingAgent } from './sim/playback';
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
@@ -91,7 +92,7 @@ export default function App() {
     containerRef.current!.appendChild(mapElement);
 
     (async () => {
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street] = await Promise.all([
         createBasemap(mapElement, light),
         loadDay('/data/demo-day.json'),
         loadCharacterModels() as Promise<LoadedModels>,
@@ -100,6 +101,7 @@ export default function App() {
         loadVehicleModels().catch(() => ({})),
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
         loadBuildings().catch(() => null),
+        loadStreet().catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       basemapRef.current = basemap;
@@ -142,6 +144,8 @@ export default function App() {
         },
         getTooltip: ({ object }: PickingInfo) => {
           const transit = transitRef.current;
+          const streetText = streetTooltip(object, transit);
+          if (streetText) return streetText;
           const text = transit ? transitTooltip(object, transit.data, liveRef.current ? transit.feed : transit.schedule) : null;
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
@@ -190,6 +194,7 @@ export default function App() {
               selectedId: selectedRef.current,
               placer,
             }),
+            ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
             ...(transit && showTransitRef.current ? transitLayers({ data: transit.data, feed: transitSourceAt(transit, t, liveRef.current), now, zoom: basemap.getZoom(), placer, models: transit.models }) : []),
             ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
           ],
