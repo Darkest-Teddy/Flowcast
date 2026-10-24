@@ -29,7 +29,10 @@ import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
-import { type ActiveWeather } from './weather/weather';
+import { adjustOccupancy, weatherImpact, type ActiveWeather } from './weather/weather';
+import { calibrateCapacities } from './sim/calibrate';
+import { riderLayers, withRiders } from './layers/riders';
+import { RiderSim } from './sim/riders';
 import { precipitationLayers } from './weather/precipitation';
 import {
   BikeReplay,
@@ -234,7 +237,8 @@ export default function App() {
       baseDayRef.current = populationBase;
       setSourceData(snapshot);
       setMobilityData(mobilitySnapshot);
-      const playback = new Playback(buildSourceDay(populationBase, snapshot, weekdayRef.current));
+      // Capacities sized to the loaded day so % full never goes above 100 (sim/calibrate.ts).
+      const playback = new Playback(calibrateCapacities(buildSourceDay(populationBase, snapshot, weekdayRef.current)));
       playbackRef.current = playback;
       setRange([0, 86400]);
       setCampuses(day.campuses ?? []);
@@ -310,7 +314,9 @@ export default function App() {
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       let last = performance.now();
       let lastOccupancy = 0;
-      let occupancy = playback.occupancyAt(timeRef.current);
+      let occupancy = adjustOccupancy(playback.occupancyAt(timeRef.current), weatherRef.current);
+      // People getting on and off trains, buses and shuttles at stops near campus.
+      const riders = transitRef.current ? new RiderSim(day, transitRef.current.data, transitRef.current.feed.tracks) : null;
       let mobilityKey = '';
       let currentMobility: MobilityView | null = null;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
@@ -329,7 +335,7 @@ export default function App() {
         if (nextDay !== weekdayRef.current) {
           weekdayRef.current = nextDay;
           setWeekday(nextDay);
-          playbackRef.current = new Playback(buildSourceDay(populationBase, snapshot, nextDay));
+          playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(populationBase, snapshot, nextDay)));
           lastOccupancy = 0;
         }
         const playback = playbackRef.current!;
@@ -353,7 +359,7 @@ export default function App() {
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
-          occupancy = playback.occupancyAt(t);
+          occupancy = adjustOccupancy(playback.occupancyAt(t), weatherRef.current);
           lastOccupancy = now;
           if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
           const ridingByCampus = new Map<string, number>();
@@ -376,6 +382,7 @@ export default function App() {
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
         const source = transit ? transitSourceAt(transit, t, liveRef.current, weekdayRef.current) : null;
+        if (riders && source) riders.step(t, now, source);
         const showBikesNow = bikes && showBikesRef.current;
         // Shown time and day (0 = Sunday), for BU shuttle service hours.
         const serviceTime = liveRef.current ? wallClockSeconds() : t;
@@ -412,7 +419,8 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+          ...agentLayers(withRiders(walking, riders, showTransitRef.current), models, t, { zoom: basemap.getZoom() }),
+          ...(riders && showTransitRef.current ? riderLayers(riders, models, t, basemap.getZoom()) : []),
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
@@ -514,7 +522,7 @@ export default function App() {
   const changeDay = (value: number) => {
     if (!baseDayRef.current || !sourceData) return;
     leaveLive();
-    playbackRef.current = new Playback(buildSourceDay(baseDayRef.current, sourceData, value));
+    playbackRef.current = new Playback(calibrateCapacities(buildSourceDay(baseDayRef.current, sourceData, value)));
     setWeekday(value);
     weekdayRef.current = value;
     setHud((prev) => ({
@@ -617,6 +625,7 @@ export default function App() {
           {tab === 'crowds' ? (
             <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
 
+              {weather && <WeatherImpact weather={weather} />}
               <h2>Campus activity</h2>
               <ol>
                 {ranked.slice(0, 8).map((o) => {
@@ -977,4 +986,17 @@ const NO_SAILING = new Set(['drizzle', 'rain', 'heavy-rain', 'snow', 'fog', 'thu
 function sailingWeather(weather: ActiveWeather | null, light: LightPreset): boolean {
   if (light === 'night') return false;
   return !weather || !NO_SAILING.has(weather.condition);
+}
+
+function WeatherImpact({ weather }: { weather: ActiveWeather }) {
+  const { note, boost } = weatherImpact(weather.condition);
+  return (
+    <p className="weather-impact">
+      <strong>Weather impact:</strong> {note}.
+      <span className="muted">
+        {weather.sourceLabel}
+        {boost > 0 && ` · dining and library occupancy shown +${Math.round(boost * 100)}%; walking routes unchanged`}
+      </span>
+    </p>
+  );
 }
