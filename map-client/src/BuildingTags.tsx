@@ -11,7 +11,7 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { WebMercatorViewport } from '@deck.gl/core';
 import type { CameraState } from './map/basemap';
 import type { LabelPlacer, Projector } from './layers/placement';
-import { crowdLevel, crowdLevelStyle } from './layers/crowd';
+import { crowdLevel, crowdLevelStyle, ringTop, type RoofHeights } from './layers/crowd';
 import type { BuildingFootprint, BuildingOccupancy, CampusLocation, LocationKind } from './sim/playback';
 
 const svg = (paths: string) =>
@@ -47,6 +47,8 @@ export interface BuildingTagsFrame {
   /** Ground lng/lat to screen px (the map's own projection, padding included). */
   project: Projector;
   camera: CameraState;
+  /** Detailed-model heights, so tags stand on the model's roof rather than the footprint's. */
+  roofHeights?: RoofHeights;
 }
 
 export interface BuildingTagsHandle {
@@ -119,6 +121,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
     selectedId: null as string | null,
     heightsFrom: null as BuildingFootprint[] | null,
     heights: new Map<string, number>(),
+    roofsFrom: undefined as RoofHeights | undefined,
     kindsFrom: null as CampusLocation[] | null,
     kinds: new Map<string, LocationKind>(),
   }).current;
@@ -139,7 +142,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
   useImperativeHandle(
     ref,
     () => ({
-      update({ buildings, footprints, locations, selectedId, placer, project, camera }) {
+      update({ buildings, footprints, locations, selectedId, placer, project, camera, roofHeights }) {
         const layer = layerRef.current;
         const [width, height] = s.size;
         if (!layer || !width) return;
@@ -148,10 +151,11 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         s.last = now;
         s.selectedId = selectedId;
 
-        if (footprints !== s.heightsFrom) {
+        if (footprints !== s.heightsFrom || roofHeights !== s.roofsFrom) {
           s.heightsFrom = footprints;
+          s.roofsFrom = roofHeights;
           s.heights = new Map();
-          for (const f of footprints) s.heights.set(f.id, Math.max(s.heights.get(f.id) ?? 0, f.height));
+          for (const f of footprints) s.heights.set(f.id, Math.max(s.heights.get(f.id) ?? 0, ringTop(f, footprints, roofHeights)));
         }
         if (locations !== s.kindsFrom) {
           s.kindsFrom = locations;
