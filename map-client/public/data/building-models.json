@@ -10,8 +10,7 @@
    ],
    "model": "/models/buildings-charles-river.glb",
    "lights": {
-    "dusk": "/models/buildings-charles-river-lights-dusk.glb",
-    "night": "/models/buildings-charles-river-lights-night.glb"
+    "scheduled": "/models/buildings-charles-river-lights.glb"
    },
    "buildings": [
     {
@@ -8717,7 +8716,9 @@
       -71.121869,
       42.353476
      ],
-     "height": 12.2
+     "height": 4.4,
+     "landmark": "garage",
+     "deck": 3.5
     },
     {
      "osm": "way/1188211556",
@@ -9218,7 +9219,8 @@
       -71.099717,
       42.349614
      ],
-     "height": 33.8
+     "height": 40.3,
+     "landmark": "questrom"
     },
     {
      "osm": "way/263551761",
@@ -10212,8 +10214,7 @@
    ],
    "model": "/models/buildings-fenway.glb",
    "lights": {
-    "dusk": "/models/buildings-fenway-lights-dusk.glb",
-    "night": "/models/buildings-fenway-lights-night.glb"
+    "scheduled": "/models/buildings-fenway-lights.glb"
    },
    "buildings": [
     {
@@ -10346,8 +10347,7 @@
    ],
    "model": "/models/buildings-medical.glb",
    "lights": {
-    "dusk": "/models/buildings-medical-lights-dusk.glb",
-    "night": "/models/buildings-medical-lights-night.glb"
+    "scheduled": "/models/buildings-medical-lights.glb"
    },
    "buildings": [
     {
