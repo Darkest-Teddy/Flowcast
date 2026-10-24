@@ -25,7 +25,7 @@ export class MaterialScenegraphLayer<DataT = unknown, ExtraPropsT extends object
       inject: {
         ...shaders.inject,
         'vs:#decl': '#ifdef HAS_COLORS\nin vec4 colors;\n#endif' + (physical ? '\nin vec2 _FLOW_METALLIC_ROUGHNESS;\nin vec3 _FLOW_EMISSIVE;\nout vec2 flowMetallicRoughness;\nout vec3 flowEmissive;' : ''),
-        'vs:main-end': '#ifdef HAS_COLORS\nvColor *= colors;\n#endif' + (physical ? '\nflowMetallicRoughness = _FLOW_METALLIC_ROUGHNESS;\nflowEmissive = _FLOW_EMISSIVE;' : ''),
+        'vs:#main-end': '#ifdef HAS_COLORS\nvColor *= colors;\n#endif' + (physical ? '\nflowMetallicRoughness = _FLOW_METALLIC_ROUGHNESS;\nflowEmissive = _FLOW_EMISSIVE;' : ''),
       },
     };
   }

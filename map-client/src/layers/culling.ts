@@ -58,9 +58,19 @@ export function gltfExtent(gltf: unknown): { min: number[]; max: number[] } | nu
   return min[0] <= max[0] ? { min, max } : null;
 }
 
+// Invisible click targets (transparent fills that exist only to be picked): skipped when drawing
+// the picture, drawn only in deck.gl's picking passes.
+const PICK_ONLY = new Set(['crowd-buildings', 'place-hit-areas', 'place-hit-points']);
+
 const corner = new Array(4);
-/** deck.gl `layerFilter`: false only when the layer's box is wholly outside the view frustum. */
-export function cullLayers({ layer, viewport }: FilterContext): boolean {
+/**
+ * deck.gl `layerFilter`: false for pick-only layers outside picking, for layers with nothing to
+ * draw, and when the layer's box is wholly outside the view frustum.
+ */
+export function cullLayers({ layer, viewport, isPicking }: FilterContext): boolean {
+  if (!isPicking && PICK_ONLY.has(layer.id)) return false;
+  // An empty layer still pays the full per-draw setup (uniforms, bindings, GL state).
+  if (!layer.isComposite && layer.getNumInstances() === 0) return false;
   const box = boxes.get(layer.id);
   if (!box) return true;
   const m = viewport.viewProjectionMatrix;

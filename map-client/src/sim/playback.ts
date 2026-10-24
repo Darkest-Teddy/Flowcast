@@ -23,7 +23,8 @@ export interface EstimatedActivityProfile {
   campus: string;
   purpose: 'academic' | 'research' | 'community' | 'arena' | 'rowing';
   studentLevel: 'undergraduate' | 'graduate' | 'any';
-  weekdayWindows: { weekday: number; windows: [number, number][] }[];
+  /** `dailyParticipants` on a row overrides the profile-wide limit for that weekday. */
+  weekdayWindows: { weekday: number; windows: [number, number][]; dailyParticipants?: number }[];
   durationMinutes: number;
   attendanceProbability: number;
   capacity: number;

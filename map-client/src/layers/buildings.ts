@@ -28,6 +28,19 @@ export interface BuildingModelEntry {
   landmark?: string;
   /** Set on building:part / relation-member ids listed only so the city layer excludes them. */
   partOf?: string;
+  /** The model's massing, where it isn't one box up to `height`: CDS's stacked pieces, Warren's
+   *  towers on their podium, CAS's tower, pitched roofs and masts above the walls. */
+  volumes?: BuildingVolume[];
+}
+
+/** One modelled volume: its OSM footprint ring and the heights its walls run between. */
+export interface BuildingVolume {
+  /** [lng, lat], open, counter-clockwise. */
+  ring: [number, number][];
+  /** Bottom of its walls, metres (0 on the ground; above it where a piece sits on another). */
+  base: number;
+  /** Top of its walls or parapet, metres (below a pitched roof, spire or rooftop crown). */
+  top: number;
 }
 
 export interface CampusModel {

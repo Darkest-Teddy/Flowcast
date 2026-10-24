@@ -797,3 +797,54 @@ test('a same-room gap between back-to-back classes is a non-fixed wait, never cl
   }
   assert.ok(gaps>0,'some students take both classes');
 });
+
+const { freeTimeActivities, dailyParticipantLimit } = await import('../src/sim/sourceDay.ts');
+
+test('weekend menus shift meals later, add Friday/Saturday outings and keep weekday menus unchanged',()=>{
+  const weekday=freeTimeActivities(0);
+  for(const day of [1,2,3])assert.equal(freeTimeActivities(day),weekday);
+  assert.ok(!weekday.some(a=>a.kind==='off-campus-outing'));
+  for(const day of [5,6]){
+    const brunch=freeTimeActivities(day)[0];
+    assert.equal(brunch.kind,'dining');
+    const starts=Array.from({length:2000},(_,i)=>sampleActivityStart(`brunch-${day}-${i}`,0,day)/3600);
+    assert.ok(Math.min(...starts)>=9,'no weekend breakfast before 09:00');
+    assert.ok(starts.filter(t=>t>=10).length/starts.length>0.75,'weekend brunch is mostly after 10:00');
+    assert.ok(Math.max(...starts)<=14);
+    assert.ok(!freeTimeActivities(day).some(a=>a.kind==='dining'&&a.at<10),'no weekday-style 08:00 breakfast');
+  }
+  assert.ok(freeTimeActivities(4).some(a=>a.kind==='off-campus-outing'));
+  assert.ok(freeTimeActivities(5).some(a=>a.kind==='off-campus-outing'));
+  assert.ok(!freeTimeActivities(6).some(a=>a.kind==='off-campus-outing'),'no Sunday night out');
+  assert.equal(sampleActivityStart('stable',0,5),sampleActivityStart('stable',0,5));
+});
+
+test('weekend outings are resident-only off-campus stays with gateway walks and fixed purposes',()=>{
+  const {base,data}=fixture();data.locations.class.meetings=[];
+  base.agents=[...Array.from({length:150},(_,i)=>({id:`out-res-${i}`,home:'home',residency:'resident',campus:'main',model:0})),
+    ...Array.from({length:100},(_,i)=>({id:`out-com-${i}`,home:'off-campus',residency:'commuter',campus:'main',model:0}))];
+  const saturday=buildSourceDay(base,data,5);validate(saturday);assertStayPurposes(saturday);
+  const outings=saturday.sourceActivities.filter(a=>a.kind==='off-campus-outing');
+  assert.ok(outings.length>0);assert.equal(saturday.sourceStats.modeledOffCampusOutings,outings.length);
+  for(const outing of outings){
+    assert.ok(outing.agentId.startsWith('out-res-'),'commuters never get outings');
+    assert.equal(outing.locationId,'off-campus');assert.equal(outing.endSec-outing.startSec,150*60);
+    assert.ok(saturday.trips.some(t=>t.agent===outing.agentId&&t.to==='off-campus'&&t.timestamps.at(-1)<=outing.startSec+1e-7));
+    assert.ok(saturday.trips.some(t=>t.agent===outing.agentId&&t.from==='off-campus'&&t.timestamps[0]>=outing.endSec-1e-7));
+    assert.ok(saturday.stays.some(s=>s.agent===outing.agentId&&s.start===outing.startSec&&s.purpose.kind==='off-campus-outing'&&!s.purpose.fixed));
+  }
+  assert.equal(buildSourceDay(base,data,6).sourceActivities.filter(a=>a.kind==='off-campus-outing').length,0);
+  assert.equal(buildSourceDay(base,data,2).sourceActivities.filter(a=>a.kind==='off-campus-outing').length,0);
+});
+
+test('per-weekday dailyParticipants overrides cap estimated visits on that day only',()=>{
+  const windows=[[9*3600,17*3600]];
+  const p=profile('research',{dailyParticipants:20,weekdayWindows:[{weekday:0,windows},{weekday:5,windows,dailyParticipants:4},{weekday:6,windows,dailyParticipants:4},{weekday:6,windows:[[18*3600,20*3600]],dailyParticipants:2}]});
+  assert.equal(dailyParticipantLimit(p,0),20);assert.equal(dailyParticipantLimit(p,5),4);
+  assert.equal(dailyParticipantLimit(p,6),2,'the minimum applies when rows disagree');assert.equal(dailyParticipantLimit(p,3),20);
+  const {base,data}=fixture();data.locations.class.meetings=[];data.locations.class.hours=[];
+  base.locations.find(l=>l.id==='class').estimatedProfile=p;
+  base.agents=Array.from({length:100},(_,i)=>({id:`limit-${i}`,home:'home',residency:'resident',campus:'main',studentLevel:'graduate',model:0}));
+  const count=day=>buildSourceDay(base,data,day).sourceActivities.filter(a=>a.kind==='estimated').length;
+  assert.ok(count(0)>4&&count(0)<=20);assert.ok(count(5)>0&&count(5)<=4);assert.ok(count(6)<=2);
+});

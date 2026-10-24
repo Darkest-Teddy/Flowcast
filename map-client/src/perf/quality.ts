@@ -1,17 +1,23 @@
 // Render quality: Quality, Speed and Auto (the perf monitor's "Performance" switch).
 //
-// - Quality: everything, at the screen's full pixel ratio. What the map always looked like.
-// - Speed: a fixed low setting for weaker laptops (pixel ratio 1, fewer rain/snow particles, no lit
-//   windows, walkers only near the view, and Mapbox without shadows, trees or footpaths).
-// - Auto (default): Quality until the 1% low drops under 45 FPS, then one step down at a time
-//   towards Speed; back up a step when there's headroom again. (Everything but the pixel ratio,
-//   which only changes on a reload.)
+// What limits this app is the number of WebGL calls per frame, not shader work: Chrome runs every
+// call through one GPU-process thread (~2 us each), and Mapbox Standard alone makes ~10,000 a frame
+// with shadows and 3D trees on. So the steps below drop the features that cost the most calls, and
+// never the resolution, which costs little once MSAA is off on high-density screens.
 //
-// The pixel ratio is the big GPU lever: at 2x a 1920x1080 window renders 3840x2160 (with 4x MSAA)
-// every frame. Mapbox GL v3 has no pixelRatio option and reads window.devicePixelRatio live, and
-// in interleaved mode deck.gl draws into Mapbox's canvas (MapboxOverlay drops useDevicePixels),
-// so the one way to cap both is to cap window.devicePixelRatio before the map is created. CSS and
-// the HTML panels are unaffected: the browser lays out with the real ratio. It's set once, at load.
+// - Quality: everything (shadows, 3D trees, footpaths, lit windows) at the screen's pixel ratio.
+// - Auto (default): starts where it last settled on this machine and steps one level at a time:
+//   0 everything, 1 no shadows, 2 no footpaths or building AO, 3 no 3D trees and walkers only near the view
+//   (still at the screen's pixel ratio, lit windows kept). Down when the 1% low stays under
+//   45 FPS, back up with headroom.
+// - Speed: level 3 plus pixel ratio 1, no MSAA and no lit windows, for weak laptops.
+//
+// MSAA: 4x multisampling at a 2x pixel ratio is 16 samples per CSS pixel and doubled this app's
+// GPU time per frame, while the pixel density already smooths the edges. It's on below 1.75x only.
+//
+// The pixel ratio is capped by overriding window.devicePixelRatio before the map is created:
+// Mapbox GL v3 has no pixelRatio option and reads it live, and in interleaved mode deck.gl draws
+// into Mapbox's canvas. CSS and the HTML panels are unaffected. It's set once, at load.
 
 export type QualityMode = 'auto' | 'quality' | 'speed';
 
@@ -28,6 +34,8 @@ export interface QualitySettings {
   mapShadows: boolean;
   map3dObjects: boolean;
   mapPedestrianRoads: boolean;
+  /** Ambient-occlusion shading at the foot of the city buildings (an extra ground pass per tile). */
+  mapBuildingAO: boolean;
 }
 
 const nativeDpr = (() => {
@@ -37,22 +45,35 @@ const nativeDpr = (() => {
   return () => (getter ? (getter.call(window) as number) : 1) || 1;
 })();
 
-function levelSettings(level: number): QualitySettings {
-  const dpr = nativeDpr();
-  switch (level) {
+function levelSettings(level: number, speedMode = mode === 'speed'): QualitySettings {
+  // Only Speed mode lowers the resolution (and only from the next load); Auto keeps it.
+  const pixelRatio = speedMode ? 1 : nativeDpr();
+  switch (speedMode ? SPEED_LEVEL : level) {
     case 0:
-      return { level, pixelRatio: dpr, particles: 1, litWindows: true, walkerRadius: null, mapShadows: true, map3dObjects: true, mapPedestrianRoads: true };
+      return { level: 0, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: true, map3dObjects: true, mapPedestrianRoads: true, mapBuildingAO: true };
     case 1:
-      return { level, pixelRatio: Math.min(dpr, 1.5), particles: 1, litWindows: true, walkerRadius: null, mapShadows: true, map3dObjects: true, mapPedestrianRoads: true };
+      return { level: 1, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: true, mapBuildingAO: true };
     case 2:
-      return { level, pixelRatio: Math.min(dpr, 1.25), particles: 0.6, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: true };
+      return { level: 2, pixelRatio, particles: 0.6, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: false, mapBuildingAO: false };
     default:
-      return { level: SPEED_LEVEL, pixelRatio: 1, particles: 0.35, litWindows: false, walkerRadius: 1200, mapShadows: false, map3dObjects: false, mapPedestrianRoads: false };
+      // Lit windows stay: they're two draws, and most of the night view.
+      return { level: SPEED_LEVEL, pixelRatio, particles: 0.35, litWindows: !speedMode, walkerRadius: 1200, mapShadows: false, map3dObjects: false, mapPedestrianRoads: false, mapBuildingAO: false };
   }
 }
 export const SPEED_LEVEL = 3;
 
 const STORAGE_KEY = 'flowcast.quality';
+// Where Auto last settled on this machine, so the next load starts there instead of at the top.
+const AUTO_LEVEL_KEY = 'flowcast.autoLevel';
+
+function storedAutoLevel(): number {
+  try {
+    const level = Number(localStorage.getItem(AUTO_LEVEL_KEY));
+    return Number.isInteger(level) && level >= 0 && level <= 3 ? level : 0;
+  } catch {
+    return 0;
+  }
+}
 const MODES: QualityMode[] = ['auto', 'quality', 'speed'];
 
 function initialMode(): QualityMode {
@@ -70,11 +91,12 @@ function initialMode(): QualityMode {
 type Listener = () => void;
 const listeners = new Set<Listener>();
 let mode: QualityMode = initialMode();
-let settings: QualitySettings = levelSettings(mode === 'speed' ? SPEED_LEVEL : 0);
+let settings: QualitySettings = levelSettings(mode === 'auto' ? storedAutoLevel() : 0);
 let appliers: ((s: QualitySettings) => void)[] = [];
 
 // Cap window.devicePixelRatio (see the header). Installed once, before the map is created.
-let dprCap = settings.pixelRatio;
+const dprParam = Number(new URLSearchParams(window.location.search).get('dpr'));
+let dprCap = dprParam > 0 ? dprParam : settings.pixelRatio;
 Object.defineProperty(window, 'devicePixelRatio', {
   configurable: true,
   get: () => Math.min(nativeDpr(), dprCap),
@@ -89,6 +111,13 @@ function apply(next: QualitySettings) {
   // canvas but not deck.gl's view of it, so every model drew at the old scale, out of register
   // with the streets (buildings floating). A new mode's ratio applies after a reload, like MSAA.
   settings = next;
+  if (mode === 'auto') {
+    try {
+      localStorage.setItem(AUTO_LEVEL_KEY, String(next.level));
+    } catch {
+      // storage blocked: start from the top next time
+    }
+  }
   for (const a of appliers) a(next);
   emit();
 }
@@ -99,6 +128,11 @@ export const quality = {
   },
   get settings() {
     return settings;
+  },
+  /** 4x MSAA on the map's canvas (only settable when the map is created). */
+  get msaa() {
+    const q = new URLSearchParams(window.location.search).get('msaa');
+    return q === null ? mode !== 'speed' && dprCap < 1.75 : q !== '0';
   },
   /** The pixel ratio actually in use (fixed at load; settings.pixelRatio is the wanted one). */
   get pixelRatio() {
@@ -117,7 +151,7 @@ export const quality = {
       // storage blocked: this session only
     }
     auto.reset();
-    apply(levelSettings(next === 'speed' ? SPEED_LEVEL : 0));
+    apply(levelSettings(next === 'auto' ? storedAutoLevel() : 0, next === 'speed'));
   },
   /** Called with the settings now and whenever they change (e.g. the basemap's own switches). */
   onChange(applier: (s: QualitySettings) => void) {

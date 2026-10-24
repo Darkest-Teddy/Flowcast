@@ -76,11 +76,15 @@ export function characterLayers(items: WalkingAgent[], models: LoadedModels, tim
   // Idle: one layer per model (each model sways at its own offset), since every extra layer is
   // another render pass in interleaved mode.
   const phases = clip === 'walk' ? PHASES : 1;
-  const animationFor = (model: number, phase: number) => (clip === 'walk' ? ANIMATIONS[phase] : IDLE_ANIMATIONS[model % IDLE_ANIMATIONS.length]);
+  // From the overview, one walk layer per model (each model keeps its own stride offset and
+  // cadence, so the crowd still doesn't march in step): 12 draws instead of 36. The other phase
+  // layers stay in the list, empty and hidden, so zooming back in re-uploads nothing.
+  const usedPhases = clip === 'walk' && zoom < PHASED_FROM_ZOOM ? 1 : phases;
+  const animationFor = (model: number, phase: number) => (clip === 'walk' ? WALK_ANIMATIONS[model % WALK_ANIMATIONS.length][phase] : IDLE_ANIMATIONS[model % IDLE_ANIMATIONS.length]);
   const sizeScale = walkerScale(zoom);
   const buckets = new Map<string, WalkingAgent[]>();
   for (const agent of items) {
-    const key = `${agent.model % models.length}-${phaseOf(agent.id, phases)}`;
+    const key = `${agent.model % models.length}-${usedPhases > 1 ? phaseOf(agent.id, phases) : 0}`;
     const list = buckets.get(key) ?? [];
     list.push(agent);
     buckets.set(key, list);
@@ -129,14 +133,19 @@ export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time:
   return characterLayers(walking, models, time, { ...options, id: 'agents', clip: 'walk' });
 }
 
-const ANIMATIONS = Array.from({ length: PHASES }, (_, phase) => ({
-  '*': { playing: false },
-  walk: {
-    playing: true,
-    startTime: (phase / PHASES) * WALK_CYCLE_SECONDS,
-    speed: 1.15 + phase * 0.07,
-  },
-}));
+// Per model and phase: phases a third of a stride apart, and each model offset and paced a little
+// differently, so even with one layer per model (the overview) neighbours don't share a stride.
+const PHASED_FROM_ZOOM = 16;
+const WALK_ANIMATIONS = CHARACTER_MODELS.map((_, model) =>
+  Array.from({ length: PHASES }, (_, phase) => ({
+    '*': { playing: false },
+    walk: {
+      playing: true,
+      startTime: ((((model * 5) % CHARACTER_MODELS.length) / CHARACTER_MODELS.length + phase / PHASES) % 1) * WALK_CYCLE_SECONDS,
+      speed: 1.15 + phase * 0.07 + (model % 4) * 0.025,
+    },
+  })),
+);
 
 // Standing about: Kenney's 'idle' clip (a slow sway), offset per character model so a waiting
 // crowd of mixed characters doesn't sway in step.
