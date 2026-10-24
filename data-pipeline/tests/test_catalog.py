@@ -59,6 +59,17 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaises(ScrapeError):
             parse_classroom(source(html), "CAS", "B50")
 
+    def test_explicit_medical_building_label_retains_the_terminal_code(self):
+        html = ''.join(f'<li><span class="meta-name">{key}</span><span class="meta-value">{value}</span></li>' for key,value in {
+            'Building Code':'BUMC - A Building - ABG','Room Number':'406','Capacity':'12'}.items())
+        room = parse_classroom(source(html),'ABG','406')
+        self.assertEqual(room['capacity']['value'],12)
+        self.assertEqual(room['publishedBuildingCode'],'BUMC - A Building - ABG')
+        with self.assertRaises(ScrapeError):
+            parse_classroom(source(html),'GDS','406')
+        with self.assertRaises(ScrapeError):
+            parse_classroom(source(html),'ABG','408')
+
     def test_building_table_first_cell_can_be_th(self):
         html = '<table><tr><th>Code</th><th>Full Name</th><th>Street Address</th></tr><tr><th>STO</th><td>Stone Science Building</td><td>675 Commonwealth Avenue</td></tr></table>'
         self.assertEqual(parse_buildings(source(html))[0]["buildingCode"], "STO")

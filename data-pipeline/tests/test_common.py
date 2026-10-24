@@ -1,9 +1,12 @@
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
+import time
 import json
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from common import Fetcher, ScrapeError, Source, envelope, write_json
 
@@ -36,6 +39,57 @@ class CommonTests(unittest.TestCase):
         for url in ['file:///etc/passwd', 'https://user:password@www.bu.edu/']:
             with self.subTest(url=url), self.assertRaises(ScrapeError):
                 Fetcher().get(url)
+
+    def test_concurrent_workers_share_the_host_request_interval(self):
+        starts = []
+        class Response:
+            headers = {'Content-Type': 'text/plain'}
+            def __init__(self, url): self.url = url
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self): return b'public source'
+        def respond(request, timeout):
+            starts.append(time.monotonic())
+            return Response(request.full_url)
+        with tempfile.TemporaryDirectory() as directory, patch('urllib.request.urlopen', side_effect=respond):
+            fetcher = Fetcher(directory, delay=0.02)
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                responses = list(pool.map(fetcher.get, ['https://www.bu.edu/test-'+str(i) for i in range(6)]))
+            self.assertEqual(len(responses), 6)
+        starts.sort()
+        self.assertTrue(all(b-a >= 0.018 for a,b in zip(starts, starts[1:])))
+
+    def test_refresh_reuses_disk_after_response_is_evicted_from_memory(self):
+        class Response:
+            headers = {'Content-Type': 'text/plain'}
+            def __init__(self, url): self.url = url
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self): return b'public source'
+        with tempfile.TemporaryDirectory() as directory, patch('urllib.request.urlopen', side_effect=lambda request, timeout: Response(request.full_url)) as request:
+            fetcher = Fetcher(directory, refresh=True, delay=0)
+            for i in range(129):
+                fetcher.get('https://www.bu.edu/test-'+str(i))
+            cached = fetcher.get('https://www.bu.edu/test-0')
+            self.assertTrue(cached.cached)
+            self.assertEqual(request.call_count, 129)
+            self.assertLessEqual(len(fetcher.responses), 128)
+
+    def test_rate_limit_honors_retry_after_and_slows_all_workers(self):
+        class Response:
+            headers = {'Content-Type': 'text/plain'}
+            url = 'https://www.bu.edu/limited'
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self): return b'public source'
+        error = HTTPError(Response.url,429,'limited',{'Retry-After':'120'},None)
+        with tempfile.TemporaryDirectory() as directory, patch('urllib.request.urlopen',side_effect=[error,Response()]), patch('common.time.sleep') as sleep:
+            fetcher = Fetcher(directory,delay=0.25)
+            fetcher.get(Response.url)
+            self.assertEqual(fetcher.rate_limit_count,1)
+            self.assertGreaterEqual(fetcher.delay,1)
+            self.assertTrue(any(call.args[0] >= 120 for call in sleep.call_args_list))
+            self.assertIn('www.bu.edu',fetcher.host_backoff)
 
     def test_partial_output_is_labeled_and_json_is_atomic_on_serialization_error(self):
         self.assertEqual(envelope('example', {'errors': ['failed']})['status'], 'partial')
