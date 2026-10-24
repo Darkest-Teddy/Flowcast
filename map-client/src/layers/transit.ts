@@ -7,7 +7,7 @@ import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import { CubeGeometry } from '@luma.gl/engine';
 import type { Color } from '@deck.gl/core';
-import { minutesUntil, type MbtaFeed, type TransitData, type TransitRoute, type TransitStop, type Vehicle } from '../transit/mbta';
+import { minutesUntil, type Arrival, type TransitSource, type TransitData, type TransitRoute, type TransitStop, type Vehicle } from '../transit/mbta';
 import { BU_RED } from '../transit/buShuttle';
 import { trackGeometry, type Track, type TrackGeometry } from '../transit/tracks';
 import { labelWidth, type LabelPlacer } from './placement';
@@ -56,7 +56,7 @@ export function hexToColor(hex: string, alpha = 255): Color {
 
 export interface TransitLayerInput {
   data: TransitData;
-  feed: MbtaFeed;
+  feed: TransitSource;
   now: number; // performance.now(), for easing vehicles
   zoom: number;
   placer: LabelPlacer;
@@ -70,7 +70,7 @@ interface RoutePath {
 
 // Track geometry only depends on the static route shapes, so build it once per feed.
 const geometryCache = new WeakMap<Track[], TrackGeometry>();
-function subwayTracks(feed: MbtaFeed, routes: Map<string, TransitRoute>): TrackGeometry {
+function subwayTracks(feed: TransitSource, routes: Map<string, TransitRoute>): TrackGeometry {
   let geometry = geometryCache.get(feed.tracks);
   if (!geometry) {
     geometry = trackGeometry(feed.tracks.filter((t) => routes.get(t.route)?.kind === 'subway'));
@@ -97,13 +97,18 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
 
   const stations = data.stops.filter((s) => s.kind === 'station');
   const labelText = (s: TransitStop) => {
-    const next = feed.nextEachWay(s.id);
+    // Trains only: Kenmore is also a stop for the 57 and other buses.
+    const next: Partial<Record<0 | 1, Arrival>> = {};
+    for (const a of feed.nextArrivals(s.id)) {
+      if (routes.get(a.route)?.kind === 'subway' && (!next[a.direction] || a.time < next[a.direction]!.time)) next[a.direction] = a;
+    }
+    const branches = s.routes.filter((r) => routes.get(r)?.kind === 'subway');
     const parts = ([1, 0] as const).flatMap((dir) => {
       const a = next[dir];
       if (!a) return [];
       const route = routes.get(a.route)!;
       // Name the branch where more than one stops here (Kenmore: B, C, D).
-      const branch = s.routes.length > 1 ? `${route.name} ` : '';
+      const branch = branches.length > 1 ? `${route.name} ` : '';
       return [`${route.directions[dir]} ${branch}${minutesUntil(a.time)}`];
     });
     return `${s.short}\n${parts.length ? parts.join(' · ') : 'No predictions'}`;
@@ -268,7 +273,7 @@ export function transitLayers({ data, feed, now, zoom, placer, models }: Transit
 }
 
 /** Hover text for transit objects; null for anything else. */
-export function transitTooltip(object: unknown, data: TransitData, feed: MbtaFeed): string | null {
+export function transitTooltip(object: unknown, data: TransitData, feed: TransitSource): string | null {
   if (!object || typeof object !== 'object') return null;
   const routes = new Map(data.routes.map((r) => [r.id, r]));
   if ('receivedAt' in object) {
