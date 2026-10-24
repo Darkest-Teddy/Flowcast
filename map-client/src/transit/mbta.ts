@@ -157,6 +157,8 @@ export interface TransitSource {
   positionsAt(now: number): Vehicle[];
   nextArrivals(stopId: string, now?: number): Arrival[];
   nextEachWay(stopId: string, now?: number): Partial<Record<0 | 1, Arrival>>;
+  /** Whether a published timetable has this route in service now; undefined when it has no timetable for it. */
+  inService?(routeId: string): boolean | undefined;
 }
 
 /** Polls the MBTA and keeps the latest vehicles and arrivals; call positionsAt() every frame. */
