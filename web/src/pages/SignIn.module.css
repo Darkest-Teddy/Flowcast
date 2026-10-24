@@ -4,7 +4,6 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-12) var(--space-4);
-  background: var(--color-canvas);
 }
 
 .column {

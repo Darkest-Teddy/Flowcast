@@ -1,7 +1,7 @@
 """Extend one requested week from cached official schedules without replacing history.
 
 --reviewed-regular-hours means the operator checked the medical library's holiday
-list and Chequers' notices for this week. It is deliberately not inferred from a
+list, Chequers' and the law libraries' notices for this week. It is deliberately not inferred from a
 weekday pattern. Fenway's provider publishes machine-readable seasonal overrides.
 """
 import argparse
@@ -10,8 +10,8 @@ import json
 import re
 
 from common import Fetcher, OUTPUT, ScrapeError, soup, utc_now, write_json
-from scrape_opening_hours import (CHEQUERS, MEDICAL, entry, hour_windows,
-                                  parse_fenway_provider, portable)
+from scrape_opening_hours import (CHEQUERS, LAW_LIBRARY, MEDICAL, entry, hour_windows,
+                                  law_library_hours, parse_fenway_provider, portable)
 
 
 def merge_hours(existing, incoming):
@@ -63,6 +63,9 @@ def extend(payload, fetcher, week_start, reviewed_regular_hours=False):
         if len(rows) != 7:
             raise ScrapeError('Medical library schedule incomplete')
         updates['bumc-library'] = rows
+        if 'law-library' in locations:
+            updates['law-library'] = law_library_hours(get(LAW_LIBRARY), week_start, end.isoformat(),
+                'Published fall schedule; source reviewed for this week. No holiday exceptions supplied.')
     for key, rows in updates.items():
         for row in rows:
             merged = []

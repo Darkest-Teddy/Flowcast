@@ -114,8 +114,8 @@
   min-height: var(--control-height-xl);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  border-radius: calc(var(--radius-card) / 2);
+  background: var(--glass-fill-strong);
   font-size: var(--text-lg);
   cursor: pointer;
 }

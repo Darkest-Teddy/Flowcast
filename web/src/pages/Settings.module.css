@@ -1,6 +1,8 @@
+/* Each group of settings is one glass card, rows split by hairlines inside it. */
 .rows {
-  border-top: 1px solid var(--color-hairline);
-  border-bottom: 1px solid var(--color-hairline-soft);
+  composes: glass from global;
+  padding: var(--space-1) var(--space-5);
+  border-radius: var(--radius-card);
 }
 
 .row {

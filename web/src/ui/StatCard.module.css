@@ -1,8 +1,7 @@
 .card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-hairline-soft);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
+  composes: glass from global;
+  border-radius: var(--radius-card);
+  padding: var(--space-4) var(--space-5);
   min-width: 0;
 }
 
@@ -37,7 +36,7 @@
 .bars i {
   flex: 1;
   background: var(--color-accent-soft);
-  border-radius: 1px;
+  border-radius: var(--radius-xs);
 }
 
 .bars i.on {

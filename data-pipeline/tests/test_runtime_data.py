@@ -21,6 +21,14 @@ class RuntimeDataTests(unittest.TestCase):
         self.assertEqual(result["locationCapacities"], {"dorm": 20, "unknown": 0, "closed": 0, "dining": 90})
         self.assertEqual(population, {"students": {"total": 10, "cohorts": [{"headcount": 10}]}})
 
+    def test_configured_size_proxy_keeps_its_label(self):
+        population = {"students": {"total": 1, "cohorts": [{"headcount": 1}]}}
+        campuses = [{"locations": [{"id": "cafe", "kind": "dining", "capacity": 60, "capacityNote": "Configured size proxy"},
+                                   {"id": "hall", "kind": "dining", "capacity": 500}]}]
+        bases = build_population(population, campuses, {"locations": {}})["locationCapacityBasis"]
+        self.assertEqual(bases["cafe"], {"basis": "configured_model_capacity", "unit": "people", "confidence": "low", "note": "Configured size proxy"})
+        self.assertEqual(bases["hall"], {"basis": "configured_model_capacity", "unit": "people"})
+
     def test_rejects_inconsistent_roster(self):
         with self.assertRaises(ValueError):
             build_population({"students": {"total": 11, "cohorts": [{"headcount": 10}]}}, [], {"locations": {}})

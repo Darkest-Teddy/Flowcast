@@ -24,7 +24,7 @@ On-campus venues are selected only after checking hours, routes, and class confl
 
 Nine additional academic, research, community, arena, and rowing locations have explicit low-confidence activity scenarios. These use existing students, prefer students without mapped published classes, preserve class times, and reserve their full presence within configured activity quotas. Restricted arena and rowing profiles describe purpose-specific student participants rather than public opening hours. Estimated activities carry separate provenance and never become published course assignments.
 
-The **Data** tab exposes published class times, room seats, housing baselines, dining and library hours, events, historical library counts, and source links. The compact bundle maps 3,805 of 6,944 physical meeting records onto existing map locations; unmatched building codes are listed in the coverage panel. Date-restricted classes are excluded from the representative week. Seats and registrations never become observed attendance.
+The **Data** tab exposes published class times, room seats, housing baselines, dining and library hours, events, historical library counts, and source links. The compact bundle maps 5,904 of 6,944 physical meeting records onto existing map locations; unmatched building codes are listed in the coverage panel. Date-restricted classes are excluded from the representative week. Seats and registrations never become observed attendance.
 
 `npm run prepare:data` rebuilds campus, population, timetable, and historical mobility bundles from committed snapshots without network access. Production builds run this automatically. `npm test` checks scheduling, routing, population conservation, clock timing, and transit freshness. The TypeScript simulation lives in `src/sim/sourceDay.ts` and `src/sim/population.ts`.
 
@@ -129,6 +129,7 @@ Places open on hover of the model, outline or field itself too, through invisibl
 | `src/map/basemap.ts` | Creates Mapbox or MapLibre; sets the camera, lighting and URL view params |
 | `src/layers/agents.ts` | Character models, facing direction, de-synchronised walk cycles |
 | `src/layers/crowd.ts` | Building glow and trails, plus the shared Quiet/Moderate/Busy/Packed scale (`crowdLevel`, `crowdLevelStyle`) |
+| `src/layers/crowdLevels.ts` | The map's view of `theme/crowd.ts`, the one crowd scale (Moderate from 40%, Busy from 65%, Packed from 85%; a share on a boundary takes the upper level, an unknown one is Quiet), also used by the Ask server |
 | `src/BuildingTags.tsx` | The HTML building tags over the map; clicking one selects the building |
 | `src/TransitTags.tsx`, `src/tags/glassTags.ts` | HTML tags for stations, bus and shuttle stops, Bluebikes docks and the hovered vehicle |
 | `src/PlaceTags.tsx` | HTML tags for monuments, landmarks, public art, open spaces and fields |

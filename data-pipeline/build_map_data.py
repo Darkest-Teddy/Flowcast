@@ -26,6 +26,17 @@ BUILDING_ALIASES = {
     "COM": "com", "CFA": "cfa", "CGS": "cgs", "SAR": "sargent", "ENG": "eng",
     "LAW": "law-tower", "MUG": "mugar", "KHC": "kilachand", "FRC": "fitrec",
     "FCB": "fenway-classroom", "FAB": "fenway-activities", "HAW": "hawes", "INS": "bumc-instructional",
+    # Teaching buildings in campuses/charles-river-classrooms.json and medical-classrooms.json: each
+    # code's published directory address or name matches its OSM footprint (sources recorded there).
+    "SCI": "metcalf-science", "PSY": "psychology", "FLR": "fuller", "STH": "theology", "WED": "wheelock",
+    "EOP": "cello", "SOC": "sociology", "KCB": "kenmore-classroom", "THA": "booth-theatre", "MCS": "math-cs",
+    "PRB": "physics-biology-research", "BRB": "physics-biology-research",  # one OSM building, 3-5 Cummington Mall
+    "SHA": "hospitality", "SSW": "social-work", "STO": "stone-science", "YAW": "yawkey", "HIS": "history",
+    "LSE": "lse", "JSC": "jewish-studies", "PLS": "pls", "MET": "met", "IRC": "irc", "BAB": "babcock",
+    "REL": "religion", "ERB": "erb", "IRB": "irb", "EGL": "english", "MOR": "morse",
+    "AAS": "african-american-studies", "EMB": "emb", "ERA": "era", "MCH": "marsh-chapel", "EMA": "ema",
+    "PTH": "playwrights-theatre",
+    "ABG": "bumc-building-a", "EVN": "bumc-evans", "XBG": "bumc-ebrc", "CTC": "bumc-crosstown",
 }
 HOUSING_ALIASES = {
     "housing:warren-towers": "warren", "housing:10-buick-street": "stuvi",
@@ -172,6 +183,13 @@ def event_room(record, location_id, classrooms):
             continue
         room = match[1].upper()
         codes = [code for code, value in BUILDING_ALIASES.items() if value == target]
+        seats = [classrooms[(code, room)] for code in codes if (code, room) in classrooms]
+        return room, (min(seats) if seats else None)
+    # "Howard Thurman Center (HTC), Room 207": a named room is a room event, never the whole building.
+    match = re.search(r"\bRoom\s+([A-Z]?\d{2,4}[A-Z]?)\b", name, re.I)
+    if match:
+        room = match[1].upper()
+        codes = [code for code, value in BUILDING_ALIASES.items() if value == location_id]
         seats = [classrooms[(code, room)] for code in codes if (code, room) in classrooms]
         return room, (min(seats) if seats else None)
     return None, None

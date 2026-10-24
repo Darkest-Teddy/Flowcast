@@ -32,8 +32,8 @@
   min-height: var(--control-height);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
+  border-radius: var(--radius-capsule);
+  background: var(--glass-fill-strong);
   color: var(--color-ink);
   font: inherit;
   font-size: var(--text-sm);

@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from build_map_data import (DATASETS, DEFAULT_INPUT, DEFAULT_MAP, build, build_bundle,
-                            calendar_restricted, event_location, hour_windows, routable_ids, reference_week)
+                            calendar_restricted, event_location, event_room, hour_windows, routable_ids, reference_week)
 
 
 class MapDataTests(unittest.TestCase):
@@ -156,6 +156,10 @@ class MapDataTests(unittest.TestCase):
         self.assertIsNone(resolve(locationName='Howard Thurman Center, Room 207', locationAddress='808 Commonwealth Avenue'))
         self.assertIsNone(resolve(locationName='CAS or GSU, Agganis Arena lobby', locationAddress=None))
         self.assertIsNone(event_location({'locationStatus':'hidden','locationName':'GSU'}, locations, []))
+        # A named room inside a mapped building is a room event (unknown seats), not the whole building.
+        self.assertEqual(event_room({'locationName': 'Howard Thurman Center (HTC), Room 207'}, 'fuller', {}), ('207', None))
+        self.assertEqual(event_room({'locationName': 'CAS B36'}, 'cas', {('CAS', 'B36'): 90}), ('B36', 90))
+        self.assertEqual(event_room({'locationName': 'Agganis Arena'}, 'agganis', {}), (None, None))
 
     def test_routes_allow_precomputed_cross_campus_and_reject_unknown_destinations(self):
         day = {'locations':[{'id':'a','campus':'one'},{'id':'b','campus':'two'}],
@@ -172,7 +176,7 @@ class MapDataTests(unittest.TestCase):
             bundle, size = build(output=first)
             build(output=second)
             self.assertEqual(first.read_bytes(),second.read_bytes())
-            self.assertLess(size,3_000_000)
+            self.assertLess(size,3_500_000)  # 5,904 mapped meetings at 81 teaching locations
             self.assertEqual(bundle['schemaVersion'],1)
             for item in bundle['inputFiles']:
                 path = Path(__file__).resolve().parents[2]/item['path']

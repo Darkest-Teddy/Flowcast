@@ -18,7 +18,7 @@ inclusion: always
 | `data-pipeline/` | Python 3.10+, standard library + BeautifulSoup, `unittest` |
 | `map-client/` | React 19, TypeScript, Vite, Mapbox GL / MapLibre, deck.gl; tests with `node --test` |
 | `web/` | React 19, TypeScript, Vite, react-router; serves the map at `/map` |
-| `theme/` | Shared CSS tokens (`tokens.css`) and their TS view (`tokens.ts`) |
+| `theme/` | Shared CSS tokens (`tokens.css`), their TS view (`tokens.ts`) and the one crowd scale (`crowd.ts`: thresholds 40/65/85%, words, colours) |
 
 ### Verify every change
 

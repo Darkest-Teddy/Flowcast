@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), buApiPlugin(key, privateBundle)],
     define: { 'import.meta.env.VITE_BU_API_ENABLED': JSON.stringify(Boolean(key)) },
-    server: { port: 5173 },
+    // The crowd scale lives in ../theme (shared with the dashboard and the server).
+    server: { port: 5173, fs: { allow: ['.', fileURLToPath(new URL('../theme', import.meta.url))] } },
   };
 });

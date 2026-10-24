@@ -264,6 +264,35 @@ test('place_info: hours and next change, capacity basis, estimated profiles, unk
   assert.equal(nextHoursChange(ctx.data!, 'gsu', 2, 9 * 3600)?.to, 'open');
 });
 
+test('branch libraries and cafés: found by common names, ranked, with published hours and real walks', async () => {
+  const get = (ref: string) => {
+    const r = resolvePlace(ref, ctx);
+    return 'error' in r ? r.error : r.location.id;
+  };
+  assert.equal(get('SEL'), 'sel');
+  assert.equal(get('Science & Engineering Library'), 'sel');
+  assert.equal(get('the law library'), 'law-library');
+  assert.equal(get('Music Library'), 'music-library');
+  assert.equal(get('Saxbys'), 'saxbys');
+  assert.equal(get('Breadwinners'), 'breadwinners');
+  const found = (await call('find_places', { kind: 'library', campus: 'charles-river', nameContains: 'law' })).out;
+  assert.deepEqual(found.places.map((p: any) => p.id), ['law-library']);
+  assert.equal(found.places[0].hoursStatus, 'published');
+  // Wednesday 3 PM: every Charles River library is open, and the new ones are ranked with the rest.
+  const { out } = await call('rank_places_by_crowd', { kind: 'library', weekday: null, time: '15:00', near: null, order: null, openOnly: null });
+  const ids = out.places.map((p: any) => p.id);
+  for (const id of ['mugar', 'pardee', 'sel', 'stone-library', 'theology-library', 'law-library']) assert.ok(ids.includes(id), id);
+  assert.ok(out.places.filter((p: any) => ['sel', 'law-library'].includes(p.id)).every((p: any) => p.open === true && p.percent !== null));
+  const sel = (await call('place_info', { place: 'SEL', weekday: null, time: null })).out;
+  assert.equal(sel.openNow, true);
+  assert.deepEqual(sel.nextChange, { time: '5:00 PM', to: 'closed' });
+  const saturday = (await call('place_info', { place: 'SEL', weekday: 5, time: '12:00' })).out;
+  assert.equal(saturday.openNow, false); // a published closure, not unknown hours
+  const walk = (await call('walking_route', { from: 'CAS', to: 'SEL' })).out;
+  assert.equal(walk.isEstimate, false);
+  assert.ok(walk.meters > 100 && walk.meters < 1500, String(walk.meters));
+});
+
 test('campus_overview: whole-map totals from the playback, compact', async () => {
   const { out, log } = await call('campus_overview', { weekday: null, time: null });
   const pop = wednesday.populationAt(ctx.time);

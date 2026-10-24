@@ -499,6 +499,12 @@ def simulate_campus(rng, campus, agent_count, first_index, building_doors):
             used_routes[f"{here}>{dest}"] = {"path": path, "cumulative": cumulative}
             here, free_at = dest, max(depart + duration + 10 * 60, leave_at * 60)
 
+    # Every ordered pair of the campus's places keeps its walk, so the planner and the map's place
+    # questions use real routes, not straight lines or detours through a third building, for places
+    # this placeholder day never sends anyone between. No randomness: trips are unchanged.
+    for (a, b), (path, cumulative) in routes.items():
+        used_routes.setdefault(f"{a}>{b}", {"path": path, "cumulative": cumulative})
+
     # Calibrate: each kind's capacity is sized so its busiest simulated moment is TARGET_PEAK
     # full, then split across buildings by their real-world size. Without this, fixed guesses
     # left dining halls at 200% at dinner and libraries at 170% in the late afternoon.

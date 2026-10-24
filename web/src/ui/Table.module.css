@@ -1,8 +1,7 @@
 .wrap {
+  composes: glass-strong from global;
   overflow-x: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-hairline-soft);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .table {
@@ -28,6 +27,21 @@
 
 .table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+/* Keep the first and last columns clear of the card's rounded corners. */
+.table th:first-child,
+.table td:first-child {
+  padding-left: var(--space-5);
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-right: var(--space-5);
+}
+
+.table thead th {
+  padding-top: var(--space-3);
 }
 
 .stack {
