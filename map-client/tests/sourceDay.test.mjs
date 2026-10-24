@@ -518,7 +518,10 @@ test('unmapped degree loads become explicit estimated off-map academic blocks wi
   const day=buildSourceDay(base,data,0);validate(day);
   assert.equal(day.sourceStats.mappedCourseCoverage.undergraduate.fraction,0);assert.equal(day.sourceAssignments.length,0);
   const blocks=day.sourceActivities.filter(a=>a.kind==='unmapped-academic');assert.ok(blocks.length>0);
-  for(const block of blocks){assert.equal(block.endSec-block.startSec,7200);assert.equal(block.locationId,'off-campus');assert.ok(block.estimated&&block.basis==='modeled_unmapped_academic_time');}
+  for(const block of blocks){assert.equal(block.endSec-block.startSec,7200);assert.ok(['off-campus','study'].includes(block.locationId));assert.ok(block.estimated&&block.basis==='modeled_unmapped_academic_time');}
+  const onCampus=blocks.filter(b=>b.locationId==='study').length/blocks.length;
+  assert.ok(onCampus>0.6&&onCampus<0.9,`most blocks are on campus: ${onCampus}`);
+  assert.ok(blocks.some(b=>b.locationId==='off-campus'),'some blocks stay off the map');
   assert.ok(day.trips.some(t=>t.to==='off-campus'));assert.ok(day.trips.some(t=>t.from==='off-campus'));
 });
 

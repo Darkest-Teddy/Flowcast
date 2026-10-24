@@ -30,7 +30,8 @@ test('bundled population and weekly schedules conserve all people and physical t
       if (activity.kind === 'off-campus-meal') continue;
       if (activity.kind === 'off-campus-outing') { assert.equal(activity.locationId, 'off-campus'); assert.ok(weekday >= 4, 'outings are Friday/Saturday only'); continue; }
       if (activity.kind === 'unmapped-academic') {
-        assert.equal(activity.locationId, 'off-campus');
+        const site = base.locations.find(location => location.id === activity.locationId);
+        assert.ok(activity.locationId === 'off-campus' || site?.kind === 'library' || site?.kind === 'classroom', `${activity.locationId} is not a study site`);
         assert.equal(activity.estimated, true);
         assert.equal(activity.basis, 'modeled_unmapped_academic_time');
         assert.equal(activity.endSec - activity.startSec, 120 * 60);

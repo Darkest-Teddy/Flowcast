@@ -25,6 +25,9 @@ const AFFINITY_ATTEMPT_SHARE = 0.65;
 const COMPONENT_BUNDLE_SEARCH_LIMIT = 48;
 const COMPONENT_OPTIONS_PER_COMPONENT = 12;
 const UNMAPPED_ACADEMIC_MINUTES = 120;
+/** Share of uncovered-course academic blocks spent off the map (online, other campuses, home). Uncalibrated. */
+export const OFF_MAP_ACADEMIC_SHARE = 0.25;
+const CAMPUS_STUDY_HOURS: [number, number] = [8 * 3600, 22 * 3600];
 export const MODELED_ACTIVITY_SHOULDER_SHARE = 0.25;
 const ARRIVAL_LEAD = { minimum: 2 * 60, spread: 10 * 60 };
 type FreeTimeActivity = { kind: 'dining' | 'library' | 'gym' | 'off-campus-outing'; at: number; spread: number;
@@ -269,7 +272,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     assumptions: [
       'Enrollment is synthetic and fixed for the whole reference week; published classes supply places, times, and seat upper bounds, not actual enrollment.',
       'Default course eligibility follows BU’s published numeric guide: 100–399 undergraduate, 400–599 undergraduate/graduate, 600–999 graduate; MED MD and graduate-school prefixes use graduate defaults. This is not a prerequisite or individual-permission checker.',
-      'Each uncovered course slot may reserve one stable 120-minute weekday academic/study block outside the map, subject to route and schedule feasibility. These are explicit estimates, not published courses or observed location histories.',
+      'Each uncovered course slot may reserve one stable 120-minute weekday academic/study block, subject to route and schedule feasibility. 75% of blocks are placed on campus when feasible (an open library within its capacity, or an academic building where the student has mapped classes, on a day it has classes, 08–22; commuters only on their own class days); the rest, and any that do not fit, are spent off the map. These are explicit uncalibrated estimates, not published courses or observed location histories.',
       'Class arrivals use stable 2–12-minute leads when gaps permit. Home breaks require home dwell at least 15 minutes and at least their extra walking detour. Optional added walking cannot exceed the activity duration.',
       'Gateway changes reserve a straight-line distance/speed lower bound in off-map time in addition to meals/breaks; no route or transport mode outside the saved network is asserted.',
       'Only the eligible mapped/full canonical course-offering coverage fraction of each synthetic degree load is targeted on the map, sampled stably per student. This is an offering-coverage proxy, not measured enrollment; uncovered study remains unknown rather than redistributed to mapped classrooms.',
@@ -552,7 +555,21 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       const known = openingHoursForDate(source?.hours ?? [], dates[stop.weekday], stop.weekday);
       return !known.length || known.some(entry => entry.windows.some(([start, end]) => start <= stop.start && stop.end <= end));
     }
+    if (stop.unmappedAcademic && locations.get(stop.location)?.kind === 'classroom') {
+      return classDays(stop.location).has(stop.weekday) && CAMPUS_STUDY_HOURS[0] <= stop.start && stop.end <= CAMPUS_STUDY_HOURS[1];
+    }
     return optionalWindows(stop.location, stop.weekday).some(([opens, closes]) => opens <= stop.start && stop.end <= closes);
+  };
+  let classDayIndex: Map<string, Set<number>> | undefined;
+  /** Weekdays with published classes in a building; academic buildings are only used for study on those days. */
+  const classDays = (location: string): Set<number> => {
+    if (!classDayIndex) {
+      classDayIndex = new Map();
+      for (const section of sections.values()) for (const stop of section.stops) {
+        const days = classDayIndex.get(stop.location) ?? new Set<number>(); days.add(stop.weekday); classDayIndex.set(stop.location, days);
+      }
+    }
+    return classDayIndex.get(location) ?? new Set();
   };
   const excludedNonDegree = new Set<string>();
   const componentRules = data.courseComponentRules ?? {};
@@ -1041,12 +1058,38 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       if (academicDays.slice(0, Math.min(5, unmappedLoads.get(agent.id) ?? 0)).includes(weekday)) {
         for (let attempt = 0; attempt < 8; attempt++) {
           const start = (9 + fraction(`${agent.id}:${weekday}:unmapped-academic-time:${attempt}`) * 7) * 3600;
-          const stop: WeeklyStop = { location: 'off-campus', start, end: start + UNMAPPED_ACADEMIC_MINUTES * 60,
-            weekday, pool: '', activity: 'unmapped-academic', unmappedAcademic: true };
-          const proposed = [...stops, stop].sort((a, b) => a.start - b.start);
-          const keys = feasible(proposed, agent) ? capacityFor(proposed, UNMAPPED_ACADEMIC_MINUTES * 60) : undefined;
-          if (!keys) continue;
-          reserve(keys); stops = proposed; currentPlan = planDay(agent, stops)!; unmappedAcademicBlocks++; modeledActivities++;
+          const seconds = UNMAPPED_ACADEMIC_MINUTES * 60;
+          const blockAt = (location: string): WeeklyStop => ({ location, start, end: start + seconds,
+            weekday, pool: '', activity: 'unmapped-academic', unmappedAcademic: true });
+          // Most students study on campus: a library, or a building where they already have mapped classes.
+          const sites: { proposed: WeeklyStop[]; keys: Set<number>; weight: number }[] = [];
+          if ((resident || fixedClasses > 0) && fraction(`${agent.id}:${weekday}:unmapped-study-site:${attempt}`) >= OFF_MAP_ACADEMIC_SHARE) {
+            const ownBuildings = new Set(enrollment.get(agent.id)!.map(row => row.location));
+            for (const location of base.locations) {
+              const own = location.kind === 'classroom' && ownBuildings.has(location.id);
+              if (!(location.kind === 'library' || own) || !activityCampuses.has(campusOf(location))) continue;
+              const stop = blockAt(location.id);
+              if (!isOpen(stop)) continue;
+              const proposed = [...stops, stop].sort((a, b) => a.start - b.start);
+              if (!feasible(proposed, agent)) continue;
+              const keys = capacityFor(proposed, seconds);
+              if (!keys) continue;
+              const index = proposed.indexOf(stop);
+              const travel = duration(proposed[index - 1]?.location ?? agent.home, location.id, agent)
+                + duration(location.id, proposed[index + 1]?.location ?? agent.home, agent);
+              const habit = location.kind === 'library' && favoriteVenue(agent, 'library') === location.id ? FAVORITE_VENUE_WEIGHT : 1;
+              sites.push({ proposed, keys, weight: habit * Math.sqrt(Math.max(1, location.capacity)) / (300 + travel) });
+            }
+          }
+          let siteChoice = fraction(`${agent.id}:${weekday}:unmapped-study-choice:${attempt}`) * sites.reduce((sum, site) => sum + site.weight, 0);
+          let site: { proposed: WeeklyStop[]; keys: Set<number> } | undefined = sites.find(row => (siteChoice -= row.weight) < 0);
+          if (!site) {
+            const proposed = [...stops, blockAt('off-campus')].sort((a, b) => a.start - b.start);
+            const keys = feasible(proposed, agent) ? capacityFor(proposed, seconds) : undefined;
+            if (keys) site = { proposed, keys };
+          }
+          if (!site) continue;
+          reserve(site.keys); stops = site.proposed; currentPlan = planDay(agent, stops)!; unmappedAcademicBlocks++; modeledActivities++;
           break;
         }
       }
@@ -1152,7 +1195,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
           ...(stop.estimatedProfile ? { estimated: true as const, purpose: stop.estimatedProfile.purpose, basis: stop.estimatedProfile.basis,
             confidence: stop.estimatedProfile.confidence, note: stop.estimatedProfile.note, proxy: stop.estimatedProfile.proxy } : {}),
           ...(stop.unmappedAcademic ? { estimated: true as const, purpose: 'unmapped-academic' as const, basis: 'modeled_unmapped_academic_time',
-            confidence: 'low' as const, note: 'Estimated off-map academic/study commitment; actual course, location and schedule are unknown.', proxy: 'Eligible mapped/full catalog offering coverage and a 120-minute weekly scenario per uncovered course slot' } : {}) });
+            confidence: 'low' as const, note: 'Estimated academic/study commitment for a course not on the map, placed on campus when a library or the student’s own academic building fits; actual course, location and schedule are unknown.', proxy: 'Eligible mapped/full catalog offering coverage and a 120-minute weekly scenario per uncovered course slot' } : {}) });
       }
     }
     const residentLocations = new Set(base.agents.filter(agent => agent.residency === 'resident').map(agent => agent.home));
