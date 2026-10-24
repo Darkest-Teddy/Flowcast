@@ -9,6 +9,7 @@
 // so nothing here re-renders per frame. Placement goes through the shared label placer first
 // (building tags, then station labels), exactly as the old TextLayer did.
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { displayName } from './tags/names';
 import { countInterval } from './sim/uncertainty';
 import { TagProjection } from './tags/projection';
 import type { CameraState } from './map/basemap';
@@ -184,9 +185,10 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         }
         if (locations !== s.kindsFrom) {
           s.kindsFrom = locations;
-          s.kinds = new Map(locations.map((l) => [l.name, l.kind]));
+          // Keyed by both the source name and the tag's display name (tags/names.ts).
+          s.kinds = new Map(locations.flatMap((l) => [[l.name, l.kind], [displayName(l.name), l.kind]] as [string, LocationKind][]));
           // Purpose-only places (the crew boathouse): nobody there outside sessions is a real zero.
-          s.canBeEmpty = new Set(locations.filter((l) => l.estimatedProfile?.purpose === 'rowing').map((l) => l.name));
+          s.canBeEmpty = new Set(locations.filter((l) => l.estimatedProfile?.purpose === 'rowing').flatMap((l) => [l.name, displayName(l.name)]));
         }
         const compact = camera.zoom < COMPACT_ZOOM;
         if (compact !== s.compact) {

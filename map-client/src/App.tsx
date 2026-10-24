@@ -30,6 +30,7 @@ import { EventsPanel } from './EventsPanel';
 import { createTransitService, mergeSchedules, type TransitService } from './sim/transitService';
 import { waitingCharacters, waitingRiderLayers } from './layers/waitingRiders';
 import { SourceDataPanel } from './SourceDataPanel';
+import { AMENITY_KINDS, displayName, displayShort } from './tags/names';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
@@ -954,7 +955,7 @@ export default function App() {
                         aria-pressed={o.location.building === selected}
                         style={display.style}
                       >
-                        <span className="name">{o.location.name}</span>
+                        <span className="name">{displayName(o.location.name)}</span>
                         {display.hasPercentage && <span className="bar" aria-hidden="true">
                           <span style={{ width: `${Math.min(100, display.percent)}%` }} />
                         </span>}
@@ -1376,11 +1377,14 @@ function sailingWeather(weather: ActiveWeather | null, light: LightPreset): bool
 }
 
 const PODIUM_ROOF_M = 16;
+const AMENITY_SPREAD_M = 14;
 
 /**
- * Building tags, with dining halls that share a building with a dorm given their own tag: Warren
- * Towers shows one "Warren Towers" tag over the middle of all three towers, plus "Warren Dining" on
- * the podium. The dorm tag keeps the dorm's own load; the glow still uses the busier of the two.
+ * Building tags: one per building, named for the building (sim/../tags/names.ts), plus a dot of
+ * its own for every dining hall, library or gym that shares a building with something else
+ * (Warren Towers and Warren Dining; Questrom and Pardee Library; Fenway Center, Fenway Dining and
+ * FitRec at Fenway). The building's tag carries its main space's load; the glow still uses the
+ * busiest space.
  */
 function splitSharedTags(
   buildings: BuildingOccupancy[],
@@ -1396,26 +1400,38 @@ function splitSharedTags(
   const out: BuildingOccupancy[] = [];
   for (const b of buildings) {
     const places = byBuilding.get(b.id) ?? [];
-    const dining = places.filter((o) => o.location.kind === 'dining');
-    const rest = places.filter((o) => o.location.kind !== 'dining');
-    if (!dining.length || !rest.length) {
-      out.push(b);
+    const amenities = places.filter((o) => AMENITY_KINDS.has(o.location.kind));
+    const rest = places.filter((o) => !AMENITY_KINDS.has(o.location.kind));
+    // A building with one kind of place (or only amenities): its single tag, cleanly named.
+    if (!amenities.length || !rest.length) {
+      out.push({ ...b, name: displayName(b.name), short: displayShort(b.short, b.name) });
       continue;
     }
-    // The whole building's tag: its centre (over all its parts), named without a part suffix.
+    // The whole building's tag: its centre (over all its parts), named for the building.
     const rings = footprints.filter((f) => f.id === b.id);
     const pts = rings.flatMap((f) => f.polygon);
     const centre: [number, number] = pts.length
       ? [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length]
       : b.position;
     const main = rest.reduce((a, o) => (o.share > a.share ? o : a));
-    out.push({ ...b, position: centre, name: main.location.name, short: main.location.short, count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, capacityBasis: main.location.capacityBasis });
-    for (const d of dining) {
+    out.push({ ...b, position: centre, name: displayName(main.location.name), short: displayShort(main.location.short, main.location.name),
+      count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, capacityBasis: main.location.capacityBasis });
+    // Amenities recorded at (nearly) the same point would stack and the label placer would hide all
+    // but one: those are fanned out around their shared point, AMENITY_SPREAD_M apart.
+    const kx = 111_320 * Math.cos((centre[1] * Math.PI) / 180);
+    const spot = (d: Occupancy): [number, number] => {
+      const stacked = amenities.filter((o) => Math.hypot((o.location.position[0] - d.location.position[0]) * kx, (o.location.position[1] - d.location.position[1]) * 110_540) < AMENITY_SPREAD_M);
+      if (stacked.length < 2) return d.location.position;
+      const k = stacked.indexOf(d);
+      const angle = (2 * Math.PI * k) / stacked.length; // an even fan, in a stable order
+      return [d.location.position[0] + (Math.cos(angle) * AMENITY_SPREAD_M) / kx, d.location.position[1] + (Math.sin(angle) * AMENITY_SPREAD_M) / 110_540];
+    };
+    for (const d of amenities) {
       out.push({
         id: `${b.id}#${d.location.id}`,
-        name: d.location.name,
-        short: d.location.short,
-        position: d.location.position,
+        name: displayName(d.location.name),
+        short: displayShort(d.location.short, d.location.name),
+        position: spot(d),
         modeled: d.modeled,
         capacityBasis: d.location.capacityBasis,
         count: d.count,
