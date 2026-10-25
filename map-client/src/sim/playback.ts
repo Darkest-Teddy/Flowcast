@@ -209,6 +209,17 @@ function bearingBetween(a: [number, number], b: [number, number]): number {
   return (Math.atan2(y, x) / toRad + 360) % 360;
 }
 
+// A segment's bearing never changes, so it is worked out once per route (every trip on a route
+// shares its path array) instead of with seven trig calls per walker per frame.
+const segmentBearings = new WeakMap<[number, number][], Float64Array>();
+function segmentBearing(path: [number, number][], i: number): number {
+  let bearings = segmentBearings.get(path);
+  if (!bearings) segmentBearings.set(path, (bearings = new Float64Array(path.length).fill(NaN)));
+  let bearing = bearings[i];
+  if (Number.isNaN(bearing)) bearing = bearings[i] = bearingBetween(path[i - 1], path[i]);
+  return bearing;
+}
+
 /** The lookups a Playback is built on (see indexPlayback). */
 export interface PlaybackIndex {
   agents: Map<string, Agent>;
@@ -391,8 +402,10 @@ export class Playback {
       if (trip.timestamps[0] > t || t >= trip.timestamps[trip.timestamps.length - 1]) continue;
       const agentId = trip.agent;
       const ts = trip.timestamps;
-      let i = 1;
-      while (ts[i] <= t) i++;
+      // First timestamp after t (timestamps never decrease): a binary search, since every frame
+      // places thousands of walkers along routes of dozens of points.
+      let i = 1, hi = ts.length - 1;
+      while (i < hi) { const mid = (i + hi) >>> 1; if (ts[mid] <= t) i = mid + 1; else hi = mid; }
       const a = trip.path[i - 1];
       const b = trip.path[i];
       const f = ts[i] === ts[i - 1] ? 0 : (t - ts[i - 1]) / (ts[i] - ts[i - 1]);
@@ -400,7 +413,7 @@ export class Playback {
         id: agentId,
         model: this.agents.get(agentId)!.model,
         position: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0],
-        bearing: bearingBetween(a, b),
+        bearing: segmentBearing(trip.path, i),
         to: trip.to,
       });
     }
