@@ -88,8 +88,9 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  backdrop-filter: none;
+  /* Prefixed first: the other order makes the build's minifier drop the unprefixed one, and the glass blur shows. */
   -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .departure h2 {
