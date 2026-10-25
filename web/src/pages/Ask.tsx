@@ -303,7 +303,7 @@ export default function Ask() {
           ) : (
             <ol ref={listRef} className={styles.list} aria-label="Messages">
               {messages.map((m) => (
-                <MessageItem key={m.id} message={m} onAsk={ask} onRetry={retry} busy={busy} />
+                <MessageItem key={m.id} message={m} onRetry={retry} busy={busy} />
               ))}
               {pending && <PendingItem status={pending} />}
             </ol>

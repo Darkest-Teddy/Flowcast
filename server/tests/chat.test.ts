@@ -393,7 +393,7 @@ test('multi-turn: earlier turns reach the model as history, in order, before the
   // The instructions carry the shown moment and the chat format.
   const instructions = String(model.calls[0].request.systemInstructions);
   assert.match(instructions, /Wednesday at 12:30 PM/);
-  assert.match(instructions, /120 words/);
+  assert.match(instructions, /under 45 words/);
 });
 
 test('chat answers keep the honesty checks: reworded, refused, unsupported numbers counted', async () => {
