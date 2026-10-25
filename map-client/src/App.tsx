@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardE
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, VIEW_IN_URL, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
-import { HudAsk, HudBrand, HudDate, HudIcons, HudLegend, HudRail, HudStatus, HudTabs, HudTime, type HudTab, type RailItem } from './hud/Chrome';
+import { HudBrand, HudDate, HudIcons, HudLegend, HudRail, HudStatus, HudTabs, HudTime, type HudTab, type RailItem } from './hud/Chrome';
 import { agentLayers, loadCharacterModels, type Character, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { CROWD_LEVELS } from './layers/crowdLevels';
@@ -98,7 +98,9 @@ import { METEOR_APPROACH_SECONDS } from './layers/disasterEffects';
 import { impactShake } from './layers/impactShake';
 import { planFireResponse as planDisasterFireResponse, fireResponseAt } from './sim/disasterFireResponse';
 import { fireResponseLayers } from './layers/fireResponse';
-import { AskPanel, type AskShow } from './AskPanel';
+/* The Ask bar is gone from the map; the type stays, because showAsk still
+   describes what an answer does to the camera and LiveVoice still sends them. */
+import { type AskShow } from './AskPanel';
 import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
 import { LiveVoice } from './LiveVoice';
@@ -2166,12 +2168,6 @@ export default function App() {
           >
             <span className="weather-chip-slot" ref={setWeatherChip} />
           </HudStatus>
-
-          {askContext && (
-            <HudAsk>
-              <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
-            </HudAsk>
-          )}
 
           {/*
             The bottom-left slot: the invitation to join, or the details of the character you just
