@@ -315,7 +315,11 @@ export default function App() {
   const [eventsOn, setEventsOn] = useState(START_EVENTS);
   const eventsOnRef = useRef(START_EVENTS);
   const pinnedDateRef = useRef<string | null>(URL_DATE);
-  const [simDay, setSimDay] = useState<Pick<SourceDay, 'eventDate' | 'gatherings'> | null>(null);
+  // Only the two fields the Events panel reads. Holding the whole day here (trips, stays, source
+  // stats) made React's development build diff and log megabytes of props on every day swap: a
+  // multi-second freeze when the conditions engine's day arrived.
+  const [simDay, setSimDayState] = useState<Pick<SourceDay, 'eventDate' | 'gatherings'> | null>(null);
+  const setSimDay = (day: Pick<SourceDay, 'eventDate' | 'gatherings'>) => setSimDayState({ eventDate: day.eventDate, gatherings: day.gatherings });
   // Venue events (Agganis, Fenway...): calendar, Trends popularity and visitor walks, loaded once.
   // Visitors are their own population, drawn with the walkers but never counted as students.
   const eventSourcesRef = useRef<EventSources>({ calendar: null, popularity: null, routes: null });
