@@ -4,9 +4,11 @@
 // and a falling sine), so there are no audio files and nothing to license.
 //
 // Browsers only let a page make sound after a click or key press on it. Arriving from the landing
-// page's "Open the map" usually counts in Chromium-based browsers; where it doesn't, the context
-// stays suspended and the first press on the map wakes it for whatever is left of the intro.
-// Off with reduced motion, and when muted (the intro's speaker button, remembered here).
+// page's "Open the map" usually counts in Chromium-based browsers, but not always: Brave can block
+// it, and a map the landing page prerendered was loaded before the click. The audio starts as the
+// loading screen appears; while the browser holds it back, the loading screen's speaker button
+// says "Tap for sound" (soundState), and any press on the page wakes it for the drop.
+// Off with reduced motion, and when muted (that same button, remembered here).
 
 const MUTE_KEY = 'flowcast.sound';
 
@@ -26,6 +28,14 @@ export function setSoundMuted(muted: boolean) {
     // storage blocked: muted for this visit only
   }
   if (muted) void context?.suspend();
+  else void audio()?.resume(); // the button press itself lets it start
+}
+
+/** 'off' (muted or reduced motion), 'blocked' (the browser is waiting for a press on the page), 'on', or 'starting'. */
+export function soundState(): 'off' | 'blocked' | 'on' | 'starting' {
+  if (quiet()) return 'off';
+  if (!context) return 'starting';
+  return context.state === 'running' ? 'on' : 'blocked';
 }
 
 const quiet = () => soundMuted() || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -33,7 +43,7 @@ const quiet = () => soundMuted() || window.matchMedia('(prefers-reduced-motion: 
 let context: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
 
-/** The audio context, made on first use (a prerendered page can't make one before it's shown). */
+/** The audio context, made on first use (once a prerendered page is shown: see introSound.prepare). */
 function audio(): AudioContext | null {
   if (quiet() || typeof AudioContext === 'undefined') return null;
   if (!context) {
@@ -47,6 +57,9 @@ function audio(): AudioContext | null {
   if (context.state === 'suspended') void context.resume();
   return context;
 }
+
+// Dev handle for checking from the console whether the browser let the intro's audio run.
+if (import.meta.env.DEV) Object.assign(window, { __flowcastSound: { state: () => context?.state ?? 'not made', muted: soundMuted } });
 
 /** Two seconds of white noise, shared by every whoosh. */
 function noiseBuffer(ctx: AudioContext): AudioBuffer {
@@ -117,8 +130,11 @@ function thump(gain = 0.55) {
 
 /** The intro's sounds, one per moment of the drop. */
 export const introSound = {
-  /** Wakes the audio as early as possible (the drop's first sound shouldn't wait for it). */
-  prepare: () => void audio(),
+  /** Starts the audio as early as possible: as the loading screen shows (a prerendered page, once it's shown). */
+  prepare: () => {
+    if (!(document as Document & { prerendering?: boolean }).prerendering) return void audio();
+    document.addEventListener('prerenderingchange', () => void audio(), { once: true });
+  },
   /** The clouds rushing past, as the first drop starts. */
   clouds: (ms: number) => whoosh(ms, [2600, 500], { gain: 0.32, pan: 0.6 }),
   /** One drop: air rushing up past the camera (unless the clouds' whoosh already is), then the landing. */
