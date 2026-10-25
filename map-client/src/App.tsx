@@ -881,6 +881,9 @@ export default function App() {
         }
         const publicWalking = publicCrowdRef.current?.walkingAt(t) ?? [];
         const waitingRiders = playback.waitingAt(t);
+        // The public waiting at stops (MBTA boardings beyond BU riders): drawn with them, not in the BU-rider stop counts.
+        const publicWaiting = publicCrowdRef.current?.waitingAt(t) ?? [];
+        const allWaiting = publicWaiting.length ? [...waitingRiders, ...publicWaiting] : waitingRiders;
         // Outdoor free time by the river (layers/outdoor.ts): indexed once per day, drawn near the camera.
         const outdoor = outdoorRef.current;
         if (outdoor.of !== playback) { outdoor.index = outdoorIndex(outdoorStaysRef.current.get(playback), playback.data.agents, outdoor.file); outdoor.of = playback; }
@@ -1031,8 +1034,8 @@ export default function App() {
           // People standing about: riders waiting at stops, a fire's evacuees in their crowds, and
           // people sitting by the river (all in the same idle layers).
           ...(transit || standing.length || sitters.length ? waitingRiderLayers(withSitters(transit || standing.length ? nearView(standing.length
-            ? [...(transit ? waitingCharacters(waitingRiders, transit.feed.tracks) : []), ...standing]
-            : waitingCharacters(waitingRiders, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius) : [], sitters), models, t, basemap.getZoom()) : []),
+            ? [...(transit ? waitingCharacters(allWaiting, transit.feed.tracks) : []), ...standing]
+            : waitingCharacters(allWaiting, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius) : [], sitters), models, t, basemap.getZoom()) : []),
           ...(cleanRef.current ? [] : askRouteLayers(askRouteRef.current)),
           ...(currentMobility && showCountsRef.current && !cleanRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...atmosphereLayers(weatherRef.current, basemap.getCamera(), now, lightRef.current),

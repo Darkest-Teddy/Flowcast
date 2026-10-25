@@ -955,7 +955,7 @@
         "note": "Bell-shaped arrivals centred on 11:30–13:30 lunch and 17:30–19:30 dinner; centres fitted to dining-hall timing targets and BU Dining's published daily meal counts.",
         "source": "https://www.bu.edu/articles/2017/bu-dining/",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -967,7 +967,7 @@
         {
           "target": "activity.lunch.probability",
           "op": "mul",
-          "value": 0.85,
+          "value": 0.8,
           "tune": {
             "min": 0.6,
             "max": 1.3,
@@ -1000,7 +1000,7 @@
         "note": "Three main dining halls serve about 3,000 breakfasts, 5,000 lunches and 5,000 dinners a day (BU Today, 2017).",
         "source": "https://www.bu.edu/articles/2017/bu-dining/",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -1029,7 +1029,7 @@
         "kind": "fitted",
         "note": "A clash with a class used to drop the meal or study session (18k rejected visits on a Wednesday); now it moves to the nearest free gap in its window. Visit lengths are skewed (lognormal, log-space σ 0.45) around each menu's mean.",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -1073,7 +1073,7 @@
         "note": "Library entries by hour fitted to the shape of the School of Theology Library's historical gate counts (the only BU library series in the data), with evening sessions kept so libraries stay occupied late.",
         "source": "https://public.tableau.com/views/GateCountsbyTimeofDay/STHLibraryCountsandQuestionsbyTimeofDay.csv?:showVizHome=no",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -1118,7 +1118,7 @@
         "note": "Library entries by hour fitted to the shape of the School of Theology Library's historical gate counts (the only BU library series in the data), with evening sessions kept so libraries stay occupied late.",
         "source": "https://public.tableau.com/views/GateCountsbyTimeofDay/STHLibraryCountsandQuestionsbyTimeofDay.csv?:showVizHome=no",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -1139,7 +1139,7 @@
         {
           "target": "activity.workout.probability",
           "op": "mul",
-          "value": 3,
+          "value": 3.1,
           "tune": {
             "min": 1,
             "max": 4,
@@ -1152,7 +1152,7 @@
         "note": "FitRec's published hourly entries for Oct 17–23, 2026 total about 4,000 per weekday; the uncalibrated model produced about 1,400.",
         "source": "https://www.bu.edu/fitrec/peak-quiet-hours/",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -1191,7 +1191,7 @@
         "kind": "fitted",
         "note": "Commuters used to bounce through a transit stop for any 30-minute gap. They now wait on campus for gaps under a few hours and may visit before or after their classes. Walk-in access points near each destination and on-campus study blocks come from the day builder itself.",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -1213,7 +1213,7 @@
         {
           "target": "postClassLingerMinutes",
           "op": "set",
-          "value": 6,
+          "value": 5,
           "tune": {
             "min": 0,
             "max": 15,
@@ -1225,7 +1225,7 @@
         "kind": "fitted",
         "note": "Walking speeds of young adults average about 1.35 m/s with a standard deviation near 0.2 m/s (Bohannon 1997): 0.985 × each student's own speed (mean 1.37, sd 0.1 m/s) plus 0.17 m/s more spread. Lingering after class, beyond the 0–5 minutes it takes to leave, removes the lockstep wave at the bell.",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -1257,7 +1257,7 @@
         {
           "target": "activity.river-loop.probability",
           "op": "set",
-          "value": 0.02,
+          "value": 0.01,
           "tune": {
             "min": 0.01,
             "max": 0.12,
@@ -1294,7 +1294,7 @@
         "kind": "fitted",
         "note": "No counts of people on BU Beach or the Esplanade exist in the data, so these shares are assumptions: about one in twelve residents spends a while on the grass on an ordinary dry weekday and one in twenty walks or runs the river path; commuters about a third as often. River time is a habit like the builder's others: 40% are regulars on the grass (×2) and 25% are river-path runners (×3), with everyone else lowered to keep the mean.",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -1385,7 +1385,7 @@
         "kind": "fitted",
         "note": "Fitted to MBTA ridership by hour at the B branch's BU stops and to Comm Ave crosswalk counts (docs/calibration-observations.md): class-change crossings and alightings depend on how many enrolled students attend, how short a gap is still worth a trip home, and how early they arrive. Attendance below 100% is typical of large university courses; the values here are fitted, not measured attendance.",
         "validation": {
-          "totalLoss": 7.942
+          "totalLoss": 7.7081
         }
       }
     },
@@ -2169,99 +2169,99 @@
   ],
   "validation": {
     "generated": "2026-10-25",
-    "totalLoss": 7.942,
-    "unconditionedLoss": 18.936,
+    "totalLoss": 7.7081,
+    "unconditionedLoss": 13.9057,
     "metrics": {
-      "Wednesday, classes, dry 62°F · fitrec-hourly-r": 0.9521,
-      "Wednesday, classes, dry 62°F · fitrec-daily-ratio": 0.7561,
-      "Wednesday, classes, dry 62°F · fitrec-peak-hour": 2,
-      "Wednesday, classes, dry 62°F · library-hourly-r": 0.7794,
-      "Wednesday, classes, dry 62°F · library-evening-vs-afternoon": 0.4571,
+      "Wednesday, classes, dry 62°F · fitrec-hourly-r": 0.8954,
+      "Wednesday, classes, dry 62°F · fitrec-daily-ratio": 0.908,
+      "Wednesday, classes, dry 62°F · fitrec-peak-hour": 0,
+      "Wednesday, classes, dry 62°F · library-hourly-r": 0.7681,
+      "Wednesday, classes, dry 62°F · library-evening-vs-afternoon": 0.4587,
       "Wednesday, classes, dry 62°F · library-pinned-share": 0.027,
-      "Wednesday, classes, dry 62°F · dining-lunch-ratio": 0.9838,
-      "Wednesday, classes, dry 62°F · dining-dinner-ratio": 0.9658,
-      "Wednesday, classes, dry 62°F · dining-meal-time-ratio": 1.5384,
+      "Wednesday, classes, dry 62°F · dining-lunch-ratio": 1.0742,
+      "Wednesday, classes, dry 62°F · dining-dinner-ratio": 1.0606,
+      "Wednesday, classes, dry 62°F · dining-meal-time-ratio": 1.6189,
       "Wednesday, classes, dry 62°F · dining-peak-at-meal": 17.625,
-      "Wednesday, classes, dry 62°F · bluebikes-hourly-r": 0.5436,
-      "Wednesday, classes, dry 62°F · pedestrian-pm-am": 0.7422,
+      "Wednesday, classes, dry 62°F · bluebikes-hourly-r": 0.6,
+      "Wednesday, classes, dry 62°F · pedestrian-pm-am": 0.6229,
       "Wednesday, classes, dry 62°F · walkers-3am": 0,
-      "Wednesday, classes, dry 62°F · walker-spike": 0.1947,
-      "Wednesday, classes, dry 62°F · walk-median-minutes": 5.8706,
-      "Wednesday, classes, dry 62°F · walk-long-share": 0.0584,
-      "Wednesday, classes, dry 62°F · commuter-stop-trips-4plus": 0.1183,
+      "Wednesday, classes, dry 62°F · walker-spike": 0.1677,
+      "Wednesday, classes, dry 62°F · walk-median-minutes": 5.7505,
+      "Wednesday, classes, dry 62°F · walk-long-share": 0.0562,
+      "Wednesday, classes, dry 62°F · commuter-stop-trips-4plus": 0.1082,
       "Wednesday, classes, dry 62°F · outdoor-3am": 0,
-      "Wednesday, classes, dry 62°F · obs-bu-b-line-shape": 0.7881,
-      "Wednesday, classes, dry 62°F · obs-bu-b-line-peak": 1.3743,
-      "Wednesday, classes, dry 62°F · obs-comm-ave-shape": 0.1574,
+      "Wednesday, classes, dry 62°F · obs-bu-b-line-shape": 0.7717,
+      "Wednesday, classes, dry 62°F · obs-bu-b-line-peak": 1.0166,
+      "Wednesday, classes, dry 62°F · obs-comm-ave-shape": 0.1758,
       "Wednesday, classes, dry 62°F · obs-comm-ave-peak": 0.88,
-      "Wednesday, classes, dry 62°F · obs-student-overflow": 0.3921,
-      "Wednesday, classes, dry 62°F · obs-everyone-shape": 0.9929,
-      "Wednesday, classes, dry 62°F · obs-everyone-ratio": 1,
-      "Saturday, dry 62°F · fitrec-hourly-r": 0.9441,
-      "Saturday, dry 62°F · fitrec-daily-ratio": 0.9872,
+      "Wednesday, classes, dry 62°F · obs-student-overflow": 0.4085,
+      "Wednesday, classes, dry 62°F · obs-everyone-shape": 0.9741,
+      "Wednesday, classes, dry 62°F · obs-everyone-ratio": 1.0075,
+      "Saturday, dry 62°F · fitrec-hourly-r": 0.9506,
+      "Saturday, dry 62°F · fitrec-daily-ratio": 0.9443,
       "Saturday, dry 62°F · fitrec-peak-hour": 0,
-      "Saturday, dry 62°F · library-hourly-r": 0.7517,
-      "Saturday, dry 62°F · library-evening-vs-afternoon": 0.1347,
-      "Saturday, dry 62°F · library-pinned-share": 0.0219,
-      "Saturday, dry 62°F · dining-meal-time-ratio": 2.1014,
-      "Saturday, dry 62°F · dining-peak-at-meal": 17.625,
+      "Saturday, dry 62°F · library-hourly-r": 0.7623,
+      "Saturday, dry 62°F · library-evening-vs-afternoon": 0.1525,
+      "Saturday, dry 62°F · library-pinned-share": 0.025,
+      "Saturday, dry 62°F · dining-meal-time-ratio": 2.0944,
+      "Saturday, dry 62°F · dining-peak-at-meal": 12.125,
       "Saturday, dry 62°F · walkers-3am": 0,
-      "Saturday, dry 62°F · walker-spike": 0.1369,
-      "Saturday, dry 62°F · walk-median-minutes": 4.7661,
-      "Saturday, dry 62°F · walk-long-share": 0.0461,
-      "Saturday, dry 62°F · commuter-stop-trips-4plus": 0.1268,
+      "Saturday, dry 62°F · walker-spike": 0.1563,
+      "Saturday, dry 62°F · walk-median-minutes": 4.4928,
+      "Saturday, dry 62°F · walk-long-share": 0.0403,
+      "Saturday, dry 62°F · commuter-stop-trips-4plus": 0.1257,
       "Saturday, dry 62°F · outdoor-3am": 0,
-      "Saturday, dry 62°F · obs-bu-b-line-shape": 0.1423,
-      "Saturday, dry 62°F · obs-bu-b-line-peak": 4.8198,
-      "Saturday, dry 62°F · obs-student-overflow": 0.0031,
+      "Saturday, dry 62°F · obs-bu-b-line-shape": 0.0506,
+      "Saturday, dry 62°F · obs-bu-b-line-peak": 7.744,
+      "Saturday, dry 62°F · obs-student-overflow": 0.0025,
       "Saturday, dry 62°F · obs-everyone-shape": 1,
       "Saturday, dry 62°F · obs-everyone-ratio": 1,
-      "Finals Wednesday, dry 45°F · dining-meal-time-ratio": 1.5313,
-      "Finals Wednesday, dry 45°F · dining-peak-at-meal": 17.625,
+      "Finals Wednesday, dry 45°F · dining-meal-time-ratio": 1.6875,
+      "Finals Wednesday, dry 45°F · dining-peak-at-meal": 13.125,
       "Finals Wednesday, dry 45°F · walkers-3am": 0,
-      "Finals Wednesday, dry 45°F · walker-spike": 0.1677,
-      "Finals Wednesday, dry 45°F · walk-median-minutes": 5.5866,
-      "Finals Wednesday, dry 45°F · walk-long-share": 0.0527,
-      "Finals Wednesday, dry 45°F · commuter-stop-trips-4plus": 0.1033,
+      "Finals Wednesday, dry 45°F · walker-spike": 0.1433,
+      "Finals Wednesday, dry 45°F · walk-median-minutes": 5.3731,
+      "Finals Wednesday, dry 45°F · walk-long-share": 0.0495,
+      "Finals Wednesday, dry 45°F · commuter-stop-trips-4plus": 0.1037,
       "Finals Wednesday, dry 45°F · outdoor-3am": 0,
-      "Rainy Wednesday, 50°F · dining-meal-time-ratio": 1.5169,
-      "Rainy Wednesday, 50°F · dining-peak-at-meal": 13.625,
+      "Rainy Wednesday, 50°F · dining-meal-time-ratio": 1.5731,
+      "Rainy Wednesday, 50°F · dining-peak-at-meal": 13.375,
       "Rainy Wednesday, 50°F · walkers-3am": 0,
-      "Rainy Wednesday, 50°F · walker-spike": 0.2014,
-      "Rainy Wednesday, 50°F · walk-median-minutes": 5.7708,
-      "Rainy Wednesday, 50°F · walk-long-share": 0.063,
-      "Rainy Wednesday, 50°F · commuter-stop-trips-4plus": 0.0918,
+      "Rainy Wednesday, 50°F · walker-spike": 0.1405,
+      "Rainy Wednesday, 50°F · walk-median-minutes": 5.6582,
+      "Rainy Wednesday, 50°F · walk-long-share": 0.06,
+      "Rainy Wednesday, 50°F · commuter-stop-trips-4plus": 0.0898,
       "Rainy Wednesday, 50°F · outdoor-3am": 0,
-      "Rainy Wednesday, 50°F · outdoor-rain-share": 0.0182
+      "Rainy Wednesday, 50°F · outdoor-rain-share": 0.0469
     }
   },
   "search": {
     "method": "Seeded random search (¼ of the budget) then coordinate descent with step halving; acceptance requires every metric’s loss to rise by at most the tolerance and the weighted total to fall; winner confirmed on the full roster.",
-    "seed": 11,
-    "step": 3,
-    "sampleStudents": 12326,
-    "totalStudents": 36977,
+    "seed": 7,
+    "step": 4,
+    "sampleStudents": 12030,
+    "totalStudents": 48117,
     "days": [
       "Wednesday, classes, dry 62°F",
       "Saturday, dry 62°F",
       "Finals Wednesday, dry 45°F"
     ],
-    "evaluations": 110,
-    "seconds": 300.30141725000004,
+    "evaluations": 40,
+    "seconds": 217.942742791,
     "tolerance": 0.02,
-    "startLoss": 9.407959231202774,
-    "bestLoss": 8.987786899430711,
+    "startLoss": 7.61474602427207,
+    "bestLoss": 7.47862449458437,
     "parameters": [
       {
         "modifier": "calibration-meal-times",
         "target": "activity.lunch.at",
-        "start": 11.5,
+        "start": 11.75,
         "value": 11.75
       },
       {
         "modifier": "calibration-meal-times",
         "target": "activity.lunch.spread",
-        "start": 2.75,
+        "start": 2.25,
         "value": 2.25
       },
       {
@@ -2273,19 +2273,19 @@
       {
         "modifier": "calibration-meal-times",
         "target": "activity.dinner.spread",
-        "start": 2,
+        "start": 1.5,
         "value": 1.5
       },
       {
         "modifier": "calibration-dining-volume",
         "target": "activity.lunch.probability",
         "start": 0.85,
-        "value": 0.85
+        "value": 0.8
       },
       {
         "modifier": "calibration-dining-volume",
         "target": "activity.dinner.probability",
-        "start": 1,
+        "start": 1.1,
         "value": 1.1
       },
       {
@@ -2327,13 +2327,13 @@
       {
         "modifier": "calibration-fitrec-weekday",
         "target": "activity.workout.probability",
-        "start": 2.8,
-        "value": 3
+        "start": 3,
+        "value": 3.1
       },
       {
         "modifier": "calibration-commuters",
         "target": "commuterOffCampusGapMinutes",
-        "start": 270,
+        "start": 300,
         "value": 300
       },
       {
@@ -2346,19 +2346,19 @@
         "modifier": "calibration-walking",
         "target": "postClassLingerMinutes",
         "start": 6,
-        "value": 6
+        "value": 5
       },
       {
         "modifier": "outdoor-defaults",
         "target": "activity.river-lawn.probability",
-        "start": 0.1,
-        "value": 0.06
+        "start": 0.025,
+        "value": 0.025
       },
       {
         "modifier": "outdoor-defaults",
         "target": "activity.river-loop.probability",
-        "start": 0.05,
-        "value": 0.04
+        "start": 0.02,
+        "value": 0.01
       },
       {
         "modifier": "calibration-class-changes",
@@ -2369,7 +2369,7 @@
       {
         "modifier": "calibration-class-changes",
         "target": "homeBreakMinutes",
-        "start": 15,
+        "start": 30,
         "value": 30
       },
       {

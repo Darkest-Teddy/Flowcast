@@ -1,4 +1,5 @@
-// Students waiting at a stop for their published departure, drawn as idle characters.
+// Students, and the public riders the MBTA counts add (sim/publicCrowd.ts), waiting at a stop for
+// their published departure, drawn as idle characters.
 //
 // Each waiting student stands beside the track their vehicle will use: on the right of travel
 // along a Green Line platform, or at the kerb of a bus stop. Spots are stable per student, so the
@@ -25,7 +26,8 @@ function hash(text: string): number {
 function platformFor(rider: WaitingRider, tracks: Track[]): Platform | null {
   const key = `${rider.stop}|${rider.route}|${rider.direction}`;
   if (platforms.has(key)) return platforms.get(key)!;
-  const own = tracks.filter((t) => t.route === rider.route && t.direction === rider.direction);
+  // Ridership counted for the Green Line as a whole stands at whichever branch's platform is there.
+  const own = tracks.filter((t) => (rider.route === 'Green' ? t.route.startsWith('Green-') : t.route === rider.route) && t.direction === rider.direction);
   const hit = snapToTracks(own, rider.position);
   let platform: Platform | null = null;
   if (hit && hit.distance <= 40) {
@@ -35,7 +37,7 @@ function platformFor(rider: WaitingRider, tracks: Track[]): Platform | null {
     const right: [number, number] = [along[1], -along[0]];
     const kx = METRES_PER_DEG_LAT * Math.cos((position[1] * Math.PI) / 180);
     const dx = (rider.position[0] - position[0]) * kx, dy = (rider.position[1] - position[1]) * METRES_PER_DEG_LAT;
-    const subway = rider.route.startsWith('Green-');
+    const subway = rider.route.startsWith('Green');
     // Trains: right of travel. Buses: whichever side of the road the stop is on.
     const sign = subway || dx * right[0] + dy * right[1] >= -1 ? 1 : -1;
     platform = { centre: position, along, side: [right[0] * sign, right[1] * sign], kind: subway ? 'subway' : 'bus',

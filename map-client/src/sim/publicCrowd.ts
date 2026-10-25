@@ -26,7 +26,7 @@
 // their own list, so they never reach building occupancy, student counts or student panels.
 // Everything is a pure function of (observations, simulated day, weekday): deterministic at any
 // playback speed and in Clock mode (which builds today's weekday).
-import type { CampusLocation, TransitRide, Trip, WalkingAgent, WalkRoute } from './playback';
+import type { CampusLocation, TransitRide, Trip, WaitingRider, WalkingAgent, WalkRoute } from './playback';
 import type { TransitService } from './transitService';
 import { ALIGHT_SECONDS } from './transitService';
 import {
@@ -70,6 +70,8 @@ export interface PublicWalk {
 
 /** A public rider stepping on or off a vehicle (or through Kenmore's gates), for scoring and stop counts. */
 export interface PublicRide extends Pick<TransitRide, 'kind' | 'route' | 'direction' | 'stop' | 'time'> { waitStart?: number }
+/** A public boarder standing at the stop: arrived at `waitStart`, boards at `boardsAt` (the published departure). */
+export interface PublicWait extends WaitingRider { waitStart: number }
 
 /**
  * Other non-student crowds (event visitors from sim/eventAttendance.ts, say). Their walkers are
@@ -326,8 +328,28 @@ export const ENTRANCE_CLEAR_METRES = 20;
 export class PublicCrowd {
   readonly walks: PublicWalk[] = [];
   readonly rides: PublicRide[] = [];
+  /** Public boarders standing at their stop between walking up and their vehicle leaving. */
+  readonly waits: PublicWait[] = [];
   readonly stats: PublicCrowdStats;
   private readonly buckets = new Map<number, PublicWalk[]>();
+  private readonly waitBuckets = new Map<number, PublicWait[]>();
+
+  private addWait(wait: PublicWait) {
+    this.waits.push(wait);
+    for (let bucket = Math.floor(wait.waitStart / 300); bucket <= Math.floor(wait.boardsAt / 300); bucket++) {
+      const list = this.waitBuckets.get(bucket) ?? [];
+      list.push(wait); this.waitBuckets.set(bucket, list);
+    }
+  }
+
+  /** Public riders waiting at stops at `t`: as many as the observed boardings at that stop and hour leave for. */
+  waitingAt(t: number): WaitingRider[] {
+    const out: WaitingRider[] = [];
+    for (const wait of this.waitBuckets.get(Math.floor(t / 300)) ?? []) {
+      if (wait.waitStart <= t && t < wait.boardsAt) out.push(wait);
+    }
+    return out;
+  }
   private readonly siteEvents = new Map<string, Map<WalkRoute, { m: number; event: ScreenEvent }[]>>();
 
   constructor(input: PublicCrowdInput) {
@@ -428,8 +450,11 @@ export class PublicCrowd {
           } else {
             // Gated entries happen as the rider reaches the gates; APC boardings at the departure.
             const reach = gated ? time : time - between(`${key}|w`, BOARD_WAIT_SECONDS);
-            add({ route: route.route, from: far, to: m, depart: reach - distance / speed, speed, purpose: 'board', stop: series.stop.mapStopId });
+            const walker = add({ route: route.route, from: far, to: m, depart: reach - distance / speed, speed, purpose: 'board', stop: series.stop.mapStopId });
             this.rides.push({ kind, route: series.route, direction, stop: series.stop.mapStopId, time, waitStart: reach });
+            // Then they stand at the stop until their vehicle leaves (inside the gates, out of sight, at a gated station).
+            if (!gated && time > reach) this.addWait({ id: walker.id, model: walker.model, stop: series.stop.mapStopId, route: series.route,
+              direction: direction as 0 | 1, position: series.stop.position, boardsAt: time, waitStart: reach });
           }
         }
       });
