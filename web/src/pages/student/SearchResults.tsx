@@ -6,7 +6,7 @@ import type { CampusGeo } from '../../data/types';
 import type { SearchMode } from '../../ui';
 import { Button, ListRow, SectionList, Tag } from '../../ui';
 import { api } from '../../data/api';
-import { isPersonalQuestion, routeQuestion, type AskOutcome } from '../../lib/askRouting';
+import { planQuestion, routeQuestion, type AskOutcome } from '../../lib/askRouting';
 import type { AgentAnswer, AgentError } from '@map/askClient';
 import { agentAnswer, answerQuestion, EXAMPLE_QUESTIONS, searchCampus, type Answer, type CampusData } from './campusSearch';
 import styles from './SearchResults.module.css';
@@ -99,7 +99,9 @@ function deviceNote(outcome: AskOutcome<AgentAnswer, AgentError>): string {
  * the Ask server's agent, falling back to this device's sample forecasts with a label when it fails.
  */
 function AskAnswer({ query, data, clear, onAsk }: { query: string; data: CampusData; clear: ReactNode; onAsk: (question: string) => void }) {
-  const personal = isPersonalQuestion(query);
+  // The profile's home as a place name, so "from my dorm" can be asked without the schedule.
+  const homeName = data.locations.find((l) => l.id === data.homeLocationId)?.name ?? null;
+  const personal = planQuestion(query, homeName).local;
   const [state, setState] = useState<{ query: string; outcome: AskOutcome<AgentAnswer, AgentError> | null; status: string }>({ query, outcome: null, status: 'Asking…' });
 
   useEffect(() => {
@@ -110,7 +112,7 @@ function AskAnswer({ query, data, clear, onAsk }: { query: string; data: CampusD
     const start = setTimeout(() => {
       routeQuestion(query, (q) => api.askCampus(q, new Date(), controller.signal, () => {
         if (!controller.signal.aborted) setState({ query, outcome: null, status: 'Simulating today…' });
-      })).then((outcome) => {
+      }), homeName).then((outcome) => {
         if (!controller.signal.aborted && outcome.source !== 'cancelled') setState({ query, outcome, status: '' });
       });
     }, 0);
@@ -118,13 +120,13 @@ function AskAnswer({ query, data, clear, onAsk }: { query: string; data: CampusD
       clearTimeout(start);
       controller.abort();
     };
-  }, [query, personal]);
+  }, [query, personal, homeName]);
 
   const outcome: AskOutcome<AgentAnswer, AgentError> | null = personal ? { source: 'device', reason: 'personal' } : state.query === query ? state.outcome : null;
   const answer: Answer | null = !outcome
     ? null
     : outcome.source === 'agent'
-      ? agentAnswer(outcome.answer, query)
+      ? agentAnswer(outcome.answer, outcome.question)
       : { ...answerQuestion(query, data), device: deviceNote(outcome) };
   const mapLink = answer ? mapLinkFor(answer.focus, data.geo, answer.mapQuestion) : null;
 

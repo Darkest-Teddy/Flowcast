@@ -2,7 +2,7 @@
 node_modules
 __pycache__/
 *.pyc
-.venv/
+.venv
 venv/
 
 # Build output

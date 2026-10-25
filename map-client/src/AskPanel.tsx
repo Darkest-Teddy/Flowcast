@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ask, type AskContext, type CourseMeeting, type MapInsight, type RankedPlace, type Walk } from './insights';
+import { ask, dayList, daysWithPublishedHours, rankTier, type AskContext, type CourseMeeting, type MapInsight, type RankedPlace, type Walk } from './insights';
 import { crowdLevel, crowdLevelStyle } from './layers/crowd';
 import type { AskRoute } from './layers/askRoute';
 import { formatClock, type CampusLocation, type LocationKind } from './sim/playback';
-import { WEEKDAYS } from './data/campusData';
+import { dateForWeekday, WEEKDAYS } from './data/campusData';
 import { agentConfigured, askAgentWithRetry, type AgentAnswer, type AgentError, type AskCampus } from './askClient';
 
 export const EXAMPLE_QUESTIONS = [
@@ -64,6 +64,8 @@ function meetingWhen(m: CourseMeeting, weekday: number): string {
 function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, CampusLocation>): Answer {
   const when = (t: number) => (t === ctx.time ? 'right now' : `at ${formatClock(t)}`);
   switch (insight.kind) {
+    case 'differentDay':
+      return { text: `The device answer uses the day shown on the map. Select ${WEEKDAYS[insight.weekday]} in the day picker, then ask again.`, rows: [], show: null };
     case 'leastCrowded': {
       const { placeKind, ranked, from, time } = insight;
       if (!ranked.length) return { text: `There are no ${PLURAL[placeKind]} on this campus in the model.`, rows: [], show: null };
@@ -85,6 +87,18 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       }
       if (best.open === false) {
         return { text: `By their published hours, all the ${PLURAL[placeKind]} here are closed ${when(time)}.`, rows, show: { ...show, route: null, select: null } };
+      }
+      const missingHours = ctx.data ? ranked.filter((r) => rankTier(r) === 2 && ctx.data!.locations[r.location.id]?.hoursStatus === 'published') : [];
+      if (rankTier(best) === 2 && missingHours.length) {
+        // Nothing open by published hours, and these places have no hours in the data for the shown
+        // date (the dining halls' dated hours end before the reference weekend): no ranking.
+        const days = ctx.data ? dayList(daysWithPublishedHours(missingHours.map((r) => r.location.id), ctx.data), WEEKDAYS) : '';
+        const date = ctx.data ? ` (${dateForWeekday(ctx.data, ctx.weekday)})` : '';
+        return {
+          text: `Opening hours for the ${PLURAL[placeKind]} here aren't in the data for ${WEEKDAYS[ctx.weekday]}${date}, so the map can't say which is least crowded.${days ? ` Published hours cover ${days}: pick one of those days in the day picker.` : ''}`,
+          rows: [],
+          show: null,
+        };
       }
       const hoursNote = best.open === null ? ` Its opening hours aren't published for ${WEEKDAYS[ctx.weekday]}, so check before going.` : '';
       if (best.share === null) {
@@ -138,7 +152,13 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       if (openNow?.open && openNow.fromPreviousDay) {
         return { text: `${location.name} is open ${when(time)} (published hours: ${openNow.hoursText}), but the simulation doesn't model visits after midnight.`, rows: [], show };
       }
-      const hoursNote = openNow?.open === null ? ' Its opening hours for this day aren’t published.' : '';
+      const otherDays = openNow?.open === null && ctx.data?.locations[location.id]?.hoursStatus === 'published'
+        ? dayList(daysWithPublishedHours([location.id], ctx.data), WEEKDAYS) : '';
+      const hoursNote = openNow?.open === null
+        ? otherDays
+          ? ` Its opening hours aren’t in the data for ${WEEKDAYS[ctx.weekday]}, so it may be closed; published hours cover ${otherDays}.`
+          : ' Its opening hours for this day aren’t published.'
+        : '';
       if (now === null) {
         const count = ctx.occupancyAt(time).find((o) => o.location.id === location.id)?.count ?? 0;
         return { text: `${location.name} has ${count.toLocaleString()} simulated students ${when(time)}. Its capacity isn't comparable, so the map shows a headcount rather than a percentage.${hoursNote}`, rows: [], note: MODEL_NOTE, show };

@@ -3,7 +3,8 @@
 
 import { Agent, MaxTurnsExceededError, Runner, type Model } from '@openai/agents';
 import type { ServerAskContext } from './facts';
-import { formatClock } from '../../map-client/src/sim/playback';
+import { formatClock, type CampusLocation } from '../../map-client/src/sim/playback';
+import { placeMentions } from '../../map-client/src/insights';
 import { WEEKDAYS } from '../../map-client/src/data/campusData';
 import { createTools, mapOutput, newToolLog, type AnswerRow, type MapShow } from './tools';
 
@@ -34,8 +35,9 @@ function instructions(ctx: ServerAskContext): string {
       'published_counts (observed FitRec entries and pedestrian counts), walking_route, find_course, find_places.',
     '',
     'Rules:',
-    '- Get every number, place, time and course from a tool. Never estimate or recall one yourself. If no tool can answer, say what you can answer instead.',
-    '- Closed is not quiet: a place with open=false is closed by its published hours; never call it quiet, empty or least crowded. Unknown hours (open=null) are not closed: say its hours aren’t published.',
+    '- Get every number, place, time and course from a tool. Never estimate or recall one yourself, and never add up, average or convert numbers: quote the figure a tool gives (totals included). If no tool can answer, say what you can answer instead.',
+    '- Closed is not quiet: a place with open=false is closed by its published hours; never call it quiet, empty or least crowded. Unknown hours (open=null) are not closed: say its hours aren’t published, except for classrooms and dorms, which never publish opening hours (don’t mention hours for them).',
+    '- If a tool gives hoursNotInData, the opening hours for that date aren’t in the data: say that plainly for the day and date, name no place as quietest or busiest, and suggest asking about one of daysWithPublishedHours instead.',
     '- Published counts (published_counts, evidence items) are observed data from their own period. Call them published counts, give their period, and never mix them with simulated figures.',
     '- If a tool gives afterMidnightNote, say the place is open then but the simulation doesn’t model visits after midnight; never call it empty.',
     '- For another day, pass the weekday parameter (0 = Monday). If a tool returns available=false, say that day is still being simulated and to try again shortly.',
@@ -46,6 +48,8 @@ function instructions(ctx: ServerAskContext): string {
     '- If a tool says a course code is ambiguous, ask which of the listed courses the user means.',
     '- You don’t know anyone’s personal schedule; the map is also shown on shared screens. For "my next class" and similar, say so and suggest asking by course code (e.g. "where is CAS CS 132?") or on their Flowcast home page.',
     '- When a place name is ambiguous or unknown, call find_places before giving up.',
+    '- Busier means a higher percent of stated capacity; compare simulated students only when a percent is null, and say so. Work out the comparison before you write the answer.',
+    '- To compare places the user names ("is Mugar or SEL busier?"), call place_day for each of them rather than ranking a whole kind.',
     '- Reply in plain text, one to three short sentences, no markdown or lists. Use the names the tools return.',
     '- Only answer questions about the campus, its places, crowds, walks and classes. Politely decline anything else.',
   ].join('\n');
@@ -110,6 +114,20 @@ let answersWithUnsupportedNumbers = 0;
 /** How many answers so far had a number no tool returned (counted, not blocked). */
 export const unsupportedNumberCount = () => answersWithUnsupportedNumbers;
 
+/**
+ * The map's selection must be a place the answer talks about. When the model words its answer
+ * around places other than the one the last tool call selected (it ranked every library to compare
+ * two of them), the first place the answer names is selected instead, and the camera goes there.
+ * A drawn walk, or an answer that names no mapped place, is left as it is.
+ */
+export function alignShow(answer: string, show: MapShow | null, locations: CampusLocation[]): MapShow | null {
+  if (!show?.select || show.route) return show;
+  const named = placeMentions(answer, locations).map((m) => m.location);
+  if (!named.length || named.some((l) => l.id === show.select)) return show;
+  const first = named[0];
+  return { route: null, select: first.id, points: [first.position] };
+}
+
 // ---------------------------------------------------------------- the run
 
 export async function askAgent(question: string, ctx: ServerAskContext, signal?: AbortSignal, model: string | Model = ASK_MODEL): Promise<AskResult> {
@@ -123,7 +141,10 @@ export async function askAgent(question: string, ctx: ServerAskContext, signal?:
     // maxTokens includes reasoning tokens.
     modelSettings: { reasoning: { effort: 'low' }, parallelToolCalls: true, maxTokens: 2000, store: false },
   });
-  const reply = (answer: string): AskResult => ({ answer, model: modelName, ...mapOutput(log), calls: log.calls });
+  const reply = (answer: string): AskResult => {
+    const { show, rows } = mapOutput(log);
+    return { answer, model: modelName, show: alignShow(answer, show, ctx.locations), rows, calls: log.calls };
+  };
 
   let raw: string;
   try {

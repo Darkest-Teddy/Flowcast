@@ -1,7 +1,7 @@
 // Loads the same bundled data the map plays, and builds the same simulation, so the server's
 // answers match what the map shows. Each weekday takes several seconds to build (blocking the
-// event loop while it runs); days are built one at a time, in the background, and kept in a small
-// LRU cache.
+// event loop while it runs); days are built one at a time, in the background, only while no
+// answer is being worked out, and kept in a small LRU cache.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -30,6 +30,50 @@ export function chooseBundle(env: Record<string, string | undefined>, exists: (r
 
 
 /**
+ * Counts work in flight (Ask model runs) so day builds, which block the event loop for several
+ * seconds each, can wait until none is running. Without this the startup prebuild of the week
+ * stalls a running answer's tool calls and HTTP turns until it hits the timeout.
+ */
+export class InFlight {
+  private active = 0;
+  private waiters = new Set<() => void>();
+
+  get count(): number { return this.active; }
+
+  /** Marks one piece of work as started; call the returned function once when it ends. */
+  begin(): () => void {
+    this.active++;
+    let ended = false;
+    return () => {
+      if (ended) return;
+      ended = true;
+      if (--this.active === 0) {
+        const waiters = this.waiters;
+        this.waiters = new Set();
+        for (const wake of waiters) wake();
+      }
+    };
+  }
+
+  /** Resolves when nothing is in flight, or after `maxWaitMs` so steady traffic can't starve builds. */
+  settled(maxWaitMs: number): Promise<void> {
+    if (this.active === 0) return Promise.resolve();
+    return new Promise((resolve) => {
+      const wake = () => {
+        clearTimeout(timer);
+        this.waiters.delete(wake);
+        resolve();
+      };
+      const timer = setTimeout(wake, maxWaitMs);
+      this.waiters.add(wake);
+    });
+  }
+}
+
+/** Longest a day build waits for running answers to finish (just over the model timeout). */
+export const BUILD_WAIT_MS = 30_000;
+
+/**
  * Builds values by key at most once at a time, keeps up to `capacity` built values and evicts the
  * least recently used one. A failed build is dropped so the next request retries it.
  */
@@ -37,7 +81,8 @@ export class BuildCache<K, V> {
   private readonly built = new Map<K, V>(); // insertion order = recency
   private readonly building = new Map<K, Promise<V>>();
 
-  constructor(private readonly build: (key: K) => V | Promise<V>, private readonly capacity: number) {
+  /** `before` runs ahead of each build and delays it until it resolves (see InFlight). */
+  constructor(private readonly build: (key: K) => V | Promise<V>, private readonly capacity: number, private readonly before?: () => Promise<void>) {
     if (!(capacity >= 1)) throw new Error('BuildCache capacity must be at least 1');
   }
 
@@ -63,8 +108,11 @@ export class BuildCache<K, V> {
     if (!pending) {
       // Deferred so the request that triggers a build can respond before the build blocks the loop.
       pending = new Promise<V>((resolve, reject) =>
-        setImmediate(() => {
-          try { resolve(this.build(key)); } catch (error) { reject(error); }
+        setImmediate(async () => {
+          try {
+            await this.before?.();
+            resolve(this.build(key));
+          } catch (error) { reject(error); }
         }),
       ).then(
         (v) => {
@@ -99,6 +147,8 @@ export interface CampusModel {
   daysCached: number;
   /** What the tools may read beyond the shown day (facts.ts). */
   facts: AskFacts;
+  /** Ask runs in flight; day builds wait for them to finish. */
+  asks?: InFlight;
 }
 
 export function daysCachedFrom(env: Record<string, string | undefined>): number {
@@ -113,7 +163,8 @@ export function loadCampusModel(env: Record<string, string | undefined> = proces
   const population = readJson(root('map-client/public/data/population.json'));
   const base: PopulationBase = buildPopulation(day, campus, population);
   const daysCached = daysCachedFrom(env);
-  const days = new BuildCache<number, Playback>((weekday) => new Playback(buildSourceDay(base, campus, weekday)), daysCached);
+  const asks = new InFlight();
+  const days = new BuildCache<number, Playback>((weekday) => new Playback(buildSourceDay(base, campus, weekday)), daysCached, () => asks.settled(BUILD_WAIT_MS));
 
   const locations = base.locations.filter((l) => l.kind !== 'off-campus');
   const populationSummary = {
@@ -140,5 +191,6 @@ export function loadCampusModel(env: Record<string, string | undefined> = proces
     privateBundle: bundle.private,
     daysCached,
     facts,
+    asks,
   };
 }

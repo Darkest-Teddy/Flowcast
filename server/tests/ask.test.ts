@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { RunContext } from '@openai/agents';
 import { ScriptedModel, assistantMessage, functionCall } from '@openai/agents/testing';
-import { BuildCache, chooseBundle, daysCachedFrom, loadCampusModel, PRIVATE_BUNDLE, PUBLIC_BUNDLE, type CampusModel } from '../src/campus';
+import { BuildCache, BUILD_WAIT_MS, InFlight, chooseBundle, daysCachedFrom, loadCampusModel, PRIVATE_BUNDLE, PUBLIC_BUNDLE, type CampusModel } from '../src/campus';
 import { askMeetings } from '../../map-client/src/insights';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createTools, mapOutput, newToolLog, nextHoursChange, resolvePlace } from '../src/tools';
-import { askAgent, FALLBACK_ANSWER, rewordAnswer, supportedNumbers, unsupportedNumberCount, unsupportedNumbers } from '../src/agent';
+import { alignShow, askAgent, FALLBACK_ANSWER, rewordAnswer, supportedNumbers, unsupportedNumberCount, unsupportedNumbers } from '../src/agent';
 import { BASIS_TOPICS, dayFrom, type AskFacts, type ServerAskContext } from '../src/facts';
 import { clientKey, createApp, limiter } from '../src/app';
 import type { AskContext } from '../../map-client/src/insights';
@@ -201,6 +201,53 @@ test('a closed dining hall is never the quietest: closed rows rank after open an
   assert.equal(all.out.date, '2026-10-28');
 });
 
+test('weekend dining: hours not in the data for the date give no ranking and name the days that have them', async () => {
+  // Saturday's hours with Wednesday's crowd (only the hours matter here). The dining halls' dated
+  // hours end on Friday 30 October, before the reference weekend.
+  const saturday: ServerAskContext = { ...ctx, weekday: 5, facts: { ...facts, day: () => ({ playback: wednesday }) } };
+  const { out, map } = await call('rank_places_by_crowd', { kind: 'dining', weekday: null, time: '12:30', near: null, order: null, openOnly: null }, saturday);
+  assert.equal(out.leastCrowded, null);
+  assert.equal(out.date, '2026-10-31');
+  assert.match(out.hoursNotInData.note, /aren't in the data for Saturday 2026-10-31/);
+  assert.equal(out.hoursNotInData.daysWithPublishedHours, 'Monday to Friday');
+  for (const p of out.places) assert.equal('percent' in p || 'students' in p, false, p.name);
+  assert.deepEqual(map, { show: null, rows: [] });
+  const most = await call('rank_places_by_crowd', { kind: 'dining', weekday: null, time: '12:30', near: null, order: 'most', openOnly: null }, saturday);
+  assert.equal(most.out.mostCrowded, null);
+  // place_day names no quietest or busiest hour for that date; place_info says which days have hours.
+  const day = (await call('place_day', { place: 'Marciano Commons', weekday: null, time: null }, saturday)).out;
+  assert.equal(day.quietestOpen, null);
+  assert.equal(day.busiestOpen, null);
+  assert.equal(day.hoursNotInData.daysWithPublishedHours, 'Monday to Friday');
+  const info = (await call('place_info', { place: 'Marciano Commons', weekday: null, time: null }, saturday)).out;
+  assert.equal(info.openNow, null);
+  assert.equal(info.daysWithPublishedHours, 'Monday to Friday');
+  // Classrooms never publish hours: ranked as before, on any day.
+  const rooms = (await call('rank_places_by_crowd', { kind: 'classroom', weekday: null, time: '12:30', near: null, order: null, openOnly: null }, saturday)).out;
+  assert.equal('hoursNotInData' in rooms, false);
+  const weekdayRooms = (await rank({ kind: 'classroom', time: '12:30' })).out;
+  assert.equal('hoursNotInData' in weekdayRooms, false);
+  assert.ok(weekdayRooms.places.some((p: any) => p.percent !== null));
+  // ... with an answer: the top place with a percent, which the map selects.
+  const first = weekdayRooms.places[0];
+  assert.equal(weekdayRooms.leastCrowded, first.name);
+  assert.equal(first.open, null);
+  assert.notEqual(first.percent, null);
+  const dorms = await rank({ kind: 'dorm', time: '12:30' });
+  assert.ok(dorms.out.leastCrowded === null || dorms.out.leastCrowded === dorms.out.places[0].name);
+  assert.equal(dorms.map.show?.select ?? null, dorms.out.leastCrowded === null ? null : dorms.out.places[0].id);
+  // A weekday is ranked as before.
+  assert.ok((await rank({ kind: 'dining', time: '12:30' })).out.leastCrowded);
+});
+
+test('a kind of place the campus in view doesn’t have is said, not reported as none qualifying', async () => {
+  const { out, map } = await call('rank_places_by_crowd', { kind: 'library', weekday: null, time: null, near: null, order: null, openOnly: null }, { ...ctx, campus: 'fenway' });
+  assert.deepEqual(out.places, []);
+  assert.equal(out.leastCrowded, null);
+  assert.match(out.note, /no library places on the fenway campus/);
+  assert.deepEqual(map, { show: null, rows: [] });
+});
+
 test('another day that is not built says so, and asks for it to be built', async () => {
   const { out, map } = await rank({ kind: 'library', weekday: 4 });
   assert.deepEqual(out, { available: false, reason: 'day 4 is still being simulated', retryAfterSec: 10 });
@@ -312,8 +359,13 @@ test('list_events: reference-week events in Boston time, with the count outside 
   assert.equal(week.outsideReferenceWeek, data.events.length - inWeek.length);
   const wed = (await call('list_events', { weekday: 2, place: null })).out;
   assert.ok(wed.events.every((e: any) => e.date === '2026-10-28' && e.day === 'Wednesday'));
-  assert.deepEqual(wed.events.map((e: any) => e.start), ['15:30', '17:00', '19:00']);
-  assert.equal(wed.events.find((e: any) => e.start === '19:00').mappedPlace, 'sargent');
+  // 12-hour times, the form answers use, sorted by time of day (not as text: 9:00 AM < 10:00 AM).
+  assert.deepEqual(wed.events.map((e: any) => e.start), ['3:30 PM', '5:00 PM', '7:00 PM']);
+  assert.equal(wed.events.find((e: any) => e.start === '7:00 PM').mappedPlace, 'sargent');
+  for (let i = 1; i < week.events.length; i++) {
+    const key = (e: any) => `${e.date} ${String(new Date(`2000-01-01 ${e.start}`).getHours()).padStart(2, '0')}${e.start.slice(-5, -3)}`;
+    assert.ok(key(week.events[i - 1]) <= key(week.events[i]), `${week.events[i - 1].start} before ${week.events[i].start}`);
+  }
   assert.ok(wed.events.some((e: any) => e.where === 'location not published'));
   const sargent = (await call('list_events', { weekday: null, place: 'sargent' })).out;
   assert.ok(sargent.events.length >= 1 && sargent.events.every((e: any) => e.mappedPlace === 'sargent'));
@@ -337,6 +389,9 @@ test('model_basis, published_counts and find_places', async () => {
     assert.ok(log.outputs[0].length < 1200, `${topic} ${log.outputs[0].length}`);
   }
   const fit = (await call('published_counts', { source: 'fitrec_visits', weekday: 2 })).out;
+  // A day's total comes from the tool, so the model never adds the hours up itself.
+  assert.equal(fit.totalVisits, fit.hours.rows.reduce((sum: number, r: number[]) => sum + r[1], 0));
+  assert.equal(fit.reportedHours, fit.hours.rows.length);
   assert.equal(fit.kind, 'published count');
   assert.equal(fit.observedDate, '2026-10-21'); // the Wednesday of the published week
   assert.deepEqual(fit.hours.columns, ['hour', 'visits']);
@@ -475,6 +530,59 @@ test('day builds are deduped, failed builds retried, and the cache is LRU-bounde
   assert.equal(daysCachedFrom({}), 7);
   assert.equal(daysCachedFrom({ FLOWCAST_ASK_DAYS_CACHED: '3' }), 3);
   assert.equal(daysCachedFrom({ FLOWCAST_ASK_DAYS_CACHED: 'x' }), 7);
+});
+
+test('day builds wait while an answer is being worked out, so the week prebuild never stalls it', async () => {
+  const asks = new InFlight();
+  const builds: number[] = [];
+  const cache = new BuildCache<number, number>((d) => { builds.push(d); return d; }, 7, () => asks.settled(BUILD_WAIT_MS));
+  const end = asks.begin();
+  const second = asks.begin();
+  assert.equal(asks.count, 2);
+  const built = cache.get(4);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(builds, []); // held while answers run
+  assert.equal(cache.isBuilding(4), true);
+  end();
+  end(); // ending twice counts once
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(builds, []);
+  second();
+  assert.equal(await built, 4);
+  assert.deepEqual(builds, [4]);
+  // Nothing in flight: builds start at once; steady traffic can't hold a build past the cap.
+  assert.equal(await cache.get(5), 5);
+  asks.begin();
+  const t0 = Date.now();
+  await asks.settled(30);
+  assert.ok(Date.now() - t0 >= 25);
+});
+
+test('a queued day build checks for answers that started before its deferred turn', async () => {
+  const asks = new InFlight();
+  let built = false;
+  const cache = new BuildCache(() => { built = true; return 4; }, 7, () => asks.settled(BUILD_WAIT_MS));
+  const pending = cache.get(4);
+  const end = asks.begin();
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(built, false);
+  } finally { end(); }
+  assert.equal(await pending, 4);
+});
+
+test('the endpoint marks each model run in flight until it settles', async () => {
+  const asks = new InFlight();
+  const counts: number[] = [];
+  const app = createApp({ campus: { ...fakeCampus(), asks }, keyConfigured: true, model: 'test',
+    ask: async () => { counts.push(asks.count); if (counts.length === 2) throw new Error('model'); return answer; } });
+  const s = await serve(app);
+  try {
+    assert.equal((await post(s.url, valid)).status, 200);
+    assert.equal((await post(s.url, valid)).status, 502);
+    assert.deepEqual(counts, [1, 1]);
+    assert.equal(asks.count, 0);
+  } finally { s.close(); }
 });
 
 // ---------------------------------------------------------------- the endpoint
@@ -668,4 +776,25 @@ test('without a key the endpoint says so; model failures become 502 without leak
     assert.equal(r.status, 502);
     assert.doesNotMatch(await r.text(), /secret|sk-/);
   } finally { failing.close(); console.error = original; }
+});
+
+test('the map selects a place the answer talks about, not a ranking’s top place the answer never names', async () => {
+  const at = (id: string) => campus.locations.find((l) => l.id === id)!;
+  const ranked = { route: null, select: 'astronomy-library', points: [at('astronomy-library').position] };
+  assert.deepEqual(alignShow('SEL is busier by capacity: 11%, compared with Mugar at 9%.', ranked, campus.locations),
+    { route: null, select: 'sel', points: [at('sel').position] });
+  // Named, or nothing mapped named, or a walk: left as is.
+  assert.equal(alignShow('Papagiannis Astronomy Library is the quietest.', ranked, campus.locations), ranked);
+  assert.equal(alignShow('No library qualifies.', ranked, campus.locations), ranked);
+  const walk = { route: { path: [[0, 0], [1, 1]] as [number, number][], estimate: false }, select: null, points: [] };
+  assert.equal(alignShow('CAS to Mugar is 7 minutes.', walk, campus.locations), walk);
+  assert.equal(alignShow('anything', null, campus.locations), null);
+  // Through the agent: a ranking followed by an answer about two other libraries.
+  const model = new ScriptedModel([
+    [functionCall('rank_places_by_crowd', { kind: 'library', weekday: null, time: null, near: null, order: null, openOnly: null }, { callId: 'a' })],
+    [assistantMessage('SEL is busier than Mugar right now.')],
+  ]);
+  const r = await askAgent('q', ctx, undefined, model);
+  assert.equal(r.show?.select, 'sel');
+  assert.ok(r.rows.length > 0);
 });

@@ -10,7 +10,7 @@
 // is answered with a pointer to the course form or the student's own home page.
 
 import type { CampusLocation, LocationKind, Occupancy, WalkRoute } from './sim/playback';
-import { dateForWeekday, openingHoursForDate, type CampusData, type OpeningHours, type SourceMeeting } from './data/campusData';
+import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type OpeningHours, type SourceMeeting } from './data/campusData';
 import { effectiveMeetingIntervals } from './data/academicCalendar';
 
 export const ASK_ASSUMPTIONS = {
@@ -66,6 +66,7 @@ export type MapInsight =
   | { kind: 'course'; courseCode: string; title: string; next: CourseMeeting; buildings: { locationId: string; sections: string[] }[] }
   | { kind: 'busy'; location: CampusLocation; modeled: boolean; now: number | null; quiet: { time: number; share: number } | null; busy: { time: number; share: number } | null; time: number; openNow?: OpenState; afterMidnight?: boolean }
   | { kind: 'personal' }
+  | { kind: 'differentDay'; weekday: number }
   | { kind: 'needTwoPlaces' }
   | { kind: 'noCourse'; code: string }
   | { kind: 'unknown' };
@@ -133,6 +134,32 @@ export function openAt(locationId: string, weekday: number, timeSec: number, dat
   if (!today.length) return { open: null, reason: `Opening hours are not published for ${date}.`, date };
   const open = today.some((e) => inWindow(e.windows, timeSec));
   return { open, hoursText: hoursText(today), qualifier: qualifierOf(today), date };
+}
+
+/**
+ * Reference-week weekdays (0 = Monday) on which any of these places has published hours for its
+ * date. Used to say which days to ask about when the asked day has none (the dining halls' dated
+ * hours end before the reference weekend).
+ */
+export function daysWithPublishedHours(locationIds: string[], data: CampusData): number[] {
+  const days: number[] = [];
+  for (let w = 0; w < 7; w++) {
+    const date = dateForWeekday(data, w);
+    if (locationIds.some((id) => {
+      const s = data.locations[id];
+      return s?.hoursStatus === 'published' && openingHoursForDate(s.hours, date, w).length > 0;
+    })) days.push(w);
+  }
+  return days;
+}
+
+/** "Monday to Friday", "Monday, Wednesday and Friday": weekdays (0 = Monday) in words. */
+export function dayList(days: number[], names: readonly string[]): string {
+  if (!days.length) return '';
+  const consecutive = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
+  if (consecutive && days.length > 2) return `${names[days[0]]} to ${names[days[days.length - 1]]}`;
+  const words = days.map((d) => names[d]);
+  return words.length === 1 ? words[0] : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
 }
 
 /**
@@ -402,6 +429,9 @@ export function ask(query: string, ctx: AskContext): MapInsight {
     const buildings = [...grouped].map(([locationId, s]) => ({ locationId, sections: [...s].sort() })).sort((x, y) => y.sections.length - x.sections.length);
     return { kind: 'course', courseCode: next.courseCode, title: next.title, next, buildings };
   }
+
+  const otherDay = WEEKDAYS.findIndex((name, weekday) => weekday !== ctx.weekday && new RegExp(`\\b${name}\\b`, 'i').test(query));
+  if (otherDay !== -1) return { kind: 'differentDay', weekday: otherDay };
 
   // "When is Mugar Library quiet" names a library, so it asks about that one, not all of them.
   if (placeKind && (asksQuietest || !refs.length) && !refs.some((r) => r.location.kind === placeKind)) {

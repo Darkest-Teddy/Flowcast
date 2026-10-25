@@ -54,7 +54,7 @@ export interface ScheduleItem {
 export interface PlaceForecast {
   locationId: string;
   at: string; // ISO time the person will be there
-  share: number; // predicted occupancy / capacity
+  share: number; // projected (simulated) occupancy / capacity
 }
 
 export interface HourlyForecast {
