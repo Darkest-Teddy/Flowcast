@@ -17,6 +17,7 @@ import EventImpact from './pages/EventImpact';
 import Clubs from './pages/Clubs';
 import Meetings from './pages/Meetings';
 import ClubDetail from './pages/ClubDetail';
+import CheckIn from './pages/CheckIn';
 import Profile from './pages/Profile';
 import Calendars from './pages/Calendars';
 import Privacy from './pages/Privacy';
@@ -74,6 +75,8 @@ const router = createBrowserRouter([
   },
   { path: '/welcome', element: <RequireAuth><Welcome /></RequireAuth> },
   { path: '/clubs/register', element: <RequireAuth><ClubApply /></RequireAuth> },
+  // Scanned at a meeting's door: works signed out too, keeping the code across Google sign-in (CheckIn.tsx).
+  { path: '/checkin/:meetingId?', element: <CheckIn /> },
   {
     path: '/',
     element: <StudentArea />,

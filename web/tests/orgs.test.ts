@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { errorText, officerMeetingEvents, rankTablingSpots, turnoutPreview } from '../src/lib/orgs.ts';
+import { discoverClubs, errorText, officerMeetingEvents, perkSummary, rankTablingSpots, turnoutPreview } from '../src/lib/orgs.ts';
 import type { OfficerMeeting } from '../src/data/types.ts';
 
 test('error text drops the request prefix', () => {
@@ -37,4 +37,24 @@ test('tabling spots rank by people walking in during the window', () => {
   assert.equal(noon[1].locationId, 'gsu');
   assert.deepEqual(rankTablingSpots(foot, 1, 16, 19).map((s) => s.id), ['around-gsu', 'marsh']);
   assert.deepEqual(rankTablingSpots(foot, 6, 9, 17).map((s) => s.total), [0, 0]);
+});
+
+test('club discovery: next meeting, shortest walk from home, first meeting clear of classes', () => {
+  const now = Date.parse('2026-10-26T12:00:00Z');
+  const ev = (id: string, clubId: string, start: string, end: string, locationId: string | null) => ({ id, title: id, locationId, venue: null, start, end, organizer: null, clubId, source: 'terrier-central' as const, mapStatus: 'simulated' as const });
+  const events = [
+    ev('a1', 'a', '2026-10-27T22:00:00Z', '2026-10-27T23:00:00Z', 'cas'), // overlaps a class
+    ev('a2', 'a', '2026-10-29T22:00:00Z', '2026-10-29T23:00:00Z', 'gsu'),
+    ev('b1', 'b', '2026-12-30T22:00:00Z', '2026-12-30T23:00:00Z', 'cas'), // past the horizon
+    ev('c-series', 'c', '2026-09-01T22:00:00Z', '2026-12-01T23:00:00Z', 'cas'), // a series, not a single meeting
+  ];
+  const walks: Record<string, number> = { cas: 9, gsu: 4 };
+  const d = discoverClubs(events, [{ start: '2026-10-27T21:30:00Z', end: '2026-10-27T22:45:00Z' }], now, (id) => walks[id] ?? null);
+  assert.deepEqual([...d.keys()], ['a']);
+  assert.deepEqual([d.get('a')!.next!.id, d.get('a')!.walk, d.get('a')!.freeFit!.id], ['a1', 4, 'a2']);
+});
+
+test('perk summary for cards', () => {
+  assert.equal(perkSummary({ perks: ['food', 'swag'], perksNote: 'Pizza' }), 'Free food · Free swag · Pizza');
+  assert.equal(perkSummary({}), '');
 });

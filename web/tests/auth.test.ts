@@ -63,6 +63,10 @@ test('OAuth errors and missing codes are cleaned and never exchanged or reflecte
 test('return routes reject external, encoded, backslash, query, fragment and auth paths', () => {
   for (const path of ['//evil.test', '/\\evil.test', 'https://evil.test', '/%2f%2fevil.test', '/auth/callback', '/signin', '/profile?access_token=secret', '/ask#secret', '/admin/../signin', null]) assert.equal(safeReturnRoute(path), '/');
   assert.equal(safeReturnRoute('/club/calendar'), '/club/calendar');
+  assert.equal(safeReturnRoute('/checkin'), '/checkin');
+  assert.equal(safeReturnRoute('/meetings'), '/meetings');
+  assert.equal(safeReturnRoute('/clubs/organizer%3ADebate%2520Society%2520-%25201124'), '/clubs/organizer%3ADebate%2520Society%2520-%25201124');
+  for (const path of ['/checkin/abc?code=secret', '/clubs/organizer%3A../signin', '/clubs/x/y']) assert.equal(safeReturnRoute(path), '/');
 });
 
 test('headers restore and refresh through the SDK; logout uses the SDK and removes access', async () => {
