@@ -34,7 +34,7 @@ These checks establish internal consistency, not measured attendance accuracy. C
 
 ## Incident scenarios
 
-Open **Incidents** in the map's side panel to start a fire drill (30 simulated minutes by default) or a building closure (120 minutes). Fires, earthquakes, and meteor impacts are also available, with two hours of active effects by default and damaged buildings closed for the rest of the day. Select a location and duration, then start the scenario at the displayed time. Playback speed and pause apply to incidents too. For fire drills, occupants react, descend estimated stairs, and pass through a shared exit queue before walking to an outdoor assembly point. All modeled spaces sharing the target's footprint use the same exit bottleneck. Incoming students wait at their origin or turn back along the part of their route already traveled.
+Open **Incidents** in the map's sheet to start a fire drill (30 simulated minutes by default) or a building closure (120 minutes). Fires, earthquakes, and meteor impacts are also available, with two hours of active effects by default and damaged buildings closed for the rest of the day. Select a location and duration, then start the scenario at the displayed time. Playback speed and pause apply to incidents too. For fire drills, occupants react, descend estimated stairs, and pass through a shared exit queue before walking to an outdoor assembly point. All modeled spaces sharing the target's footprint use the same exit bottleneck. Incoming students wait at their origin or turn back along the part of their route already traveled.
 
 Assembly points are selected on saved pedestrian geometry with at least a 10 metre gap from mapped building footprints. This buffer is an uncalibrated modeling choice. The map outlines the closed building and shows an aggregate outdoor headcount at assembly; these students are counted separately from indoor occupancy, walkers, and off-map students. The panel reports evacuation, assembly, diversion, and recovery progress. Fire-drill reopening can extend beyond the requested duration to allow clearance and muster. Release is staggered; recovery resumes from actual positions, shortens or skips missed stays, and keeps original activity end times instead of moving every class later.
 
@@ -135,16 +135,20 @@ Places open on hover of the model, outline or field itself too, through invisibl
 | `src/PlaceTags.tsx` | HTML tags for monuments, landmarks, public art, open spaces and fields |
 | `src/sim/playback.ts` | Where everyone is at time *t* and how full each place is. The server takes this over later (plan Section 8.1) |
 | `src/sim/riders.ts`, `src/layers/riders.ts` | Legacy demo rider model; not used by the production map |
-| `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
-| `src/App.tsx` | The frame loop, dashboard panel and timeline |
+| `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour (the toolbar's Spin button and View popover). Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |
+| `src/App.tsx` | The frame loop, the sheet's tabs and the toolbar |
+| `src/Sheet.tsx`, `src/Popover.tsx` | The one panel (right side on wide screens; a bottom sheet with peek / half / full detents at 800 px and below) and the toolbar's popovers |
+| `src/theme.ts` | Follows the dashboard's light / dark and Reduce transparency settings (`flowcast.theme`, `flowcast.transparency`) |
 
 **Characters walking without lockstep.** `agents.ts` splits each of the 12 character models across 3 layers whose walk cycles start a third of a stride apart. These animation offsets do not change physical movement speed. Each student is accounted for in a mapped building, on a walking route, or off-map.
+
+**Panels.** Everything lives in one sheet: a header (campus, day, live counts, a weather chip), the simulation day and campus switch, and eight tabs (Ask, Crowds, Data, Transit, Traffic, Bikes, Weather, Incidents). A floating toolbar holds play/pause, the clock and scrubber, speed, Spin, a **View** popover (rotate, north up, tilt, Top / 3D / Street, tour) and a **Layers** popover (MBTA, Traffic, Parking, Bluebikes, traffic counts, campus events, Lighting). Panels follow the dashboard's light or dark theme and use `theme/tokens.css` (imported at the top of `styles.css`); the tags on the map stay dark in both. On phones the grabber drags the sheet and is also a button: press it to step through the sizes, or use ArrowUp / ArrowDown.
 
 **Accessibility.** Map glow, tags and dashboard bars all come from one four-step scale in `crowd.ts`. Every tag carries the percentage full and a word (never colour alone), and its level word keeps 4.5:1 contrast or better. All controls are real buttons with ARIA labels.
 
 ## Live MBTA and traffic
 
-The **Transit & traffic** tab and the map show live data for whichever campus is selected:
+The **Transit** tab and the map show live data (the MBTA and Traffic layers switch on and off in the toolbar's **Layers** popover) for whichever campus is selected:
 
 | Campus | Lines |
 |---|---|
@@ -192,7 +196,7 @@ The **Bikes** tab replays measured dock departures and arrivals. Blue riders fol
 
 ## Parking (estimate, off by default)
 
-The **Parking** toggle in the Transit tab (remembered in `localStorage` as `flowcast.parking`) shows how full the garages and lots around BU and its event venues probably are at the shown day and time. While it's off, nothing loads or runs: no data fetch, no layers, no tags, no per-frame work.
+The **Parking** switch in the toolbar's **Layers** popover (its estimates show in the Transit tab) (remembered in `localStorage` as `flowcast.parking`) shows how full the garages and lots around BU and its event venues probably are at the shown day and time. While it's off, nothing loads or runs: no data fetch, no layers, no tags, no per-frame work.
 
 - **Lots** (`public/data/parking.json`, built by `python3 data-pipeline/fetch_parking.py`): BU's garages and lots (Agganis, Warren Towers, Langsam under New Balance Field, Buick Street, Lots F/H/R, the Medical Campus garages) and the public ones near Fenway Park, MGM Music Hall and Kenmore Square. Geometry and names from OpenStreetMap; capacity from a published figure, the OSM `capacity` tag, or footprint × levels ÷ 30 m² per space, and each lot says which (`capacityBasis`, `capacityNote`, `sourceUrl`).
 - **Demand** (`src/sim/parking.ts`, deterministic): a fill curve per kind of lot (BU commuter garages fill 7–9 AM, hold, drain 4–7 PM; medical garages run 24/7; public garages follow shops and restaurants), lower on weekends and on BU holidays and breaks (from the academic calendar). Events add cars: they arrive over the 2 h before the start, stay to the end and leave over the following hour, going to the nearest lot that sells event parking until it's FULL, then spilling to the next nearest within the venue's walking radius. Cars that find no lot are counted in the panel. Events: Red Sox home games, Agganis Arena, MGM Music Hall, Nickerson Field, commencement and move-in, and BU's own events from `campus-data.json` (small). Undated placeholders are labelled **Sample**.
@@ -238,7 +242,7 @@ The frame rate is set by the **number of WebGL calls per frame**, not by shader 
 - **Same arrays every frame** for moving things (`layers/stable.ts`), so deck.gl re-uploads only positions.
 - **Mapbox VAO cache** (`map/vaoCache.ts`): Mapbox rebuilt ~130 vertex arrays a frame with shadows on.
 - **No MSAA at pixel ratio ≥ 1.75**: it doubled GPU time on Retina screens, whose density already smooths edges.
-- **No `backdrop-filter` on panels**: re-blurring the moving map behind each panel every frame cost a third of the frame rate.
+- **No `backdrop-filter` on big panels**: re-blurring the moving map behind each panel every frame cost a third of the frame rate. The sheet and popovers are near-opaque glass; only the small toolbar blurs. The dim behind an open sheet is a plain alpha layer (no blend mode or filter).
 - **No per-frame Mapbox style churn**: @deck.gl/mapbox moved one of its two slot layer groups on every `setProps`, re-running Mapbox's style update each frame (`skipSlotGroupMoves` in `map/basemap.ts`). Standard's flat 2D building footprints, hidden under the city extrusions anyway, are switched off.
 - **Auto** (`perf/quality.ts`) drops shadows, then footpaths and building ambient occlusion, then 3D trees when the 1% low stays under 45 FPS, never the resolution, and remembers where it settled.
 - **Optional frame cap**: `?fps=60` renders on a steady beat (every other refresh on a 120 Hz screen) via `perf/pacer.ts`; off by default.

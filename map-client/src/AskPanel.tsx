@@ -223,7 +223,7 @@ export function AskPanel({
         <div className="ask-answer" aria-live="polite">
           <p className="ask-text">{answer.answer.text}</p>
           {answer.answer.rows.length > 0 && (
-            <ol>
+            <ol className="rows">
               {answer.answer.rows.map((r) => (
                 <li key={r.location.id}>
                   <button className="row" onClick={() => onSelect(r.location)} style={r.share === null ? undefined : crowdLevelStyle(r.share)}>

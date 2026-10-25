@@ -8,7 +8,8 @@
    white (day) or black (night, the dim), so their text is checked against both: on
    --map-sheet-fill (glass-fill-strong pushed half way to the opaque surface: 94% light, 95% dark)
    ink is ≥13:1, --map-ink-secondary ≥5.6:1, accent ≥4.8:1, --map-bad-ink ≥4.9:1 and every
-   --crowd-*-text ≥4.7:1. The toolbar is real glass (--glass-fill, blurred) and holds ink only
+   --crowd-*-text ≥4.7:1. Cards inside it (--map-card) are opaque: there accent is ≥4.6:1, status
+   and crowd text ≥5.4:1. The toolbar is real glass (--glass-fill, blurred) and holds ink only
    (≥6.1:1). Reduced transparency makes all of it the solid surface. */
 :root {
   --map-sheet-fill: color-mix(in srgb, var(--glass-fill-strong) 50%, var(--color-surface));
@@ -17,6 +18,11 @@
   --map-hairline: color-mix(in srgb, var(--color-ink) 12%, transparent);
   --map-control: color-mix(in srgb, var(--color-ink) 6%, transparent); /* resting fill of a control on glass */
   --map-hover: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  /* Cards inside the sheet (grouped lists, tables, forms): opaque, so coloured text on them keeps
+     the same contrast as on the plain surface whatever the map does. White with a hairline in
+     light; the raised grey in dark (below). */
+  --map-card: var(--color-surface);
+  --map-card-edge: inset 0 0 0 1px var(--map-hairline);
   --map-dim: #000; /* behind an open sheet (.sheet-dim) */
   --sheet-ms: 280ms;
   --sheet-ease: cubic-bezier(0.32, 0.72, 0, 1); /* quick out, soft landing, like a thrown sheet */
@@ -29,6 +35,11 @@
   font-family: var(--font-text);
   color: var(--color-ink);
 }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) { --map-card: var(--color-surface-sunken); }
+}
+:root[data-theme='dark'] { --map-card: var(--color-surface-sunken); }
 
 * { box-sizing: border-box; }
 html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background: var(--color-canvas); }
@@ -136,11 +147,10 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 
 /* Buttons in the panels: a quiet fill; pressed ones take the accent tint (accent on accent-soft,
    ≥4.8:1 in both themes); the one primary action per form is the strong button. */
-.toggles { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 /* Segmented controls (campus, traffic layer): one capsule track, the chosen segment tinted. */
 .campuses, .mobility-modes { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: var(--radius-capsule); background: var(--map-control); }
 .campuses button, .mobility-modes button { background: none; }
-.campuses button, .toggles button, .incident-panel button, .events-list button, .source-data .source-events button,
+.campuses button, .incident-panel button, .events-list button, .source-data .source-events button,
 .mobility-modes button, .weather-modes button, .camera-grid button, .perf-quality button, .ask-examples button {
   min-height: 34px;
   padding: 0 12px;
@@ -154,8 +164,8 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   cursor: pointer;
   touch-action: manipulation;
 }
-:is(.campuses, .toggles, .incident-panel, .events-list, .source-events, .mobility-modes, .weather-modes, .camera-grid, .perf-quality, .ask-examples) button:hover:not(:disabled) { background: var(--map-hover); }
-:is(.campuses, .toggles, .mobility-modes, .weather-modes, .camera-grid, .perf-quality) button[aria-pressed='true'],
+:is(.campuses, .incident-panel, .events-list, .source-events, .mobility-modes, .weather-modes, .camera-grid, .perf-quality, .ask-examples) button:hover:not(:disabled) { background: var(--map-hover); }
+:is(.campuses, .mobility-modes, .weather-modes, .camera-grid, .perf-quality) button[aria-pressed='true'],
 .tool[aria-pressed='true'], .tabs [role='tab'][aria-selected='true'] {
   background: var(--color-accent-soft);
   border-color: var(--color-accent);
@@ -217,7 +227,8 @@ button:disabled { opacity: 0.45; cursor: default; }
   margin: 0 0 var(--space-3);
   padding: 2px var(--space-3);
   border-radius: 16px;
-  background: var(--map-control);
+  background: var(--map-card);
+  box-shadow: var(--map-card-edge);
 }
 .rows { padding: var(--space-1); }
 .rows > li + li { border-top: 1px solid var(--map-hairline); }
@@ -395,7 +406,7 @@ select.tool { padding: 0 8px 0 12px; }
 }
 #panel-transit h3 .route-badge + .route-badge { margin-left: -2px; }
 /* Tables are cards too; numbers are tabular and right-aligned, names take the spare width. */
-.arrivals { width: 100%; margin-bottom: var(--space-3); padding: 2px var(--space-3); border-collapse: separate; border-spacing: 0; border-radius: 16px; background: var(--map-control); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.arrivals { width: 100%; margin-bottom: var(--space-3); padding: 2px var(--space-3); border-collapse: separate; border-spacing: 0; border-radius: 16px; background: var(--map-card); box-shadow: var(--map-card-edge); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .arrivals th, .arrivals td { padding: 7px 3px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--map-hairline); }
 .arrivals th[scope='row'] { white-space: normal; width: 100%; }
 .arrivals tbody tr:last-child > * { border-bottom: 0; }
@@ -430,7 +441,7 @@ select.tool { padding: 0 8px 0 12px; }
 
 /* Incidents tab */
 .incident-panel form, .incident-panel label { display: grid; gap: 8px; }
-.incident-panel form { gap: var(--space-4); margin-top: var(--space-4); padding: var(--space-4); border-radius: 16px; background: var(--map-control); }
+.incident-panel form { gap: var(--space-4); margin-top: var(--space-4); padding: var(--space-4); border-radius: 16px; background: var(--map-card); box-shadow: var(--map-card-edge); }
 .incident-panel label { gap: 6px; font-weight: var(--weight-semibold); }
 .incident-panel form .model-note { margin: 0; font-weight: 400; }
 .incident-panel label select { font-weight: 400; }
@@ -502,7 +513,7 @@ select.tool { padding: 0 8px 0 12px; }
 .ask-form button { min-height: 36px; padding: 0 16px; border-radius: var(--radius-capsule); }
 .ask-answer { margin-top: 12px; }
 .ask-text { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
-.ask-answer ol { list-style: none; margin: 0 0 6px; padding: 0; }
+.ask-answer .rows { margin-bottom: var(--space-2); }
 .ask-note { margin: 6px 0; line-height: 1.4; }
 .ask-clear { padding: 0; border: 0; background: none; color: var(--map-ink-secondary); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
 .ask-examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
@@ -512,7 +523,7 @@ select.tool { padding: 0 8px 0 12px; }
 .parking-panel h3 { margin-top: 14px; }
 .parking-panel .row .value .trend { color: var(--map-ink-secondary); font-weight: 500; }
 .parking-events { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
-.parking-events li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: var(--text-sm); padding: 6px 8px; border-radius: var(--radius-lg); background: var(--map-control); }
+.parking-events li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: var(--text-sm); padding: var(--space-2) var(--space-3); border-radius: 16px; background: var(--map-card); box-shadow: var(--map-card-edge); }
 .parking-events li.is-now { background: var(--color-warn-soft); box-shadow: inset 0 0 0 1px var(--color-warn); }
 .parking-events .when { color: var(--map-ink-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .parking-events li.is-now .when, .parking-events li.is-now .meta { color: var(--color-ink); }
@@ -589,7 +600,7 @@ select.tool { padding: 0 8px 0 12px; }
   .sheet-grabber:focus-visible { outline-offset: -2px; }
   .sheet-toggle, .weather-chip { height: 44px; min-width: 44px; }
   .tabs [role='tab'] { min-height: 44px; }
-  .campuses button, .toggles button, .incident-panel button, .incident-panel select, .events-list button, .mobility-modes button,
+  .campuses button, .incident-panel button, .incident-panel select, .events-list button, .mobility-modes button,
   .weather-modes button, .perf-quality button, .ask-examples button, .ask-form button, .sheet select, .sheet input[type='date'], .sheet input:not([type]), .popover-panel select { min-height: 44px; }
   .row { min-height: 44px; }
 
