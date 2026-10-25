@@ -71,6 +71,20 @@ test('through walkers bring the count site to the observed total; hours without 
   assert.ok(crowd.stats.through >= 70);
 });
 
+test('through walkers use the survey for the matching weekday at the same site', () => {
+  const base = observations().pedestrian[0];
+  const tuesday = { ...base, id: 'tuesday', weekdays: [1], bins: hourBins({ 8: 30, 17: 50 }) };
+  const thursday = { ...base, id: 'thursday', weekdays: [3], bins: hourBins({ 8: 90, 17: 150 }) };
+  const input = observations({ transit: [], pedestrian: [tuesday, thursday] });
+  for (const [weekday, site] of [[1, tuesday], [3, thursday]]) {
+    const crowd = P.buildPublicCrowd({ observations: input, day, weekday });
+    const students = O.simulatedPedestrians(day.trips, site);
+    const publicCounts = crowd.pedestrianCounts(site);
+    site.bins.forEach((bin, i) => assert.ok(Math.abs(students[i] + publicCounts[i] - bin.value) <= 1,
+      `weekday ${weekday}, bin ${i}: ${students[i] + publicCounts[i]} vs ${bin.value}`));
+  }
+});
+
 test('the crowd is deterministic, keeps its own ids, and never starts or ends at a university building', () => {
   const a = P.buildPublicCrowd({ observations: observations(), day, weekday: 2 });
   const b = P.buildPublicCrowd({ observations: observations(), day, weekday: 2 });

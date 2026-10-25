@@ -38,14 +38,15 @@ export function auditNumbers(day, base, scale = 1) {
 }
 
 export function scoreTable(legacy, current) {
-  const lines = ['| Day | Metric | Target | Today’s model | Conditions engine | Loss before → after |', '|---|---|---|---|---|---|'];
+  const lines = ['| Day | Metric | Target | Today’s model | Conditions engine | Loss before → after | Evidence basis | Calibration weight |', '|---|---|---|---|---|---|---|---|'];
   for (const score of current) {
     const before = legacy?.find(row => row.day === score.day);
     for (const metric of score.metrics) {
       const old = before?.metrics.find(row => row.id === metric.id);
-      lines.push(`| ${score.day} | ${metric.label} | ${metric.target} | ${old ? fmt(old.value) : '—'} | ${fmt(metric.value)} | ${old ? fmt(old.loss) : '—'} → ${fmt(metric.loss)} |`);
+      lines.push(`| ${score.day} | ${metric.label} | ${metric.target} | ${old ? fmt(old.value) : '—'} | ${fmt(metric.value)} | ${old ? fmt(old.loss) : '—'} → ${fmt(metric.loss)} | ${metric.basis ?? validate.metricBasis(metric.id)} | ${metric.weight || '0 (diagnostic)'} |`);
     }
-    lines.push(`| ${score.day} | **Weighted total loss** | lower is better | | | ${before ? fmt(before.loss) : '—'} → **${fmt(score.loss)}** |`);
+    const scored = score.metrics.some(metric => metric.weight > 0);
+    lines.push(`| ${score.day} | **Calibration objective** | ${scored ? 'lower is better' : 'not evaluated'} | | | ${scored ? `${before ? fmt(before.loss) : '—'} → **${fmt(score.loss)}**` : 'No comparable observed targets'} | | |`);
   }
   return lines.join('\n');
 }
@@ -78,28 +79,44 @@ export function observationTable(columns) {
 
 /** What the observed counts show that engine parameters cannot fix (for the day builder's owner). */
 export const OBSERVATION_FINDINGS = [
-  "Observed counts, findings for the day builder (not engine parameters): no student enters through Kenmore's gates or rides from the Fenway or Longwood stations, because the transit planner's campus stop set and weights (transitService.ts / sourceDay.ts commutes) never pick them.",
-  "Students alone exceed the counts at Green Line C stops (Hawes Street: 150 student alightings a day toward Cleveland Circle vs 30 counted; Kent Street 144 vs 32) and at several Route 57 stops (e.g. stop 933: 250 student boardings vs 104 counted): the planner weights a commuter's stop by published weekly trips, which loads the C branch and the 57; the engine has no parameter for stop choice.",
-  "Comm Ave crosswalks see 2–4× the counted crossings in the 12:00–12:15 class change (Granby 2,164 vs 543; Cummington 2,176 vs 447; St Mary's 1,696 vs 706): weekly enrollment spreads each student's classes across the campus, so most class changes cross Comm Ave. Attendance below 100% and longer minimum trips home help only a little; the fit kept attendance at 100% because lowering it also cut dining-hall meals below BU Dining's counts.",
-  "On Saturdays almost no students ride (B branch BU stops 2% of counts): commuters only come in on class days and residents' outings walk to a gateway rather than board a published trip.",
+  'Synthetic enrollment, class attendance and commuter mode shares are model assumptions. Passing capacity and itinerary checks does not validate actual building occupancy.',
+  'Transit and pedestrian comparison counts combine different years, populations and counting methods; expected student shares are assumed bands. The table reports current discrepancies without treating those bands as measured student counts.',
+  'Weather and finals scenarios are checked for plausibility, not against date-matched observed outcomes. No independent empirical holdout is available in this validation run.',
 ];
 
-export function writeReport({ legacy, current, audits, timings, search, accepted, notes = [], observed = [] }) {
+export function sourceCoverage({ data, observations }) {
+  const lines = ['## Observation coverage', '',
+    `Simulation reference week starts ${data.referenceWeekStart}. Historical observations are not measurements of that simulated week.`, '',
+    `FitRec snapshot: ${data.fitrecUsage?.periodStart ?? 'unavailable'} to ${data.fitrecUsage?.periodEnd ?? 'unavailable'}; ${data.fitrecUsage?.observations?.length ?? 0} observed hour cells. Entries include all pass holders, not student-only occupancy.`, '',
+    `Library: ${data.libraryHistory?.name ?? 'unavailable'}; ${data.libraryHistory?.observationPeriod ?? 'unknown period'}. ${data.libraryHistory?.countingMethod ?? 'Unknown counting method.'}`, '',
+    'Transit and pedestrian source periods in the saved bundle:', ''];
+  for (const source of observations?.sources ?? []) {
+    const series = [...observations.transit, ...observations.pedestrian].filter(row => row.source === source.id);
+    if (!series.length) continue;
+    lines.push(`- [${source.title}](${source.url}): ${source.period}; ${series.length} series, ${series.reduce((sum, row) => sum + row.bins.length, 0)} recorded bins.`);
+  }
+  lines.push('', 'Transit and crossing observations count all people; simulated students are a subset. Correlations are historical reference comparisons, not measured student shares. Sparse faregate-bin means have varying reporting-date denominators; their sum is not a measured daily total.', '', 'No date-matched rainy-day pedestrian series is provided. Rain multipliers are assumptions and are not fitted or validated by this report.');
+  return lines.join('\n');
+}
+
+export function writeReport({ legacy, current, audits, timings, search, accepted, notes = [], observed = [], sourceInputs }) {
   const auditRows = Object.keys(audits.current).map(key => `| ${key} | ${fmt(audits.legacy[key])} | ${fmt(audits.current[key])} |`);
   const text = `# Behaviour validation
 
 Generated on ${new Date().toISOString().slice(0, 10)} by \`npm run validate:behavior\` / \`npm run calibrate\` (map-client/scripts/validate-behavior.mjs, calibrate-behavior.mjs). Everything runs locally: the simulation is imported headlessly from \`map-client/src/sim\`, scored against measured BU data in the repo, and no network or AI service is used.
 
-**Columns.** *Today’s model* is \`buildSourceDay\` with no conditions (the unconditioned model, unchanged). *Conditions engine* is the same roster with \`behavior.json\` + \`personas.json\` + \`outdoor.json\` and the day's conditions, which is what the map runs. Loss is ≥ 0 per metric (0 = on target); a proposal is accepted only if no metric's loss rises by more than the tolerance and the weighted total falls.
+**Columns.** *Today’s model* is \`buildSourceDay\` with no conditions (the unconditioned planner from this checkout). *Conditions engine* is the same roster with \`behavior.json\` + \`personas.json\` + \`outdoor.json\` and the day's conditions, which is what the map runs. Both columns use the same implementation; they do not compare before and after a code change. Loss is ≥ 0 per metric (0 = on target); a proposal is accepted only if every existing metric remains present, no positively weighted non-assumption metric's loss rises by more than the tolerance, and the weighted total falls. Historical comparisons retain their original weights. Assumed sanity targets contribute soft penalties at 10% of their original weights, without individual regression vetoes. This factor is a modeling choice, not an empirical estimate. Indirect proxies, historical context with unknown comparability, and input reconstructions have zero weight. Rain/finals with no comparable observations are not evaluated for accuracy. Relative metric weights still encode modeling priorities; this total is not an accuracy percentage. Totals using these weights are not comparable with older reports.
 
 ## Measured series and targets
 
-- **FitRec** hourly entries, Oct 17–23 2026 (BU FitRec peak/quiet hours report), same weekday: hourly correlation, daily total ratio, busiest hour.
-- **Library** historical gate counts by hour (School of Theology Library, 2019–20; the only BU library series in the data, used for shape only) vs simulated library entries by hour; plus occupancy shape checks.
+- **FitRec** hourly entries, Oct 17–23 2026 (BU FitRec peak/quiet hours report), same weekday: daily total ratio is diagnostic because measured entries include non-students; hourly correlation and busiest hour are diagnostic only because the planner samples arrival times from these same observations.
+- **Library** historical patron/zone aggregates (School of Theology Library, 2019–20) vs simulated Theology Library entries. The source counting method is unknown, so this is context only; it is not verified gate-count or occupancy validation.
 - **Bluebikes** dock arrivals + departures at Charles River BU docks, average September 2026 Wednesday, hourly, vs simulated walk departures (activity-timing proxy).
-- **Dining**: BU Dining's published 5,000 lunches and 5,000 dinners a day at the three main halls (BU Today 2017), and occupancy at meal times.
-- **Pedestrian counts**: Comm Ave / Bay State Road crossings 17–18h vs 08–09h (Warren Towers EPNF, 2023), as a ratio.
+- **Dining**: 2017 published meal aggregates are historical context, not current occupancy targets. Meal-time and saturation checks are assumed sanity targets only.
+- **Pedestrian counts**: simulated crossings at the surveyed locations and measured intervals, on the recorded weekdays. The Warren 2023 PM/AM ratio uses paired crossing bins at those same sites. Tuesday 2012 and Thursday 2018 surveys are evaluated on Tuesday and Thursday respectively, not Wednesday.
 - **Sanity**: walkers at 3 am, one-minute walker spikes, median and long walks, commuter stop walks, people by the river at 3 am and in rain.
+
+${sourceInputs ? sourceCoverage(sourceInputs) : ""}
 
 ## Scores
 
@@ -113,14 +130,16 @@ ${auditRows.join('\n')}
 
 ${observed.length ? `## Observed MBTA ridership and pedestrian counts
 
-Scored with \`scoreObservations\` (src/sim/validate.ts) on the series in \`public/data/calibration-observations.json\` (see docs/calibration-observations.md). Students are the only people in university buildings; streets and the T also carry the public crowd (sim/publicCrowd.ts), which fills observed − students wherever students fall short, so students + public match by construction except where students alone exceed a count. The calibration therefore scores: the **timing of the students' own peaks** at BU-dominated places (B branch BU stops, ons and offs with both directions added; Comm Ave crosswalks, 2018 15-min and 2012 midday), as volume-weighted Pearson r and hours between busiest bins, weighted like FitRec and the library; a **band penalty** where students exceed their plausible share of a count ("overflow": students above observed × the series' high expected student share, as a share of everyone counted); and students + public shape and level over all primary series (public fill per publicCrowd.ts's rule).
+Scored with \`scoreObservations\` (src/sim/validate.ts) on the series in \`public/data/calibration-observations.json\` (see docs/calibration-observations.md). Students are the only people in university buildings; streets and the T also carry the public crowd (sim/publicCrowd.ts), which fills observed − students wherever students fall short, so students + public match by construction except where students alone exceed a count. The calibration therefore scores: the **timing of the students' own peaks** at BU-dominated places (B branch BU stops, ons and offs with both directions added; Comm Ave crosswalks, 2018 15-min and 2012 midday), as volume-weighted Pearson r and hours between busiest bins, with positive calibration weights; a direct count-excess term when simulated students exceed the historical all-person count in a bin. The displayed "overflow" relative to assumed student-share bands contributes a reduced-weight assumption penalty; students + public shape and level are shown as zero-weight reconstruction diagnostics, not evidence of predictive accuracy.
 ${observationTable(observed)}
 
 ## Build time` : '## Build time'}
 
 ${timings.map(row => `- ${row.label}: ${row.ms.toFixed(0)} ms`).join('\n')}
 
-${search ? `## Calibration search
+${search ? `## Recorded calibration search
+
+This records the saved parameter search, not a new search performed by validation. Its losses may use earlier objective weights. Full-roster confirmation reuses calibration targets and is not an independent empirical holdout.
 
 - Method: ${search.method}
 - Seed: ${search.seed}; inner-loop roster: every ${search.step}th student (${search.sampleStudents.toLocaleString()} of ${search.totalStudents.toLocaleString()}, capacities scaled to match), days: ${search.days.join('; ')}
@@ -131,7 +150,7 @@ ${search ? `## Calibration search
 ` : ''}
 ## Notes and limitations
 
-${['Library gate counts are from a small theology library in 2019–20; only their hourly shape is used. Mugar’s 800-seat capacity is a configured model value, not published.', 'Bluebikes dock activity is a proxy for when people move around campus, not a pedestrian count.', 'FitRec counts are entries (people can enter more than once) and include all FitRec users with a valid pass.', 'Outdoor (BU Beach, Esplanade, river path) shares are assumptions; there are no counts in the data. They are bounded by sanity checks only.', 'Only about 64% of catalog offerings map to buildings (unmatched building codes in the pipeline); unmapped course time is placed on BU’s class grid in BU buildings by the conditions engine.', 'The simulated day still runs midnight to midnight; late-night presence after 24:00 is not modelled.', ...OBSERVATION_FINDINGS, ...notes].map(line => `- ${line}`).join('\n')}
+${['The historical Theology Library counting method is unknown; the comparison is restricted to that library and excluded from calibration. Mugar’s 800-seat capacity is configured, not published.', 'Bluebikes dock activity is a proxy for when people move around campus, not a pedestrian count.', 'FitRec counts are entries (people can enter more than once) and include all FitRec users with a valid pass.', 'Outdoor (BU Beach, Esplanade, river path) shares are assumptions; there are no counts in the data. They are bounded by sanity checks only.', 'Only about 64% of catalog offerings map to buildings (unmatched building codes in the pipeline); unmapped course time is placed on BU’s class grid in BU buildings by the conditions engine.', 'The simulated day still runs midnight to midnight; late-night presence after 24:00 is not modelled.', ...OBSERVATION_FINDINGS, ...notes].map(line => `- ${line}`).join('\n')}
 `;
   const path = resolve(ROOT, '..', 'docs', 'behavior-validation.md');
   writeFileSync(path, text);

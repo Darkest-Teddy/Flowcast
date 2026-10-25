@@ -90,6 +90,25 @@ test('day types: bus splits Friday off, rail and pedestrian counts do not', () =
   assert.equal(O.clockSeconds('24:00'), 86400);
 });
 
+test('dated crossing surveys are used only on their recorded weekdays', () => {
+  const site = (id, weekdays) => ({ id, dayType: 'weekday', quality: 'primary', weekdays });
+  const data = { transit: [], pedestrian: [site('tuesday', [1]), site('thursday', [3]), site('pooled-wed-thu', [2, 3])] };
+  const ids = day => O.seriesForWeekday(data, day, { primaryOnly: true }).pedestrian.map(row => row.id);
+  assert.deepEqual(ids(0), []);
+  assert.deepEqual(ids(1), ['tuesday']);
+  assert.deepEqual(ids(2), ['pooled-wed-thu']);
+  assert.deepEqual(ids(3), ['thursday', 'pooled-wed-thu']);
+  assert.deepEqual(ids(5), []);
+});
+
+test('sparse observed bins retain gaps instead of smoothing across missing periods', () => {
+  const bins = hourBins([8, 9, 17]);
+  assert.deepEqual(O.smoothObservedBins([0, 12, 100], bins), [3, 9, 100]);
+  const s = { kind: 'gated-entries', route: 'Green', direction: null, stop: { mapStopId: 'place-kencl' }, bins };
+  const ride = hour => ({ kind: 'board', route: 'Green-B', direction: 0, stop: 'place-kencl', time: hour * 3600 });
+  assert.deepEqual(O.simulatedTransit([ride(8), ride(12), ride(17)], s), [1, 0, 1], 'a noon ride is not scored against an unobserved bin');
+});
+
 test('the bundled observations file is well formed and every series sits inside the map', async () => {
   const data = JSON.parse(readFileSync(new URL('../public/data/calibration-observations.json', import.meta.url)));
   assert.ok(O.isObservations(data));

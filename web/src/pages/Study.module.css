@@ -45,3 +45,6 @@
   .resultsHeader select { max-width: 100%; }
   .filters, .spot { padding: var(--space-4); }
 }
+.modes { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-5); }
+.modes > p { max-width: 70ch; }
+.more { display: flex; justify-content: center; margin-top: var(--space-5); }

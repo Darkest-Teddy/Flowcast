@@ -27,7 +27,7 @@ test('a good response parses whole', () => {
   if (!r.ok) return;
   assert.equal(r.value.answer, '**Mugar** is busy.');
   assert.deepEqual(r.value.visuals.map((v) => v.kind), ['line', 'bar', 'table', 'stats']);
-  assert.equal(r.value.mapLink, '/map?at=14:00&speed=1');
+  assert.equal(r.value.mapLink, '/map?at=14%3A00&speed=1');
   assert.equal(r.value.sources[0].url, 'https://www.bu.edu/');
   assert.deepEqual(r.value.followUps, ['When is SEL quiet?']);
   const v = r.value.visuals[0];
@@ -116,7 +116,7 @@ test('links: only http(s) sources and relative /map links survive', () => {
   assert.equal(safeUrl('data:text/html,hi'), null);
   assert.equal(safeUrl('/relative'), null);
   assert.equal(safeUrl('https://www.bu.edu/dining/'), 'https://www.bu.edu/dining/');
-  assert.equal(safeMapLink('/map?at=12:20&speed=1'), '/map?at=12:20&speed=1');
+  assert.equal(safeMapLink('/map?at=12:20&speed=1'), '/map?at=12%3A20&speed=1');
   assert.equal(safeMapLink('/map'), '/map');
   assert.equal(safeMapLink('//evil.example/map'), null);
   assert.equal(safeMapLink('https://evil.example/map?at=1'), null);

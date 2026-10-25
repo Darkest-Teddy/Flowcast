@@ -147,48 +147,89 @@ def kenmore_gated(fetcher, stops):
     for period_id, period in GATED_PERIODS.items():
         # Service dates run 03:00-02:59; fetch a day either side and re-file post-midnight bins.
         rows, pages = fetch_gse(fetcher, 'place-kencl', period['start'] - timedelta(days=1), period['end'] + timedelta(days=2))
-        per_day = defaultdict(lambda: defaultdict(float))
+        per_day = defaultdict(dict)
+        seen = set()
+        ambiguous = set()
+        invalid_rows = 0
         for row in rows:
+            if row['stop_id'] != 'place-kencl' or row['route_or_line'] != 'Green Line':
+                raise ScrapeError('Unexpected station or line in Kenmore GSE response')
             service = ny_date(row['service_date'])
-            h, m, _ = row['time_period'].strip('()').split(':')
-            minute = int(h) * 60 + int(m)
+            h, m, sec = map(int, row['time_period'].strip('()').split(':'))
+            if not (0 <= h < 24 and m in (0, 30) and sec == 0):
+                raise ScrapeError(f'Invalid GSE half-hour: {row["time_period"]}')
+            minute = h * 60 + m
             calendar = service + timedelta(days=1) if minute < 180 else service
             try:
                 value = float(row['gated_entries'])
             except (TypeError, ValueError):
+                value = None
+            if value is None or not math.isfinite(value) or value < 0:
+                invalid_rows += 1
+                value = None
+            key = calendar, minute
+            if key in seen:
+                ambiguous.add(key)
+                per_day[calendar].pop(minute, None)
                 continue
-            if not math.isfinite(value) or value < 0:
+            seen.add(key)
+            if value is None:
                 continue
-            per_day[calendar][minute] += value
-        valid_days = sorted(d for d in per_day if period['start'] <= d <= period['end'] and d not in period['holidays']
-                            and sum(per_day[d].values()) > 500)  # a near-empty day is a data gap, not a quiet day
+            per_day[calendar][minute] = value
+        valid_days = sorted(d for d in per_day if per_day[d] and period['start'] <= d <= period['end']
+                            and d not in period['holidays'])
+        source_id = f'mbta-gse-{period_id}'
+        sources.append({
+            'id': source_id, 'pages': len(pages), 'records': len(rows),
+            'coverage': f'{valid_days[0]} to {valid_days[-1]}' if valid_days else 'none',
+            'dates': [d.isoformat() for d in valid_days],
+            'requestedCalendarPeriod': {'start': period['start'].isoformat(), 'end': period['end'].isoformat()},
+            'excludedDates': sorted(d.isoformat() for d in period['holidays']),
+            'invalidCountRecords': invalid_rows,
+            'ambiguousBins': [{'date': d.isoformat(), 'start': hhmm(m)} for d, m in sorted(ambiguous)],
+            'retrievedAt': max(p.fetched_at for p in pages),
+            'pageProvenance': [p.provenance for p in pages],
+        })
         if not valid_days:
             notes.append(f'No Kenmore gated entries for {period_id}')
             continue
-        last = max(valid_days)
         for dt in ('weekday', 'saturday', 'sunday'):
             days = [d for d in valid_days if day_type(d) == dt]
             if not days:
                 continue
             bins = []
             for minute in range(0, 1440, 30):
-                values = [per_day[d].get(minute, 0.0) for d in days]
-                bins.append({'start': hhmm(minute), 'end': hhmm(minute + 30), 'value': round1(sum(values) / len(days))})
+                observed_days = [d for d in days if minute in per_day[d]]
+                if not observed_days:
+                    continue
+                values = [per_day[d][minute] for d in observed_days]
+                bins.append({'start': hhmm(minute), 'end': hhmm(minute + 30),
+                             'value': round1(sum(values) / len(values)), 'days': len(values),
+                             'dates': [d.isoformat() for d in observed_days]})
             series.append({
                 'id': f'kenmore-gated-entries-{period_id}-{dt}', 'kind': 'gated-entries', 'mode': 'subway',
                 'stop': {'name': 'Kenmore', 'mapStopId': 'place-kencl', 'mbtaStopIds': ['place-kencl'],
                          'position': stops['place-kencl']['position']},
                 'route': 'Green', 'direction': None, 'dayType': dt, 'bins': bins,
-                'unit': 'avg gated entries per day per 30-min bin', 'source': 'mbta-gse',
-                'period': f'{days[0].isoformat()} to {days[-1].isoformat()} ({len(days)} {dt} days)',
-                'days': len(days), 'expectedStudentShare': list(STUDENT_SHARE['kenmore-gated']),
-                # The full Fall 2025 term is the calibration target; Fall 2026 (September only, Red Sox
-                # home stands included) is kept to show the year-to-year spread.
+                'unit': 'avg observed gated entries per reporting day per 30-min bin', 'source': source_id,
+                'period': f'{days[0].isoformat()} to {days[-1].isoformat()} ({len(days)} {dt} days with observations)',
+                'days': len(days), 'dates': [d.isoformat() for d in days],
+                'dailyObservations': [
+                    {'date': d.isoformat(), 'bins': [
+                        {'start': hhmm(m), 'end': hhmm(m + 30), 'value': v}
+                        for m, v in sorted(per_day[d].items())]}
+                    for d in days],
+                'expectedStudentShare': list(STUDENT_SHARE['kenmore-gated']),
                 'role': 'primary' if period_id == 'fall-2025' else 'comparison',
-                'notes': 'Unscaled faregate entries (all Green Line branches; no exits). Post-midnight bins are re-filed to the calendar day they fall on.',
+                'notes': ('Unscaled faregate entries (all Green Line branches; no exits). '
+                          'Post-midnight bins are re-filed to the calendar day they fall on. '
+                          'Missing bins are omitted, not zero; each mean uses only its reporting dates. '
+                          'Series days counts dates with any valid bin, not complete days. '
+                          'Duplicate date/time bins are excluded as ambiguous. '
+                          'MBTA publishes only station-open periods and does not guarantee complete counts. '
+                          'Low and explicit zero counts are retained; held-open gates can undercount. '
+                          'These are not pedestrian counts or weather-effect estimates.'),
             })
-        sources.append({'id': f'mbta-gse-{period_id}', 'pages': len(pages), 'records': len(rows),
-                        'coverage': f'{min(valid_days).isoformat()} to {last.isoformat()}', **source_meta(pages[0])})
     return series, sources, notes
 
 
@@ -627,6 +668,29 @@ def ctps_pedestrians(fetcher, bounds):
 
 # ---------------------------------------------------------------- main
 
+def gated_source_metadata(meta):
+    return {**meta, 'title': 'MBTA Gated Station Entries (station, service date, 30-minute period)',
+            'url': GSE_ITEM, 'apiUrl': GSE_SERVICE, 'license': LICENSE_MBTA,
+            'period': meta['coverage'],
+            'notes': f'{meta["records"]} Kenmore records queried including boundary service dates; '
+                     'configured fall calendar windows and excluded dates applied. '
+                     'Per-page provenance records every query URL, retrieval time and response hash.'}
+
+
+def refresh_kenmore(previous, fetcher):
+    """Refresh one measured source without dropping unrelated saved observations."""
+    if previous.get('schemaVersion') != 1 or not all(isinstance(previous.get(k), list) for k in ('transit', 'pedestrian', 'sources')):
+        raise ScrapeError('Kenmore refresh requires an existing observations bundle')
+    gated, metadata, notes = kenmore_gated(fetcher, map_stops())
+    if not gated or notes:
+        raise ScrapeError('Incomplete Kenmore refresh; keeping saved bundle: ' + '; '.join(notes))
+    sources = [gated_source_metadata(meta) for meta in metadata]
+    ids = {source['id'] for source in sources}
+    return {**previous, 'generatedAt': utc_now(),
+            'transit': [s for s in previous['transit'] if not (s['kind'] == 'gated-entries' and s['stop']['mapStopId'] == 'place-kencl')] + gated,
+            'sources': [source for source in previous['sources'] if source['id'] not in ids] + sources}
+
+
 def collect(fetcher):
     stops = map_stops()
     transit, pedestrian, notes = [], [], []
@@ -635,13 +699,7 @@ def collect(fetcher):
         gated, gse_meta, gse_notes = kenmore_gated(fetcher, stops)
         transit += gated
         notes += gse_notes
-        for meta in gse_meta:
-            sources.append({'id': meta['id'], 'title': 'MBTA Gated Station Entries (station, service date, 30-minute period)',
-                            'url': GSE_ITEM, 'apiUrl': GSE_SERVICE, 'license': LICENSE_MBTA,
-                            'period': meta['coverage'], 'notes': f'{meta["records"]} Kenmore records queried; fall-term days only, federal holidays removed.',
-                            'retrievedAt': meta['retrievedAt']})
-        for s in gated:
-            s['source'] = 'mbta-gse-' + ('fall-2025' if 'fall-2025' in s['id'] else 'fall-2026')
+        sources.extend(gated_source_metadata(meta) for meta in gse_meta)
     except ScrapeError as exc:
         notes.append(f'Kenmore gated entries unavailable: {exc}')
     try:
@@ -701,11 +759,14 @@ def main():
     parser.add_argument('--cache-dir', type=Path, default=CACHE)
     parser.add_argument('--offline', action='store_true', help='Use only cached downloads')
     parser.add_argument('--refresh', action='store_true', help='Download again')
+    parser.add_argument('--only-kenmore', action='store_true', help='Refresh Kenmore observations in the existing output bundle, preserving other sources')
     args = parser.parse_args()
     fetcher = Fetcher(cache_dir=args.cache_dir, offline=args.offline, refresh=args.refresh, delay=0.5, timeout=180)
     try:
-        payload = collect(fetcher)
-    except ScrapeError as exc:
+        payload = refresh_kenmore(json.loads(args.output.read_text()), fetcher) if args.only_kenmore else collect(fetcher)
+        if not payload['transit'] and not payload['pedestrian']:
+            raise ScrapeError('No observations collected; output was not replaced')
+    except (ScrapeError, OSError, json.JSONDecodeError) as exc:
         sys.exit(f'calibration observations: {exc}')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, separators=(',', ':'), allow_nan=False) + '\n')

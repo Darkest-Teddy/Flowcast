@@ -1,8 +1,9 @@
 // Reads what the Ask server's chat endpoints send back (POST /api/chat, GET /api/chat/directory;
 // shapes in map-client/src/chatContract.ts) into values the /ask page can render without checks.
 // Defensive like askClient's parsers: a malformed visual, citation or domain is dropped, never
-// rendered half-formed, and nothing here throws. Type-only imports, so node --test runs it as is.
+// rendered half-formed, and nothing here throws.
 
+import { mapLink } from './mapLink.ts';
 import type {
   BarVisual,
   ChatResponse,
@@ -82,7 +83,7 @@ export function safeMapLink(v: unknown, mapUrl = '/map'): string | null {
   if (typeof v !== 'string') return null;
   const m = /^\/map\/?(\?[^\s#]*)?$/.exec(v.trim());
   if (!m) return null;
-  return `${mapUrl}${m[1] ?? ''}`;
+  return mapLink(mapUrl, new URLSearchParams(m[1] ?? ''));
 }
 
 function base(v: Record<string, unknown>): { id: string; title: string; source: Provenance; note: string | null } | null {

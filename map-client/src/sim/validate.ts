@@ -5,7 +5,7 @@ import type { CampusData } from '../data/campusData';
 import type { DayData } from './playback';
 import { isStaff } from './staff';
 import type { SourceDay } from './sourceDay';
-import { EVERYONE_BAND, pearson as observedPearson, peakHoursApart, seriesForWeekday, simulatedPedestrians, simulatedTransit,
+import { EVERYONE_BAND, pearson as observedPearson, peakHoursApart, seriesForWeekday, simulatedPedestrians, simulatedTransit, smoothObservedBins,
   type CalibrationObservations, type ObservationBin } from '../data/observations';
 
 export interface Metric {
@@ -16,9 +16,30 @@ export interface Metric {
   loss: number;
   target: string;
   source?: string;
+  /** Assumptions receive reduced weight; zero excludes incomparable proxies and reconstructions. */
   weight: number;
+  basis?: MetricBasis;
 }
 export interface DayScore { day: string; metrics: Metric[]; loss: number }
+
+export type MetricBasis = 'historical comparison' | 'indirect proxy' | 'historical context' | 'input reconstruction' | 'assumed sanity target';
+
+export const ASSUMPTION_WEIGHT_SCALE = 0.1;
+
+/** Distinguish measured comparisons from modeling assumptions and reconstruction checks. */
+export function metricBasis(id: string): MetricBasis {
+  if (['obs-bu-b-line-shape', 'obs-bu-b-line-peak', 'obs-comm-ave-shape', 'obs-comm-ave-peak',
+    'obs-student-count-excess', 'pedestrian-pm-am'].includes(id)) return 'historical comparison';
+  if (['fitrec-hourly-r', 'fitrec-peak-hour', 'obs-everyone-shape', 'obs-everyone-ratio'].includes(id)) return 'input reconstruction';
+  if (['fitrec-daily-ratio', 'bluebikes-hourly-r'].includes(id)) return 'indirect proxy';
+  if (id === 'library-hourly-r' || /^dining-(lunch|dinner)-ratio$/.test(id)) return 'historical context';
+  return 'assumed sanity target';
+}
+
+function classified(metric: Metric): Metric {
+  const basis = metricBasis(metric.id);
+  return { ...metric, basis, weight: basis === 'historical comparison' ? metric.weight : basis === 'assumed sanity target' ? metric.weight * ASSUMPTION_WEIGHT_SCALE : 0 };
+}
 
 export interface BikeProfileStation { campus?: string; profile?: { arrivals: number[]; departures: number[] } }
 export interface BikesData { weekday: string; binSeconds: number; stations: BikeProfileStation[] }
@@ -87,7 +108,7 @@ export function scoreDay(input: ScoreInput): DayScore {
   const scale = input.scale ?? 1;
   const normal = (input.kind ?? 'normal') === 'normal';
   const metrics: Metric[] = [];
-  const add = (metric: Metric) => { if (Number.isFinite(metric.value) && Number.isFinite(metric.loss)) metrics.push(metric); };
+  const add = (metric: Metric) => { if (Number.isFinite(metric.value) && Number.isFinite(metric.loss)) metrics.push(classified(metric)); };
   const locations = new Map(input.base.locations.map(location => [location.id, location]));
   const kindOf = (id: string) => locations.get(id)?.kind;
 
@@ -104,21 +125,21 @@ export function scoreDay(input: ScoreInput): DayScore {
   if (normal && hours.length >= 6) {
     const observed = hours.map(hour => observedByHour[hour]), simulated = hours.map(hour => simFitrec[hour]);
     const r = pearson(observed, simulated);
-    add({ id: 'fitrec-hourly-r', label: 'FitRec entries by hour: correlation', value: r, loss: 1 - r, target: 'r → 1', source: 'https://www.bu.edu/fitrec/peak-quiet-hours/', weight: 1 });
+    add({ id: 'fitrec-hourly-r', label: 'FitRec input-profile reconstruction: hourly correlation', value: r, loss: 1 - r, target: 'r → 1', source: 'https://www.bu.edu/fitrec/peak-quiet-hours/', weight: 0 });
     const ratio = simulated.reduce((a, b) => a + b, 0) / Math.max(1, observed.reduce((a, b) => a + b, 0));
     add({ id: 'fitrec-daily-ratio', label: 'FitRec entries per day: simulated ÷ measured', value: ratio, loss: ratioLoss(ratio), target: '1.0', source: 'https://www.bu.edu/fitrec/peak-quiet-hours/', weight: 1 });
     const peakGap = Math.abs(hours[argmax(observed)] - hours[argmax(simulated)]);
-    add({ id: 'fitrec-peak-hour', label: 'FitRec busiest hour: simulated − measured (hours)', value: peakGap, loss: peakGap / 6, target: '0', weight: 0.5 });
+    add({ id: 'fitrec-peak-hour', label: 'FitRec input-profile reconstruction: peak gap (hours)', value: peakGap, loss: peakGap / 6, target: '0', weight: 0 });
   }
 
-  // Library: entries by hour vs the School of Theology Library's historical gate counts (shape).
+  // Historical patron/zone aggregates have an unknown counting method; retain as context only.
   const libraryHistory = data.libraryHistory?.patronCounts?.filter(row => row.weekday === weekday) ?? [];
   const libraryArrivals = new Array(24).fill(0);
-  for (const activity of day.sourceActivities) if (activity.kind === 'library') libraryArrivals[Math.floor(activity.startSec / 3600) % 24] += 1 / scale;
+  for (const activity of day.sourceActivities) if (activity.kind === 'library' && activity.locationId === 'theology-library') libraryArrivals[Math.floor(activity.startSec / 3600) % 24] += 1 / scale;
   if (normal && libraryHistory.length >= 6) {
     const rows = libraryHistory.map(row => ({ hour: Number(row.timeLocal.slice(0, 2)), value: row.value }));
     const r = pearson(rows.map(row => row.value), rows.map(row => libraryArrivals[row.hour]));
-    add({ id: 'library-hourly-r', label: 'Library entries by hour vs historical gate counts: correlation', value: r, loss: 1 - r, target: 'r → 1',
+    add({ id: 'library-hourly-r', label: 'Theology Library entries vs historical patron/zone counts (method unknown): correlation', value: r, loss: 1 - r, target: 'r → 1',
       source: data.libraryHistory?.sourceUrl, weight: 1 });
   }
   const quarter = Array.from({ length: 96 }, (_, index) => index * 900 + 450);
@@ -186,17 +207,26 @@ export function scoreDay(input: ScoreInput): DayScore {
     const r = pearson(hourly(bikes), hourly(departures));
     add({ id: 'bluebikes-hourly-r', label: 'Walk departures vs Bluebikes dock activity by hour (06–24h): correlation', value: r, loss: 1 - r, target: 'r → 1', source: 'https://bluebikes.com/system-data', weight: 0.75 });
   }
-  if (normal && weekday < 5) {
-    const counts = data.signals.filter(signal => signal.unit === 'pedestrian_crossings_per_hour');
-    const am = counts.filter(signal => signal.label.endsWith('08:00-09:00')).reduce((sum, signal) => sum + signal.value, 0);
-    const pm = counts.filter(signal => signal.label.endsWith('17:00-18:00')).reduce((sum, signal) => sum + signal.value, 0);
-    const simAm = walkers.slice(480, 540).reduce((a, b) => a + b, 0), simPm = walkers.slice(1020, 1080).reduce((a, b) => a + b, 0);
-    if (am > 0 && simAm > 0) {
+  if (normal && input.observations) {
+    // Compare the same intersection crossings in the same two measured intervals, not
+    // campus-wide walker-minutes against point counts. Only paired source bins contribute.
+    let am = 0, pm = 0, simAm = 0, simPm = 0;
+    const sites = seriesForWeekday(input.observations, weekday, { primaryOnly: true }).pedestrian;
+    for (const site of sites.filter(site => site.source === 'bu-warren-epnf-2024')) {
+      const morning = site.bins.findIndex(bin => bin.start === '08:00' && bin.end === '09:00');
+      const evening = site.bins.findIndex(bin => bin.start === '17:00' && bin.end === '18:00');
+      if (morning < 0 || evening < 0) continue;
+      const simulated = simulatedPedestrians(day.trips, site);
+      am += site.bins[morning].value; pm += site.bins[evening].value;
+      simAm += simulated[morning] / scale; simPm += simulated[evening] / scale;
+    }
+    if (am > 0 && pm > 0 && simAm > 0) {
       const ratio = (simPm / simAm) / (pm / am);
-      add({ id: 'pedestrian-pm-am', label: 'Walkers 17–18h ÷ 08–09h, relative to published crossing counts', value: ratio, loss: ratioLoss(ratio) / 2, target: '1.0',
+      add({ id: 'pedestrian-pm-am', label: 'Survey-site crossings 17–18h ÷ 08–09h, relative to observed crossings', value: ratio, loss: ratioLoss(ratio) / 2, target: '1.0',
         source: 'https://www.bu.edu/community/files/2024/02/Warren-Towers-EPNF.pdf', weight: 0.5 });
     }
   }
+
   const at3 = walkers[180] / peakWalkers;
   add({ id: 'walkers-3am', label: 'Walkers at 03:00 ÷ peak walkers', value: at3, loss: hinge(at3, 0.01, 0.05), target: '≤ 1%', weight: 1 });
   let spike = 0;
@@ -232,8 +262,8 @@ export function scoreDay(input: ScoreInput): DayScore {
 // students + public match the counts by construction except where students alone exceed them.
 // What the student model controls, and what is scored, is therefore: the timing of the students'
 // own peaks at BU-dominated places (the B branch's BU stops, Comm Ave crossings), weighted like
-// FitRec and the library; students exceeding their plausible share of a count (a band penalty on
-// magnitude); and the shape and level of students + public everywhere.
+// the library; and students exceeding their plausible share of a count (a band penalty on
+// magnitude). Combined student/public fits are reconstruction diagnostics only.
 
 /** B branch stops on BU's frontage (expected student share 0.55–0.85). */
 export const BU_STOPS = ['place-bland', 'place-buest', 'place-bucen', 'place-amory', 'place-babck'];
@@ -265,10 +295,6 @@ const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b), mid = sorted.length >> 1;
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
-/** publicCrowd.ts's rider rule: students smoothed 1-2-1, the public fills what remains. */
-const smooth121 = (values: readonly number[]) => values.length < 3 ? [...values]
-  : values.map((v, i) => (values[Math.max(0, i - 1)] + 2 * v + values[Math.min(values.length - 1, i + 1)]) / 4);
-
 /** Simulated BU employees (sim/staff.ts) in a roster. */
 export const staffIds = (base: DayData): ReadonlySet<string> => new Set(base.agents.filter(isStaff).map(agent => agent.id));
 
@@ -304,7 +330,7 @@ export function scoreObservations(observations: CalibrationObservations, day: Pi
       const r = observedPearson(row.observed, row.students);
       if (r !== null) { rSum += r * observed; rWeight += observed; }
       // Busiest bins after 1-2-1 smoothing on both sides, so one noisy bin can't move the peak by hours.
-      const peak = peakHoursApart(row.bins, smooth121(row.observed), smooth121(row.students));
+      const peak = peakHoursApart(row.bins, smoothObservedBins(row.observed, row.bins), smoothObservedBins(row.students, row.bins));
       if (peak !== null) { pSum += peak * observed; pWeight += observed; }
     }
     return { id, label, series: members.length, shape: rWeight ? rSum / rWeight : null, peakHours: pWeight ? pSum / pWeight : null,
@@ -332,7 +358,7 @@ export function scoreObservations(observations: CalibrationObservations, day: Pi
   for (const row of rows) {
     const observedTotal = row.observed.reduce((a, b) => a + b, 0);
     if (!(observedTotal > 0)) continue;
-    const smoothed = row.transit ? smooth121(row.bu) : row.bu;
+    const smoothed = row.transit ? smoothObservedBins(row.bu, row.bins) : row.bu;
     const everyone = row.bu.map((v, i) => v + Math.max(0, row.observed[i] - smoothed[i]));
     const r = observedPearson(row.observed, everyone), rs = observedPearson(row.observed, row.students);
     if (r !== null) everyoneShapes.push(r);
@@ -343,7 +369,7 @@ export function scoreObservations(observations: CalibrationObservations, day: Pi
   const kenmore = transit.filter(series => series.kind === 'gated-entries').reduce((sum, series) => sum + simulatedTransit(day.transitRides ?? [], series).reduce((a, b) => a + b, 0) / scale, 0);
   const g = (id: string) => groups.find(row => row.id === id)!;
   const metrics: Metric[] = [];
-  const push = (metric: Metric) => { if (Number.isFinite(metric.value) && Number.isFinite(metric.loss)) metrics.push(metric); };
+  const push = (metric: Metric) => { if (Number.isFinite(metric.value) && Number.isFinite(metric.loss)) metrics.push(classified(metric)); };
   for (const id of ['bu-b-line', 'comm-ave']) {
     const row = g(id);
     if (row.shape !== null) push({ id: `obs-${id}-shape`, label: `${row.label}: students’ timing vs counts (r)`, value: row.shape, loss: 1 - row.shape, target: 'r → 1',
@@ -351,12 +377,16 @@ export function scoreObservations(observations: CalibrationObservations, day: Pi
     if (row.peakHours !== null) push({ id: `obs-${id}-peak`, label: `${row.label}: students’ busiest hour vs counted (hours apart)`, value: row.peakHours, loss: row.peakHours / 6, target: '0', weight: 0.5 });
   }
   const all = g('all');
+  const observedTotal = rows.reduce((sum, row) => sum + row.observed.reduce((a, b) => a + b, 0), 0);
+  const excess = rows.reduce((sum, row) => sum + row.observed.reduce((total, count, i) => total + Math.max(0, row.students[i] - count), 0), 0);
+  if (observedTotal > 0) push({ id: 'obs-student-count-excess', label: 'Student trips above historical all-person counts, divided by observed trips',
+    value: excess / observedTotal, loss: excess / observedTotal, target: '0 (historical count comparison)', weight: 1 });
   push({ id: 'obs-student-overflow', label: 'Students above their plausible share of a count (all series, share of counted people)', value: all.overflow,
     loss: hinge(all.overflow, 0.01, 0.2), target: '≤ 1% (band penalty)', source: 'docs/calibration-observations.md', weight: 1 });
   const everyoneShape = median(everyoneShapes), everyoneRatio = median(everyoneRatios);
-  if (everyoneShape !== null) push({ id: 'obs-everyone-shape', label: 'Students, staff and public vs every count: median r', value: everyoneShape, loss: 1 - everyoneShape, target: 'r → 1', weight: 0.5 });
+  if (everyoneShape !== null) push({ id: 'obs-everyone-shape', label: 'Students, staff and public reconstruction: median r', value: everyoneShape, loss: 1 - everyoneShape, target: 'r → 1', weight: 0 });
   if (everyoneRatio !== null) push({ id: 'obs-everyone-ratio', label: 'Students, staff and public vs every count: median total ratio', value: everyoneRatio,
-    loss: hinge(EVERYONE_BAND[0], everyoneRatio, 0.5) + hinge(everyoneRatio, EVERYONE_BAND[1], 0.5), target: `${EVERYONE_BAND[0]}–${EVERYONE_BAND[1]}`, weight: 0.5 });
+    loss: hinge(EVERYONE_BAND[0], everyoneRatio, 0.5) + hinge(everyoneRatio, EVERYONE_BAND[1], 0.5), target: `${EVERYONE_BAND[0]}–${EVERYONE_BAND[1]}`, weight: 0 });
   return { groups, everyone: { series: everyoneRatios.length, medianShape: everyoneShape, medianRatio: everyoneRatio },
     studentsOnly: { series: studentRatios.length, medianShape: median(studentShapes), medianRatio: median(studentRatios) }, kenmoreStudentEntries: kenmore, metrics };
 }
@@ -375,13 +405,31 @@ export function outdoorAt(day: DayData, time: number): number {
 export function compareScores(current: DayScore[], proposed: DayScore[], tolerance = 0.02): { accept: boolean; worse: string[]; delta: number } {
   const worse: string[] = [];
   let before = 0, after = 0;
+  if (!Number.isFinite(tolerance) || tolerance < 0) worse.push('invalid tolerance');
+  for (const scores of [current, proposed]) {
+    const days = new Set<string>();
+    for (const score of scores) {
+      if (days.has(score.day)) worse.push(`${score.day}: duplicate day`);
+      days.add(score.day);
+      if (!Number.isFinite(score.loss) || score.loss < 0) worse.push(`${score.day}: invalid loss`);
+      const ids = new Set<string>();
+      for (const metric of score.metrics) {
+        if (ids.has(metric.id)) worse.push(`${score.day}/${metric.id}: duplicate metric`);
+        ids.add(metric.id);
+        if (!Number.isFinite(metric.loss) || metric.loss < 0) worse.push(`${score.day}/${metric.id}: invalid loss`);
+      }
+    }
+  }
+  for (const score of proposed) if (!current.some(row => row.day === score.day)) worse.push(`${score.day}: unexpected day`);
   for (const score of current) {
     const other = proposed.find(row => row.day === score.day);
     if (!other) { worse.push(`${score.day}: missing`); continue; }
     before += score.loss; after += other.loss;
     for (const metric of score.metrics) {
       const next = other.metrics.find(row => row.id === metric.id);
-      if (next && next.loss > metric.loss + tolerance) worse.push(`${score.day}/${metric.id}: ${metric.loss.toFixed(3)} → ${next.loss.toFixed(3)}`);
+      if (!next) worse.push(`${score.day}/${metric.id}: missing metric`);
+      else if (next.weight !== metric.weight) worse.push(`${score.day}/${metric.id}: changed weight`);
+      else if (metric.weight !== 0 && metric.basis !== 'assumed sanity target' && next.loss > metric.loss + tolerance) worse.push(`${score.day}/${metric.id}: ${metric.loss.toFixed(3)} → ${next.loss.toFixed(3)}`);
     }
   }
   return { accept: !worse.length && after < before - 1e-9, worse, delta: after - before };

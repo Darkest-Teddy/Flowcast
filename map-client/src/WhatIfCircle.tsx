@@ -55,6 +55,7 @@ export function WhatIfCircle({
 }) {
   const rootRef = useRef<SVGSVGElement>(null);
   const polyRef = useRef<SVGPolygonElement>(null);
+  const hitRef = useRef<SVGPolygonElement>(null);
   const handleRef = useRef<SVGCircleElement>(null);
   const labelRef = useRef<SVGGElement>(null);
   const onRadiusRef = useRef(onRadius);
@@ -107,6 +108,7 @@ export function WhatIfCircle({
           if (i === Math.round(POINTS / 4)) east = [x, y];
         }
         poly.setAttribute('points', points.join(' '));
+        hitRef.current?.setAttribute('points', points.join(' '));
 
         const [cx, cy] = next.project(next.centre);
         handle.setAttribute('cx', String(east[0]));
@@ -148,8 +150,9 @@ export function WhatIfCircle({
    * dragging the handle and dragging the map are the same gesture otherwise.
    */
   useEffect(() => {
+    const svg = rootRef.current;
     const handle = handleRef.current;
-    if (!handle) return;
+    if (!svg || !handle) return;
 
     const radiusAt = (clientX: number, clientY: number): number | null => {
       const f = frame.current;
@@ -166,11 +169,25 @@ export function WhatIfCircle({
       return (Math.hypot(px - cx, py - cy) / pxPer100m) * 100;
     };
 
+    /*
+     * The gesture, shared by the handle and the ring.
+     *
+     * Capture goes on the handle whichever of them started it, so the pointer
+     * can leave the 24px dot and keep dragging; without it the gesture dies the
+     * moment you move faster than the circle follows. Every event is stopped so
+     * the map underneath never pans: dragging the edge and dragging the map are
+     * otherwise the same gesture.
+     */
     const onDown = (e: PointerEvent) => {
       e.preventDefault();
       e.stopPropagation();
       dragging.current = true;
+      svg.classList.add('is-dragging');
       handle.setPointerCapture(e.pointerId);
+      // Jump to where the press landed, so a click on the ring sets the radius
+      // as well as starting a drag from it.
+      const metres = radiusAt(e.clientX, e.clientY);
+      if (metres !== null) onRadiusRef.current(metres);
     };
     const onMove = (e: PointerEvent) => {
       if (!dragging.current) return;
@@ -182,16 +199,20 @@ export function WhatIfCircle({
     const onUp = (e: PointerEvent) => {
       if (!dragging.current) return;
       dragging.current = false;
-      handle.releasePointerCapture(e.pointerId);
+      svg.classList.remove('is-dragging');
+      if (handle.hasPointerCapture(e.pointerId)) handle.releasePointerCapture(e.pointerId);
       onDragEndRef.current();
     };
 
-    handle.addEventListener('pointerdown', onDown);
+    // The ring is the discoverable one: a dashed circle you can grab anywhere
+    // reads as resizable, where a lone dot on its east edge has to be found.
+    const grips = [handle, polyRef.current, hitRef.current].filter(Boolean) as Element[];
+    for (const el of grips) el.addEventListener('pointerdown', onDown as EventListener);
     handle.addEventListener('pointermove', onMove);
     handle.addEventListener('pointerup', onUp);
     handle.addEventListener('pointercancel', onUp);
     return () => {
-      handle.removeEventListener('pointerdown', onDown);
+      for (const el of grips) el.removeEventListener('pointerdown', onDown as EventListener);
       handle.removeEventListener('pointermove', onMove);
       handle.removeEventListener('pointerup', onUp);
       handle.removeEventListener('pointercancel', onUp);
@@ -201,6 +222,8 @@ export function WhatIfCircle({
   return (
     <svg ref={rootRef} className="wi-circle" style={{ display: 'none' }} aria-hidden="true">
       <polygon ref={polyRef} className="wi-ring" points="" />
+      {/* Invisible and wider than the dashes: a 1.5px stroke is not a hit target. */}
+      <polygon ref={hitRef} className="wi-grip" points="" />
       <circle className="wi-centre" r={6} />
       <text className="wi-centre-name" textAnchor="middle" />
       <g ref={labelRef} className="wi-label">

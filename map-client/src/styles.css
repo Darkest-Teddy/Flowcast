@@ -1221,6 +1221,26 @@ select.tool { padding: 0 8px 0 12px; }
   stroke: #f5f5f7;
   stroke-width: 1.5;
   stroke-dasharray: 7 6;
+  /* The edge is grabbable, the inside is not: a filled circle that swallowed
+     clicks would stop you selecting any of the buildings it covers. */
+  pointer-events: stroke;
+  cursor: ew-resize;
+}
+
+/*
+ * The grip: the same ring, invisible and twelve pixels thick.
+ *
+ * A 1.5px dashed stroke is not something a pointer can reliably find, and the
+ * handle alone has to be discovered before it can be used. A wide transparent
+ * stroke over the same path makes the whole edge draggable, which is what makes
+ * the circle read as resizable at all.
+ */
+.wi-grip {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 24;
+  pointer-events: stroke;
+  cursor: ew-resize;
 }
 
 .wi-centre {
@@ -1243,8 +1263,17 @@ select.tool { padding: 0 8px 0 12px; }
   touch-action: none;
 }
 
-.wi-handle:hover {
+/* Grows on hover, and stays grown for the whole drag, so the thing under the
+   finger does not shrink out from under it when the pointer leaves the dot. */
+.wi-handle:hover,
+.wi-circle.is-dragging .wi-handle {
   r: 14;
+}
+
+/* While dragging, the edge brightens: the ring is the control being moved, and
+   a dashed line that does not react reads as decoration that happens to follow. */
+.wi-circle.is-dragging .wi-ring {
+  stroke-dasharray: none;
 }
 
 .wi-label rect {
