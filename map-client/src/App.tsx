@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardE
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
-import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
+import { agentLayers, loadCharacterModels, type Character, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
@@ -69,7 +69,7 @@ import { dayWeather } from './sim/conditions';
 import type { DayComparison } from './sim/compare';
 import type { DayInfo } from './sim/explain';
 import { loadOutdoor, type OutdoorFile } from './sim/outdoor';
-import { outdoorCount, outdoorIndex, outdoorLayers, outdoorPeople, type OutdoorIndex } from './layers/outdoor';
+import { outdoorCount, outdoorIndex, outdoorPeople, type OutdoorIndex } from './layers/outdoor';
 import type { WeatherMode } from './weather/weather';
 import { IncidentPanel, type IncidentRun } from './IncidentPanel';
 import { applyIncident, type IncidentKind } from './sim/incidents';
@@ -667,7 +667,6 @@ export default function App() {
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       let parkingState: ParkingState | null = null; // only while the Parking toggle is on
       let lastParking = 0;
-      let outdoorSeenAt = -Infinity; // last frame with people sitting by the river near the camera
       const tick = (now: number) => {
         // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
         if (!pacer.shouldRender(now)) {
@@ -724,10 +723,10 @@ export default function App() {
         const outdoor = outdoorRef.current;
         if (outdoor.of !== playback) { outdoor.index = outdoorIndex(outdoorStaysRef.current.get(playback), playback.data.agents, outdoor.file); outdoor.of = playback; }
         const outside = outdoor.index ? outdoorPeople(outdoor.index, t, basemap.getCamera().center, q.walkerRadius) : null;
-        // The idle layers join the frame only while someone sits nearby (kept for a minute after, so
-        // they aren't torn down and rebuilt as people come and go); otherwise they cost nothing.
-        if (outside?.sitting.length) outdoorSeenAt = now;
-        const drawSitters = now - outdoorSeenAt < 60_000;
+        // People sitting by the river join the waiting riders' idle layers (same models, same idle
+        // clip): no layers of their own, so no extra draws, and nothing to build when the first one
+        // sits down. They stay unpickable there, as before.
+        const sitters: Character[] = outside?.sitting.length ? outside.sitting.map((agent) => ({ ...agent, unpickable: true })) : [];
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
@@ -853,14 +852,14 @@ export default function App() {
           // public (non-student) crowd, thinned on its own (data/observations.ts, sim/publicCrowd.ts).
           ...agentLayers(withPublic(thinForZoom(withVisitors(inView(nearView(walking, camera.center, q.walkerRadius).concat(nearView(outside?.moving ?? [], camera.center, q.walkerRadius)), view), visitorFrame.drawn), basemap.getZoom()),
             thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom() }),
-          ...(outside && drawSitters ? outdoorLayers(outside.sitting, models, t, basemap.getZoom()) : []),
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
-          // People standing about: riders waiting at stops, and a fire's evacuees in their crowds (same idle layers).
-          ...(transit || standing.length ? waitingRiderLayers(nearView(standing.length
+          // People standing about: riders waiting at stops, a fire's evacuees in their crowds, and
+          // people sitting by the river (all in the same idle layers).
+          ...(transit || standing.length || sitters.length ? waitingRiderLayers(withSitters(transit || standing.length ? nearView(standing.length
             ? [...(transit ? waitingCharacters(waitingRiders, transit.feed.tracks) : []), ...standing]
-            : waitingCharacters(waitingRiders, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
+            : waitingCharacters(waitingRiders, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius) : [], sitters), models, t, basemap.getZoom()) : []),
           ...(cleanRef.current ? [] : askRouteLayers(askRouteRef.current)),
           ...(currentMobility && showCountsRef.current && !cleanRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
@@ -1794,6 +1793,11 @@ function waitingByStop(waiting: { stop: string }[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const rider of waiting) counts.set(rider.stop, (counts.get(rider.stop) ?? 0) + 1);
   return counts;
+}
+
+/** People standing about plus people sitting by the river (unpickable), for the shared idle layers. */
+function withSitters(standing: WalkingAgent[], sitters: Character[]): Character[] {
+  return sitters.length ? [...standing, ...sitters] : standing;
 }
 
 /** Students drawn plus event visitors drawn (the same character layers; visitors are never counted as students). */
