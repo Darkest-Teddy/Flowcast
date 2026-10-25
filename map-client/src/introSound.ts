@@ -15,10 +15,14 @@
 // while it's still held back is skipped, not played late over the map (and so is the chime, with
 // the swoop's). Both files are fetched and decoded while the map loads, so the first boom is ready
 // on time. Off with reduced motion.
+//
+// The join card's tone (public/sounds/text-tone.mp3, 0.65 s) shares the same audio, mute and rules: it
+// plays as the card opens (JoinQrCard.tsx), and is skipped while the browser holds sound back.
 
 const MUTE_KEY = 'flowcast.sound';
 const ZOOM = '/intro/zoom-in.mp3';
 const ARRIVE = '/intro/arrive.mp3';
+const JOIN_TONE = '/sounds/text-tone.mp3';
 
 /**
  * Where each boom starts in the file, in seconds: one per drop, then the swoop's. Measured with
@@ -84,7 +88,7 @@ function audio(): AudioContext | null {
     context = ctx;
     // Decoding works while the browser holds the audio back, so the files are ready either way.
     // One that can't be had is left out.
-    for (const file of [ZOOM, ARRIVE]) load(file).then((data) => ctx.decodeAudioData(data)).then((buffer) => { recordings.set(file, buffer); }, () => {});
+    for (const file of [ZOOM, ARRIVE, JOIN_TONE]) load(file).then((data) => ctx.decodeAudioData(data)).then((buffer) => { recordings.set(file, buffer); }, () => {});
     // Again when the page is shown (back from the back/forward cache, or a tab coming forward), in
     // case the browser lets it start then, and on the first press on the page, which always does.
     const wake = () => {
@@ -125,6 +129,11 @@ export const introSound = {
     if (play(ZOOM, boom, undefined, at)) play(ARRIVE, 0, undefined, at + RUMBLE_FADED - boom - ARRIVE_NOTE);
   },
 };
+
+/** The join card opening (JoinQrCard.tsx): a short text tone. */
+export function joinTone() {
+  play(JOIN_TONE, 0);
+}
 
 /** Plays a file from `from` to `to` (seconds), at `at` on the audio clock (now, by default), if the browser is letting it. */
 function play(file: string, from: number, to?: number, at = 0): boolean {
