@@ -167,8 +167,11 @@ export function AppShell({
     <div className={`${styles.shell} ${tabBar ? styles.withTabBar : ''} ${collapsed ? styles.collapsed : ''}`}>
       <aside className={`${styles.sidebar} ${open ? styles.open : ''}`} aria-label="Main">
         <div className={styles.brand}>
-          <Logo className={styles.mark} />
-          <span className={styles.brandName}>Flowcast</span>
+          {/* The logo goes to the landing page, which /landing shows to signed-in people too. */}
+          <NavLink to="/landing" className={styles.brandLink} aria-label="Flowcast home page" title={collapsed ? 'Flowcast' : undefined}>
+            <Logo className={styles.mark} />
+            <span className={styles.brandName}>Flowcast</span>
+          </NavLink>
           {brandTag && <span className={styles.brandTag}>{brandTag}</span>}
           <button ref={closeButton} className={styles.close} onClick={() => setOpen(false)} aria-label="Close menu">
             <X aria-hidden />

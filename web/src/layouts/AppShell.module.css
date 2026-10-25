@@ -39,6 +39,23 @@
   letter-spacing: var(--tracking-display);
 }
 
+.brandLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 calc(var(--space-2) * -1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: calc(var(--radius-card) / 2);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.brandLink:hover {
+  background: var(--color-surface-hover);
+  text-decoration: none;
+}
+
 .mark {
   flex: none;
   width: 24px;
