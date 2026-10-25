@@ -231,17 +231,17 @@ export default function App() {
   const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(START_QUESTION ? 'ask' : 'crowds');
-  // The sheet: open on wide screens, a peek on phones (half height when ?ask= has an answer to show).
+  // Start with the map; a question link opens its answer immediately.
   const phone = usePhone();
   const phoneRef = useRef(phone);
   phoneRef.current = phone; // read by the sheet's layout callbacks, which run before this render's effects
-  const [detent, setDetent] = useState<Detent>(() => (window.matchMedia(PHONE_QUERY).matches ? (START_QUESTION ? 'half' : 'peek') : 'full'));
-  // Crossing the breakpoint (a rotated tablet, a resized window): each layout's own default.
+  const [detent, setDetent] = useState<Detent>(() => START_QUESTION ? (window.matchMedia(PHONE_QUERY).matches ? 'half' : 'full') : 'peek');
+  // Keep the user's open/closed choice when crossing the breakpoint.
   const wasPhone = useRef(phone);
   useEffect(() => {
     if (wasPhone.current === phone) return;
     wasPhone.current = phone;
-    setDetent(phone ? 'peek' : 'full');
+    setDetent(d => d === 'peek' ? d : phone ? 'half' : 'full');
   }, [phone]);
   /** Bring the sheet up (if it's down) so a tab the map just switched to can be seen. */
   const expandSheet = useCallback(() => setDetent((d) => (d === 'peek' ? (phoneRef.current ? 'half' : 'full') : d)), []);
@@ -305,6 +305,27 @@ export default function App() {
   // Clean view (H): no panels, tags or data overlays, just the map, buildings, people and transit.
   const [clean, setClean] = useState(false);
   const cleanRef = useRef(false);
+  const restoreControlsRef = useRef<HTMLButtonElement>(null);
+  const cleanOriginRef = useRef<HTMLElement | null>(null);
+  const previousCleanRef = useRef(false);
+  const [allLabels, setAllLabels] = useState(false);
+  const allLabelsRef = useRef(false);
+  const toggleClean = useCallback(() => {
+    if (!cleanRef.current) cleanOriginRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    cleanRef.current = !cleanRef.current;
+    setClean(cleanRef.current);
+    updatePadding();
+  }, [updatePadding]);
+  useEffect(() => {
+    if (previousCleanRef.current === clean) return;
+    previousCleanRef.current = clean;
+    if (clean) restoreControlsRef.current?.focus();
+    else {
+      const origin = cleanOriginRef.current;
+      if (origin?.isConnected && origin.getClientRects().length) origin.focus();
+      else document.querySelector<HTMLButtonElement>('.layers > .tool')?.focus();
+    }
+  }, [clean]);
   const playbackRef = useRef<Playback | null>(null);
   // Observed MBTA and pedestrian counts (null: file missing, public crowd off) and the non-student
   // crowd built from them for the shown day. Students alone fill university buildings.
@@ -762,6 +783,7 @@ export default function App() {
           footprints: day.buildings,
           locations: populationBase.locations,
           selectedId: selectedRef.current,
+          allLabels: allLabelsRef.current,
           placer,
           project: basemap.project,
           camera: basemap.getCamera(),
@@ -894,13 +916,12 @@ export default function App() {
       const target = e.target instanceof Element ? e.target : null;
       if (e.metaKey || e.ctrlKey || e.altKey || target?.closest('input, select, textarea, [contenteditable="true"]')) return;
       if (e.key !== 'h' && e.key !== 'H') return;
-      cleanRef.current = !cleanRef.current;
-      setClean(cleanRef.current);
-      updatePadding();
+      if (e.repeat) return;
+      toggleClean();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [updatePadding]);
+  }, [toggleClean]);
 
   useEffect(() => {
     lightModeRef.current = light;
@@ -1283,7 +1304,7 @@ export default function App() {
 
   return (
     <div className={clean ? 'app is-clean' : 'app'}>
-      {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
+      {clean && <button ref={restoreControlsRef} className="clean-return tool" onClick={toggleClean} aria-keyshortcuts="H">Show controls</button>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
         // Auto lighting: a blue multiply veil darkens the chosen preset to the sun's brightness (set per frame).
@@ -1314,7 +1335,7 @@ export default function App() {
             <p className="sheet-summary">{currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]}</p>
           </>
         }
-        subheader={hud && (
+        subheader={hud && detent !== 'peek' && (
           <p className="sheet-stats">
             <span><b>{hud.walking.toLocaleString()}</b> walking</span>
             {hud.waiting > 0 && <span><b>{hud.waiting.toLocaleString()}</b> at stops</span>}
@@ -1669,6 +1690,10 @@ export default function App() {
             {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}
             <Popover title="Layers" hint="Map layers and lighting" className="layers" label={<><LayersIcon /> <span className="tool-word">Layers</span></>}>
               <ul className="layer-list">
+                <LayerSwitch label="All building labels" detail="Show more labels instead of a few key places" on={allLabels} onToggle={() => {
+                  allLabelsRef.current = !allLabelsRef.current;
+                  setAllLabels(allLabelsRef.current);
+                }} />
                 <LayerSwitch label="MBTA" detail="Trains, buses and BU shuttles" on={showTransit} onToggle={toggleTransit} />
                 {mapKind === 'mapbox' && <LayerSwitch label="Traffic" detail="Live road congestion" on={showTraffic} onToggle={() => setShowTraffic((v) => !v)} />}
                 <LayerSwitch label="Parking" detail="Estimated, BU and event-area lots" on={showParking} onToggle={toggleParking} />
@@ -1676,6 +1701,7 @@ export default function App() {
                 <LayerSwitch label="Traffic counts" detail="Vehicles, bikes and people per hour" on={showCounts} onToggle={toggleCounts} />
                 {sourceData && <LayerSwitch label="Campus events" detail="Their crowds, on the shown day" on={eventsOn} onToggle={() => toggleEvents(!eventsOn)} />}
               </ul>
+              <button className="tool map-only" onClick={toggleClean} aria-keyshortcuts="H">Map only <kbd>H</kbd></button>
               {mapKind === 'mapbox' && (
                 <div className="lighting">
                   <label>

@@ -12,8 +12,9 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import { displayName } from './tags/names';
 import { countInterval } from './sim/uncertainty';
 import { TagProjection } from './tags/projection';
+import { buildingLabelPriority } from './tags/buildingLabelPriority';
 import type { CameraState } from './map/basemap';
-import type { LabelPlacer, Projector } from './layers/placement';
+import type { LabelPlacer, PlaceOptions, Projector } from './layers/placement';
 import { crowdLevel, crowdLevelStyle, ringTop, type RoofHeights } from './layers/crowd';
 import type { BuildingFootprint, BuildingOccupancy, CampusLocation, LocationKind } from './sim/playback';
 import { occupancyShare } from './sim/playback';
@@ -48,6 +49,7 @@ export interface BuildingTagsFrame {
   footprints: BuildingFootprint[];
   locations: CampusLocation[];
   selectedId: string | null;
+  allLabels: boolean;
   /** Shared with the station labels; building tags are placed first. */
   placer: LabelPlacer;
   /** Ground lng/lat to screen px (the map's own projection, padding included). */
@@ -174,7 +176,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
     ref,
     () => ({
       hoverBuilding: (id) => void (s.hoveredId = id),
-      update({ buildings, footprints, locations, selectedId, placer, project, camera, roofHeights }) {
+      update({ buildings, footprints, locations, selectedId, allLabels, placer, project, camera, roofHeights }) {
         const layer = layerRef.current;
         const [width, height] = s.size;
         if (!layer || !width) return;
@@ -210,11 +212,10 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         const anchors = s.projection.get(buildings, camera, width, height, project,
           b => [b.position[0], b.position[1], b.roof ?? s.heights.get(b.id) ?? 0], s.heights);
 
-        // Selected first, then venues with an event under way, then busiest: if tags must be
-        // dropped, the quiet ones go (the side panel still lists every building).
-        const order = [...anchors.keys()].sort(
-          (a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || Number(Boolean(b.event)) - Number(Boolean(a.event)) || b.share - a.share,
-        );
+        const focusedId = [...s.tags.values()].find(tag => tag.root.contains(document.activeElement))?.id ?? null;
+        const order = buildingLabelPriority([...anchors.keys()], {
+          zoom: camera.zoom, width, height, selectedId, hoveredId: s.hoveredId, focusedId, all: allLabels,
+        });
         const changed: Tag[] = [];
         for (const b of order) {
           let tag = s.tags.get(b.id);
@@ -232,13 +233,23 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
           s.tagHeight = any ? any.pill.offsetHeight : 0;
         }
         const tagHeight = s.tagHeight + SPACING;
-        const lifts = placer.place(order, {
+        const placement = {
           point: (b) => anchors.get(b)!,
           width: (b) => s.tags.get(b.id)!.width + SPACING,
           height: tagHeight,
-          direction: -1,
+          direction: -1 as const,
           gap: STEM,
-        });
+        } satisfies PlaceOptions<BuildingOccupancy>;
+        const active = (b: BuildingOccupancy) => b.id === focusedId || b.id === selectedId || b.id === s.hoveredId;
+        const fits = (b: BuildingOccupancy) => {
+          const [x, y] = anchors.get(b)!;
+          const half = placement.width(b) / 2;
+          return x - half >= 8 && x + half <= width - 8 && y - STEM - tagHeight >= 8 && y - STEM <= height - 8;
+        };
+        const lifts = new Map([
+          ...placer.place(order.filter(active), { ...placement, maxLift: 2 }),
+          ...placer.place(order.filter(b => !active(b) && fits(b)), { ...placement, maxLift: allLabels ? 2 : 0 }),
+        ]);
 
         const dpr = window.devicePixelRatio || 1;
         const snap = (v: number) => Math.round(v * dpr) / dpr; // whole device pixels: crisp text
