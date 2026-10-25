@@ -42,7 +42,7 @@ export default function SignIn() {
 
         <h1 className={styles.title}>Know how busy campus will be before you go</h1>
         <p className={styles.lede}>
-          Flowcast is a 3D map of BU where simulated students follow real schedules, so it can predict how crowded dining halls,
+          Flowcast is a 3D map of BU where simulated students follow real schedules, so it can project how crowded dining halls,
           libraries and classrooms will get.
         </p>
 
