@@ -3,9 +3,12 @@
   --tab-bar-height: 64px;
   --dock-gap: var(--space-3);
 
+  --rail-width: 64px;
+
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100%;
+  transition: grid-template-columns var(--duration-base) var(--ease-standard);
 }
 
 /* A floating glass panel inset from the window edge, over the bare canvas gradient. */
@@ -292,9 +295,111 @@
   color: var(--color-ink-secondary);
 }
 
+/* The collapse toggle, at the end of the brand row. */
+.collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius-card) / 2);
+  background: transparent;
+  color: var(--color-ink-tertiary);
+  cursor: pointer;
+}
+
+.collapse:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-ink);
+}
+
+.collapse svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Collapsed: an icon rail. Labels stay in the accessibility tree (visually hidden) and show as
+   tooltips; the footer keeps its avatar or icon and hides anything marked data-rail="hide". */
+.collapsed {
+  grid-template-columns: calc(var(--rail-width) + var(--space-3)) minmax(0, 1fr);
+}
+
+.collapsed .brand {
+  flex-direction: column;
+  height: auto;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.collapsed .collapse {
+  margin-left: 0;
+}
+
+.collapsed .brandName,
+.collapsed .brandTag,
+.collapsed .groupLabel,
+.collapsed .footer [data-rail='hide'] {
+  display: none;
+}
+
+.collapsed .item {
+  justify-content: center;
+  padding: 0;
+}
+
+.collapsed .itemLabel,
+.collapsed .badge {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.collapsed .footer > * {
+  justify-content: center;
+}
+
 @media (max-width: 860px) {
-  .shell {
+  .shell,
+  .collapsed {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .collapse {
+    display: none;
+  }
+
+  /* The drawer is always full width: undo the rail. */
+  .collapsed .brand {
+    flex-direction: row;
+    height: 36px;
+    padding: 0 var(--space-3);
+  }
+
+  .collapsed .brandName,
+  .collapsed .brandTag,
+  .collapsed .groupLabel,
+  .collapsed .footer [data-rail='hide'] {
+    display: revert;
+  }
+
+  .collapsed .item {
+    justify-content: flex-start;
+    padding: 0 var(--space-3);
+  }
+
+  .collapsed .itemLabel,
+  .collapsed .badge {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
   }
 
   /* The admin drawer: a glass sheet that slides in from the left. While it's shut it's hidden

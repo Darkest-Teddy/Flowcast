@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { Menu, X, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Menu, X, type LucideIcon } from 'lucide-react';
 import styles from './AppShell.module.css';
 import { Logo } from '../ui/Logo';
 
@@ -25,6 +25,17 @@ export interface NavSection {
 export interface TabBarConfig {
   tabs: NavItem[];
   more: { label: string; icon: LucideIcon; header?: ReactNode; sections: NavSection[] };
+}
+
+/** localStorage: 'collapsed' when the desktop sidebar is folded down to its icon rail. */
+const COLLAPSE_KEY = 'flowcast.sidebar';
+
+function savedCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === 'collapsed';
+  } catch {
+    return false;
+  }
 }
 
 /** Same width as the `max-width: 860px` breakpoint in AppShell.module.css. */
@@ -63,7 +74,20 @@ export function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // Desktop only: the phone layouts have their own drawer and tab bar, and ignore it.
+  const [collapsed, setCollapsed] = useState(savedCollapsed);
   const { pathname } = useLocation();
+
+  const toggleCollapsed = () => {
+    setCollapsed((was) => {
+      try {
+        localStorage.setItem(COLLAPSE_KEY, was ? 'expanded' : 'collapsed');
+      } catch {
+        // storage blocked: the choice lasts for this page load only
+      }
+      return !was;
+    });
+  };
 
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -125,12 +149,16 @@ export function AppShell({
   const MoreIcon = tabBar?.more.icon;
 
   return (
-    <div className={`${styles.shell} ${tabBar ? styles.withTabBar : ''}`}>
+    <div className={`${styles.shell} ${tabBar ? styles.withTabBar : ''} ${collapsed ? styles.collapsed : ''}`}>
       <aside className={`${styles.sidebar} ${open ? styles.open : ''}`} aria-label="Main">
         <div className={styles.brand}>
           <Logo className={styles.mark} />
-          <span>Flowcast</span>
+          <span className={styles.brandName}>Flowcast</span>
           {brandTag && <span className={styles.brandTag}>{brandTag}</span>}
+          <button type="button" className={styles.collapse} onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-pressed={collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            {collapsed ? <ChevronRight aria-hidden /> : <ChevronLeft aria-hidden />}
+          </button>
           <button ref={closeButton} className={styles.close} onClick={() => setOpen(false)} aria-label="Close menu">
             <X aria-hidden />
           </button>
@@ -146,6 +174,7 @@ export function AppShell({
                   end={item.end}
                   reloadDocument={item.external}
                   onClick={() => setOpen(false)}
+                  title={collapsed ? item.label : undefined}
                   className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ''}`}
                 >
                   <item.icon aria-hidden className={styles.itemIcon} />

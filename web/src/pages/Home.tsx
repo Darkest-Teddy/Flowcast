@@ -296,7 +296,7 @@ export default function Home() {
           to="/study"
           empty={spots.loading || studyHours.loading ? loadingText : 'No study space is open right now by its published hours.'}
         >
-          {study.map((r) => (
+          {!spots.loading && !studyHours.loading && study.map((r) => (
             <ListRow
               key={r.spot.id}
               to="/study"
@@ -308,7 +308,7 @@ export default function Home() {
               detail={r.crowd !== null ? `${formatPercent(r.crowd)} ${crowdFor(r.crowd).label}` : undefined}
             />
           ))}
-          {!studyFrom && study.length > 0 && <p className={styles.forecastNote}><Link to="/profile">Set your home building</Link> to rank by walk and study time.</p>}
+          {!studyFrom && !studyHours.loading && study.length > 0 && <p className={styles.forecastNote}><Link to="/profile">Set your home building</Link> to rank by walk and study time.</p>}
         </SectionList>
 
         <SectionList
