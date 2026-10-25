@@ -161,6 +161,14 @@ export const HudIcons = {
       <path d="M12.5 5.5v13L20.5 12z" fill="currentColor" stroke="none" />
     </svg>
   ),
+  /* Fast-forward, mirrored. Drawn rather than rotated so its points land on the
+     same pixels as its twin and the pair reads as symmetrical. */
+  rewind: () => (
+    <svg {...svg}>
+      <path d="M20 5.5v13L12 12z" fill="currentColor" stroke="none" />
+      <path d="M11.5 5.5v13L3.5 12z" fill="currentColor" stroke="none" />
+    </svg>
+  ),
   search: () => (
     <svg {...svg}>
       <circle cx="11" cy="11" r="6.5" />
@@ -557,19 +565,37 @@ export function HudTime({
 }: {
   playing: boolean;
   onPlay: () => void;
+  /** Signed: negative runs the day backwards. */
   speed: number;
   speeds: readonly number[];
   onSpeed: (s: number) => void;
   live: boolean;
   onLive: () => void;
 }) {
-  const at = speeds.indexOf(speed);
-  const fastest = speeds[speeds.length - 1];
-  const next = speeds[Math.min(at < 0 ? 1 : at + 1, speeds.length - 1)];
-  const atFastest = speed === fastest;
+  const magnitude = Math.abs(speed) || 1;
+  const backwards = speed < 0;
+  const sign = backwards ? -1 : 1;
 
   return (
     <div className="hud-time" role="group" aria-label="Time">
+      {/*
+        Rewind, play and fast-forward, with the speeds themselves beside them.
+        The buttons choose the direction and the pills choose how fast, which is
+        two questions rather than one ladder to step through: you nearly always
+        know which speed you want, and stepping to it past the others means
+        watching the day lurch on the way.
+      */}
+      <button
+        type="button"
+        className="hud-step"
+        aria-pressed={backwards}
+        aria-label="Run the day backwards"
+        title="Backwards"
+        onClick={() => onSpeed(-magnitude)}
+      >
+        <HudIcons.rewind />
+      </button>
+
       <button
         type="button"
         className="hud-time-play"
@@ -583,27 +609,27 @@ export function HudTime({
       <button
         type="button"
         className="hud-step"
-        onClick={() => onSpeed(next)}
-        disabled={atFastest}
-        aria-label={`Faster, ${next} times real time`}
-        title={`Faster · ${next}×`}
-      >
-        <HudIcons.forward />
-      </button>
-
-      <button
-        type="button"
-        className="hud-step"
-        onClick={() => onSpeed(fastest)}
-        aria-pressed={atFastest}
-        aria-label={`Fastest, ${fastest} times real time`}
-        title={`Fastest · ${fastest}×`}
+        aria-pressed={!backwards}
+        aria-label="Run the day forwards"
+        title="Forwards"
+        onClick={() => onSpeed(magnitude)}
       >
         <HudIcons.fastForward />
       </button>
 
-      {/* The rate, only once it stops being real time. */}
-      {!live && speed > 1 && <span className="hud-rate">{speed}×</span>}
+      <div className="hud-speeds" role="group" aria-label="Speed">
+        {speeds.map((s) => (
+          <button
+            key={s}
+            type="button"
+            aria-pressed={!live && magnitude === s}
+            aria-label={`${s} times real time${backwards ? ', backwards' : ''}`}
+            onClick={() => onSpeed(s * sign)}
+          >
+            {s}&#215;
+          </button>
+        ))}
+      </div>
 
       <button type="button" className="hud-live-toggle" aria-pressed={live} onClick={onLive} title="Follow Boston time and live transit">
         {live ? 'Live' : 'Go live'}
