@@ -1,0 +1,15 @@
+{
+  "name": "flowcast",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Root build entry so a host can build this repo. web/ imports from ../theme and ../map-client, so it cannot be built with its own folder as the Root Directory. Build uses `cd`, not `npm --prefix`: with no package argument, --prefix run from this directory installs THIS package into the target and writes a circular \"flowcast\": \"file:..\" dependency into web and map-client.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "cd map-client && npm install --no-audit --no-fund && cd ../web && npm install --no-audit --no-fund && npm run build",
+    "start": "node serve.mjs",
+    "typecheck": "cd web && npm run typecheck"
+  }
+}
