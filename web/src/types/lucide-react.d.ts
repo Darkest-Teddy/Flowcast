@@ -40,6 +40,7 @@ declare module 'lucide-react' {
   export const CircleDashed: LucideIcon;
   export const CircleX: LucideIcon;
   export const Database: LucideIcon;
+  export const DoorOpen: LucideIcon;
   export const Download: LucideIcon;
   export const Eraser: LucideIcon;
   export const ExternalLink: LucideIcon;

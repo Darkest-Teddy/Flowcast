@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { findEventSlots, metresBetween, VENUE_BUFFER_SEC, VENUE_RADIUS_M } from '../src/eventSlots';
 import { datasetsForResult } from '../src/directory';
 import { buildVisuals } from '../src/visuals';
-import { openAt } from '../../map-client/src/insights';
+import { openAt, walkBetween } from '../../map-client/src/insights';
 import { bestTimesForPlace, weekBestTimes, weekFrom, type HourlyImpact } from '../../map-client/src/bestTimes';
 import { WEEKDAYS } from '../../map-client/src/data/campusData';
 import type { ServerAskContext } from '../src/facts';
@@ -224,6 +224,35 @@ test('the dashboard’s best times this week: places with published hours, open 
   if (sunday.quietest) assert.equal(openAt('fitrec', 6, sunday.quietest.hour * 3600, shifted).open, true);
 });
 
+test('event slots for a club: rooms nearest the members\' places first, with their average and longest walk', () => {
+  const chat = ctx.facts!.chat!;
+  const byId = new Map(ctx.locations.map((l) => [l.id, l]));
+  const walkMinutes = (a: string, b: string) => walkBetween(byId.get(a)!, byId.get(b)!, ctx.walkRoutes).minutes;
+  const src = { locations: ctx.locations, meetings: ctx.meetings, referenceWeekStart: ctx.data!.referenceWeekStart, impact: chat.eventImpact, venues: chat.venues, parking: chat.parking, walkMinutes };
+  const query = { headcount: 25, days: null, fromSec: 18 * 3600, toSec: 22 * 3600, durationMin: 60, campus: 'charles-river', limit: 12, maxPerDay: 3 };
+  const near = ['warren', 'myles', 'unknown-place'];
+  const r = findEventSlots({ ...query, near }, src);
+  assert.deepEqual(r.near, ['Warren Towers', 'Myles Standish Hall'].map((n) => ctx.locations.find((l) => l.name.startsWith(n.split(' ')[0]))!.name));
+  assert.ok(r.slots.length >= 5);
+  for (const s of r.slots) {
+    assert.ok(s.walk, `${s.building} has a walk`);
+    assert.ok(s.walk!.average <= s.walk!.longest);
+    const each = ['warren', 'myles'].map((id) => walkMinutes(id, s.locationId)!);
+    assert.equal(s.walk!.longest, Math.max(...each));
+    assert.ok(s.seats >= 25);
+  }
+  // Ranked by average walk (2-minute steps) before anything else.
+  const steps = r.slots.map((s) => Math.round(s.walk!.average / 2));
+  assert.ok(steps.every((x, i) => i === 0 || steps[i - 1] <= x), steps.join(','));
+  // Without near: no walks, and the crowding order as before.
+  const plain = findEventSlots(query, src);
+  assert.ok(plain.slots.every((s) => s.walk === null));
+  assert.deepEqual(plain.near, []);
+  // The nearest slot is at least as close on average as the plain ranking's first one.
+  const plainFirst = ['warren', 'myles'].map((id) => walkMinutes(id, plain.slots[0].locationId)!);
+  assert.ok(r.slots[0].walk!.average <= Math.round(plainFirst.reduce((a, b) => a + b, 0) / plainFirst.length));
+});
+
 // ---------------------------------------------------------------- GET /api/dashboard/event-slots
 
 test('GET /api/dashboard/event-slots: public, no database, validated, never books', async () => {
@@ -239,7 +268,10 @@ test('GET /api/dashboard/event-slots: public, no database, validated, never book
     assert.ok(body.slots.every((s: any) => s.weekday <= 2 && s.seats >= 40));
     assert.match(body.caveat, /may still be in use or locked/);
     assert.equal(body.label, 'published schedule and model-derived');
-    for (const bad of ['', '?headcount=0', '?headcount=40&days=7', '?headcount=40&from=6pm', '?headcount=40&from=21:00&to=22:00', '?headcount=40&book=1']) {
+    const near = await (await fetch(`${url}?headcount=20&near=warren,claflin&duration=60`)).json();
+    assert.ok(near.slots.length >= 1 && near.slots.every((s: any) => s.walk && s.walk.average <= s.walk.longest));
+    assert.equal(near.near.length, 2);
+    for (const bad of ['', '?headcount=0', '?headcount=40&days=7', '?headcount=40&from=6pm', '?headcount=40&from=21:00&to=22:00', '?headcount=40&book=1', '?headcount=40&near=Warren%20Towers', `?headcount=40&near=${Array(13).fill('warren').join(',')}`]) {
       assert.equal((await fetch(`${url}${bad}`)).status, 400, bad);
     }
     assert.equal((await fetch(url, { method: 'POST', headers: { origin: 'http://elsewhere.example' } })).status, 403);

@@ -7,6 +7,7 @@ import type { PersonalSchedule } from '../../map-client/src/personalSchedule';
 import type pg from 'pg';
 import { dashboardRouter } from './dashboard/router';
 import { findEventSlots } from './eventSlots';
+import { walkBetween } from '../../map-client/src/insights';
 import { isIP } from 'node:net';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
@@ -141,10 +142,15 @@ export function createApp(options: AppOptions) {
   // Event slots (GET /api/dashboard/event-slots) answer from the loaded campus model, not the database.
   const chatFacts = campus.facts?.chat;
   const referenceWeekStart = campus.facts?.data?.referenceWeekStart;
+  const placeById = new Map(campus.locations.map((l) => [l.id, l]));
   app.use('/api/dashboard', dashboardRouter(options.dashboardPool, {
     eventSlots: chatFacts?.eventImpact && referenceWeekStart ? (query) => findEventSlots(query, {
       locations: campus.locations, meetings: campus.meetings, referenceWeekStart,
       impact: chatFacts.eventImpact, venues: chatFacts.venues, parking: chatFacts.parking,
+      walkMinutes: (fromId, toId) => {
+        const from = placeById.get(fromId), to = placeById.get(toId);
+        return from && to ? walkBetween(from, to, campus.walkRoutes).minutes : null;
+      },
     }) : undefined,
   }));
   let domains: DataDomain[] | undefined;

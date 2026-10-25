@@ -36,6 +36,8 @@ export interface SlotSources {
   impact: EventImpact | null;
   venues: VenueCalendar | null;
   parking: ParkingLot[];
+  /** Walking minutes between two places (saved routes, or a straight-line estimate), or null when unknown. */
+  walkMinutes?: (fromId: string, toId: string) => number | null;
 }
 
 export interface SlotQuery {
@@ -51,6 +53,8 @@ export interface SlotQuery {
   limit: number;
   /** At most this many slots on one day (default 2), so the list spans several evenings. */
   maxPerDay?: number;
+  /** Places the attendees come from (dorms, class buildings): rooms are then ranked by their average walk. */
+  near?: string[];
 }
 
 export interface Slot extends WeekDay {
@@ -69,6 +73,8 @@ export interface Slot extends WeekDay {
   parking: { spaces: number; lots: number; nearest: { name: string; metres: number } | null };
   /** Venue events the same day near the building that don't overlap the slot. */
   venueEventsSameDay: string[];
+  /** Walking minutes from the attendees' places (query.near): average and longest; null without near. */
+  walk: { average: number; longest: number; from: string } | null;
 }
 
 export interface SlotResult {
@@ -95,10 +101,12 @@ export interface SlotResult {
   venueConflicts: { name: string; venue: string; date: string; start: string }[];
   /** Largest published room on the campus, when no room reaches the headcount. */
   largestRoom: { building: string; room: string; seats: number } | null;
+  /** The attendees' places that were understood (query.near), by name. */
+  near: string[];
 }
 
 export const SLOT_CAVEAT = 'Free means no published class and no listed event in the room at that time. Other uses (exams, office hours, private bookings) and building access are unknown, so a room may still be in use or locked. Nothing is booked or held: reserve it through BU’s room booking.';
-export const SLOT_METHOD = 'Seats and class times are the published class schedule; venue events are published schedules; nearby crowding is model-derived (event-impact build: hourly simulated head count over stated capacity, reference week); parking is stated lot capacity, not how full a lot is. Ranked by lowest nearby modeled crowding (in 5-point steps), then more parking spaces nearby, then the smallest room that fits, then earliest; one room per building and a few slots per day.';
+export const SLOT_METHOD = 'Seats and class times are the published class schedule; venue events are published schedules; nearby crowding is model-derived (event-impact build: hourly simulated head count over stated capacity, reference week); parking is stated lot capacity, not how full a lot is. Ranked by lowest nearby modeled crowding (in 5-point steps), then more parking spaces nearby, then the smallest room that fits, then earliest; one room per building and a few slots per day. When the places attendees come from are given, rooms with the shortest average walk from them come first (in 2-minute steps), then the smallest room that fits; walks use saved walking routes, or a straight-line estimate where none is saved.';
 
 export const metresBetween = (a: [number, number], b: [number, number]) => {
   const ky = 111_320, kx = ky * Math.cos((a[1] * Math.PI) / 180);
@@ -159,6 +167,21 @@ export function findEventSlots(q: SlotQuery, src: SlotSources): SlotResult {
     });
   }
 
+  // Convenience: average and longest walk from the attendees' places to each building.
+  const near = [...new Set(q.near ?? [])].map((id) => byId.get(id)).filter((l): l is CampusLocation => !!l).slice(0, 12);
+  const walks = new Map<string, Slot['walk']>();
+  if (near.length && src.walkMinutes) {
+    for (const r of fitting) {
+      if (walks.has(r.loc.id)) continue;
+      const minutes = near.map((n) => src.walkMinutes!(n.id, r.loc.id)).filter((m): m is number => m !== null);
+      const longest = minutes.length ? Math.max(...minutes) : null;
+      walks.set(r.loc.id, longest === null ? null : {
+        average: Math.round(minutes.reduce((a, b) => a + b, 0) / minutes.length), longest,
+        from: near[minutes.indexOf(longest)]?.name ?? '',
+      });
+    }
+  }
+
   const counts = { rooms: rooms.size, roomsWithSeats: fitting.length, checked: 0, withClass: 0, withListedEvent: 0, nearVenueEvent: 0, free: 0 };
   const conflicts = new Map<string, SlotResult['venueConflicts'][number]>();
   const starts: number[] = [];
@@ -202,13 +225,17 @@ export function findEventSlots(q: SlotQuery, src: SlotSources): SlotResult {
           crowdShare: worst?.share ?? 0,
           parking: b.parking,
           venueEventsSameDay: [...new Set(b.venues.filter((e) => e.date === day.date).map((e) => e.name))].slice(0, 2),
+          walk: walks.get(r.loc.id) ?? null,
         });
       }
     }
   }
 
   const step = (share: number) => Math.round(share * 20);
-  candidates.sort((a, b) => step(a.crowdShare) - step(b.crowdShare) || b.parking.spaces - a.parking.spaces
+  const walkStep = (c: Slot) => (c.walk ? Math.round(c.walk.average / 2) : Infinity);
+  const byWalk = walks.size > 0;
+  candidates.sort((a, b) => (byWalk ? (walkStep(a) - walkStep(b) || a.seats - b.seats) : 0)
+    || step(a.crowdShare) - step(b.crowdShare) || b.parking.spaces - a.parking.spaces
     || a.seats - b.seats || a.date.localeCompare(b.date) || a.startSec - b.startSec || a.building.localeCompare(b.building) || a.room.localeCompare(b.room));
   // Variety: one start per room per day, one room per building per day, a few slots per day.
   const perRoomDay = new Set<string>();
@@ -230,5 +257,6 @@ export function findEventSlots(q: SlotQuery, src: SlotSources): SlotResult {
     headcount: q.headcount, days, window: { from: formatClock(q.fromSec), to: formatClock(q.toSec) }, durationMin: q.durationMin, campus: q.campus,
     slots, counts, venueConflicts: [...conflicts.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6),
     largestRoom: fitting.length ? null : largest,
+    near: near.map((n) => n.name),
   };
 }

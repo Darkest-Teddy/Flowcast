@@ -12,6 +12,8 @@ export interface EventPlan {
   to: string;
   durationMin: number;
   campus: 'charles-river' | 'medical' | 'fenway';
+  /** Places members come from (location ids, at most 12): rooms are then ranked by their average walk. */
+  near: string[];
 }
 
 export interface EventSlot {
@@ -26,6 +28,8 @@ export interface EventSlot {
   nearbyCrowd: { percent: number; place: string } | null;
   parking: { spaces: number; lots: number; nearest: { name: string; metres: number } | null };
   venueEventsSameDay: string[];
+  /** Walking minutes from the members' places: average and longest (and from where); null without near. */
+  walk: { average: number; longest: number; from: string } | null;
 }
 
 export interface EventSlotsResult {
@@ -37,11 +41,14 @@ export interface EventSlotsResult {
   counts: { rooms: number; roomsWithSeats: number; checked: number; withClass: number; withListedEvent: number; nearVenueEvent: number; free: number };
   venueConflicts: { name: string; venue: string; date: string; start: string }[];
   largestRoom: { building: string; room: string; seats: number } | null;
+  /** The members' places the server understood, by name. */
+  near: string[];
   caveat: string;
   method: string;
 }
 
-export const DEFAULT_PLAN: EventPlan = { headcount: 30, days: [], from: '18:00', to: '22:00', durationMin: 90, campus: 'charles-river' };
+export const DEFAULT_PLAN: EventPlan = { headcount: 30, days: [], from: '18:00', to: '22:00', durationMin: 90, campus: 'charles-river', near: [] };
+export const MAX_NEAR = 12;
 
 const minutes = (hhmm: string) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
@@ -63,6 +70,8 @@ export function eventSlotsQuery(plan: EventPlan, limit = 10): string {
   const q = new URLSearchParams({ headcount: String(plan.headcount), from: plan.from, to: plan.to, duration: String(plan.durationMin), campus: plan.campus, limit: String(limit) });
   const days = [...new Set(plan.days)].filter((d) => Number.isInteger(d) && d >= 0 && d <= 6).sort((a, b) => a - b);
   if (days.length && days.length < 7) q.set('days', days.join(','));
+  const near = [...new Set(plan.near)].filter((id) => /^[a-z0-9-]+$/.test(id)).slice(0, MAX_NEAR);
+  if (near.length) q.set('near', near.join(','));
   return q.toString();
 }
 
@@ -75,7 +84,12 @@ export function parseEventSlots(body: unknown): EventSlotsResult {
   }
   const slots = body.slots.filter((s): s is EventSlot => isObject(s) && typeof s.date === 'string' && typeof s.room === 'string'
     && typeof s.building === 'string' && typeof s.seats === 'number' && typeof s.start === 'string' && isObject(s.parking));
-  return { ...(body as unknown as EventSlotsResult), slots, venueConflicts: Array.isArray(body.venueConflicts) ? body.venueConflicts as EventSlotsResult['venueConflicts'] : [] };
+  return {
+    ...(body as unknown as EventSlotsResult),
+    slots: slots.map((s) => ({ ...s, walk: isObject(s.walk) && typeof s.walk.average === 'number' && typeof s.walk.longest === 'number' ? s.walk : null })),
+    venueConflicts: Array.isArray(body.venueConflicts) ? body.venueConflicts as EventSlotsResult['venueConflicts'] : [],
+    near: Array.isArray(body.near) ? body.near.filter((n): n is string => typeof n === 'string') : [],
+  };
 }
 
 /** "Room 220, Questrom School of Business". */

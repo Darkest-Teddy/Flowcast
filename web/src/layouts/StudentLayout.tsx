@@ -1,6 +1,7 @@
 import {
   BadgeCheck,
   BookOpen,
+  DoorOpen,
   CalendarDays,
   CalendarRange,
   CalendarSync,
@@ -38,6 +39,7 @@ export function StudentLayout() {
   const map: NavItem = { to: config.mapUrl, label: 'Campus map', icon: Map, external: true };
   const welcome: NavItem = { to: '/welcome', label: 'Get started', icon: Sparkles };
   const clubs: NavItem = { to: '/clubs', label: 'Clubs', icon: Users };
+  const meetings: NavItem = { to: '/meetings', label: 'Club meetings', icon: DoorOpen };
   const account: NavSection = {
     label: 'Account',
     items: [
@@ -56,7 +58,7 @@ export function StudentLayout() {
       }
     : null;
 
-  const sections: NavSection[] = [{ items: [home, ask, schedule, study, forecasts, events, eventImpact, clubs, map] }, account, { items: [welcome] }];
+  const sections: NavSection[] = [{ items: [home, ask, schedule, study, forecasts, events, eventImpact, clubs, meetings, map] }, account, { items: [welcome] }];
   if (club) sections.push(club);
 
   const tabBar: TabBarConfig = {
@@ -72,7 +74,7 @@ export function StudentLayout() {
       ),
       sections: [
         account,
-        { label: 'More', items: [study, ask, eventImpact, map, welcome] },
+        { label: 'More', items: [study, ask, meetings, eventImpact, map, welcome] },
         ...(club ? [club] : []),
         ...(hasRole('admin') ? [{ label: 'Admin', items: [{ to: '/admin', label: 'Admin area', icon: LayoutGrid }] }] : []),
       ],

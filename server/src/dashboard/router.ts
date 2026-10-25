@@ -26,6 +26,8 @@ const slotQuery = z.object({
   duration: z.coerce.number().int().min(30).max(360).optional(),
   campus: z.enum(['charles-river', 'medical', 'fenway']).optional(),
   limit: z.coerce.number().int().min(1).max(20).optional(),
+  /** Places attendees come from, comma-separated location ids (at most 12). */
+  near: z.string().regex(/^[a-z0-9-]+(,[a-z0-9-]+){0,11}$/).optional(),
 }).strict();
 const preferencesPatch =z.object({ packedRoute: z.boolean(), clubEvents: z.boolean(), scheduleChanges: z.boolean() }).partial().strict();
 interface Account { id: string; profile: Profile; preferences: NotificationPrefs; following: string[]; schedule: ScheduleImportState['items']; schedule_import: Omit<ScheduleImportState, 'items'> | null; created_at: Date; updated_at: Date }
@@ -94,7 +96,7 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   router.get('/event-slots', (req, res) => {
     if (!options.eventSlots) { res.status(503).json({ error: 'Event planning is unavailable on this server.' }); return; }
     const parsed = slotQuery.safeParse(req.query);
-    if (!parsed.success) { res.status(400).json({ error: 'Send headcount (1–2000), and optionally days (0 = Monday, comma-separated), from and to (HH:MM), duration (30–360 minutes), campus and limit (1–20).' }); return; }
+    if (!parsed.success) { res.status(400).json({ error: 'Send headcount (1–2000), and optionally days (0 = Monday, comma-separated), from and to (HH:MM), duration (30–360 minutes), campus, limit (1–20) and near (up to 12 place ids, comma-separated).' }); return; }
     const q = parsed.data;
     const fromSec = toSeconds(q.from ?? '18:00');
     const toSec = toSeconds(q.to ?? '22:00');
@@ -103,6 +105,7 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     const result = options.eventSlots({
       headcount: q.headcount, days: q.days ? [...new Set(q.days.split(',').map(Number))] : null, fromSec, toSec, durationMin,
       campus: q.campus ?? 'charles-river', limit: q.limit ?? 10, maxPerDay: 3,
+      ...(q.near ? { near: q.near.split(',') } : {}),
     });
     res.json({ ...result, label: 'published schedule and model-derived', caveat: SLOT_CAVEAT, method: SLOT_METHOD });
   });

@@ -25,6 +25,7 @@ export default function Clubs() {
     <PageHeader
       title="Clubs"
       description="Organizers from BU’s public event listings."
+      actions={<><Button to="/meetings" variant="secondary">Find meetings</Button><Button to="/meetings?tab=plan" variant="secondary">Plan a meeting</Button></>}
     />
   );
 

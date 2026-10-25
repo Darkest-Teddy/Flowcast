@@ -14,6 +14,24 @@ test('a plan becomes the event-slots query, with days only when some are chosen'
   assert.equal(new URLSearchParams(eventSlotsQuery({ ...DEFAULT_PLAN, days: [0, 1, 2, 3, 4, 5, 6] })).has('days'), false);
 });
 
+test('members\' places go along as near, deduplicated, valid ids only, at most twelve', () => {
+  assert.equal(new URLSearchParams(eventSlotsQuery(DEFAULT_PLAN)).has('near'), false);
+  const q = new URLSearchParams(eventSlotsQuery({ ...DEFAULT_PLAN, near: ['warren', 'myles', 'warren', 'Bad Id!'] }));
+  assert.equal(q.get('near'), 'warren,myles');
+  const many = Array.from({ length: 15 }, (_, i) => `place-${i}`);
+  assert.equal(new URLSearchParams(eventSlotsQuery({ ...DEFAULT_PLAN, near: many })).get('near')!.split(',').length, 12);
+});
+
+test('walks in the answer are kept when well-formed and dropped otherwise', () => {
+  const base = { date: '2026-10-26', weekday: 0, start: '6:00 PM', end: '7:00 PM', building: 'CAS', room: '1', seats: 30, campus: 'charles-river', nearbyCrowd: null,
+    parking: { spaces: 0, lots: 0, nearest: null }, venueEventsSameDay: [] };
+  const body = { headcount: 20, days: [], window: { from: '6:00 PM', to: '10:00 PM' }, durationMin: 60, counts: {}, largestRoom: null, caveat: 'c', method: 'm', near: ['Warren Towers', 3],
+    slots: [{ ...base, walk: { average: 6, longest: 11, from: 'Myles Standish Hall' } }, { ...base, room: '2', walk: { average: 'far' } }, { ...base, room: '3' }] };
+  const r = parseEventSlots(body);
+  assert.deepEqual(r.slots.map((s) => s.walk), [{ average: 6, longest: 11, from: 'Myles Standish Hall' }, null, null]);
+  assert.deepEqual(r.near, ['Warren Towers']);
+});
+
 test('plans that cannot be sent say why', () => {
   assert.equal(planProblem(DEFAULT_PLAN), null);
   assert.match(planProblem({ ...DEFAULT_PLAN, headcount: Number.NaN })!, /how many/);
