@@ -94,6 +94,8 @@ export interface BuildingOccupancy {
 }
 
 export interface Agent {
+  /** 'staff' marks a BU employee (faculty or staff, sim/staff.ts); students carry no role. */
+  role?: 'staff';
   academicCampus?: string;
   residency?: 'resident' | 'commuter';
   studentLevel?: 'undergraduate' | 'graduate';
@@ -117,6 +119,8 @@ export interface Trip {
 export type StayPurpose =
   | { kind: 'class'; fixed: true; meetingId: string; courseCode: string }
   | { kind: 'dining' | 'library' | 'gym' | 'outdoor'; fixed: false }
+  /** An employee at their workplace (sim/staff.ts). */
+  | { kind: 'work'; fixed: false }
   | { kind: 'estimated'; fixed: false; purpose: EstimatedActivityProfile['purpose'] }
   | { kind: 'off-campus-meal' | 'off-campus-outing' | 'unmapped-academic'; fixed: false }
   | { kind: 'gathering'; fixed: false; eventId: string }

@@ -8,6 +8,8 @@ import { normalFrom, VISIT_LENGTH_ASSUMPTION, VISIT_LENGTH_SIGMA, visitLengthFac
 import { dayBehavior, type ActivitySpec, type BehaviorModel, type DayBehavior, type LegacyBehavior, type ResolvedParams } from './behavior';
 import type { DayConditions } from './conditions';
 import type { OutdoorFile } from './outdoor';
+import { conditionsFor } from './conditions';
+import { emptyStaffStats, isStaff, planStaffDay, STAFF_ASSUMPTION_TEXT, type StaffDayStats, type StaffStop } from './staff';
 import type { Agent, CampusLocation, DayData, EstimatedActivityProfile, StayPurpose, TransitRide, Trip } from './playback';
 import { ALIGHT_SECONDS, lastAtOrBefore, MAX_EARLY_ARRIVAL_SECONDS, MAX_STOP_PAIR_METRES, MAX_STOP_WAIT_SECONDS, MIN_WEEKLY_TRIPS,
   routeKind, TRANSIT_COMMUTER_SHARE, VEHICLE_PEAK_MAX_LOAD, type TransitService } from './transitService';
@@ -254,6 +256,8 @@ export interface SourceDayStats {
   /** Rider legs at their own stop with no published trip fitting the itinerary (walked from the stop). Legs
    * whose destination needs a different stop within the 2 km access limit are walked from that stop. */
   transitUnmatchedLegs: number;
+  /** BU employees (sim/staff.ts): planned after every student. Zeros when the roster has none. */
+  staff: StaffDayStats;
   assumptions: string[];
 }
 
@@ -262,7 +266,7 @@ export interface SourceActivity {
   locationId: string;
   startSec: number;
   endSec: number;
-  kind: 'dining' | 'library' | 'gym' | 'off-campus-meal' | 'off-campus-outing' | 'estimated' | 'unmapped-academic' | 'gathering' | 'outdoor';
+  kind: 'dining' | 'library' | 'gym' | 'off-campus-meal' | 'off-campus-outing' | 'estimated' | 'unmapped-academic' | 'gathering' | 'outdoor' | 'work';
   estimated?: true;
   purpose?: EstimatedActivityProfile['purpose'] | 'unmapped-academic';
   basis?: string;
@@ -381,7 +385,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     composedRoutes: 0, composedTrips: 0, capacityLimitedCandidates: 0, roomCapacityLimitedCandidates: 0, excludedNonDegreeSections: 0, affinityCourseEnrollments: 0, excludedIncompleteComponentCourses: 0, componentBundleRejectedCandidates: 0, linkedCourseEnrollments: 0, modeledDegreeCourseSlots: 0, mappedCourseSlotTargets: 0, unmappedCourseSlotTargets: 0,
     mappedCourseCoverage: { undergraduate: { mappedOfferings: 0, totalOfferings: 0, fraction: 1 }, graduate: { mappedOfferings: 0, totalOfferings: 0, fraction: 1 } },
     weeklyEnrolledStudents: 0, weeklyEnrollments: 0, unassignedStudents: 0, eligibleWeeklySections: 0, campusAccessTrips: 0, modeledActivities: 0, modeledOffCampusMeals: 0, modeledOffCampusOutings: 0, unavailableActivities: 0, optionalCapacityRejected: 0, classroomWaitsShortened: 0, estimatedActivities: 0, unmappedAcademicBlocks: 0, behaviorRejectedCandidates: 0, optionalTravelRejectedCandidates: 0, estimatedLocationCounts: {},
-    transitCommuters: 0, transitAlightings: 0, transitBoardings: 0, transitUnmatchedLegs: 0,
+    transitCommuters: 0, transitAlightings: 0, transitBoardings: 0, transitUnmatchedLegs: 0, staff: emptyStaffStats(),
     assumptions: [
       'Enrollment is synthetic and fixed for the whole reference week; published classes supply places, times, and seat upper bounds, not actual enrollment.',
       'Default course eligibility follows BU’s published numeric guide: 100–399 undergraduate, 400–599 undergraduate/graduate, 600–999 graduate; MED MD and graduate-school prefixes use graduate defaults. This is not a prerequisite or individual-permission checker.',
@@ -417,6 +421,9 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     ],
   };
   stats.assumptions.push(VISIT_LENGTH_ASSUMPTION, MEAL_GROUP_ASSUMPTION);
+  const staffRoster = base.agents.filter(isStaff);
+  stats.staff.roster = staffRoster.length;
+  if (staffRoster.length) stats.assumptions.push(...STAFF_ASSUMPTION_TEXT((base as DayData & { employees?: Parameters<typeof STAFF_ASSUMPTION_TEXT>[0] }).employees));
   if (transit) stats.assumptions.push(
     `With the published MBTA timetable loaded, a stable ${Math.round(TRANSIT_COMMUTER_SHARE * 1000) / 10}% of commuting students ride transit: the public-transportation share of all Charles River Campus commuters (employees and students) in BU's 2013–2023 Institutional Master Plan, Section 8.4 (December 2010 data). It is not a student-only or per-campus measurement.`,
     `Riders use one gateway stop for the week, chosen in proportion to published weekly trips of each route direction stopping there (at least ${MIN_WEEKLY_TRIPS}), and return from the nearest stop within ${MAX_STOP_PAIR_METRES} m served the other way. Each walk onto campus starts ${ALIGHT_SECONDS} s after a published arrival (at most ${MAX_EARLY_ARRIVAL_SECONDS / 60} min early); each walk off campus ends with a wait of at most ${MAX_STOP_WAIT_SECONDS / 60} min for a published departure. Legs no published trip fits are walked from the stop and counted as unmatched.`,
@@ -536,7 +543,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
   let tuned: TunedDay | undefined;
   /** The student's day parameters, or undefined for today's rules (no conditions, or a fallback student). */
   const tunedParams = (agent: Agent): ResolvedParams | undefined => {
-    if (!tuned || tuned.legacy.has(agent.id)) return undefined;
+    if (!tuned || tuned.legacy.has(agent.id) || isStaff(agent)) return undefined; // employees keep their own day (sim/staff.ts)
     let params = tuned.params.get(agent.id);
     if (!params) { params = tuned.behavior.paramsOf(agent); tuned.params.set(agent.id, params); }
     return params;
@@ -723,7 +730,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
   };
   const isOpen = (stop: WeeklyStop): boolean => {
     // Conditions engine hook: river spots are open air (daylight limits come from the activity windows).
-    if (stop.meeting || stop.location === 'off-campus' || stop.activity === 'outdoor') return true;
+    if (stop.meeting || stop.location === 'off-campus' || stop.activity === 'outdoor' || stop.activity === 'work') return true;
     // The event's published time is the access evidence; planning keeps attendance inside it.
     if (stop.gathering) return stop.gathering.startSec <= stop.start && stop.end <= stop.gathering.endSec;
     if (stop.estimatedProfile) {
@@ -919,6 +926,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
   const fullSections = new Set<Section>();
   const order = [...base.agents].sort((a, b) => fraction(`weekly:${a.id}`) - fraction(`weekly:${b.id}`) || a.id.localeCompare(b.id));
   for (const agent of order) {
+    if (isStaff(agent)) { enrollment.set(agent.id, []); unmappedLoads.set(agent.id, 0); continue; } // employees take no class seats
     const campus = agent.academicCampus ?? agent.campus ?? campusOf(locations.get(agent.home)!);
     const index = indexFor(campus, agent.studentLevel);
     let schoolChoice = fraction(`${agent.id}:academic-affinity`) * index.weights.reduce((sum, [, weight]) => sum + weight, 0);
@@ -975,7 +983,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     stats.weeklyEnrollments += courseCount;
     enrollment.set(agent.id, stops);
   }
-  stats.unassignedStudents = base.agents.length - stats.weeklyEnrolledStudents;
+  stats.unassignedStudents = base.agents.length - staffRoster.length - stats.weeklyEnrolledStudents;
   // Predict the same waits as the emitter; reserve complete presence, not just planned activity time.
   const resourceLocations = base.locations.filter(location => ['dining', 'library', 'gym'].includes(location.kind) || estimatedProfile(location));
   const resourceIndex = new Map(resourceLocations.map((location, index) => [location.id, index]));
@@ -1201,6 +1209,19 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     const favorite = options.find(option => { choice -= option.weight; return choice < 0; })?.id;
     favorites.set(key, favorite); return favorite;
   };
+  // Employee workplaces and venues per campus (sim/staff.ts): mapped academic buildings weighted by capacity.
+  // Places described only by an estimated student-activity profile (research, arena) are left out.
+  const staffVenueCache = new Map<string, { workplaces: { id: string; weight: number }[]; dining: CampusLocation[]; gyms: CampusLocation[] }>();
+  const staffVenues = (campus: string) => {
+    let venues = staffVenueCache.get(campus);
+    if (!venues) {
+      const here = base.locations.filter(location => campusOf(location) === campus && location.capacity > 0);
+      venues = { workplaces: here.filter(location => location.kind === 'classroom' && !estimatedProfile(location)).map(location => ({ id: location.id, weight: location.capacity })),
+        dining: here.filter(location => location.kind === 'dining'), gyms: here.filter(location => location.kind === 'gym') };
+      staffVenueCache.set(campus, venues);
+    }
+    return venues;
+  };
   const days = new Map<string, SourceDay>();
   // ── Conditions engine hook: helpers for a conditioned day (all inert while `tuned` is unset) ──
   const isResident = (agent: Agent) => agent.residency === 'resident' || (!agent.residency && agent.home !== 'off-campus');
@@ -1290,6 +1311,10 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     const isClass = (stay: PlannedStay) => stay.purpose.kind === 'class';
     compactArrivals = new Map();
     let classroomWaitsShortened = 0;
+    const staffStats: StaffDayStats = { ...emptyStaffStats(), roster: staffRoster.length };
+    // Employees stay home on a university holiday (the conditioned day's calendar, else the reference date's).
+    const staffHoliday = staffRoster.length > 0 && (tuned ? tuned.behavior.conditions.period
+      : conditionsFor({ date: dates[weekday], weekday, calendar: data.academicCalendar, weather: null }).period) === 'holiday';
     // Published class presence is reserved first, for everyone.
     for (const agent of base.agents) {
       let plan = planDay(agent, dayStops(agent));
@@ -1339,7 +1364,9 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       for (const key of waits) capacityLedger[key]++;
       baselinePresence.set(agent.id, dayPresenceKeys(plan));
     }
-    const activityPlanningOrder = [...base.agents].sort((a, b) => Number(enrollment.get(a.id)!.length > 0) - Number(enrollment.get(b.id)!.length > 0)
+    // Employees are planned after every student (sim/staff.ts), so they only use room students leave.
+    const activityPlanningOrder = [...base.agents].sort((a, b) => Number(isStaff(a)) - Number(isStaff(b))
+      || Number(enrollment.get(a.id)!.length > 0) - Number(enrollment.get(b.id)!.length > 0)
       || fraction(`activity-order:${a.id}`) - fraction(`activity-order:${b.id}`) || a.id.localeCompare(b.id));
     for (const agent of activityPlanningOrder) {
       const params = tunedParams(agent); // conditions engine hook (undefined = today's rules)
@@ -1367,6 +1394,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         reserved = keys;
       };
       const resident = agent.residency === 'resident' || (!agent.residency && agent.home !== 'off-campus');
+      const staff = isStaff(agent);
       const campus = agent.campus ?? (locations.has(agent.home) ? campusOf(locations.get(agent.home)!) : 'charles-river');
       const activityCampuses = new Set([campus, ...stops.map(stop => campusOf(locations.get(stop.location)!))]);
       const classStart = stops[0]?.start ?? DAY;
@@ -1433,7 +1461,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       const sourceCovered = enrollment.get(agent.id)!.length > 0;
       for (const location of base.locations) {
         const profile = estimatedProfile(location);
-        if (!profile || !activityCampuses.has(campusOf(location)) || (profile.studentLevel !== 'any' && agent.studentLevel !== profile.studentLevel)
+        if (!profile || staff || !activityCampuses.has(campusOf(location)) || (profile.studentLevel !== 'any' && agent.studentLevel !== profile.studentLevel)
           || (estimatedLocationCounts[location.id] ?? 0) >= dailyParticipantLimit(profile, weekday)) continue;
         const seed = `${agent.id}:${weekday}:estimated:${location.id}`;
         if (fraction(`${seed}:participation`) >= profile.attendanceProbability * (sourceCovered ? SOURCE_COVERED_ESTIMATED_ACTIVITY_FACTOR : 1)) continue;
@@ -1550,6 +1578,24 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
           } else unavailableActivities++;
         }
       }
+      if (staff) {
+        // An employee's working day (sim/staff.ts): each piece is kept only if it fits every capacity.
+        const venues = staffVenues(campus);
+        const outcome = planStaffDay({ agent, weekday, workplaces: venues.workplaces, dining: venues.dining, gyms: venues.gyms, rider: !!commuteOf(agent),
+          walk: (from, to) => duration(from, to, agent), isOpen: (stop: StaffStop) => isOpen(stop), venueWeight,
+          commit: (proposed: StaffStop[], seconds: number) => {
+            const sorted = [...proposed].sort((a, b) => a.start - b.start);
+            const keys = feasible(sorted, agent) ? capacityFor(sorted, seconds) : undefined;
+            if (!keys) return false;
+            reserve(keys); stops = sorted; currentPlan = planDay(agent, stops)!;
+            return true;
+          } }, staffHoliday);
+        if (outcome.onSite) staffStats.onSite++;
+        if (outcome.placed) staffStats.inMappedBuildings++; else if (outcome.onSite) staffStats.workingOffMap++;
+        if (outcome.lunch === 'dining') staffStats.lunchAtDining++;
+        if (outcome.lunch === 'off-campus') staffStats.lunchOffCampus++;
+        if (outcome.gym) staffStats.gymVisits++;
+      }
       if (fixedClasses) scheduledStudents++;
       const plan = planDay(agent, stops)!;
       for (const stay of plan.stays) stays.push({ agent: agent.id, ...stay });
@@ -1609,7 +1655,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       sourceStats: { ...stats, eligibleMeetings: [...occurrences].filter((key) => Number(key.split(':').at(-3)) === weekday).length,
         assignedClasses: assignments.length, scheduledStudents, composedTrips, campusAccessTrips, modeledActivities, modeledOffCampusMeals, modeledOffCampusOutings, unavailableActivities, optionalCapacityRejected, classroomWaitsShortened, estimatedActivities, unmappedAcademicBlocks, behaviorRejectedCandidates, optionalTravelRejectedCandidates, estimatedLocationCounts,
         transitCommuters: riders.size, transitAlightings: transitRides.filter((ride) => ride.kind === 'alight').length,
-        transitBoardings: transitRides.filter((ride) => ride.kind === 'board').length, transitUnmatchedLegs,
+        transitBoardings: transitRides.filter((ride) => ride.kind === 'board').length, transitUnmatchedLegs, staff: staffStats,
         assumptions: gatherings.length ? [...stats.assumptions, ...GATHERING_ASSUMPTIONS] : stats.assumptions },
       sourceAssignments: assignments, sourceActivities: activities, eventDate,
       gatherings: gatherings.map(g => ({ ...g, attendees: gatheringAttendees.get(g.id)!, capacity: gatheringCapacity(g) })) };

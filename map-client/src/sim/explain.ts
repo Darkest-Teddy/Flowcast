@@ -10,6 +10,8 @@ export interface DayInfo {
   active: ActiveModifier[];
   personaMix: { id: string; label: string; students: number }[];
   students: number;
+  /** Modeled BU employees in the roster (sim/staff.ts); conditions do not change their day. */
+  staff?: number;
   /** behavior.json's last local validation (scripts/calibrate-behavior.mjs). */
   validation?: { generated?: string; totalLoss?: number; unconditionedLoss?: number; metrics?: Record<string, number> };
   buildMs: number;
@@ -69,7 +71,7 @@ export function explain(info: DayInfo): Explanation {
     .map(row => `${row.label}: ${row.students.toLocaleString('en-US')} students (${Math.round(row.students / total * 100)}%)`);
   const v = info.validation;
   const numbers = [
-    `${info.students.toLocaleString('en-US')} students simulated; ${Object.entries(info.visits).filter(([, n]) => n > 0).map(([kind, n]) => `${n.toLocaleString('en-US')} ${kind}`).join(', ')}.`,
+    `${info.students.toLocaleString('en-US')} students${info.staff ? ` and ${info.staff.toLocaleString('en-US')} faculty and staff (a modeled working day, not changed by these conditions)` : ''} simulated; ${Object.entries(info.visits).filter(([, n]) => n > 0).map(([kind, n]) => `${n.toLocaleString('en-US')} ${kind}`).join(', ')}.`,
     info.outdoorPeak.count > 0 ? `Most people by the river: about ${info.outdoorPeak.count.toLocaleString('en-US')} around ${clockLabel(info.outdoorPeak.hour)}.` : 'Nobody spends time by the river today.',
     v?.totalLoss !== undefined ? `Validated locally${v.generated ? ` on ${v.generated}` : ''} against FitRec hourly entries, historical library gate counts, Bluebikes dock activity, BU Dining's meal counts and Comm Ave pedestrian counts: total loss ${number(v.unconditionedLoss ?? NaN)} for the unconditioned model → ${number(v.totalLoss)} with these parameters (lower is better; see docs/behavior-validation.md).`
       : 'Not yet validated (run npm run calibrate).',

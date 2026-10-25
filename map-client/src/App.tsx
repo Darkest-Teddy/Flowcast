@@ -1571,7 +1571,7 @@ export default function App() {
             <h2>Campus activity</h2>
             {hud.public ? (
               <p className="muted">
-                Students only. Streets: {hud.walking.toLocaleString()} students walking · {hud.public.toLocaleString()} public (non-students), from MBTA ridership and pedestrian counts.
+                Simulated BU students and staff. Streets: {hud.walking.toLocaleString()} BU people walking · {hud.public.toLocaleString()} public (not BU students or staff), from MBTA ridership and pedestrian counts.
               </p>
             ) : null}
             <ol className="rows">
@@ -1700,7 +1700,8 @@ export default function App() {
         {hud && tab === 'data' && (
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
             {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
-            {publicCrowdRef.current && <p>Public (non-students): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
+            {baseDayRef.current?.populationSummary.staff ? <p>{baseDayRef.current.populationSummary.staff.toLocaleString()} faculty and staff · {baseDayRef.current.populationSummary.staffReportingPeriod}. Their working day (arrival, workplace, lunch, gym) is a modeled assumption, not observed; they are planned after the students and counted in building figures, which show people present.</p> : null}
+            {publicCrowdRef.current && <p>Public (not BU students or staff): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and staff and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
             {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
           </section>
         )}

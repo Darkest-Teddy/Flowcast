@@ -597,7 +597,7 @@ test('all configured estimated buildings receive weekly activity without adding 
   assert.ok(expected.length>0);
   for(let weekday=0;weekday<7;weekday++) {
     const day=buildSourceDay(base,source,weekday);validate(day);
-    assert.equal(day.agents.length,36977);
+    assert.equal(day.agents.length,36977+11140); // students, then modeled staff
     const kilachandResidents = new Set(base.agents.filter(a=>a.home==='kilachand').map(a=>a.id));
     assert.equal(kilachandResidents.size,495);
     for(const time of [0, 6*3600, 23*3600]) {

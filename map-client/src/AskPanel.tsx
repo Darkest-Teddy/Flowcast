@@ -47,11 +47,11 @@ const SINGULAR: Record<LocationKind, string> = {
   library: 'library', dining: 'dining hall', gym: 'gym', dorm: 'residence hall', classroom: 'academic building', outdoor: 'outdoor space', 'off-campus': 'place',
 };
 
-const MODEL_NOTE = 'Simulated students over each place’s stated capacity, on the shown day’s modeled schedule. Not a live count.';
+const MODEL_NOTE = 'Simulated people (students and modeled staff) over each place’s stated capacity, on the shown day’s modeled schedule. Not a live count.';
 
 const pct = (share: number) => `${Math.round(share * 100)}%`;
-/** A headcount-only place, as on the building tags: under 3 is a special building few can use, shown as 0. */
-const headcount = (count: number) => `${count < 3 ? 0 : count.toLocaleString()} students`;
+/** A headcount-only place, as on the building tags: under 3 is a special building few can use, shown as 0. Counts include modeled staff. */
+const headcount = (count: number) => `${count < 3 ? 0 : count.toLocaleString()} people`;
 const level = (share: number) => crowdLevel(share).label.toLowerCase();
 const meters = (m: number) => (m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(m / 1000).toFixed(1)} km`);
 const walkText = (w: Walk) =>
@@ -167,7 +167,7 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
         : '';
       if (now === null) {
         const count = ctx.occupancyAt(time).find((o) => o.location.id === location.id)?.count ?? 0;
-        return { text: `${location.name} has ${count.toLocaleString()} simulated students ${when(time)}. Its capacity isn't comparable, so the map shows a headcount rather than a percentage.${hoursNote}`, rows: [], note: MODEL_NOTE, show };
+        return { text: `${location.name} has ${count.toLocaleString()} simulated people ${when(time)}. Its capacity isn't comparable, so the map shows a headcount rather than a percentage.${hoursNote}`, rows: [], note: MODEL_NOTE, show };
       }
       const later = quiet && busy && quiet.time !== busy.time
         ? ` For the rest of ${WEEKDAYS[ctx.weekday]}, it's quietest at ${formatClock(quiet.time)} (${pct(quiet.share)}) and busiest at ${formatClock(busy.time)} (${pct(busy.share)}).`

@@ -55,7 +55,7 @@ export function datasetCatalog(campus: CampusModel): Record<DatasetId, Dataset> 
   const meetingBuildings = new Set(campus.meetings.map((m) => m.locationId)).size;
   const missing = 'not loaded';
   return {
-    simulation: { name: 'Flowcast simulated students, reference week', domain: 'crowds', kind: 'simulated', period: week, url: null, coverage: `${n(f.populationSummary.total)} simulated students, ${n(campus.locations.length)} places` },
+    simulation: { name: 'Flowcast simulated students, reference week', domain: 'crowds', kind: 'simulated', period: week, url: null, coverage: `${n(f.populationSummary.total)} simulated students${f.populationSummary.staff ? ` and ${n(f.populationSummary.staff)} modeled faculty and staff` : ''}, ${n(campus.locations.length)} places` },
     enrollment: { name: 'BU Common Data Set 2025–26, enrollment (B1)', domain: 'population', kind: 'published', period: f.populationSummary.reportingPeriod, url: SOURCE_URLS.cdsEnrollment, coverage: `${n(f.populationSummary.total)} students` },
     capacityBasis: { name: 'Place capacities with their basis', domain: 'crowds', kind: 'mixed', period: null, url: null, coverage: plural(Object.keys(f.basis).length, 'place') },
     assumptions: { name: 'Simulation assumptions (crowd levels, capacity, visits)', domain: 'crowds', kind: 'assumption', period: null, url: null, coverage: `${n(data.assumptions.length)} stated assumptions` },

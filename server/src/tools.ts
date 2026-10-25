@@ -195,7 +195,7 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
     description:
       'Rank places on the campus in view by simulated crowding at a time. Rows come in tiers: open with a percent, open with a headcount only, hours not published, closed, not modeled. ' +
       'leastCrowded (or mostCrowded) is the top open place with a comparable percent (for classrooms and dorms, which publish no hours, the top place with a percent), the answer even when rounded percents tie; it is null when no place qualifies. Never re-rank by student count. ' +
-      'percent is simulated students over stated capacity; null means not comparable, closed, or (open=null with 0 students) no published hours, so the simulation sends no one there: never call those quiet. open=false is closed by published hours (never call it quiet); open=null means hours are not published. ' +
+      'percent is simulated people (students and modeled staff; the students field counts them all) over stated capacity; null means not comparable, closed, or (open=null with 0 students) no published hours, so the simulation sends no one there: never call those quiet. open=false is closed by published hours (never call it quiet); open=null means hours are not published. ' +
       'modeled=false means the simulation does not model that place on this day.',
     parameters: z.object({
       kind: z.enum(PLACE_KINDS).nullable().describe('Kind of place, or null for every kind.'),
@@ -497,7 +497,7 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
   const campusOverview = tool({
     name: 'campus_overview',
     description:
-      'Whole-map simulated totals at a time: students indoors on the map, walking, and not on the map; indoor students by campus; walkers by the campus they are heading to; ' +
+      'Whole-map simulated totals at a time: people (students and modeled faculty/staff) indoors on the map, walking, and not on the map; indoor people by campus; walkers by the campus they are heading to; ' +
       'the busiest places on the campus in view (not closed) by students and by percent; and the enrollment figure the simulation is built from.',
     parameters: z.object({ weekday: weekdayParam, time: clockParam('HH:MM, 24-hour, or null for the time shown on the map.'), campus: campusParam }),
     execute: ({ weekday, time, campus }) => {
@@ -529,13 +529,13 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
       return result({
         ...dayDate(dctx, dctx.weekday),
         time: formatClock(at),
-        simulated: { students: pop.total, indoorsOnMap: pop.indoors, walking: pop.walking, notOnMap: pop.offCampus },
+        simulated: { people: pop.total, indoorsOnMap: pop.indoors, walking: pop.walking, notOnMap: pop.offCampus },
         indoorsByCampus: indoors,
         walkingTo,
         campus: dctx.campus,
         busiestByStudents: byCount,
         busiestByPercent: byPercent,
-        enrollment: { students: ctx.facts.populationSummary.total, period: ctx.facts.populationSummary.reportingPeriod },
+        enrollment: { students: ctx.facts.populationSummary.total, staff: ctx.facts.populationSummary.staff ?? 0, period: ctx.facts.populationSummary.reportingPeriod },
       });
     },
   });

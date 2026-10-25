@@ -14,8 +14,11 @@ const base = JSON.parse(readFileSync(new URL('../public/data/demo-day.json', imp
 
 test('published roster conserves population with separate sourced and estimated housing', () => {
   const result = buildPopulation(base, source, population);
-  assert.equal(result.agents.length, 36977);
-  assert.equal(new Set(result.agents.map(a => a.id)).size, 36977);
+  // 36,977 students, then 11,140 modeled employees (sim/staff.ts; tests/staff.test.mjs).
+  assert.equal(result.populationSummary.total, 36977);
+  assert.equal(result.agents.filter(a => a.role !== 'staff').length, 36977);
+  assert.equal(result.agents.length, 36977 + 11140);
+  assert.equal(new Set(result.agents.map(a => a.id)).size, 36977 + 11140);
   assert.equal(result.agents.filter(a => a.studentLevel === 'undergraduate').length, 18289);
   assert.equal(result.agents.filter(a => a.residency === 'resident' && a.studentLevel === 'undergraduate').length, 10048);
   assert.equal(result.populationSummary.mappedResidents, 7257);

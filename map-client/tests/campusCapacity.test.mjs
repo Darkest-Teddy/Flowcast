@@ -50,7 +50,7 @@ test('every place has a positive, finite capacity and the whole population is pl
     assert.ok(Number.isFinite(location.capacity) && location.capacity > 0, `${location.id} capacity ${location.capacity}`);
   }
   for (const day of plainDays) {
-    assert.equal(day.agents.length, 36977);
+    assert.equal(day.agents.length, 36977 + 11140); // students, then modeled faculty and staff (sim/staff.ts)
     assert.equal(new Set(day.stays.map((stay) => stay.agent)).size, day.agents.length, day.day);
   }
 });
@@ -86,7 +86,7 @@ test('seven conditioned days have complete itineraries and no seated or optional
     const conditions = conditionsFor({ date, weekday, calendar: data.academicCalendar, weather: null });
     const day = buildSourceDay(base, data, weekday, transit, { eventDate: date, conditions, model });
     const capacity = new Map(day.locations.map((location) => [location.id, location]));
-    assert.equal(day.agents.length, 36977);
+    assert.equal(day.agents.length, 36977 + 11140); // students, then modeled faculty and staff (sim/staff.ts)
     const parts = new Map(day.agents.map(agent => [agent.id, []]));
     const events = new Map();
     for (const stay of day.stays) {
@@ -133,7 +133,7 @@ test('seven conditioned days have complete itineraries and no seated or optional
       if (peak > location.capacity) over.push(`${id} ${peak}/${location.capacity}`);
     }
     for (const g of day.gatherings) assert.ok(g.attendees <= g.capacity);
-    console.log(`${day.day}: 36977 complete itineraries; retained classroom wait peaks: ${over.join(', ') || 'none'}; waits shortened: ${day.sourceStats.classroomWaitsShortened}`);
+    console.log(`${day.day}: ${day.agents.length} complete itineraries (staff on site: ${day.sourceStats.staff.onSite}); retained classroom wait peaks: ${over.join(', ') || 'none'}; waits shortened: ${day.sourceStats.classroomWaitsShortened}`);
   }
 });
 

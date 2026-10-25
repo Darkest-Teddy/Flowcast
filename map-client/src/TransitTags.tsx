@@ -88,7 +88,7 @@ const routeLabel = (route: TransitRoute) => (route.kind === 'shuttle' ? 'BU Shut
 
 const waitingStat = (count: number | undefined) =>
   count ? `<span class="gtag-sep">·</span><span class="gtag-arr"><b>${count}</b>&nbsp;BU waiting</span>` : '';
-const waitingLabel = (count: number | undefined) => (count ? ` ${count} BU students waiting (modeled).` : '');
+const waitingLabel = (count: number | undefined) => (count ? ` ${count} BU riders waiting (modeled students and staff).` : '');
 
 function stationSpec(s: TransitStop, routes: Map<string, TransitRoute>, source: TransitSource, waiting?: number): GlassTagSpec {
   // Trains only: Kenmore is also a stop for the 57 and other buses.
@@ -181,8 +181,8 @@ function vehicleSpec(v: Vehicle, routes: Map<string, TransitRoute>, aboard: numb
   const html =
     `<span class="gtag-text"><span class="gtag-name">${badge}${esc(title)}</span>` +
     `<span class="gtag-stats"><span class="gtag-dir">${esc(where)}</span><span class="gtag-sep">·</span><b>${esc(status)}</b>` +
-    `${aboard === null ? '' : `<span class="gtag-sep">·</span><span class="gtag-arr" title="Modeled BU students on this published trip; other riders are not modeled"><b>${aboard}</b>&nbsp;BU aboard</span>`}</span></span>`;
-  return { id: v.id, key: html, html, compact: '', label: `${title}, ${where}, ${status}${aboard === null ? '' : `, ${aboard} modeled BU students aboard`}` };
+    `${aboard === null ? '' : `<span class="gtag-sep">·</span><span class="gtag-arr" title="Modeled BU students and staff on this published trip; other riders are not modeled"><b>${aboard}</b>&nbsp;BU aboard</span>`}</span></span>`;
+  return { id: v.id, key: html, html, compact: '', label: `${title}, ${where}, ${status}${aboard === null ? '' : `, ${aboard} modeled BU riders aboard`}` };
 }
 
 export function TransitTags({ ref }: { ref: Ref<TransitTagsHandle> }) {

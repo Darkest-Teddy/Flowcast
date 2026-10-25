@@ -2,12 +2,15 @@ import { carriedForwardHours, dateForWeekday, openingHoursForDate, type CampusDa
 import { effectiveMeetingIntervals } from '../data/academicCalendar';
 import type { Agent, DayData, EstimatedActivityProfile, EstimatedHousingProfile } from './playback';
 import { countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
+import { buildStaffRoster, type EmployeeHeadcounts } from './staff';
 
 export interface PopulationData {
   schemaVersion: 1;
   students: { total: number; undergraduate: number; graduate: number; reportingPeriod: string;
     cohorts: { level: 'undergraduate' | 'graduate'; attendance: 'full-time' | 'part-time'; headcount: number }[] };
   housing: { estimatedUndergraduateResidents: number };
+  /** Published BU employee headcounts (faculty and staff); simulated by sim/staff.ts. */
+  employees?: EmployeeHeadcounts;
   locationCapacities: Record<string, number>;
   residentialCapacities: Record<string, number>;
   locationNames?: Record<string, string>;
@@ -18,10 +21,14 @@ export interface PopulationData {
   sources: { url: string }[];
 }
 export interface PopulationSummary {
-  total: number; mappedResidents: number; residentsOutsideMap: number; commuters: number;
+  /** Students only. Employees are `staff`. */
+  total: number;
+  /** Simulated BU employees (faculty and staff), after the students in the roster; 0 without them. */
+  staff: number;
+  staffReportingPeriod?: string; mappedResidents: number; residentsOutsideMap: number; commuters: number;
   reportingPeriod: string; campusAllocation: string; estimatedGraduateResidents: number; estimatedMappedResidents: number;
 }
-export interface PopulationBase extends DayData { populationSummary: PopulationSummary }
+export interface PopulationBase extends DayData { populationSummary: PopulationSummary; employees?: EmployeeHeadcounts }
 
 function hash(key: string) {
   let n = 2166136261;
@@ -83,8 +90,9 @@ export const RESIDENCE_OCCUPANCY = 0.96;
  * nobody: Hawes (Wightman Mansion, Fenway) has no student use on record. */
 export const UNUSED_LOCATIONS: ReadonlySet<string> = new Set(['hawes']);
 
-/** The institutional roster includes people outside the mapped study area. */
-export function buildPopulation(base: DayData, source: CampusData, population: PopulationData): PopulationBase {
+/** The institutional roster includes people outside the mapped study area. Students come first; BU
+ * employees (sim/staff.ts) follow unless `staff: false`. */
+export function buildPopulation(base: DayData, source: CampusData, population: PopulationData, options: { staff?: boolean } = {}): PopulationBase {
   const cohorts = population.students.cohorts;
   if (cohorts.some((c) => !Number.isInteger(c.headcount) || c.headcount < 0)
     || cohorts.reduce((sum, c) => sum + c.headcount, 0) !== population.students.total) throw new Error('Population cohorts do not match the published total');
@@ -179,9 +187,14 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
       if (profile.studentLevel === 'graduate') estimatedGraduateResidents++;
     }
   }
-  return { ...base, agents, locations, trips: [], populationSummary: {
-    total: agents.length, mappedResidents, residentsOutsideMap: residents.filter(a => a.home === 'off-campus').length, estimatedGraduateResidents, estimatedMappedResidents,
-    commuters: agents.length - residents.length - estimatedGraduateResidents, reportingPeriod: population.students.reportingPeriod,
+  const students = agents.length;
+  const employees = options.staff === false ? undefined : population.employees;
+  const staff = buildStaffRoster(employees, campuses);
+  if (employees && employees.total !== employees.charlesRiver + employees.medical + (employees.overseas ?? 0)) throw new Error('Employee campus headcounts do not match the published total');
+  for (const agent of staff) agents.push(agent);
+  return { ...base, agents, locations, trips: [], ...(employees ? { employees } : {}), populationSummary: {
+    total: students, staff: staff.length, ...(employees ? { staffReportingPeriod: employees.reportingPeriod } : {}), mappedResidents, residentsOutsideMap: residents.filter(a => a.home === 'off-campus').length, estimatedGraduateResidents, estimatedMappedResidents,
+    commuters: students - residents.length - estimatedGraduateResidents, reportingPeriod: population.students.reportingPeriod,
     campusAllocation: 'Undergraduate primary campus starts at Charles River, consistent with FY2026 campus FTE categories; housing assignments and the Fenway relocation plan then apply. Graduate primary campuses use eligible weekly section seat weights, counting cross-listed sections once. FTE is context, not a headcount conversion; online enrollment and actual campus headcounts remain unknown.',
   } };
 }

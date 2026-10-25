@@ -1,7 +1,8 @@
-// The public on BU's streets: residents, workers, patients and visitors who are not students.
+// The public on BU's streets: residents, workers, patients and visitors who are not BU students or
+// staff. (Below, "students" means every simulated BU person: students and modeled staff, sim/staff.ts.)
 //
-// Students are simulated person by person and are the only people in university buildings. The
-// streets and the T are busier than the students alone make them: the MBTA's ridership counts
+// Students and staff are simulated person by person and are the only people in university buildings. The
+// streets and the T are busier than they alone make them: the MBTA's ridership counts
 // and the pedestrian counts near campus (data/observations.ts) measure everyone. This module
 // fills that gap with walkers who are not students:
 //
