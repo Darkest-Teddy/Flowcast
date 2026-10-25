@@ -25,7 +25,6 @@ import {
   type DamageUniforms, type TaggedModel,
 } from './buildingDamage';
 import type { BuildingDamageFrame, DamageFootprint } from '../sim/disasterDamage';
-import { LOW_MEMORY } from '../perf/quality';
 
 export interface BuildingModelEntry {
   osm: string; // e.g. "way/277434241", the same ids as demo-day.json's buildings
@@ -110,7 +109,7 @@ export async function loadBuildingManifest(url = '/data/building-models.json'): 
  * Fetch and parse campus GLBs (all, or just `only`), plus their lit-window meshes unless `lights`
  * is false: a touch device never draws those (perf/quality.ts), so it doesn't hold them either.
  */
-export async function loadBuildingModels(manifest: BuildingModelManifest, only?: string[], lights = !LOW_MEMORY): Promise<BuildingModels> {
+export async function loadBuildingModels(manifest: BuildingModelManifest, only?: string[], lights = true): Promise<BuildingModels> {
   const jobs: [string, string][] = [];
   for (const c of manifest.campuses) {
     if (only && !only.includes(c.id)) continue;
@@ -130,9 +129,9 @@ export const DEFERRED_CAMPUSES = ['medical'];
  * Convenience: manifest + the models of every campus that isn't deferred, in one call; or of
  * `only` those campuses (a phone loads just the one it shows).
  */
-export async function loadBuildings(url?: string, only?: string[]) {
+export async function loadBuildings(url?: string, only?: string[], lights = true) {
   const manifest = await loadBuildingManifest(url);
-  const models = await loadBuildingModels(manifest, only ?? manifest.campuses.map((c) => c.id).filter((id) => !DEFERRED_CAMPUSES.includes(id)));
+  const models = await loadBuildingModels(manifest, only ?? manifest.campuses.map((c) => c.id).filter((id) => !DEFERRED_CAMPUSES.includes(id)), lights);
   return { manifest, models };
 }
 
@@ -190,11 +189,11 @@ export function keepOnlyCampus(models: BuildingModels, campus: string) {
 
 const loading = new Set<string>();
 /** Load a deferred campus into `models` (once; later calls are no-ops). Resolves when it's drawable. */
-export async function loadCampusModels(manifest: BuildingModelManifest, models: BuildingModels, campus: string): Promise<void> {
+export async function loadCampusModels(manifest: BuildingModelManifest, models: BuildingModels, campus: string, lights = true): Promise<void> {
   if (models[campus] || loading.has(campus)) return;
   loading.add(campus);
   try {
-    Object.assign(models, await loadBuildingModels(manifest, [campus]));
+    Object.assign(models, await loadBuildingModels(manifest, [campus], lights));
   } finally {
     loading.delete(campus);
   }

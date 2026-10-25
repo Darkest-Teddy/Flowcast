@@ -685,7 +685,7 @@ export default function App() {
         track('Rolling out trains and buses', loadVehicleModels()).catch(() => ({})),
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
         // A phone holds one campus's models at a time (perf/quality.ts LOW_MEMORY): the one it opens on.
-        track('Raising campus buildings', LOW_MEMORY ? loadBuildings(undefined, [campusRef.current]) : loadBuildings()).catch(() => null),
+        track('Raising campus buildings', LOW_MEMORY ? loadBuildings(undefined, [campusRef.current], false) : loadBuildings()).catch(() => null),
         track('Lining the streets', loadStreet()).catch(() => null),
         track('Reading campus data', loadCampusData()),
         track('Placing landmarks', loadMonuments()).catch(() => null),
@@ -982,7 +982,7 @@ export default function App() {
       const deferred = detailedBuildings && !LOW_MEMORY
         ? DEFERRED_CAMPUSES.flatMap((id) => { const b = campusBounds(detailedBuildings.manifest, id, 0); return b ? [{ id, bounds: b }] : []; })
         : [];
-      loadDeferredRef.current = (id: string) => { if (detailedBuildings) void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id); };
+      loadDeferredRef.current = (id: string) => { if (detailedBuildings) void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id, !LOW_MEMORY); };
       /*
        * A phone shows one campus: its models only (the others' are dropped, and their GPU buffers
        * with them), and a camera held to it, so the base map never loads tiles for the rest of
@@ -992,7 +992,7 @@ export default function App() {
         if (!LOW_MEMORY) return;
         if (detailedBuildings) {
           keepOnlyCampus(detailedBuildings.models, id);
-          void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id);
+          void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id, false);
         }
         const bounds = detailedBuildings ? campusBounds(detailedBuildings.manifest, id, CAMPUS_MARGIN_M) : null;
         basemap.limitTo(bounds, CAMPUS_MIN_ZOOM);
