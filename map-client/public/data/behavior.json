@@ -113,14 +113,14 @@
       }
     },
     "visitLengthSpread": {
-      "base": 0,
+      "base": 0.45,
       "min": 0,
-      "max": 0.8,
-      "unit": "± share",
+      "max": 1,
+      "unit": "σ (log)",
       "label": "visit length spread",
       "provenance": {
         "kind": "assumption",
-        "note": "Today every visit of a kind lasts the same time."
+        "note": "Visit lengths are lognormal around the menu's minutes (mean-preserving): log-space σ 0.45 puts the median visit at about 0.9× the mean and one in ten over 1.6×; 30% of the variation is a stable personal habit (sim/visitLength.ts)."
       }
     },
     "gapPlacement": {
@@ -1017,17 +1017,17 @@
         {
           "target": "visitLengthSpread",
           "op": "set",
-          "value": 0.5,
+          "value": 0.45,
           "tune": {
-            "min": 0,
-            "max": 0.6,
-            "step": 0.1
+            "min": 0.2,
+            "max": 0.7,
+            "step": 0.05
           }
         }
       ],
       "provenance": {
         "kind": "fitted",
-        "note": "A clash with a class used to drop the meal or study session (18k rejected visits on a Wednesday); now it moves to the nearest free gap in its window. Visit lengths vary ±40%.",
+        "note": "A clash with a class used to drop the meal or study session (18k rejected visits on a Wednesday); now it moves to the nearest free gap in its window. Visit lengths are skewed (lognormal, log-space σ 0.45) around each menu's mean.",
         "validation": {
           "totalLoss": 7.942
         }
@@ -2297,8 +2297,8 @@
       {
         "modifier": "calibration-fit-into-gaps",
         "target": "visitLengthSpread",
-        "start": 0.5,
-        "value": 0.5
+        "start": 0.45,
+        "value": 0.45
       },
       {
         "modifier": "calibration-library-weekday",
