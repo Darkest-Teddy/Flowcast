@@ -93,7 +93,7 @@ import type { DayInfo } from './sim/explain';
 import { loadOutdoor, type OutdoorFile } from './sim/outdoor';
 import { outdoorCount, outdoorIndex, outdoorPeople, type OutdoorIndex } from './layers/outdoor';
 import type { WeatherMode } from './weather/weather';
-import { IncidentPanel, type IncidentRun } from './IncidentPanel';
+import { IncidentPanel, SimulatedGamePanel, type IncidentRun } from './IncidentPanel';
 import { applyIncident, type IncidentKind } from './sim/incidents';
 import { damageAt } from './sim/disasterDamage';
 import { damageExclusionAreas, fallbackDamageLayers } from './layers/damageFallback';
@@ -121,7 +121,7 @@ import { campusParkingEvents, createParkingModel, loadParking, parkingAt, parkin
 import { loadEventSources, type EventSources } from './data/eventCalendar';
 import { eventLoadAt, eventLoadLabel, NO_EVENT_DAY, planEventDay, setCurrentEventDay, type EventDay } from './sim/eventAttendance';
 import { NO_VISITORS, planVisitors, setCurrentVisitorPlan, visitorFromId, visitorsAt, type VisitorPlan } from './sim/visitors';
-import { GAME_ID, withSimulatedGame, type SimulatedGame } from './sim/simulatedGame';
+import { GAME_ID, OPPONENTS, withSimulatedGame, type SimulatedGame } from './sim/simulatedGame';
 // Joined students (persona/): a phone builds a character at /join, this display draws it, starred.
 import { JoinQrCard } from './persona/JoinQrCard';
 import { PersonaDetails } from './persona/PersonaDetails';
@@ -1563,6 +1563,8 @@ export default function App() {
   const playSimulatedGame = (game: SimulatedGame | null) => {
     simulatedGameRef.current = game;
     setSimulatedGame(game);
+    // The game is a venue event, so it plays only with campus events on (and a rebuilt day keeps it).
+    if (game && !eventsOnRef.current) toggleEvents(true);
     const data = sourceData;
     const date = eventDayRef.current.date ?? (data ? eventDateFor(data, weekdayRef.current) : null)
       ?? (liveRef.current ? wallClockDate() : data ? dateForWeekday(data, weekdayRef.current) : null);
@@ -1605,6 +1607,8 @@ export default function App() {
         outdoorStaysRef.current.set(prepared.playback, prepared.outdoorStays);
         playbackRef.current = prepared.playback;
         setSimDay(prepared.day);
+        // playDay returns early while the engine runs, so the new date's venue events are planned here.
+        planVenueEvents(prepared.day.eventDate);
         setDayInfo(prepared.info);
         setEngineStatus('ready');
       }, (error: Error) => { if (!stale) { engineActiveRef.current = false; setEngineStatus('unavailable'); setEngineError(error.message); } });
@@ -1635,7 +1639,8 @@ export default function App() {
   const jumpToVenueEvent = (date: string, startSec: number) => {
     pickEventDate(date);
     scrub(Math.max(0, startSec - 3600));
-    const venue = eventDayRef.current.events.find((e) => e.startSec === startSec)?.venue;
+    // Planned from the sources: with the engine running, the date's own plan arrives with its day.
+    const venue = planEventDay(withSimulatedGame(eventSourcesRef.current, date, simulatedGameRef.current), date).events.find((e) => e.startSec === startSec)?.venue;
     if (venue) basemapRef.current?.flyTo(venue.position, 16.6);
   };
   const selectSource = (location: CampusLocation, zoom?: number) => {
@@ -1903,22 +1908,17 @@ export default function App() {
   /*
    * Starting a what-if. Six of the seven are incidents the engine runs directly.
    * The Red Sox game is not an incident at all: it is a crowd, and the engine
-   * already models Fenway's games through the venue calendar, so it plays the
-   * next real game rather than inventing one.
+   * already models Fenway's games through the venue calendar, so it stages a
+   * sold-out game on the shown day, first pitch an hour on (as the Incidents
+   * tab's game does): the clock, and the panels' daylight theme, stay put.
    */
-  const nextFenwayGame = (() => {
-    const calendar = eventSourcesRef.current.calendar;
-    if (!calendar || !fenway) return null;
-    return calendar.events
-      .filter((e) => e.venueId === fenway.id && /red sox|baseball|mlb/i.test(`${e.name} ${e.kind}`))
-      .sort((a, b) => a.start.localeCompare(b.start))[0] ?? null;
-  })();
+  const gameFirstPitch = Math.min(23 * 3600, Math.ceil(((hud?.time ?? timeRef.current) + 3600) / 300) * 300);
 
   const startWhatIf = () => {
     if (whatIfKind === 'red-sox') {
-      if (!nextFenwayGame) return;
-      const start = new Date(nextFenwayGame.start);
-      jumpToVenueEvent(nextFenwayGame.start.slice(0, 10), start.getHours() * 3600 + start.getMinutes() * 60);
+      if (!fenway) return;
+      playSimulatedGame({ firstPitch: gameFirstPitch, opponent: OPPONENTS[0] });
+      basemapRef.current?.flyTo(fenway.position as [number, number], 16.6);
       return;
     }
     if (!whatIfCentre) return;
@@ -2396,6 +2396,10 @@ export default function App() {
                 siren={siren} onSiren={toggleSiren} responsePending={responsePending}
                 game={simulatedGame} gameEstimate={eventDay.events.find((e) => e.event.id === GAME_ID) ?? null}
                 onGame={playSimulatedGame} landmarks={LANDMARK_TARGETS} />
+            ) : simulatedGame ? (
+              /* A running game is the panel's readout too, until it is ended. */
+              <SimulatedGamePanel time={hud.time} game={simulatedGame}
+                estimate={eventDay.events.find((e) => e.event.id === GAME_ID) ?? null} onGame={playSimulatedGame} />
             ) : (
               <>
                 {search.trim() && (
@@ -2438,10 +2442,10 @@ export default function App() {
                   outside={whatIfOutside}
                   onOutside={setWhatIfOutside}
                   startLabel={whatIfKind === 'red-sox'
-                    ? (nextFenwayGame ? `Play ${nextFenwayGame.name}` : 'No Fenway game in the calendar')
+                    ? (fenway ? `First pitch at ${formatClock(gameFirstPitch)}` : 'Fenway Park is not on the map')
                     : `Start at ${formatClock(hud.time)}`}
                   onStart={startWhatIf}
-                  canStart={whatIfKind === 'red-sox' ? Boolean(nextFenwayGame) : Boolean(whatIfCentre)}
+                  canStart={whatIfKind === 'red-sox' ? Boolean(fenway) : Boolean(whatIfCentre)}
                   onAssumptions={() => setAssumptionsOpen((v) => !v)}
                 />
 

@@ -55,7 +55,7 @@ export interface IncidentRun {
 }
 
 /** A simulated Red Sox game at Fenway: start one with a first pitch and opponent, follow its crowd, end it. */
-function SimulatedGamePanel({ time, game, estimate, onGame }: {
+export function SimulatedGamePanel({ time, game, estimate, onGame }: {
   time: number;
   game: SimulatedGame | null;
   estimate: VenueEventEstimate | null;
