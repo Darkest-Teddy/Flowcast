@@ -92,11 +92,11 @@ interface DomainSpec { id: string; title: string; description: string; datasets:
 
 const DOMAINS: DomainSpec[] = [
   { id: 'crowds', title: 'Crowds', description: 'How full each place is in the simulation at any minute of the reference week: simulated students over each place’s stated capacity, with the assumptions behind them.',
-    datasets: ['simulation', 'capacityBasis', 'assumptions'], examples: ['Which library is least crowded right now?', 'How busy is GSU over the day?', 'Why is Mugar so full in the evening?'] },
+    datasets: ['simulation', 'capacityBasis', 'assumptions'], examples: ['Which library is least crowded right now?', 'How busy is GSU over the day?', 'When is FitRec quietest this week?', 'Why is Mugar so full in the evening?'] },
   { id: 'places', title: 'Places, hours and dining', description: 'Published opening hours for dining halls, cafés, libraries and gyms, whether a place is open now, and published figures such as meals served a day.',
     datasets: ['diningHours', 'libraryHours', 'fitrecHours', 'evidence'], examples: ['Is Warren dining open now?', 'When does the Science & Engineering Library close?', 'How many meals does Marciano serve?'] },
-  { id: 'classes', title: 'Classes and rooms', description: 'Where and when courses meet from the published class schedule, and rooms with no published class at a time.',
-    datasets: ['classSchedule'], examples: ['Where does CAS CS 132 meet next?', 'Which rooms in CDS are free now?'] },
+  { id: 'classes', title: 'Classes and rooms', description: 'Where and when courses meet from the published class schedule, rooms with no published class at a time, and rooms and evenings for a club event away from big venue events and modeled crowds. Nothing is booked.',
+    datasets: ['classSchedule'], examples: ['Where does CAS CS 132 meet next?', 'Which rooms in CDS are free now?', 'Which room and evening this week suit a 40-person club event?'] },
   { id: 'walking', title: 'Walking', description: 'Walking distance and time between places along mapped footpaths, at a stated walking speed.',
     datasets: ['walkRoutes'], examples: ['How long is the walk from CAS to Mugar?', 'How far is FitRec from Warren Towers?'] },
   { id: 'events', title: 'Events', description: 'Published campus events, how they change simulated crowding on a date, and big-venue games and concerts. Registrations are sign-ups, never attendance.',
@@ -140,6 +140,8 @@ const TOOL_DATASETS: Record<string, DatasetId[]> = {
   campus_overview: ['simulation', 'enrollment'],
   list_events: ['terrierCentral'],
   free_rooms: ['classSchedule'],
+  best_times: ['eventImpact', 'diningHours'],
+  event_slots: ['classSchedule', 'eventImpact', 'venueCalendar', 'parking'],
   find_course: ['classSchedule'],
   walking_route: ['walkRoutes'],
   model_basis: ['assumptions'],
@@ -170,6 +172,10 @@ export function datasetsForResult(tool: string, value: Record<string, any>, kind
   if (tool === 'emergency_info') return value.firstAlarm ? ['fireNetwork', 'incidentModel', ...(value.simulatedStudentsInside ? ['simulation' as const] : [])] : ['incidentModel'];
   if (tool === 'transit_near') return /Shuttle/.test(String(value.timetables)) ? ['mbta', 'shuttle'] : ['mbta'];
   if (tool === 'event_impact') return ['eventImpact', 'terrierCentral', ...(value.venueEvents?.length ? ['venueCalendar' as const] : [])];
+  if (tool === 'best_times') {
+    const kind = String(value.kind ?? '');
+    return value.measure ? ['eventImpact', hoursFor(kind)] : [];
+  }
   if (tool === 'place_day' || tool === 'place_info') {
     const base = (TOOL_DATASETS[tool] ?? []).filter((d) => d !== 'diningHours');
     const kind = kindOf(String(value.place ?? ''));

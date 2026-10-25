@@ -1,0 +1,131 @@
+.plan {
+  margin-top: var(--space-10);
+}
+
+.intro {
+  max-width: 70ch;
+  margin-bottom: var(--space-4);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+/* The request: a row of fields on glass that wraps on narrow screens. */
+.form {
+  composes: glass from global;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
+}
+
+.days {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.days legend {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.hint {
+  color: var(--color-ink-tertiary);
+  font-weight: var(--weight-regular);
+}
+
+.dayChip {
+  min-width: 48px;
+  min-height: var(--control-height-touch);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-capsule);
+  background: var(--glass-fill-strong);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+}
+
+.dayChip[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.dayChip:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-field-focus);
+}
+
+.submit {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.problem {
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.results {
+  margin-top: var(--space-5);
+}
+
+/* The honesty caveat sits above every answer, never folded away. */
+.caveat {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-card);
+  background: var(--color-warn-soft);
+  font-size: var(--text-sm);
+}
+
+.note,
+.method {
+  margin-top: var(--space-3);
+  max-width: 75ch;
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-sm);
+}
+
+.method summary {
+  min-height: var(--control-height-touch);
+  padding-block: var(--space-3);
+  cursor: pointer;
+  color: var(--color-ink-secondary);
+  font-weight: var(--weight-medium);
+}
+
+.method p + p {
+  margin-top: var(--space-2);
+}
+
+.error {
+  margin-top: var(--space-4);
+  color: var(--color-bad);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 860px) {
+  .form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

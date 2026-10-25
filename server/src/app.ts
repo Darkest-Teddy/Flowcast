@@ -6,6 +6,7 @@ import { personalScheduleSchema } from './personalSchedule';
 import type { PersonalSchedule } from '../../map-client/src/personalSchedule';
 import type pg from 'pg';
 import { dashboardRouter } from './dashboard/router';
+import { findEventSlots } from './eventSlots';
 import { isIP } from 'node:net';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
@@ -137,7 +138,15 @@ export function createApp(options: AppOptions) {
   // JSON escaping can expand a 1 MiB calendar to six times its UTF-8 size.
   app.use(/^\/api\/dashboard\/schedule(?:\/preview)?\/?$/i, express.json({ limit: 6 * 1024 * 1024 + 4096 }));
   app.use(express.json({ limit: '128kb' }));
-  app.use('/api/dashboard', dashboardRouter(options.dashboardPool));
+  // Event slots (GET /api/dashboard/event-slots) answer from the loaded campus model, not the database.
+  const chatFacts = campus.facts?.chat;
+  const referenceWeekStart = campus.facts?.data?.referenceWeekStart;
+  app.use('/api/dashboard', dashboardRouter(options.dashboardPool, {
+    eventSlots: chatFacts?.eventImpact && referenceWeekStart ? (query) => findEventSlots(query, {
+      locations: campus.locations, meetings: campus.meetings, referenceWeekStart,
+      impact: chatFacts.eventImpact, venues: chatFacts.venues, parking: chatFacts.parking,
+    }) : undefined,
+  }));
   let domains: DataDomain[] | undefined;
   const directory = () => (domains ??= options.directory?.() ?? buildDirectory(campus));
 
