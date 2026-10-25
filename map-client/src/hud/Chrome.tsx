@@ -2,14 +2,15 @@
  * The map's chrome: everything floating over the scene.
  *
  * Consolidated from one large right-hand sheet plus a wide bottom toolbar into
- * five pieces that each own a corner, so the map itself is the page and the
- * controls sit at its edges:
+ * pieces that each own a zone, so the map itself is the page and the controls
+ * sit at its edges (hud.css lays them out):
  *
  *   brand   top left      what this is
- *   rail    left edge     what is drawn on the map, one icon per layer
- *   tabs    top centre    what you are reading: Live, Log, Events, Analytics
- *   status  top right     the clock and the weather
- *   time    bottom left   play, speed, and whether the clock is live
+ *   rail    under brand   what is drawn on the map, one icon per layer
+ *   tabs    top centre    what you are reading: Analytics, Events, Log
+ *   status  top right     the clock and the weather, and under them the day,
+ *                         the drag bar, play, speed and whether the clock is live
+ *   legend  bottom left   what the crowd colours mean
  *   ask     bottom centre a question about the campus
  *
  * These are presentational. All state stays in App.tsx; nothing here owns the
@@ -20,14 +21,15 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 /* Type only: the modes belong to the tag layer that implements them, and the
    rail's menu must offer exactly those three. No runtime dependency. */
 import type { TagMode } from '../BuildingTags';
+import { MARK_PATH, MARK_VIEWBOX } from '../../../theme/mark';
 
 /* ---------------------------------------------------------------------------
  * Icons. One stroke weight, one size, currentColor throughout, so a button's
  * state is a colour change and never a different asset.
  * ------------------------------------------------------------------------- */
 const svg = {
-  width: 20,
-  height: 20,
+  width: 18,
+  height: 18,
   viewBox: '0 0 24 24',
   fill: 'none',
   stroke: 'currentColor',
@@ -118,13 +120,13 @@ export const HudIcons = {
   ),
   /* Beside the time, so the reading says what it is with no label. */
   clock: () => (
-    <svg {...svg} strokeWidth={2}>
+    <svg {...svg}>
       <circle cx="12" cy="12" r="8.5" />
       <path d="M12 7.5V12l3.2 2" />
     </svg>
   ),
   chevronDown: () => (
-    <svg {...svg} width={14} height={14} strokeWidth={2}>
+    <svg {...svg} width={14} height={14}>
       <path d="m6 9.5 6 5.5 6-5.5" />
     </svg>
   ),
@@ -142,7 +144,7 @@ export const HudIcons = {
   ),
   play: ({ playing }: { playing: boolean }) => (
     <svg {...svg}>
-      {playing ? <path d="M9 5v14M15 5v14" strokeWidth={2.2} /> : <path d="M7.5 4.8v14.4L19 12z" fill="currentColor" stroke="none" />}
+      {playing ? <path d="M9 5v14M15 5v14" /> : <path d="M7.5 4.8v14.4L19 12z" fill="currentColor" stroke="none" />}
     </svg>
   ),
   send: () => (
@@ -245,7 +247,10 @@ export function HudBrand({
 
   return (
     <div className="hud-brand" ref={root}>
-      <img src="/favicon.svg" alt="" width={22} height={22} />
+      {/* Drawn inline, so it takes the app's theme (--brand-mark) rather than the system's, as the favicon would. */}
+      <svg className="hud-brand-mark" viewBox={MARK_VIEWBOX} aria-hidden focusable="false">
+        <path d={MARK_PATH} />
+      </svg>
       <span className="hud-brand-name">{name}</span>
 
       {campus &&
@@ -451,15 +456,19 @@ export function HudTabs<T extends string>({
 }
 
 /* ---------------------------------------------------------------------------
- * Top right: the clock and the weather.
+ * Top right: the clock, the weather and the time controls.
  * ------------------------------------------------------------------------- */
 /*
- * One block in the top right for everything about when.
+ * One card in the top right for everything about when.
  *
  * The reading sits on top -- the clock and the temperature, the two things you
- * glance at -- and everything that changes the time sits under it: the day, the
- * drag bar, and the transport. They were spread across two corners before, which
- * meant the control that moved the clock was nowhere near the clock.
+ * glance at -- and everything that changes the time sits under it: the day and
+ * the drag bar, then the transport and the speeds. They were a floating plate
+ * and a separate bar before, two materials for one subject.
+ *
+ * On a phone the controls fold away under the reading (hud.css), and the
+ * chevron at the end of it opens them; on a wide screen it is hidden and the
+ * card is always open.
  */
 export function HudStatus({
   time,
@@ -478,15 +487,11 @@ export function HudStatus({
   /** The weather chip, portalled in by WeatherControls. */
   children?: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+  const hasControls = Boolean(day || scrubber || controls);
+
   return (
-    <div className="hud-status" role="group" aria-label="Time and weather">
-      {/*
-        The reading has no panel behind it. The clock and the temperature are
-        readings of the world the map is showing, so they sit on the map the way
-        a label sits on a photograph; a shadow carries them over light and dark
-        ground instead of a backdrop. Everything that *changes* the time keeps
-        its glass, because a control needs an edge you can aim at.
-      */}
+    <div className="hud-status" role="group" aria-label="Time and weather" data-open={open || undefined}>
       <div className="hud-status-reading">
         <HudIcons.clock />
         <output className="hud-clock" aria-live="off">
@@ -495,12 +500,28 @@ export function HudStatus({
         {live && <span className="hud-live">Clock</span>}
         <span className="hud-status-spacer" />
         {children}
+        {hasControls && (
+          <button
+            type="button"
+            className="hud-status-more"
+            aria-expanded={open}
+            aria-controls="hud-status-controls"
+            aria-label={open ? 'Hide time controls' : 'Show time controls'}
+            onClick={() => setOpen((o) => !o)}
+          >
+            <HudIcons.chevronDown />
+          </button>
+        )}
       </div>
 
-      {(day || scrubber || controls) && (
-        <div className="hud-status-controls">
-          {day}
-          {scrubber && <div className="hud-scrubber">{scrubber}</div>}
+      {hasControls && (
+        <div className="hud-status-controls" id="hud-status-controls">
+          {(day || scrubber) && (
+            <div className="hud-status-row">
+              {day}
+              {scrubber && <div className="hud-scrubber">{scrubber}</div>}
+            </div>
+          )}
           {controls}
         </div>
       )}

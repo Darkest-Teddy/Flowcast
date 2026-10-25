@@ -1,6 +1,6 @@
 // Build-time performance readout: FPS, frame times, memory and what's being drawn.
-// On by default for now; `P` toggles it, ?perf=0 hides it. On phones it starts as just the FPS
-// figures (pressing them shows the rest), so it doesn't cover the map.
+// Off by default; `P` toggles it, and ?perf in the address opens with it shown. On phones it starts
+// as just the FPS figures (pressing them shows the rest), so it doesn't cover the map.
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { quality, type QualityMode } from './perf/quality';
 import { pacer } from './perf/pacer';
@@ -35,7 +35,11 @@ function onePercentLow(frameTimes: number[]): number {
 }
 
 export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
-  const [visible, setVisible] = useState(() => new URLSearchParams(window.location.search).get('perf') !== '0');
+  // Off unless asked for: ?perf (or ?perf=1) in the address, or the P key.
+  const [visible, setVisible] = useState(() => {
+    const perf = new URLSearchParams(window.location.search).get('perf');
+    return perf !== null && perf !== '0';
+  });
   const [sample, setSample] = useState<Sample | null>(null);
   const [tally, setTally] = useState<PerfCounts | null>(null);
   const [gpu, setGpu] = useState<GpuInfo | null>(null);

@@ -1,5 +1,6 @@
 // Glassy HTML tags floating over each tracked building, on a stem that stands on the roof. By
-// default a small pill: the level's people icon, the short name and the % (never colour alone).
+// default a small pill: the level's people icon, the short name, the level word and the % (never
+// colour alone).
 // Hovering the pill, its roof dot or the building itself, focusing it, tapping it, or selecting
 // the building expands it into the full card: kind icon, name, "87% · Packed" and a fill bar.
 // HTML rather than a deck.gl TextLayer for real typography, hover/focus states and keyboard access.
@@ -124,6 +125,8 @@ interface Tag {
   pdot: HTMLElement;
   pdotIcon: string;
   pname: HTMLElement;
+  /** The level's word ("Packed"), so the pill never says it with colour alone. */
+  pword: HTMLElement;
   ppct: HTMLElement;
   /** A venue event's crowd (visitors included), beside the student figure, never in it. */
   pevent: HTMLElement;
@@ -178,7 +181,7 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
   root.innerHTML =
     '<span class="btag-dot"></span><span class="btag-stem"></span>' +
     '<button type="button" class="btag-pill" aria-expanded="false"><span class="btag-pdot"></span>' +
-    '<span class="btag-pname"></span><span class="btag-ppct"></span><span class="btag-pevent" hidden></span></button>' +
+    '<span class="btag-pname"></span><span class="btag-pword"></span><span class="btag-ppct"></span><span class="btag-pevent" hidden></span></button>' +
     '<button type="button" class="btag-marker"></button>' +
     '<span class="btag-card" aria-hidden="true">' +
     '<span class="btag-icon"></span>' +
@@ -206,6 +209,7 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
     pdot: q('.btag-pdot'),
     pdotIcon: '',
     pname: q('.btag-pname'),
+    pword: q('.btag-pword'),
     ppct: q('.btag-ppct'),
     pevent: q('.btag-pevent'),
     event: q('.btag-event'),
@@ -618,6 +622,8 @@ function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null,
   tag.short.textContent = b.short;
   tag.pname.textContent = b.short;
   tag.pct.textContent = display.primary;
+  tag.pword.textContent = display.secondary;
+  tag.pword.hidden = !display.secondary;
   tag.ppct.textContent = display.primary;
   tag.ppct.hidden = !display.primary;
   tag.pct.hidden = !display.primary;

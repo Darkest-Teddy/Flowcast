@@ -22,6 +22,7 @@ import { createPlacer, type Box } from './layers/placement';
 import { cullLayers } from './layers/culling';
 import { buildingModelLayers, campusBounds, DEFERRED_CAMPUSES, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
+import { followLight } from './theme';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadSigns, signLayers, signTooltip } from './layers/signs';
 import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
@@ -266,7 +267,9 @@ const CHROME_REFRESH_MS = 400;
  */
 function measureChrome(): Box[] {
   const boxes: Box[] = [];
-  for (const el of document.querySelectorAll('.hud > *, .join-slot, .perf')) {
+  // The dock only groups the tabs and the rail for phones (display: contents elsewhere), so its
+  // children are measured instead of it.
+  for (const el of document.querySelectorAll('.hud > :not(.hud-dock), .hud-dock > *, .join-slot, .perf')) {
     const r = el.getBoundingClientRect();
     if (r.width > 0 && r.height > 0) boxes.push({ x0: r.left, x1: r.right, y0: r.top, y1: r.bottom });
   }
@@ -463,6 +466,8 @@ export default function App() {
   const [autoPreset, setAutoPreset] = useState<LightPreset>(() => daylightAt(START_AT).preset);
   const shownLight = light === 'auto' ? autoPreset : light;
   const lightRef = useRef<LightPreset>(shownLight); // current preset, read by the frame loop (layer tints)
+  // The panels go dark with the map (theme.ts).
+  useEffect(() => followLight(shownLight), [shownLight]);
   const lightModeRef = useRef<LightPreset | 'auto'>('auto');
   const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -2107,7 +2112,7 @@ export default function App() {
       {/*
         The chrome. Each piece owns a corner so the map stays one uninterrupted
         surface: brand top left, layers down the left edge, views across the top,
-        clock and weather top right, time bottom left, ask bottom centre.
+        clock, weather and time top right, legend bottom left, ask bottom centre, join bottom right.
       */}
       {hud && !clean && (
         <div className="hud">
@@ -2122,9 +2127,11 @@ export default function App() {
             }}
           />
 
-          <HudRail items={railItems} tagMode={tagMode} onTagMode={pickTagMode} />
-
-          <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
+          {/* The views and the layers: two corners on a wide screen, one bottom sheet on a phone (hud.css). */}
+          <div className="hud-dock">
+            <HudRail items={railItems} tagMode={tagMode} onTagMode={pickTagMode} />
+            <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
+          </div>
 
           {askContext && (
             <HudAsk>
@@ -2132,7 +2139,7 @@ export default function App() {
             </HudAsk>
           )}
 
-          {/* Bottom left, under the join card: what the three colours mean. */}
+          {/* Bottom left: what the three colours mean. */}
           <HudLegend levels={legendLevels} />
 
           {/*
@@ -2180,10 +2187,10 @@ export default function App() {
           </HudStatus>
 
           {/*
-            The bottom-left slot: the invitation to join, or the details of the character you just
-            clicked. One at a time and at a fixed height, because the performance readout stacks
-            directly above it (hud.css). The details card reads the simulation clock, so it agrees
-            with the character walking on screen.
+            The bottom-right slot, above the map's attribution: the invitation to join, or the
+            details of the character you just clicked. One at a time and at a fixed height, because
+            the panel stops above it (hud.css). The details card reads the simulation clock, so it
+            agrees with the character walking on screen.
           */}
           <div className="join-slot">
             {openPersona ? (

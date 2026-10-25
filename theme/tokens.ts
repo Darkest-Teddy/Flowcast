@@ -40,6 +40,7 @@ export const radius = {
   md: 'var(--radius-md)',
   lg: 'var(--radius-lg)',
   full: 'var(--radius-full)',
+  control: 'var(--radius-control)',
   tile: 'var(--radius-tile)',
   panel: 'var(--radius-panel)',
   card: 'var(--radius-card)',

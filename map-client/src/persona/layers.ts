@@ -16,6 +16,7 @@ import { TextLayer } from '@deck.gl/layers';
 import { CHARACTER_MODELS, characterLayers, type LoadedModels } from '../layers/agents';
 import { JOINED_MARK } from './model';
 import type { PlacedPersona } from './placement';
+import { labelFont } from '../layers/labelFont';
 
 /** Mirrors PHASES in layers/agents.ts, which does not export it. Only used to name layers. */
 const WALK_PHASES = 3;
@@ -75,7 +76,7 @@ export function personaLayers(placed: PlacedPersona[], models: LoadedModels, tim
         backgroundPadding: [6, 3],
         getTextAnchor: 'middle',
         getAlignmentBaseline: 'bottom',
-        fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
+        fontFamily: labelFont(),
         fontWeight: 600,
         // 'auto' builds the font atlas from the data, which is what lets an arbitrary name and the
         // star glyph render at all -- the default character set is ASCII only.
