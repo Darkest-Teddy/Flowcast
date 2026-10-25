@@ -36,6 +36,16 @@ export interface CampusGeo {
   walkMeters: Record<string, number>;
 }
 
+/** MBTA and BU Shuttle map stops (transitService mapStopId) with walks to nearby places. */
+export type CampusStops = Record<string, {
+  name: string;
+  /** Meters along the bundled pedestrian route from the stop to each place it has a route to. */
+  walkMeters: Record<string, number>;
+}>;
+
+/** MBTA route names and direction names (direction_id 0, 1), keyed by GTFS route id. */
+export type CampusRoutes = Record<string, { name: string; directions: [string, string] | null }>;
+
 export type EventSource = 'calendar' | 'club' | 'habit' | 'suggested';
 
 export interface ScheduleItem {

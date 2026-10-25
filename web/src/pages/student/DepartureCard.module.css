@@ -13,4 +13,7 @@
 .controls select { width: 100%; min-width: 0; }
 @media (max-width: 560px) { .controls { grid-template-columns: minmax(0, 1fr); } }
 .departure { margin-top: var(--space-4); font-weight: var(--weight-semibold); }
+.option { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-hairline-soft); }
+.option .departure { margin-top: 0; }
+.option p + p { margin-top: var(--space-2); }
 .warning { margin-top: var(--space-3); color: var(--color-ink); font-weight: var(--weight-medium); }
