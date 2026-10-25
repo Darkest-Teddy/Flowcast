@@ -58,6 +58,8 @@ export interface BuildingTagsFrame {
   footprints: BuildingFootprint[];
   locations: CampusLocation[];
   selectedId: string | null;
+  /** The selected building when an event put it there: its tag gets an orange ring. */
+  spotlitId?: string | null;
   /** Shared with the station labels; building tags are placed first. */
   placer: LabelPlacer;
   /** Ground lng/lat to screen px (the map's own projection, padding included). */
@@ -98,6 +100,7 @@ interface Tag {
   stem: number;
   shown: boolean;
   selected: boolean;
+  spotlit: boolean;
   open: boolean;
 }
 
@@ -143,6 +146,7 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
     stem: -1,
     shown: false,
     selected: false,
+    spotlit: false,
     open: false,
   };
 }
@@ -185,7 +189,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
     ref,
     () => ({
       hoverBuilding: (id) => void (s.hoveredId = id),
-      update({ buildings, footprints, locations, selectedId, placer, project, camera, roofHeights }) {
+      update({ buildings, footprints, locations, selectedId, spotlitId = null, placer, project, camera, roofHeights }) {
         const layer = layerRef.current;
         const [width, height] = s.size;
         if (!layer || !width) return;
@@ -278,6 +282,11 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
             tag.selected = selected;
             tag.root.classList.toggle('is-selected', selected);
             tag.pill.setAttribute('aria-pressed', String(selected));
+          }
+          const spotlit = b.id === spotlitId;
+          if (spotlit !== tag.spotlit) {
+            tag.spotlit = spotlit;
+            tag.root.classList.toggle('is-spotlit', spotlit);
           }
           // Hover and focus on the tag itself open it in CSS; the map's hover and the selection here.
           const open = selected || b.id === s.hoveredId;

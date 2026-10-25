@@ -36,7 +36,9 @@ export function joinUrl(): string {
  */
 const FIRST_OPEN_MS = 4_000;
 const OPEN_MS = 15_000;
-const CLOSED_MS = 45_000;
+/** Opens once every five minutes: open for OPEN_MS, closed for the rest. */
+const CYCLE_MS = 5 * 60_000;
+const CLOSED_MS = CYCLE_MS - OPEN_MS;
 
 export function JoinQrCard({ url = joinUrl() }: { url?: string }) {
   const [src, setSrc] = useState<string | null>(null);

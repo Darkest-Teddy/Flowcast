@@ -334,6 +334,9 @@ const START_TAB: Tab = ['crowds', 'data', 'transit', 'traffic', 'bikes', 'weathe
 const LINKED_ANALYTICS = ['crowds', 'data', 'transit', 'bikes'].includes(LINKED_TAB ?? '');
 /** Gap between the floating toolbar and what it sits on (the screen edge, or the phone sheet). */
 const TOOLBAR_GAP = 12;
+/** An event's "Show on map" comes in this close on its building; a stadium or arena a little less. */
+const EVENT_ZOOM = 18;
+const VENUE_ZOOM = 17.2;
 
 interface Hud {
   time: number;
@@ -379,6 +382,7 @@ export default function App() {
   const playingRef = useRef(true);
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
+  const spotlitRef = useRef<string | null>(null); // the selected building, when an event's Show on map picked it
   /* Which tab is open, for the handlers the map holds onto across renders. */
   const viewRef = useRef<View | null>(null);
   /* Analytics: which of the three subjects, and how the places list is cut. */
@@ -1142,6 +1146,7 @@ export default function App() {
             footprints: day.buildings,
             locations: populationBase.locations,
             selectedId: frameSelected,
+            spotlitId: spotlitRef.current === frameSelected ? frameSelected : null,
             placer,
             project: basemap.project,
             camera: basemap.getCamera(),
@@ -1230,6 +1235,7 @@ export default function App() {
             time: t,
             speed: speedRef.current,
             selectedId: selectedRef.current,
+            spotlitId: spotlitRef.current === selectedRef.current ? spotlitRef.current : null,
             zoom: basemap.getZoom(),
             roofHeights,
             volumes,
@@ -1436,6 +1442,7 @@ export default function App() {
   };
   const selectBuilding = (id: string | null) => {
     selectedRef.current = id;
+    spotlitRef.current = null;
     setSelected(id);
     /*
      * While the Log tab is open, tapping a building is picking the what-if's
@@ -1553,11 +1560,17 @@ export default function App() {
     const venue = eventDayRef.current.events.find((e) => e.startSec === startSec)?.venue;
     if (venue) basemapRef.current?.flyTo(venue.position, 16.6);
   };
-  const selectSource = (location: CampusLocation) => {
+  const selectSource = (location: CampusLocation, zoom?: number) => {
     setCampus(location.campus ?? 'charles-river');
     selectedRef.current = location.kind === 'outdoor' ? null : location.building;
     setSelected(selectedRef.current);
-    basemapRef.current?.flyTo(location.position);
+    spotlitRef.current = null;
+    basemapRef.current?.flyTo(location.position, zoom);
+  };
+  /** An event's "Show on map": in close on its building, whose tag wears the event's orange ring. */
+  const showEventAt = (location: CampusLocation) => {
+    selectSource(location, Math.max(EVENT_ZOOM, basemapRef.current?.getZoom() ?? 0));
+    spotlitRef.current = selectedRef.current;
   };
   const refreshIncidentHud = () => {
     const playback = playbackRef.current;
@@ -2373,7 +2386,7 @@ export default function App() {
                 onBack={() => setOpenEventId(null)}
                 onShow={(event) => {
                   const where = eventLocation(event);
-                  if (where) selectSource(where);
+                  if (where) showEventAt(where);
                 }}
                 buildingName={eventLocation(openEvent)?.name ?? null}
               />
@@ -2395,9 +2408,9 @@ export default function App() {
             {/* The scheduling tools stay: making an event is a different job from
                 reading what is on, and nothing in the handoff replaces them. */}
             <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
-              onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
+              onToggle={toggleEvents} onPickDate={pickEventDate} onShow={showEventAt}
               venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
-              time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
+              time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, VENUE_ZOOM)} onJump={jumpToVenueEvent} />
           </section>
         )}
 
