@@ -1013,12 +1013,29 @@ export default function App() {
       let lastParking = 0;
       let runnersFor: IncidentRun | null = null;
       let meteorRunners = new Map<string, IncidentRun['participants'][number]>();
+      /*
+       * The HTML over the map (tags, roof dots, the what-if ring) is positioned
+       * after the map draws, not in the tick. This loop runs before the map's in
+       * each display frame, and the map applies a drag or an ease inside its own
+       * frame: positioned here, every dot sat one camera behind the glow it marks
+       * while the view moved. The tick queues the updates; the map's render runs
+       * them with the camera it just drew. A frame the map skipped hands them to
+       * the next tick instead, so none are lost.
+       */
+      let overlays: (() => void)[] = [];
+      const positionOverlays = () => {
+        const queued = overlays;
+        overlays = [];
+        for (const update of queued) update();
+      };
+      basemap.onRender(positionOverlays);
       const tick = (now: number) => {
         // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
         if (!pacer.shouldRender(now)) {
           frame = requestAnimationFrame(tick);
           return;
         }
+        positionOverlays();
         const elapsed = now - last;
         last = now;
         let nextDay = weekdayRef.current;
@@ -1138,28 +1155,33 @@ export default function App() {
           buildingsFrom = occupancy;
           buildingsPlayback = playback;
         }
-        if (!cleanRef.current) tagsRef.current?.update({
-          buildings: buildings.filter(building => !damagedIds.has(building.id.split('#')[0])),
-          footprints: day.buildings,
-          locations: populationBase.locations,
-          selectedId: selectedRef.current,
-          placer,
-          project: basemap.project,
-          camera: basemap.getCamera(),
-          roofHeights,
-          tagMode: tagModeRef.current,
-          focusIds: focusRef.current,
-        });
+        if (!cleanRef.current) {
+          const tagBuildings = buildings.filter(building => !damagedIds.has(building.id.split('#')[0]));
+          const frameSelected = selectedRef.current, frameTagMode = tagModeRef.current, frameFocus = focusRef.current;
+          overlays.push(() => tagsRef.current?.update({
+            buildings: tagBuildings,
+            footprints: day.buildings,
+            locations: populationBase.locations,
+            selectedId: frameSelected,
+            placer,
+            project: basemap.project,
+            camera: basemap.getCamera(),
+            roofHeights,
+            tagMode: frameTagMode,
+            focusIds: frameFocus,
+          }));
+        }
         // The what-if's area, re-projected every frame: its shape depends on the
         // camera, and a circle that lagged the map would be describing a different
         // piece of ground from the one the engine is using.
-        circleRef.current?.update({
-          centre: circleFrameRef.current.centre,
-          radiusMetres: circleFrameRef.current.radius,
-          rgb: circleFrameRef.current.rgb,
-          centreName: circleFrameRef.current.name,
+        const circleFrame = circleFrameRef.current;
+        overlays.push(() => circleRef.current?.update({
+          centre: circleFrame.centre,
+          radiusMetres: circleFrame.radius,
+          rgb: circleFrame.rgb,
+          centreName: circleFrame.name,
           project: basemap.project,
-        });
+        }));
         // Parking (toggle on only): the estimate is refreshed at most twice a second, then its tags
         // (with the toggle on, lots are what the user asked to see: placed before the transit tags).
         const parking = showParkingRef.current ? parkingRef.current : null;
@@ -1170,7 +1192,8 @@ export default function App() {
             parkingState = parkingAt(parking.model, parkingDay(snapshot, liveRef.current, weekdayRef.current), liveRef.current ? wallClockSeconds() : t, parking.campusEvents);
             setParkingView(parkingState);
           }
-          if (!cleanRef.current) parkingTagsRef.current?.update({ placer, project: basemap.project, camera: basemap.getCamera(), state: parkingState });
+          const state = parkingState;
+          if (!cleanRef.current) overlays.push(() => parkingTagsRef.current?.update({ placer, project: basemap.project, camera: basemap.getCamera(), state }));
         } else parkingState = null;
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
@@ -1180,24 +1203,28 @@ export default function App() {
         const serviceTime = liveRef.current ? wallClockSeconds() : t;
         const serviceDay = liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7;
         // Then station, stop and dock tags, through the same placer.
-        if (!cleanRef.current) transitTagsRef.current?.update({
-          placer,
-          project: basemap.project,
-          zoom: basemap.getZoom(),
-          transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay,
+        if (!cleanRef.current) {
+          const frameTransit = transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay,
             // Modeled BU students on a published trip; live vehicles have no matching trip id.
             aboard: (vehicleId: string) => aboardPublished(vehicleId, t, playback),
-            waiting: waitingByStop(waitingRiders) } : null,
-          bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
-        });
+            waiting: waitingByStop(waitingRiders) } : null;
+          const frameBikes = showBikesNow ? { stations: bikes.data.stations, dockStatus } : null;
+          overlays.push(() => transitTagsRef.current?.update({
+            placer,
+            project: basemap.project,
+            zoom: basemap.getZoom(),
+            transit: frameTransit,
+            bikes: frameBikes,
+          }));
+        }
         // Then monuments, artworks, open spaces and fields.
-        if (!cleanRef.current) placeTagsRef.current?.update({
+        if (!cleanRef.current) overlays.push(() => placeTagsRef.current?.update({
           placer,
           project: basemap.project,
           camera: basemap.getCamera(),
           monuments: monuments?.monuments ?? null,
           fields: fields?.fields ?? null,
-        });
+        }));
         // What's in view (with a margin): walkers outside it aren't drawn, and a deferred campus
         // starts loading when the view approaches it.
         const view = expandBounds(basemap.visibleBounds(), 0.25);
