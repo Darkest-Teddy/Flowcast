@@ -540,7 +540,7 @@ interface ActivityDisplayInput {
 }
 
 /** Labels refer to the modeled space and its denominator, not every use of its building. */
-/** Below these, a place shows "<N%" instead of a figure that rounds to zero, or "0 people". Counts are
+/** Below these, a place shows "≤N%" instead of a figure that rounds to zero, or "0 people". Counts are
  * everyone simulated there: students and, in academic buildings, dining venues and gyms, modeled staff. */
 const NEAR_ZERO_PERCENT = 5;
 const NEAR_ZERO_STUDENTS = 3;
@@ -560,15 +560,16 @@ export function activityDisplay({ count, capacity: total, modeled, capacityBasis
   const seats = !beds && (capacityBasis?.includes('classroom_seats') || (!capacityBasis && kind === 'classroom'));
   const level = crowdLevel(share);
   // Plain percentages, except near zero: no building is ever truly empty (staff, visitors, people
-  // the model doesn't simulate; sim/uncertainty.ts), so a near-empty place reads "<3%" rather than
-  // "0%". The level and colour still follow the simulated figure.
+  // the model doesn't simulate; sim/uncertainty.ts), so a near-empty place reads "≤3%" rather than
+  // "0%": N is the top of the count's band rounded up, so the share can equal it. The level and
+  // colour still follow the simulated figure.
   const band = countInterval(count, capacity);
   const unit = seats ? ' seats' : '';
   const nearZeroPct = Math.max(2, Math.min(NEAR_ZERO_PERCENT, Math.ceil((band.high / capacity) * 100)));
   const nearFull = kind === 'dorm' && percent >= NEAR_FULL_RESIDENCE_PERCENT;
   const primary = modeled === false ? 'Not modeled'
     : hasPercentage
-      ? percent < NEAR_ZERO_PERCENT && !(allowZero && count === 0) ? `<${nearZeroPct}%${unit}` : `${nearFull ? '≥' : ''}${percent}%${unit}`
+      ? percent < NEAR_ZERO_PERCENT && !(allowZero && count === 0) ? `≤${nearZeroPct}%${unit}` : `${nearFull ? '≥' : ''}${percent}%${unit}`
       // Headcount-only places this quiet are special buildings few people can use: shown as 0.
       : count < NEAR_ZERO_STUDENTS ? '0 people' : `${count.toLocaleString()} people`;
   const secondary = hasPercentage ? level.label : '';
