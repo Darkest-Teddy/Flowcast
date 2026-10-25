@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { config } from '../config';
 import * as fx from './fixtures';
 import { campusGeo } from './campusGeo';
+import { agentConfigured, askAgentWithRetry, type AgentResult } from '@map/askClient';
+import { bostonClock } from '../lib/askRouting';
 import type {
   ApplicationStatus,
   CampusEvent,
@@ -74,6 +76,16 @@ export const api = {
     }
     suggestions = suggestions.filter((g) => g.id !== id);
     return later(suggestions);
+  },
+  /**
+   * A campus question for the Ask server's agent (server/, via /api/ask), at Boston's weekday and
+   * time for `at`, on the Charles River campus. Never send personal questions here (see lib/askRouting).
+   * Resolves to a typed error, never rejects; `notConfigured` when the server has no key.
+   */
+  async askCampus(question: string, at: Date, signal?: AbortSignal, onWarming?: (retryAfterSec: number) => void): Promise<AgentResult> {
+    if (!(await agentConfigured())) return { ok: false, error: { kind: 'notConfigured', message: 'Ask is not configured on the server.' } };
+    const { weekday, time } = bostonClock(at);
+    return askAgentWithRetry({ question: question.trim().slice(0, 300), weekday, time, campus: 'charles-river' }, signal, { onWarming });
   },
   getWeekStats: (range: StatRange = '7d') => later(range === '30d' ? fx.monthStats : fx.weekStats),
   /** Public Terrier Central events from the saved scrape, with whether each one can change map crowding. */
