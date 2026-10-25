@@ -568,6 +568,48 @@
   text-wrap: balance;
 }
 
+.head-center {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.head-split {
+  max-width: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-10);
+}
+
+.head-split .subline {
+  max-width: 420px;
+}
+
+/* A two-tone headline, after raycast.com: the title in ink and the sentence after it in grey, one run of type. */
+.twoTone {
+  max-width: 900px;
+  font-size: clamp(var(--text-3xl), 5vw, var(--text-4xl));
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display-tight);
+  line-height: var(--leading-heading);
+  text-wrap: balance;
+}
+
+.twoTone span {
+  color: var(--color-ink-secondary);
+}
+
+.wideTwoTone {
+  max-width: 1000px;
+}
+
+.centerTwoTone {
+  max-width: 760px;
+  margin: 0 auto;
+  text-align: center;
+}
+
 .dot {
   display: inline-block;
   flex: none;
@@ -593,11 +635,22 @@
 
 /* A large rounded window onto the map that tilts up into place as it scrolls in, after raycast.com's product window. */
 .frameStage {
-  margin-top: var(--space-12);
+  position: relative;
   perspective: 1400px;
 }
 
+/* The accent's glow under the frame. */
+.frameStage::before {
+  content: '';
+  position: absolute;
+  inset: 10% 6% -8%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent);
+  filter: blur(40px);
+  pointer-events: none;
+}
+
 .videoFrame {
+  position: relative;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px solid var(--landing-hairline);
@@ -615,28 +668,45 @@
   object-fit: cover;
 }
 
+/* The section's headline inside the frame's lower part, over a flat fade to the page's black. */
+.frameCaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: clamp(var(--space-6), 5vw, var(--space-12));
+  padding-top: var(--space-24);
+  background: linear-gradient(to top, var(--landing-canvas) 15%, color-mix(in srgb, var(--landing-canvas) 70%, transparent) 55%, transparent);
+}
+
+.frameTitle {
+  max-width: 620px;
+  font-size: clamp(var(--text-2xl), 3.4vw, var(--text-3xl));
+}
+
 /* ---------- 03 Scenarios ---------- */
 
-.scenarioBar {
-  margin-top: var(--space-12);
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-4);
+/* Numbered tabs down the left, the map panel on the right. */
+.scenarioGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: var(--space-12);
+  align-items: start;
 }
 
-/* Text tabs with a monospace tag and an underline that fills while each is up, after felt.com. */
 .scenarioTabs {
-  flex: 1 1 auto;
-  min-width: 0;
+  margin-top: var(--space-10);
   display: flex;
-  gap: var(--space-6);
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
+/* After felt.com's scenario tabs: a title, a monospace tag and an underline that fills while each is up. */
 .scenarioTab {
-  flex: 1 1 0;
-  min-width: 0;
+  display: flex;
+  gap: var(--space-4);
   min-height: var(--control-height-touch);
-  padding: 0;
+  padding: var(--space-3) 0;
   border: 0;
   background: transparent;
   color: var(--color-ink-secondary);
@@ -651,10 +721,28 @@
   color: var(--color-ink);
 }
 
+.tabIndex {
+  padding-top: 5px;
+  color: var(--color-ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
+}
+
+.scenarioTab[aria-selected='true'] .tabIndex {
+  color: var(--color-accent);
+}
+
+.tabText {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .tabLabel {
   display: block;
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-text);
 }
 
 .tabSub {
@@ -705,16 +793,18 @@
 }
 
 .pauseButton {
-  flex: none;
-  width: var(--control-height-touch);
-  height: var(--control-height-touch);
+  margin-top: var(--space-4);
+  min-height: var(--control-height-touch);
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
   border: 1px solid var(--landing-hairline);
-  border-radius: 50%;
+  border-radius: var(--radius-capsule);
   background: transparent;
   color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 
@@ -723,15 +813,19 @@
 }
 
 .pauseButton svg {
-  width: var(--space-4);
-  height: var(--space-4);
+  width: 14px;
+  height: 14px;
 }
 
-/* A crop of the map, flat, with the result floating over it on glass. */
+/* A crop of the map, flat. The result card is in the panel's flow, bottom right, so the panel grows
+   to fit it instead of cutting it off. */
 .scenarioPanel {
   position: relative;
-  min-height: 440px;
-  margin-top: var(--space-8);
+  min-height: 560px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: var(--space-6);
   overflow: hidden;
   border: 1px solid var(--landing-hairline);
   border-radius: var(--radius-sheet);
@@ -761,10 +855,8 @@
 }
 
 .resultCard {
-  position: absolute;
-  right: var(--space-6);
-  bottom: var(--space-6);
-  width: min(400px, calc(100% - 2 * var(--space-6)));
+  position: relative;
+  width: min(400px, 100%);
 }
 
 .resultTitle {
@@ -777,6 +869,7 @@
   margin-top: var(--space-4);
   display: flex;
   justify-content: space-between;
+  gap: var(--space-4);
   color: var(--color-ink-secondary);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -831,6 +924,12 @@
   font-weight: var(--weight-semibold);
 }
 
+.resultExtra {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--landing-hairline);
+  font-size: var(--text-md);
+}
+
 .resultNote {
   margin-top: var(--space-3);
   color: var(--color-ink-secondary);
@@ -839,11 +938,54 @@
 
 /* ---------- 04 Hourly preview ---------- */
 
+/* An app window around the preview, after raycast.com's product frames: a title bar with the filter. */
+.appWindow {
+  margin-top: var(--space-12);
+  overflow: hidden;
+  border: 1px solid var(--landing-hairline);
+  border-radius: var(--radius-sheet);
+  background: var(--landing-raised);
+  box-shadow: var(--landing-inset-highlight);
+}
+
+.appBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--landing-hairline);
+}
+
+.appDots {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.appDots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--landing-raised-2);
+}
+
+.appTitle {
+  flex: 1 1 auto;
+  color: var(--color-ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+}
+
+.appBody {
+  padding: clamp(var(--space-5), 3vw, var(--space-10));
+}
+
 /* A capsule segmented control with a lit top edge, after raycast.com's category tabs. */
 .segmented {
   display: inline-flex;
   gap: 2px;
-  margin: var(--space-12) 0 var(--space-8);
   padding: var(--space-1);
   border: 1px solid var(--landing-hairline);
   border-radius: var(--radius-capsule);
@@ -1099,40 +1241,50 @@
   border-radius: var(--radius-xs);
 }
 
-/* ---------- 05 How it works, 06 FAQ ---------- */
+/* ---------- 05 How it works ---------- */
 
-/* Numbered cells under a hairline, after felt.com's feature grid. */
-.numbered {
+/* Big numerals on one line, joined by a rule that draws across as the steps come in. */
+.steps {
+  position: relative;
   list-style: none;
-  margin: var(--space-12) 0 0;
+  margin: var(--space-16) 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--space-10) var(--space-8);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-10);
 }
 
-.faq {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-}
-
-.rule {
-  display: block;
+.stepsLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--text-5xl) * 0.55);
   height: 1px;
-  margin-bottom: var(--space-4);
   background: var(--landing-hairline);
 }
 
-.num {
-  color: var(--color-accent);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-mono);
+.step {
+  position: relative;
+}
+
+/* Decorative, so outlined: the step's title carries the reading. */
+.stepNumeral {
+  display: inline-block;
+  padding-right: var(--space-3);
+  background: var(--landing-canvas);
+  color: transparent;
+  font-size: var(--text-5xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display-tight);
+  line-height: 1.1;
+  -webkit-text-stroke: 1px var(--color-ink-secondary);
 }
 
 .numTitle {
-  margin-top: var(--space-2);
-  font-size: var(--text-lg);
+  margin-top: var(--space-4);
+  font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-text);
 }
 
 .numBody {
@@ -1142,16 +1294,97 @@
   text-wrap: pretty;
 }
 
+.num {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
+}
+
+.rule {
+  display: block;
+  height: 1px;
+  margin-bottom: var(--space-5);
+  background: var(--landing-hairline);
+}
+
+/* ---------- 06 FAQ ---------- */
+
+/* The heading holds its place on the left while the questions scroll by on the right, after felt.com. */
+.faqGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
+  gap: var(--space-12);
+  align-items: start;
+}
+
+.faqSide {
+  position: sticky;
+  top: var(--nav-clearance);
+}
+
+.faqList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-8);
+}
+
+.faqQuestion {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-text);
+}
+
+.faqAnswer {
+  margin-top: var(--space-2);
+  padding-left: calc(var(--space-4) + 2ch);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-lg);
+  text-wrap: pretty;
+}
+
 /* ---------- 07 Closing and footer ---------- */
 
 .closing {
-  padding-bottom: var(--landing-section-gap);
+  padding-bottom: var(--space-16);
+}
+
+/* A lit band: the map faint under an accent glow, the call to action over it. */
+.closingBand {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(var(--space-24), 12vw, 176px) var(--gutter);
+  isolation: isolate;
+}
+
+.closingStill {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.35;
+  -webkit-mask-image: radial-gradient(ellipse 60% 70% at 50% 50%, var(--color-ink) 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 60% 70% at 50% 50%, var(--color-ink) 20%, transparent 75%);
+}
+
+.closingBand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(ellipse 50% 60% at 50% 55%, color-mix(in srgb, var(--color-accent) 20%, transparent), transparent 70%);
 }
 
 .closingText {
   max-width: var(--content-max-landing);
   margin: 0 auto;
-  padding: 0 var(--gutter);
   text-align: center;
 }
 
@@ -1200,24 +1433,38 @@
     bottom: var(--space-6);
   }
 
-  .scenarioTabs {
-    gap: var(--space-3);
-  }
-
-  .tabLabel {
-    font-size: var(--text-md);
-    white-space: nowrap;
-  }
-
   .scenarioPanel {
-    min-height: 520px;
+    min-height: 460px;
+    padding: var(--space-3);
   }
 
   .resultCard {
-    left: var(--space-3);
-    right: var(--space-3);
-    bottom: var(--space-3);
-    width: auto;
+    width: 100%;
+  }
+
+  .frameCaption {
+    position: static;
+    padding: var(--space-5) 0 0;
+    background: none;
+  }
+
+  .videoFrame {
+    overflow: visible;
+    aspect-ratio: auto;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .videoFrame video,
+  .videoFrame img {
+    aspect-ratio: 16 / 9;
+    border: 1px solid var(--landing-hairline);
+    border-radius: var(--radius-card);
+  }
+
+  .faqAnswer {
+    padding-left: 0;
   }
 
   .segment,
@@ -1229,6 +1476,28 @@
     display: inline-flex;
     align-items: center;
     min-height: var(--control-height-touch);
+  }
+}
+
+/* Stack the split sections below tablet width. */
+@media (max-width: 899px) {
+  .scenarioGrid,
+  .faqGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+
+  .faqSide {
+    position: static;
+  }
+
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+
+  .stepsLine {
+    display: none;
   }
 }
 

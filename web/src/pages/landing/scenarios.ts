@@ -23,6 +23,8 @@ export interface ScenarioResult {
   beforeLabel: string;
   afterLabel: string;
   rows: ScenarioRow[];
+  /** A line under the rows, for what the rows can't show (where a drill's evacuees went). */
+  note?: string;
 }
 
 const LUNCH_BEFORE = 10;
@@ -73,8 +75,11 @@ export interface LandingScenariosFile {
     weekday?: number;
     alarmAt: string;
     measuredAt: string;
+    reopensAt?: string;
     building: { id: string; name: string; short?: string };
-    places: { id: string; name: string; short?: string; before: number; after: number }[];
+    places: { id: string; name: string; short?: string; before: number; after: number; sameBuilding?: boolean }[];
+    assembly?: { count: number };
+    outcomes?: Record<string, number>;
   };
 }
 
@@ -90,7 +95,11 @@ const clock = (hhmm: string) => {
   return clockLabel(h * 3600 + m * 60);
 };
 
-/** The fire drill the map's incident model ran: the drilled building and where its people went. */
+/**
+ * The fire drill the map's incident model ran: the drilled building emptying. In the model the
+ * evacuees wait at an outdoor assembly point rather than going into other buildings (those barely
+ * move), so the card shows the building and says where its people are instead.
+ */
 export function fireDrill(file: LandingScenariosFile | null, referenceWeekStart?: string): ScenarioResult | null {
   const drill = file?.fireDrill;
   if (!drill?.places?.length) return null;
@@ -101,6 +110,11 @@ export function fireDrill(file: LandingScenariosFile | null, referenceWeekStart?
     tag: building,
     beforeLabel: 'Before the alarm',
     afterLabel: clock(drill.measuredAt),
-    rows: drill.places.slice(0, 4).map((p) => ({ id: p.id, name: p.short ?? p.name, before: p.before, after: p.after })),
+    rows: drill.places
+      .filter((p) => p.sameBuilding ?? p.id === drill.building.id)
+      .map((p) => ({ id: p.id, name: p.short ?? p.name, before: p.before, after: p.after })),
+    note: drill.assembly
+      ? `${drill.assembly.count.toLocaleString('en-US')} people wait at the outdoor assembly point${drill.reopensAt ? `; ${(drill.outcomes?.['occupant-resume'] ?? 0).toLocaleString('en-US')} go back in when it reopens at ${clock(drill.reopensAt)}` : ''}.`
+      : undefined,
   };
 }
