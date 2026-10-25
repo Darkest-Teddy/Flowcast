@@ -68,6 +68,15 @@ function pause(ms: number, signal?: AbortSignal): Promise<boolean> {
 
 export const api = {
   getStudySpots: () => copy(studySpots),
+  /** Published hours for every mapped place (dining halls, libraries, FitRec...), as the study finder reads them. */
+  async getPlaceHours(): Promise<StudyHoursByLocation> {
+    const response = await fetch('/data/campus-data.json');
+    if (!response.ok) throw new Error('Published opening hours could not be loaded.');
+    const data = await response.json();
+    if (!data.locations || typeof data.locations !== 'object') throw new Error('Published hours are unavailable.');
+    return Object.fromEntries(Object.entries(data.locations as Record<string, { hours?: StudyHoursByLocation[string]['hours']; hoursStatus?: string }>)
+      .map(([id, location]) => [id, { hours: location.hours ?? [], hoursStatus: location.hoursStatus }]));
+  },
   async getStudyHours(): Promise<StudyHoursByLocation> {
     const response = await fetch('/data/campus-data.json');
     if (!response.ok) throw new Error('Published study-space hours could not be loaded.');
