@@ -104,6 +104,7 @@ import { campusParkingEvents, createParkingModel, loadParking, parkingAt, parkin
 import { loadEventSources, type EventSources } from './data/eventCalendar';
 import { eventLoadAt, eventLoadLabel, NO_EVENT_DAY, planEventDay, setCurrentEventDay, type EventDay } from './sim/eventAttendance';
 import { NO_VISITORS, planVisitors, setCurrentVisitorPlan, visitorFromId, visitorsAt, type VisitorPlan } from './sim/visitors';
+import { GAME_ID, withSimulatedGame, type SimulatedGame } from './sim/simulatedGame';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -377,9 +378,12 @@ export default function App() {
   const eventDayRef = useRef<EventDay>(NO_EVENT_DAY);
   const visitorPlanRef = useRef<VisitorPlan>(NO_VISITORS);
   const [eventDay, setEventDay] = useState<EventDay>(NO_EVENT_DAY);
+  // A simulated Red Sox game (Incidents tab): planned with the day's venue events, on the shown day.
+  const simulatedGameRef = useRef<SimulatedGame | null>(null);
+  const [simulatedGame, setSimulatedGame] = useState<SimulatedGame | null>(null);
   /** Plan the venue events (and their visitors) for the date whose events are playing. */
   const planVenueEvents = (date: string | null) => {
-    const planned = planEventDay(eventSourcesRef.current, date);
+    const planned = planEventDay(withSimulatedGame(eventSourcesRef.current, date, simulatedGameRef.current), date);
     eventDayRef.current = planned;
     visitorPlanRef.current = planVisitors(planned);
     // Other features read these by time alone (currentEventLoadAt, eventVisitorsAt).
@@ -1174,6 +1178,15 @@ export default function App() {
     setEventsOn(on);
     changeDay(weekdayRef.current);
   };
+  /** Start (or, with null, end) a simulated Red Sox game at Fenway on the shown day. */
+  const playSimulatedGame = (game: SimulatedGame | null) => {
+    simulatedGameRef.current = game;
+    setSimulatedGame(game);
+    const data = sourceData;
+    const date = eventDayRef.current.date ?? (data ? eventDateFor(data, weekdayRef.current) : null)
+      ?? (liveRef.current ? wallClockDate() : data ? dateForWeekday(data, weekdayRef.current) : null);
+    planVenueEvents(date);
+  };
   /** Play a specific date's events: switches to that date's weekday. */
   const pickEventDate = (date: string) => {
     pinnedDateRef.current = date;
@@ -1510,7 +1523,8 @@ export default function App() {
         {hud && tab === 'incidents' && (
           <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
             onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
-            siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
+            siren={siren} onSiren={toggleSiren} responsePending={responsePending}
+            game={simulatedGame} gameEstimate={eventDay.events.find((e) => e.event.id === GAME_ID) ?? null} onGame={playSimulatedGame} />
         )}
         {hud && (
           <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={tab !== 'ask'}>
@@ -1541,7 +1555,7 @@ export default function App() {
                 const display = activityDisplay({
                   count: o.count, capacity: o.location.capacity, share: o.share,
                   modeled: o.modeled ?? o.location.activityModeled,
-                  capacityBasis: o.location.capacityBasis, kind: o.location.kind,
+                  capacityBasis: o.location.capacityBasis, residentialBeds: o.location.residentialBeds, kind: o.location.kind,
                   allowZero: o.location.estimatedProfile?.purpose === 'rowing',
                 });
                 return (

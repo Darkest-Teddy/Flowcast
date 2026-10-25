@@ -7,7 +7,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   try { return nextResolve(specifier, context); }
   catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
 } });
-const { ask, walkBetween, nextMeeting, meetingsFor, coursesFor, parseTime, placeMentions, courseMentions, openAt, rankByCrowd, rankTier, busyOutlook, daysWithPublishedHours, dayList } = await import('../src/insights.ts');
+const { ask, walkBetween, nextMeeting, meetingsFor, coursesFor, parseTime, placeMentions, courseMentions, openAt, rankByCrowd, rankTier, busyOutlook, daysWithPublishedHours, dayList, comparable, shownCapacity } = await import('../src/insights.ts');
 
 const loc = (id, name, short, kind, position, capacity, extra = {}) => ({ id, name, short, kind, position, capacity, building: `way/${id}`, campus: 'charles-river', ...extra });
 const locations = [
@@ -251,11 +251,29 @@ test('an empty venue without published hours gets no percent and ranks after mea
   assert.deepEqual(a.ranked.map((r) => [r.location.id, r.share === null]), [['mugar', false], ['pardee', true]]);
 });
 
-test('days with published hours: the dining halls have none for the reference weekend', () => {
+test('a residence with classrooms (Kilachand) gets a percentage of its beds; without a bed count it stays a headcount', () => {
+  const kilachand = { id: 'kilachand', kind: 'dorm', capacity: 748, capacityBasis: 'residential_beds_plus_classroom_seats', residentialBeds: 550, activityModeled: true };
+  assert.equal(comparable(kilachand, true), true);
+  assert.equal(shownCapacity(kilachand), 550);
+  const unknownBeds = { ...kilachand, residentialBeds: undefined };
+  assert.equal(comparable(unknownBeds, true), false);
+  assert.equal(shownCapacity(unknownBeds), 748);
+  assert.equal(shownCapacity({ id: 'warren', kind: 'dorm', capacity: 600 }), 600);
+});
+
+test('days with published hours: the dining halls have every day of the reference week, weekends from their listed hours', () => {
   const data = JSON.parse(readFileSync(new URL('../public/data/campus-data.json', import.meta.url), 'utf8'));
   const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  assert.deepEqual(daysWithPublishedHours(['marciano', 'warren-dining'], data), [0, 1, 2, 3, 4]);
-  assert.equal(openAt('marciano', 5, 12 * 3600, data).open, null);
+  assert.deepEqual(daysWithPublishedHours(['marciano', 'warren-dining'], data), [0, 1, 2, 3, 4, 5, 6]);
+  // Weekend brunch to dinner, as BU Dining published the weekend before (Sat 9-9, Sun 10-9); the
+  // listing is labelled a fallback, so date-specific exceptions stay unverified.
+  const saturday = openAt('marciano', 5, 12 * 3600, data);
+  assert.equal(saturday.open, true);
+  assert.match(saturday.qualifier, /fallback/);
+  assert.equal(openAt('marciano', 5, 8 * 3600, data).open, false);
+  assert.equal(openAt('marciano', 6, 9.5 * 3600, data).open, false);
+  assert.equal(openAt('marciano', 6, 12 * 3600, data).open, true);
+  assert.equal(openAt('marciano', 6, 22 * 3600, data).open, false);
   assert.deepEqual(daysWithPublishedHours(['not-a-place'], data), []);
   assert.equal(dayList([0, 1, 2, 3, 4], WEEKDAYS), 'Monday to Friday');
   assert.equal(dayList([0, 2, 4], WEEKDAYS), 'Monday, Wednesday and Friday');
