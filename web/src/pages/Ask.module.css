@@ -41,42 +41,6 @@
   font-size: var(--text-lg);
 }
 
-.context summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: var(--control-height-touch);
-  font-size: var(--text-sm);
-  color: var(--color-ink-secondary);
-  cursor: pointer;
-  list-style: none;
-}
-
-.context summary::-webkit-details-marker {
-  display: none;
-}
-
-.editContext {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-ink);
-}
-
-.editContext svg {
-  width: var(--space-4);
-  height: var(--space-4);
-}
-
-.context[open] .editContext svg {
-  transform: rotate(180deg);
-}
-
-.contextFields {
-  padding: var(--space-2) 0 var(--space-4);
-}
-
 .disclosure {
   margin-top: var(--space-3);
   color: var(--color-ink-secondary);
@@ -160,11 +124,6 @@
 
   .starters {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .context summary {
-    align-items: flex-start;
-    padding-block: var(--space-2);
   }
 
 }
