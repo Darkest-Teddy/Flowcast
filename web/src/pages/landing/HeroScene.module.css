@@ -20,12 +20,41 @@
 .stage .canvas {
   position: absolute;
   inset: 0;
+  /*
+   * The live renderer starts invisible and warms up underneath the recording. It
+   * is NOT display:none: a hidden canvas would not paint, and the whole point is
+   * that by the time anyone commits, the scene is already drawn and the flight
+   * costs no loading.
+   */
   opacity: 0;
-  transition: opacity 1.4s cubic-bezier(0.2, 1, 0.1, 1);
+  transition: opacity 600ms linear;
 }
 
-.stage .canvasReady {
+/* Handed over: the recording fades out, the live canvas fades in. Both show the
+   same camera, so there is nothing to mismatch. */
+.stage .canvasLive {
   opacity: 1;
+}
+
+/*
+ * The recorded background.
+ *
+ * Captured from this same renderer with the camera held still, then played faster
+ * than it was recorded: a machine that renders at 9fps cannot record smooth
+ * footage in real time, but it can gather real frames over a longer wall clock.
+ */
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 1;
+  transition: opacity 600ms linear;
+}
+
+.videoSpent {
+  opacity: 0;
 }
 
 /*

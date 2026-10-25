@@ -32,7 +32,25 @@ export interface HeroSceneHandle {
   applyDepth(state: DepthState): void;
   /** Fly in, for when the visitor commits from the title screen. */
   commit(): void;
+  /** The live canvas, for recording the title-screen background from it. */
+  canvas(): HTMLCanvasElement | null;
 }
+
+/*
+ * Capture mode, entered with ?capture=1.
+ *
+ * Holds the camera perfectly still and slows the simulation. Still, because the
+ * recording is the title screen's background and the live scene starts from the
+ * same camera: if every recorded frame shares that exact camera, the handoff from
+ * video to canvas has nothing to mismatch.
+ *
+ * Slow, because this is the only way to get smooth footage off a machine that
+ * cannot render quickly. Recording at a third speed and playing the file back at
+ * three times gives correct-looking motion at three times the frame rate, because
+ * the frames are real -- they were just gathered over a longer wall clock.
+ */
+const CAPTURE_SIM_SCALE = 1 / 3;
+export const CAPTURE_PLAYBACK_RATE = 3;
 
 interface Props {
   onReady?: (handle: HeroSceneHandle) => void;
@@ -94,9 +112,21 @@ function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   ]);
 }
 
+/** Recorded from this renderer by captureTitleVideo, served from map-client/public. */
+const TITLE_VIDEO = '/video/title-campus.webm';
+
 export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
+  const [handedOver, setHandedOver] = useState(false);
+  const capture = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('capture') === '1';
+
+  // Played faster than it was recorded, which is what makes it smooth.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v) v.playbackRate = CAPTURE_PLAYBACK_RATE;
+  }, []);
 
   useEffect(() => {
     const host = wrap.current;
@@ -257,6 +287,7 @@ export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
           }
         })();
 
+        const capturing = new URLSearchParams(window.location.search).get('capture') === '1';
         const reduced = prefersReducedMotion();
         let simTime = openAt;
         let last = performance.now();
@@ -266,13 +297,46 @@ export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
         // The last camera actually pushed, so sub-perceptible moves can be skipped.
         const applied = { bearing: OPENING.bearing, pitch: OPENING.pitch };
 
+        /*
+         * Swap the recording for the live canvas. Once over, the degradation guard
+         * is irrelevant -- a visitor who committed wants the real thing moving, even
+         * if it is slow -- so the loop is allowed to keep running from here.
+         */
+        let over = false;
+        const handOver = () => {
+          if (over) return;
+          over = true;
+          el.classList.add(styles.canvasLive);
+          setHandedOver(true);
+          // Stop decoding a video nobody can see.
+          window.setTimeout(() => videoRef.current?.pause(), 700);
+          // Start animating only now. Until this point the scene was drawn once and
+          // left alone: repainting a canvas nobody can see would cost exactly as
+          // much as showing it, and the recording is on screen instead.
+          last = performance.now();
+          frame = requestAnimationFrame(tick);
+        };
+
         const handle: HeroSceneHandle = {
           applyDepth(state) {
             depth.x = state.x;
             depth.y = state.y;
             depth.scroll = state.scroll;
           },
+          canvas() {
+            return el.querySelector('canvas');
+          },
           commit() {
+            /*
+             * Hand over before flying, not during.
+             *
+             * The recording and the live canvas show the same camera, so the
+             * cross-fade has nothing to mismatch; then the flight begins from a
+             * scene that is already on screen and already drawn. Starting the
+             * flight first would mean fading between two different cameras.
+             */
+            handOver();
+
             target = COMMITTED;
             applied.bearing = COMMITTED.bearing;
             applied.pitch = COMMITTED.pitch;
@@ -334,7 +398,8 @@ export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
           }
 
           // Clock runs at 4x so the Green Line and buses visibly move.
-          simTime = (simTime + (elapsed * 4) / 1000) % 86400;
+          const rate = capturing ? 4 * CAPTURE_SIM_SCALE : 4;
+          simTime = (simTime + (elapsed * rate) / 1000) % 86400;
           source.setTime(simTime);
 
           /*
@@ -345,7 +410,9 @@ export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
            * Skipped entirely while an easeTo is running, so the commit flight is
            * never fought by the pointer.
            */
-          if (!reduced && !degraded && !basemap.isEasing() && depth.scroll < 1) {
+          // Capture holds the camera exactly still, so every recorded frame shares
+          // the live scene's opening camera and the handoff cannot mismatch.
+          if (!capturing && !reduced && !degraded && !basemap.isEasing() && depth.scroll < 1) {
             drift += elapsed;
             const breathe = Math.sin(drift / 9000) * 0.9;
             const bearing = target.bearing + depth.x * DEPTH_BEARING + breathe;
@@ -368,11 +435,15 @@ export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
           }
 
           /*
-           * Degraded: draw the scene once more so it is complete and correct, then
-           * stop the loop entirely. No rAF, no repaints, no battery drain. The
-           * commit flight still works, because easeTo drives the map itself.
+           * Degrading belongs to the idle title screen only.
+           *
+           * The loop does not even start until someone commits, and by then they are
+           * watching the campus. Stopping here would freeze the canvas mid-flight on
+           * a stale frame: the camera keeps moving while the pixels do not, because
+           * an interleaved deck overlay only repaints when setProps is called. A
+           * slow flight is bad; a frozen one looks broken.
            */
-          if (degraded) {
+          if (degraded && !capturing && !over) {
             drawLayers(now);
             overlay.setProps({ _animate: false });
             return;
@@ -439,8 +510,32 @@ export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
          * a pure camera move over geometry that is already there.
          */
         drawLayers(performance.now());
-        el.classList.add(styles.canvasReady);
+        // In capture mode there is no video and the canvas is the thing being
+        // recorded, so it has to be visible. Otherwise it stays hidden beneath the
+        // recording until someone commits.
+        if (capture) el.classList.add(styles.canvasLive);
         onReady?.(handle);
+
+        if (import.meta.env.DEV) {
+          (window as unknown as Record<string, unknown>).__flowcastHero = { handle, basemap, OPENING, COMMITTED };
+        }
+
+        /*
+         * The scene is loaded and drawn, and that is all it needs to be until
+         * someone commits. Not starting the loop here is the whole reason the title
+         * screen stays cheap: the GPU sits idle behind a playing video, and the
+         * flight begins from geometry that is already uploaded and already drawn.
+         *
+         * Capture mode is the exception -- there the canvas IS the output.
+         */
+        if (!capture) return;
+
+        if (capturing && import.meta.env.DEV) {
+          const { captureTitleVideo } = await import('./captureTitleVideo');
+          (window as unknown as Record<string, unknown>).__captureTitleVideo = (seconds = 30) =>
+            captureTitleVideo(handle.canvas()!, { seconds });
+          console.info('[Flowcast capture] ready. Run: await __captureTitleVideo(30)');
+        }
         frame = requestAnimationFrame(tick);
       } catch (err) {
         if (!cancelled) {
@@ -464,7 +559,25 @@ export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
 
   return (
     <div className={styles.stage} aria-hidden="true">
-      <div ref={wrap} className={styles.parallax} />
+      <div ref={wrap} className={styles.parallax}>
+        {/*
+          The recorded backdrop. It paints immediately and costs only video decode,
+          while the real renderer loads behind it. Played faster than recorded;
+          see captureTitleVideo.ts for why.
+        */}
+        {!capture && (
+          <video
+            ref={videoRef}
+            className={[styles.video, handedOver ? styles.videoSpent : ''].filter(Boolean).join(' ')}
+            src={TITLE_VIDEO}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+          />
+        )}
+      </div>
       {failed && <p className={styles.fallback}>The live campus needs WebGL and a network connection.</p>}
     </div>
   );
