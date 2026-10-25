@@ -12,6 +12,7 @@ import { cullLayers } from './layers/culling';
 import { buildingModelLayers, campusBounds, DEFERRED_CAMPUSES, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
 import { loadMonuments, monumentLayers } from './layers/monuments';
+import { loadSigns, signLayers, signTooltip } from './layers/signs';
 import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
@@ -278,7 +279,7 @@ export default function App() {
       const track = loadProgress.track;
       // BU Shuttle timetable (recorded TransLoc schedules + BU's GTFS baseline); MBTA-only without it.
       const shuttleTimetable = loadPublishedSchedule('/data/shuttle-schedule.json').catch(() => null);
-      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields] = await Promise.all([
+      const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields, , signs] = await Promise.all([
         track('Drawing the map', createBasemap(mapElement, shownLight)),
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
         track('Dressing the students', loadCharacterModels() as Promise<LoadedModels>),
@@ -297,6 +298,8 @@ export default function App() {
         track('Counting traffic', loadMobility()).catch((error: Error) => { setMobilityError(error.message); return null; }),
         track('Marking the fields', loadFields()).catch(() => null),
         track('Saddling up riders', loadBikeModels()).catch(() => null), // Bluebikes riders; plain blocks without them
+        // WHOOP's letters and the restaurants' shop signs in Kenmore Square and on Comm Ave: extras.
+        track('Hanging shop signs', loadSigns()).catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       const shuttleSchedule = await shuttleTimetable;
@@ -425,6 +428,8 @@ export default function App() {
           if (streetText) return streetText;
           const boatText = boatTooltip(object);
           if (boatText) return boatText;
+          const signText = signTooltip(object);
+          if (signText) return signText;
           const source = transit && (liveRef.current ? transit.feed : transit.schedule);
           const text = transit && source ? transitTooltip(object, transit.data, source) : null;
           if (text) return text;
@@ -633,6 +638,7 @@ export default function App() {
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
+          ...(signs ? signLayers(signs, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), lightPreset: lightRef.current }) : []),
           ...(parking && parkingState ? parkingLayers(parking.data, parkingState) : []),
           ...placeHitLayers(monuments?.monuments ?? null, fields?.fields ?? null, basemap.getZoom()),

@@ -112,6 +112,8 @@ HTML overlays (BuildingTags.tsx, TransitTags.tsx)  glass tags for buildings, sta
 
 **Context buildings.** The building models also cover the city along campus so it isn't plain grey boxes: both sides of Comm Ave from Kenmore out to 1019 Comm Ave / New Balance Field, the Kenmore Square blocks round Myles Standish, Lansdowne Street and Fenway Park (`CONTEXT_AREAS` in `data-pipeline/make_building_models.py`). They're in the same campus GLBs (more vertices, no more draws), marked `"context": true` in `building-models.json`, and are scenery only: `modelRoofHeights` / `modelVolumes` leave them out, and they never get glow, tags or occupancy. Fenway Park's entry carries a `clip` ring that hides Mapbox Standard's own Fenway model under ours (`landmarkClips`, the same clip layer that keeps trees off the Green Line).
 
+**Signs.** WHOOP's rooftop letters on One Kenmore Square (its own landmark model: six brick storeys and two glass ones set back, `landmark_whoop`) and the shop signs of 20 well-known restaurants in Kenmore Square and along Comm Ave (`src/layers/signs.ts`, data `public/data/signs.json` from `data-pipeline/make_signs.py`, run after `make_building_models.py`). The pipeline puts each sign flush on the modelled wall facing the restaurant's street, 0.15 m proud of it, on the shop storey's sign band (or above its canopy), from the manifest's `storefront`; the app paints every sign's lettering once into one canvas atlas (a day face and a lit night face with its glow) and draws them all as one instanced quad mesh: one layer, one draw call, culled with its box, shown from zoom 16. Shop signs light from dusk until 2 am, WHOOP's letters all night. Hovering a sign shows the restaurant's name, cuisine, address and OSM hours.
+
 **Transit and Bluebikes tags** (`TransitTags.tsx` on the shared engine in `tags/glassTags.ts`) work the same way, each a pill that expands on hover, focus or tap of the pill or its dot on the map:
 
 | Tag | Pill | Card |
@@ -132,6 +134,7 @@ Places open on hover of the model, outline or field itself too, through invisibl
 | `src/BuildingTags.tsx` | The HTML building tags over the map; clicking one selects the building |
 | `src/TransitTags.tsx`, `src/tags/glassTags.ts` | HTML tags for stations, bus and shuttle stops, Bluebikes docks and the hovered vehicle |
 | `src/PlaceTags.tsx` | HTML tags for monuments, landmarks, public art, open spaces and fields |
+| `src/layers/signs.ts` | WHOOP's rooftop letters and the restaurants' shop signs: one canvas atlas, one instanced mesh, lit after dark |
 | `src/sim/playback.ts` | Where everyone is at time *t* and how full each place is. The server takes this over later (plan Section 8.1) |
 | `src/sim/riders.ts`, `src/layers/riders.ts` | Legacy demo rider model; not used by the production map |
 | `src/map/camera.ts`, `src/CameraControls.tsx` | Spin (orbit), rotate/tilt steps, Bird's-eye / 3D / Street presets and the landmark tour. Keys: `R` spin, `[` `]` rotate, `,` `.` tilt. Any drag, scroll, pinch or rotate on the map stops the spin and the tour |

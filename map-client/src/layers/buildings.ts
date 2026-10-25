@@ -40,6 +40,9 @@ export interface BuildingModelEntry {
    *  1019, Kenmore Square, Fenway Park) aren't plain grey boxes. Never glows, never gets a tag or
    *  occupancy (modelRoofHeights / modelVolumes leave it out). */
   context?: boolean;
+  /** Its shopfront, where the ground storey is shops: top of the shop storey (m; its sign band is
+   *  the top 12/64 of it) and the wall carrying its canopy, if any. Read by make_signs.py. */
+  storefront?: { top: number; canopy?: [[number, number], [number, number]] };
   /** [lng, lat] ring under which the base map's own 3D model of this landmark is hidden
    *  (Mapbox Standard's Fenway Park), so it doesn't overlap ours. */
   clip?: [number, number][];
