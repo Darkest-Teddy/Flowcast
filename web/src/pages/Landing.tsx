@@ -10,7 +10,7 @@ import { api, useResource } from '../data/api';
 import { formatPercent } from '../lib/format';
 import { introSources, presetNow } from '@map/intro';
 import { IntroSky } from '@map/IntroSky';
-import type { ImpactPlace } from '../data/types';
+import type { EventImpactData, ImpactPlace } from '../data/types';
 import { openMap, prepareMap, STILL_ATTR } from './landing/openMap';
 import { entrance, floatGroup, floatIn, grow, item, reveal, rise, rule, stagger } from './landing/motion';
 import { scrollToElement, useSmoothScroll } from './landing/smoothScroll';
@@ -68,6 +68,18 @@ const MAP_VIDEO: { mp4: string; webm?: string } | null = null;
 /** A scenario tab's turn before the next one, matching --landing-scenario-ms (tokens.css). */
 const SCENARIO_MS = 7000;
 
+/**
+ * The forecast: the dashboard API's, or, when the API isn't up (local development without the
+ * database), the same published data as a static file, so every section has real numbers.
+ */
+function loadImpact(): Promise<EventImpactData> {
+  return api.getEventImpact().catch(async (error) => {
+    const response = await fetch('/data/event-impact.json');
+    if (!response.ok) throw error;
+    return (await response.json()) as EventImpactData;
+  });
+}
+
 /** Scrolls to a section (eased unless reduced motion is on), moves focus there and updates the address. */
 function goToSection(event: MouseEvent<HTMLAnchorElement>, id: string) {
   const target = document.getElementById(id);
@@ -96,7 +108,7 @@ function legendRange(i: number) {
 
 export default function Landing() {
   useSmoothScroll();
-  const impact = useResource(api.getEventImpact);
+  const impact = useResource(loadImpact);
   const sources = useResource(loadCampusData);
   const students = useResource(loadStudentCount);
   const scenarioFile = useResource(loadLandingScenarios);
@@ -145,7 +157,7 @@ export default function Landing() {
           <Preview day={day} error={impact.error} reload={impact.reload} />
           <HowItWorks sources={sources.data} />
           <Faq />
-          <Closing />
+          <Closing still={still} />
         </main>
         <footer className={styles.footer}>
           {status}
@@ -380,19 +392,30 @@ function Hero({ day, preset, still }: { day: DayForecast | null; preset: ReturnT
 /* ---------- Shared section head ---------- */
 
 /** An eyebrow, a 3–6 word headline and a one-line subline, coming into focus as they scroll in. */
-function SectionHead({ id, eyebrow, title, sub }: { id: string; eyebrow: string; title: string; sub: string }) {
+function SectionHead({ id, eyebrow, title, sub, align = 'start' }: { id: string; eyebrow: string; title: string; sub: string; align?: 'start' | 'center' | 'split' }) {
   return (
-    <div className={styles.sectionHead}>
-      <motion.p {...reveal} className={styles.eyebrow}>
-        {eyebrow}
-      </motion.p>
-      <motion.h2 {...reveal} id={id} className={styles.sectionTitle}>
-        {title}
-      </motion.h2>
+    <div className={`${styles.sectionHead} ${styles[`head-${align}`]}`}>
+      <div>
+        <motion.p {...reveal} className={styles.eyebrow}>
+          {eyebrow}
+        </motion.p>
+        <motion.h2 {...reveal} id={id} className={styles.sectionTitle}>
+          {title}
+        </motion.h2>
+      </div>
       <motion.p {...reveal} className={styles.subline}>
         {sub}
       </motion.p>
     </div>
+  );
+}
+
+/** A two-tone headline, after raycast.com: the title in ink, then a sentence in grey on the same run. */
+function TwoTone({ id, title, rest, className = '' }: { id: string; title: string; rest: string; className?: string }) {
+  return (
+    <motion.h2 {...reveal} id={id} className={`${styles.twoTone} ${className}`}>
+      {title} <span>{rest}</span>
+    </motion.h2>
   );
 }
 
@@ -410,7 +433,6 @@ function MapVideo({ still }: { still: ReturnType<typeof introSources> }) {
   return (
     <section id="map" tabIndex={-1} className={styles.section} aria-labelledby="map-title">
       <div className={styles.container}>
-        <SectionHead id="map-title" eyebrow="The map" title="Watch campus move." sub="Scrub the clock and see simulated students walk between classes." />
         <div className={styles.frameStage}>
           <motion.div ref={frameRef} className={styles.videoFrame} style={reduce ? undefined : { rotateX, scale }}>
             {MAP_VIDEO && !reduce ? (
@@ -421,6 +443,11 @@ function MapVideo({ still }: { still: ReturnType<typeof introSources> }) {
             ) : (
               <img {...still} sizes="(min-width: 1120px) 1120px, 100vw" alt="The Flowcast map of Boston University's campus, seen from above" loading="lazy" />
             )}
+            {/* The section opens on the picture; its headline sits in the frame's lower corner. */}
+            <div className={styles.frameCaption}>
+              <p className={styles.eyebrow}>The map</p>
+              <TwoTone id="map-title" title="Watch campus move." rest="Scrub the clock and see simulated students walk between classes." className={styles.frameTitle} />
+            </div>
           </motion.div>
         </div>
       </div>
@@ -437,17 +464,13 @@ const SCENARIOS = [
 ] as const;
 
 /**
- * Three what-ifs as an ARIA tablist, after Felt's scenario tabs: each turns over on its own (an
- * underline fills while it's up) until someone picks one, with a pause button; hovering or focusing
- * the panel holds it, and reduced motion keeps it still.
+ * Three what-ifs as a vertical ARIA tablist beside a map panel, after felt.com's scenario tabs:
+ * each turns over on its own (an underline fills while it's up) until someone picks one, with a
+ * pause button; hovering or focusing the panel holds it, and reduced motion keeps it still. A
+ * scenario whose data hasn't loaded says so in its card.
  */
 function Scenarios({ results, loading, still }: { results: (ScenarioResult | null)[]; loading: boolean; still: ReturnType<typeof introSources> }) {
-  // Only the scenarios whose data loaded: one without data is left out rather than shown empty.
-  const shown = SCENARIOS.map((scenario, i) => ({ ...scenario, result: results[i] })).filter(
-    (s): s is (typeof SCENARIOS)[number] & { result: ScenarioResult } => s.result != null,
-  );
-  const [chosen, setActive] = useState(0);
-  const active = Math.min(chosen, Math.max(0, shown.length - 1));
+  const [active, setActive] = useState(0);
   const [auto, setAuto] = useState(true);
   const [held, setHeld] = useState(false);
   const reduce = useReducedMotion();
@@ -457,10 +480,9 @@ function Scenarios({ results, loading, still }: { results: (ScenarioResult | nul
 
   useEffect(() => {
     if (!running) return;
-    if (shown.length < 2) return;
-    const timer = window.setTimeout(() => setActive((a) => (a + 1) % shown.length), SCENARIO_MS);
+    const timer = window.setTimeout(() => setActive((a) => (a + 1) % SCENARIOS.length), SCENARIO_MS);
     return () => window.clearTimeout(timer);
-  }, [running, active, shown.length]);
+  }, [running, active]);
 
   function choose(i: number, focus = false) {
     setAuto(false);
@@ -469,28 +491,25 @@ function Scenarios({ results, loading, still }: { results: (ScenarioResult | nul
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const last = shown.length - 1;
-    const next = e.key === 'ArrowRight' ? (active + 1) % shown.length
-      : e.key === 'ArrowLeft' ? (active + last) % shown.length
-        : e.key === 'Home' ? 0
-          : e.key === 'End' ? last
-            : null;
+    const last = SCENARIOS.length - 1;
+    const forward = e.key === 'ArrowDown' || e.key === 'ArrowRight';
+    const back = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
+    const next = forward ? (active + 1) % SCENARIOS.length : back ? (active + last) % SCENARIOS.length : e.key === 'Home' ? 0 : e.key === 'End' ? last : null;
     if (next == null) return;
     e.preventDefault();
     choose(next, true);
   }
 
-  // Nothing to show (yet): while loading, the section waits; with no data at all, it's left out.
-  if (!shown.length && !loading) return null;
-  const scenario = shown[active];
+  const scenario = SCENARIOS[active];
+  const result = results[active];
 
   return (
     <section id="scenarios" tabIndex={-1} className={styles.section} aria-labelledby="scenarios-title">
-      <div className={styles.container}>
-        <SectionHead id="scenarios-title" eyebrow="Scenarios" title="See what changes the crowd." sub="A lunch rush, a big event and a fire drill, run through the model." />
-        <motion.div {...rise} className={styles.scenarioBar}>
-          <div role="tablist" aria-label="Scenarios" className={styles.scenarioTabs} onKeyDown={onKeyDown}>
-            {shown.map((s, i) => (
+      <div className={`${styles.container} ${styles.scenarioGrid}`}>
+        <div className={styles.scenarioSide}>
+          <SectionHead id="scenarios-title" eyebrow="Scenarios" title="See what changes the crowd." sub="Run through the same model as the map." />
+          <motion.div {...rise} role="tablist" aria-label="Scenarios" aria-orientation="vertical" className={styles.scenarioTabs} onKeyDown={onKeyDown}>
+            {SCENARIOS.map((s, i) => (
               <button
                 key={s.id}
                 ref={(el) => {
@@ -505,18 +524,20 @@ function Scenarios({ results, loading, still }: { results: (ScenarioResult | nul
                 className={styles.scenarioTab}
                 onClick={() => choose(i)}
               >
-                <span className={styles.tabLabel}>{s.label}</span>
-                <span className={styles.tabSub}>{s.result.tag}</span>
-                <span className={styles.tabTrack} aria-hidden>
-                  <span
-                    key={`${active}-${running}`}
-                    className={`${styles.tabFill} ${i === active && running ? styles.tabFillRunning : ''}`}
-                  />
+                <span className={styles.tabIndex} aria-hidden>
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className={styles.tabText}>
+                  <span className={styles.tabLabel}>{s.label}</span>
+                  <span className={styles.tabSub}>{results[i]?.tag ?? (loading ? 'Loading' : 'No data')}</span>
+                  <span className={styles.tabTrack} aria-hidden>
+                    <span key={`${active}-${running}`} className={`${styles.tabFill} ${i === active && running ? styles.tabFillRunning : ''}`} />
+                  </span>
                 </span>
               </button>
             ))}
-          </div>
-          {!reduce && shown.length > 1 && (
+          </motion.div>
+          {!reduce && (
             <button
               type="button"
               className={styles.pauseButton}
@@ -525,58 +546,65 @@ function Scenarios({ results, loading, still }: { results: (ScenarioResult | nul
               onClick={() => setAuto((a) => !a)}
             >
               {auto ? <Pause aria-hidden /> : <Play aria-hidden />}
+              <span>{auto ? 'Pause' : 'Play'}</span>
             </button>
           )}
-        </motion.div>
+        </div>
 
-        {scenario && (
-          <div
-            id={`${base}-panel`}
-            role="tabpanel"
-            aria-labelledby={`${base}-tab-${scenario.id}`}
-            tabIndex={0}
-            className={styles.scenarioPanel}
-            onMouseEnter={() => setHeld(true)}
-            onMouseLeave={() => setHeld(false)}
-            onFocus={() => setHeld(true)}
-            onBlur={() => setHeld(false)}
-          >
-            <div className={`${styles.scenarioMap} ${styles[`scenarioMap-${scenario.id}`]}`} aria-hidden>
-              <img {...still} sizes="(min-width: 1120px) 1120px, 100vw" alt="" loading="lazy" />
-            </div>
-            <motion.div
-              key={scenario.id}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className={`${styles.glassCard} ${styles.resultCard}`}
-              aria-live="polite"
-            >
-              <p className={styles.resultTitle}>{scenario.label}</p>
-              <p className={styles.cardMeta}>{scenario.result.when}</p>
-              <div className={styles.resultHead} aria-hidden>
-                <span>{scenario.result.beforeLabel}</span>
-                <span>{scenario.result.afterLabel}</span>
-              </div>
-              <ul className={styles.resultRows}>
-                {scenario.result.rows.map((row) => (
-                  <li key={row.id}>
-                    <span className={styles.resultName}>
-                      {row.name}
-                      {row.at && <span className={styles.resultAt}> · {row.at}</span>}
-                    </span>
-                    <span className={styles.resultChange}>
-                      <Reading share={row.before} />
-                      <span className={styles.resultArrow} aria-label="to">→</span>
-                      <Reading share={row.after} strong />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className={styles.resultNote}>Simulated, not measured.</p>
-            </motion.div>
+        {/* The card sits in the panel's flow (bottom right), so the panel grows to fit it rather than cutting it off. */}
+        <div
+          id={`${base}-panel`}
+          role="tabpanel"
+          aria-labelledby={`${base}-tab-${scenario.id}`}
+          tabIndex={0}
+          className={styles.scenarioPanel}
+          onMouseEnter={() => setHeld(true)}
+          onMouseLeave={() => setHeld(false)}
+          onFocus={() => setHeld(true)}
+          onBlur={() => setHeld(false)}
+        >
+          <div className={`${styles.scenarioMap} ${styles[`scenarioMap-${scenario.id}`]}`} aria-hidden>
+            <img {...still} sizes="(min-width: 1120px) 760px, 100vw" alt="" loading="lazy" />
           </div>
-        )}
+          <motion.div
+            key={scenario.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className={`${styles.glassCard} ${styles.resultCard}`}
+            aria-live="polite"
+          >
+            <p className={styles.resultTitle}>{scenario.label}</p>
+            {result ? (
+              <>
+                <p className={styles.cardMeta}>{result.when}</p>
+                <div className={styles.resultHead} aria-hidden>
+                  <span>{result.beforeLabel}</span>
+                  <span>{result.afterLabel}</span>
+                </div>
+                <ul className={styles.resultRows}>
+                  {result.rows.map((row) => (
+                    <li key={row.id}>
+                      <span className={styles.resultName}>
+                        {row.name}
+                        {row.at && <span className={styles.resultAt}> · {row.at}</span>}
+                      </span>
+                      <span className={styles.resultChange}>
+                        <Reading share={row.before} />
+                        <span className={styles.resultArrow} aria-label="to">→</span>
+                        <Reading share={row.after} strong />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {result.note && <p className={styles.resultExtra}>{result.note}</p>}
+                <p className={styles.resultNote}>Simulated, not measured.</p>
+              </>
+            ) : (
+              <p className={styles.cardMeta}>{loading ? 'Loading the simulation…' : 'No simulation data for this scenario yet.'}</p>
+            )}
+          </motion.div>
+        </div>
       </div>
     </section>
   );
@@ -603,13 +631,16 @@ function Preview({ day, error, reload }: { day: DayForecast | null; error: Error
   return (
     <section id="preview" tabIndex={-1} className={styles.section} aria-labelledby="preview-title">
       <div className={styles.container}>
-        <SectionHead
-          id="preview-title"
-          eyebrow="Hour by hour"
-          title="Plan around the rush."
-          sub={`Pick a place, then an hour${day ? `, for ${longDate(day.date)}` : ''}. Modeled crowds, not live counts.`}
-        />
-        <motion.div {...rise} viewport={{ once: true, amount: 0.25 }}>
+        <TwoTone id="preview-title" title="Plan around the rush." rest={`Pick a place, then an hour${day ? `, for ${longDate(day.date)}` : ''}.`} className={styles.wideTwoTone} />
+        {/* An app window around the preview, after raycast.com's product frames: a title bar holding the filter. */}
+        <motion.div {...rise} viewport={{ once: true, amount: 0.2 }} className={styles.appWindow}>
+          <div className={styles.appBar}>
+            <span className={styles.appDots} aria-hidden>
+              <span />
+              <span />
+              <span />
+            </span>
+            <span className={styles.appTitle}>Hourly forecast · modeled, not live</span>
           {/* Which places the preview cycles through: a segmented control, after Raycast's category tabs. */}
           <div role="group" aria-label="Kind of place" className={styles.segmented}>
             {CATEGORIES.map((c, i) => (
@@ -627,6 +658,8 @@ function Preview({ day, error, reload }: { day: DayForecast | null; error: Error
               </button>
             ))}
           </div>
+          </div>
+          <div className={styles.appBody}>
           {day ? (
             <PreviewBody day={day} places={places} placeIndex={placeIndex} setPlaceIndex={setPlaceIndex} hour={hour} setHour={setHour} />
           ) : error ? (
@@ -641,6 +674,7 @@ function Preview({ day, error, reload }: { day: DayForecast | null; error: Error
               Loading the forecast…
             </p>
           )}
+          </div>
         </motion.div>
       </div>
     </section>
@@ -790,19 +824,20 @@ function HowItWorks({ sources }: { sources: CampusData | null }) {
   const meetings = sources ? `${sources.coverage.mappedMeetings.toLocaleString('en-US')} class meetings` : 'Class meetings';
   const events = sources ? `${sources.events.length.toLocaleString('en-US')} campus events` : 'campus events';
   const steps = [
-    { title: 'Public BU data', body: `${meetings}, ${events}, posted hours and published classroom seats.` },
+    { title: 'Public BU data', body: `${meetings}, ${events}, posted hours and published seat counts.` },
     { title: 'A simulated day', body: 'Synthetic students follow class schedules and walk between buildings, eating and studying within posted hours.' },
     { title: 'Hourly forecasts', body: 'Each modeled place gets an occupancy for every hour, as a share of its capacity, on one scale.' },
   ];
   return (
     <section id="how" tabIndex={-1} className={styles.section} aria-labelledby="how-title">
       <div className={styles.container}>
-        <SectionHead id="how-title" eyebrow="How it works" title="Schedules in, forecasts out." sub="Three steps from public pages to the map." />
-        <motion.ol {...stagger} className={styles.numbered}>
+        <TwoTone id="how-title" title="Schedules in, forecasts out." rest="Three steps from public pages to the map." className={styles.centerTwoTone} />
+        {/* Big numerals on one line, joined by a rule that draws itself across as the steps come in. */}
+        <motion.ol {...stagger} className={styles.steps}>
+          <motion.span {...rule} className={styles.stepsLine} aria-hidden />
           {steps.map((step, i) => (
-            <motion.li key={step.title} {...item}>
-              <motion.span {...rule} className={styles.rule} aria-hidden />
-              <span className={styles.num} aria-hidden>
+            <motion.li key={step.title} {...item} className={styles.step}>
+              <span className={styles.stepNumeral} aria-hidden>
                 {String(i + 1).padStart(2, '0')}
               </span>
               <h3 className={styles.numTitle}>{step.title}</h3>
@@ -844,17 +879,21 @@ const FAQ = [
 function Faq() {
   return (
     <section id="faq" tabIndex={-1} className={styles.section} aria-labelledby="faq-title">
-      <div className={styles.container}>
-        <SectionHead id="faq-title" eyebrow="FAQ" title="Questions, answered." sub="What the forecasts are, and what they aren’t." />
-        <motion.ol {...stagger} className={`${styles.numbered} ${styles.faq}`}>
+      <div className={`${styles.container} ${styles.faqGrid}`}>
+        <div className={styles.faqSide}>
+          <SectionHead id="faq-title" eyebrow="FAQ" title="Questions, answered." sub="What the forecasts are, and what they aren’t." />
+        </div>
+        <motion.ol {...stagger} className={styles.faqList}>
           {FAQ.map((entry, i) => (
             <motion.li key={entry.q} {...item}>
               <motion.span {...rule} className={styles.rule} aria-hidden />
-              <span className={styles.num} aria-hidden>
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <h3 className={styles.numTitle}>{entry.q}</h3>
-              <p className={styles.numBody}>{entry.a}</p>
+              <h3 className={styles.faqQuestion}>
+                <span className={styles.num} aria-hidden>
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                {entry.q}
+              </h3>
+              <p className={styles.faqAnswer}>{entry.a}</p>
             </motion.li>
           ))}
         </motion.ol>
@@ -865,22 +904,25 @@ function Faq() {
 
 /* ---------- 07 Closing ---------- */
 
-function Closing() {
+function Closing({ still }: { still: ReturnType<typeof introSources> }) {
   return (
     <section className={`${styles.section} ${styles.closing}`} aria-labelledby="closing-title">
-      <motion.div {...stagger} className={styles.closingText}>
-        <motion.h2 {...item} id="closing-title" className={styles.closingTitle}>
-          Beat the rush.
-        </motion.h2>
-        <motion.p {...item} className={styles.subline}>
-          Check the next few hours before you head out.
-        </motion.p>
-        <motion.div {...item} className={styles.closingActions}>
-          <a href={config.mapUrl} onClick={openMap} className={`${styles.cta} ${styles.ctaLarge}`}>
-            Open the map
-          </a>
+      <div className={styles.closingBand}>
+        <img className={styles.closingStill} {...still} sizes="100vw" alt="" loading="lazy" aria-hidden />
+        <motion.div {...stagger} className={styles.closingText}>
+          <motion.h2 {...item} id="closing-title" className={styles.closingTitle}>
+            Beat the rush.
+          </motion.h2>
+          <motion.p {...item} className={styles.subline}>
+            Check the next few hours before you head out.
+          </motion.p>
+          <motion.div {...item} className={styles.closingActions}>
+            <a href={config.mapUrl} onClick={openMap} className={`${styles.cta} ${styles.ctaLarge}`}>
+              Open the map
+            </a>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      </div>
     </section>
   );
 }
