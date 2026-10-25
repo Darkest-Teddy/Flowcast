@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type CSSProperties } from 'react';
 import styles from './Controls.module.css';
 
 /** Apple-style segmented control. */
@@ -7,14 +7,17 @@ export function Segmented<T extends string | number>({
   value,
   onChange,
   label,
+  animated = false,
 }: {
+  animated?: boolean;
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   label: string;
 }) {
   return (
-    <div className={styles.segmented} role="radiogroup" aria-label={label}>
+    <div className={`${styles.segmented} ${animated ? styles.animated : ''}`} role="radiogroup" aria-label={label}
+      style={animated ? { '--segment-count': options.length, '--segment-index': Math.max(0, options.findIndex(option => option.value === value)) } as CSSProperties : undefined}>
       {options.map((o) => (
         <button
           key={String(o.value)}

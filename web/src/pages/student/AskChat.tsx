@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Map as MapIcon, MessagesSquare } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Map as MapIcon } from 'lucide-react';
 import type { AgentMessage } from '@map/askClient';
 import { appendExchange } from '@map/askConversation';
 import { api } from '../../data/api';
@@ -21,8 +21,9 @@ interface Turn {
   status: string;
 }
 
-export function AskChat({ data, visible }: { data: CampusData; visible: boolean }) {
+export function AskChat({ data, visible, composer }: { data: CampusData; visible: boolean; composer?: (ask: (question: string) => Promise<void>, pending: boolean, resetToken: number) => ReactNode }) {
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [resetToken, setResetToken] = useState(0);
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState(false);
   const history = useRef<AgentMessage[]>([]);
@@ -33,7 +34,7 @@ export function AskChat({ data, visible }: { data: CampusData; visible: boolean 
 
   useEffect(() => () => { active.current?.abort(); active.current = null; }, []);
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || composer) return;
     const focus = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
@@ -42,7 +43,7 @@ export function AskChat({ data, visible }: { data: CampusData; visible: boolean 
     };
     window.addEventListener('keydown', focus);
     return () => window.removeEventListener('keydown', focus);
-  }, [visible]);
+  }, [visible, composer]);
 
   const newChat = () => {
     active.current?.abort();
@@ -50,6 +51,7 @@ export function AskChat({ data, visible }: { data: CampusData; visible: boolean 
     history.current = [];
     afterDevice.current = false;
     setTurns([]);
+    setResetToken(token => token + 1);
     setDraft('');
     setPending(false);
     input.current?.focus();
@@ -101,7 +103,9 @@ export function AskChat({ data, visible }: { data: CampusData; visible: boolean 
   };
 
   return (
-    <section hidden={!visible} aria-label="Ask Flowcast conversation" className={styles.wrap}>
+    <>
+    {composer?.(ask, pending, resetToken)}
+    <section hidden={!visible || (!!composer && turns.length === 0)} aria-label="Ask Flowcast conversation" className={styles.wrap}>
       <div className={styles.card}>
         <div className={styles.head}>
           <h2>Ask Flowcast</h2>
@@ -125,25 +129,22 @@ export function AskChat({ data, visible }: { data: CampusData; visible: boolean 
                 </div>
                 <div className={styles.answerActions}>
                   {turn.mapLink && <Button variant="ghost" size="sm" href={turn.mapLink} icon={<MapIcon aria-hidden />}>Show on map</Button>}
-                  {turn.answer && (
-                    <Button variant="ghost" size="sm" to={`/ask?q=${encodeURIComponent(turn.question)}`} icon={<MessagesSquare aria-hidden />}>
-                      Open in Ask Flowcast
-                    </Button>
-                  )}
+
                 </div>
               </div>
             </article>
           ))}
         </div>
-        <form className={styles.composer} onSubmit={(event) => { event.preventDefault(); void ask(draft); }}>
+        {!composer && <form className={styles.composer} onSubmit={(event) => { event.preventDefault(); void ask(draft); }}>
           <label htmlFor="ask-followup">{turns.length ? 'Follow-up question' : 'Your question'}</label>
           <div className={styles.composerControls}>
             <input id="ask-followup" ref={input} value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={300} placeholder="Ask about campus…" />
             <Button type="submit" disabled={pending || !draft.trim()}>{pending ? 'Asking…' : 'Send'}</Button>
           </div>
-        </form>
+        </form>}
         {!pending && <ExampleQuestions onAsk={(question) => { void ask(question); }} />}
       </div>
     </section>
+    </>
   );
 }

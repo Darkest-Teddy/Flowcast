@@ -10,6 +10,7 @@ import AuthCallback from './pages/AuthCallback';
 import Welcome from './pages/Welcome';
 import Schedule from './pages/Schedule';
 import Forecasts from './pages/Forecasts';
+import Study from './pages/Study';
 import Events from './pages/Events';
 import EventImpact from './pages/EventImpact';
 import Clubs from './pages/Clubs';
@@ -59,6 +60,7 @@ const router = createBrowserRouter([
       { path: 'ask', element: <Ask /> },
       { path: 'schedule', element: <Schedule /> },
       { path: 'forecasts', element: <Forecasts /> },
+      { path: 'study', element: <Study /> },
       { path: 'events', element: <Events /> },
       { path: 'event-impact', element: <EventImpact /> },
       { path: 'clubs', element: <Clubs /> },

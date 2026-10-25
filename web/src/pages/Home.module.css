@@ -26,10 +26,12 @@
 }
 
 .columns {
+  align-items: start;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-5);
   margin-top: var(--space-5);
+  margin-bottom: var(--space-5);
 }
 
 .bottom {
@@ -90,6 +92,7 @@
   }
 
   .columns {
+  align-items: start;
     margin-top: var(--space-4);
   }
 
@@ -98,4 +101,18 @@
     display: block;
     margin-left: 0;
   }
+}
+
+.forecastNote {
+  padding-block: var(--space-3);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+.forecastNote summary { cursor: pointer; }
+.forecastNote p { margin-top: var(--space-2); }
+
+.askDock {
+  position: sticky;
+  top: calc(var(--space-3) + env(safe-area-inset-top));
+  z-index: 6;
 }

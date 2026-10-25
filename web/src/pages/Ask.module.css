@@ -28,13 +28,13 @@
   gap: var(--space-4);
   min-width: 0;
   /* Tall enough that the composer sits at the bottom of the window even with no messages. */
-  min-height: calc(100dvh - var(--topbar-height) - var(--space-32) - var(--space-16));
+  min-height: calc(100dvh - var(--space-32) - var(--space-16));
 }
 
 .aside {
   position: sticky;
-  top: calc(var(--topbar-height) + var(--space-4));
-  max-height: calc(100dvh - var(--topbar-height) - var(--space-8));
+  top: var(--space-4);
+  max-height: calc(100dvh - var(--space-8));
   overflow-y: auto;
   border-radius: var(--radius-card);
   min-width: 0;
@@ -48,9 +48,9 @@
   list-style: none;
 }
 
-/* Keep a message's top clear of the sticky top bar when it scrolls into view. */
+/* Leave breathing room when a message scrolls into view. */
 .list > li {
-  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
+  scroll-margin-top: var(--space-4);
   scroll-margin-bottom: calc(var(--space-32) + var(--space-8));
 }
 
@@ -110,7 +110,7 @@
   }
 
   .chat {
-    min-height: calc(100dvh - var(--topbar-height) - var(--space-32) - var(--space-32));
+    min-height: calc(100dvh - var(--space-32) - var(--space-32));
   }
 }
 

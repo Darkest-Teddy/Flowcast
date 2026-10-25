@@ -1,5 +1,7 @@
 // The only data door for dashboard pages; dashboard state comes from the server.
 import { useCallback, useEffect, useState } from 'react';
+import { studySpots } from './studySpots';
+import type { StudyHoursByLocation } from '../lib/studyFinder';
 import { auth } from '../auth/client';
 import { config } from '../config';
 import { createDashboardClient } from './realData';
@@ -63,6 +65,17 @@ function pause(ms: number, signal?: AbortSignal): Promise<boolean> {
 }
 
 export const api = {
+  getStudySpots: () => copy(studySpots),
+  async getStudyHours(): Promise<StudyHoursByLocation> {
+    const response = await fetch('/data/campus-data.json');
+    if (!response.ok) throw new Error('Published study-space hours could not be loaded.');
+    const data = await response.json();
+    if (!data.locations || typeof data.locations !== 'object') throw new Error('Published hours are unavailable.');
+    return Object.fromEntries(studySpots.map(spot => {
+      const location = data.locations[spot.locationId];
+      return [spot.locationId, { hours: location?.hours ?? [], hoursStatus: location?.hoursStatus }];
+    }));
+  },
   getSession: () => dashboard.getMe().then((data) => data.session),
   getLocations: () => dashboard.getPublic().then((data) => data.locations),
   getSchedule: (): Promise<ScheduleItem[]> => dashboard.request<ScheduleImportState>('/schedule').then((state) => state.items),

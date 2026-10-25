@@ -61,14 +61,13 @@ export default function Home() {
         <p className={styles.status}>{calendarStatus}</p>
       </div>
 
-      <SearchBar
-        placeholder="Search buildings, events, clubs and classes"
-        mode={mode}
-        onModeChange={setMode}
-        onSubmit={(query) => setSearch(query)}
-      />
-
-      <AskChat visible={mode === 'ask'} data={{
+      <AskChat visible={mode === 'ask'} composer={(ask, pending, resetToken) => (
+        <div className={mode === 'ask' ? styles.askDock : undefined}>
+        <SearchBar placeholder="Search buildings, events, clubs and classes" mode={mode}
+          resetToken={resetToken} onModeChange={setMode} pending={mode === 'ask' && pending}
+          onSubmit={(query, selectedMode) => { if (selectedMode === 'ask') void ask(query); else setSearch(query); }} />
+        </div>
+      )} data={{
         locations: locations.data ?? [], schedule: schedule.data ?? [],
         events: events.data ?? [], clubs: clubs.data ?? [],
         hourly: hourly.data ?? [], places: places.data ?? [],
@@ -96,7 +95,6 @@ export default function Home() {
         homeLocationId={profile.data ? profile.data.homeLocationId : session?.user.homeLocationId ?? null}
         loading={schedule.loading || locations.loading || geo.loading || profile.loading} />
 
-      <p className={styles.status}>{places.data?.[0]?.basis ?? 'Campus crowd figures are model-derived projections, not live head counts.'}</p>
       <div className={styles.columns}>
         <SectionList
           title="Today · Boston time"
@@ -123,6 +121,8 @@ export default function Home() {
           to="/forecasts"
           empty={places.loading ? loadingText : 'No comparable crowd projection is available for this hour.'}
         >
+          <p className={styles.forecastNote}>Modeled crowd levels, not live head counts.</p>
+          {!places.data?.length && <p className={styles.forecastNote}>{places.loading ? loadingText : 'No comparable crowd projection is available for this hour.'}</p>}
           {(places.data ?? []).slice(0, 6).map((p) => {
             const level = crowdFor(p.share);
             return (
@@ -134,6 +134,8 @@ export default function Home() {
               />
             );
           })}
+          <ListRow title="Find a study spot" subtitle="Compare amenities, walking time, and space to study." to="/study" />
+          {places.data?.[0]?.basis && <details className={styles.forecastNote}><summary>About these projections</summary><p>{places.data[0].basis}</p></details>}
         </SectionList>
 
 
