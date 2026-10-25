@@ -1,7 +1,7 @@
 /*
  * The landing page. Always dark (the page sets data-theme="dark", so every token takes its dark
- * value): near-black and flat, after raycast.com, with glass only on the scenario cards floating over the map,
- * after felt.com's panels. Every colour, size and duration is a token (theme/tokens.css).
+ * value): near-black and flat, after raycast.com and felt.com. Every colour, size and duration is a
+ * token (theme/tokens.css).
  */
 
 .page {
@@ -412,26 +412,6 @@
   pointer-events: none;
 }
 
-/* Glass, only on the scenario results: blur, saturation and a bright 1px top edge
-   (--glass-inner-shadow). Its strong fill keeps ink at 4.5:1 over any map; reduced transparency
-   turns it solid (tokens.css). */
-.glassCard {
-  composes: glass-strong from global;
-  margin: 0;
-  border-radius: var(--radius-card);
-  padding: var(--space-5);
-  pointer-events: auto;
-}
-
-.cardMeta {
-  margin-top: var(--space-2);
-  color: var(--color-ink-secondary);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-}
-
 /* ---------- Shared section parts ---------- */
 
 .section {
@@ -652,9 +632,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: var(--tracking-mono);
-  text-overflow: ellipsis;
   text-transform: uppercase;
-  white-space: nowrap;
 }
 
 .tabTrack {
@@ -716,8 +694,7 @@
   height: 14px;
 }
 
-/* A crop of the map, flat. The result card is in the panel's flow, bottom right, so the panel grows
-   to fit it instead of cutting it off. */
+/* A crop of the map, flat and uncovered. */
 .scenarioPanel {
   position: relative;
   min-height: 560px;
@@ -751,88 +728,6 @@
 
 .scenarioMap-fire img {
   transform-origin: 56% 44%;
-}
-
-.resultCard {
-  position: relative;
-  width: min(400px, 100%);
-}
-
-.resultTitle {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-text);
-}
-
-.resultHead {
-  margin-top: var(--space-4);
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
-  color: var(--color-ink-secondary);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-mono);
-  text-transform: uppercase;
-}
-
-.resultRows {
-  list-style: none;
-  margin: var(--space-2) 0 0;
-  padding: 0;
-}
-
-.resultRows li {
-  padding: var(--space-3) 0;
-  border-top: 1px solid var(--landing-hairline);
-}
-
-.resultName {
-  display: block;
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-}
-
-.resultAt {
-  color: var(--color-ink-secondary);
-  font-weight: var(--weight-regular);
-}
-
-.resultChange {
-  margin-top: var(--space-1);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-md);
-}
-
-.resultArrow {
-  color: var(--color-ink-secondary);
-}
-
-.reading {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-ink-secondary);
-}
-
-.readingStrong {
-  color: var(--color-ink);
-  font-weight: var(--weight-semibold);
-}
-
-.resultExtra {
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--landing-hairline);
-  font-size: var(--text-md);
-}
-
-.resultNote {
-  margin-top: var(--space-3);
-  color: var(--color-ink-secondary);
-  font-size: var(--text-sm);
 }
 
 /* ---------- 04 Hourly preview ---------- */
@@ -1324,10 +1219,6 @@
   .scenarioPanel {
     min-height: 460px;
     padding: var(--space-3);
-  }
-
-  .resultCard {
-    width: 100%;
   }
 
   .frameCaption {

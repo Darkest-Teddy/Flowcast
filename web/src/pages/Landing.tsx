@@ -33,8 +33,7 @@ import styles from './Landing.module.css';
 
 /**
  * The public front page: signed-out visitors see it at /, and anyone at /landing. Always dark: near
- * black and flat, with glass only on the scenario cards floating over the map. Every number comes from the
- * model's data (forecast.ts, scenarios.ts, status.ts).
+ * black and flat. Every number comes from the model's data (forecast.ts, scenarios.ts, status.ts).
  */
 
 const SECTIONS = [
@@ -492,7 +491,7 @@ function Scenarios({ results, loading, still }: { results: (ScenarioResult | nul
                 </span>
                 <span className={styles.tabText}>
                   <span className={styles.tabLabel}>{s.label}</span>
-                  <span className={styles.tabSub}>{results[i]?.tag ?? (loading ? 'Loading' : 'No data')}</span>
+                  <span className={styles.tabSub}>{headline(results[i]) ?? (loading ? 'Loading' : 'No data')}</span>
                   <span className={styles.tabTrack} aria-hidden>
                     <span key={`${active}-${running}`} className={`${styles.tabFill} ${i === active && running ? styles.tabFillRunning : ''}`} />
                   </span>
@@ -514,7 +513,7 @@ function Scenarios({ results, loading, still }: { results: (ScenarioResult | nul
           )}
         </div>
 
-        {/* The card sits in the panel's flow (bottom right), so the panel grows to fit it rather than cutting it off. */}
+        {/* The map, uncovered: the result is in the tabs. */}
         <div
           id={`${base}-panel`}
           role="tabpanel"
@@ -529,58 +528,39 @@ function Scenarios({ results, loading, still }: { results: (ScenarioResult | nul
           <div className={`${styles.scenarioMap} ${styles[`scenarioMap-${scenario.id}`]}`} aria-hidden>
             <img {...still} sizes="(min-width: 1120px) 760px, 100vw" alt="" loading="lazy" />
           </div>
-          <motion.div
-            key={scenario.id}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className={`${styles.glassCard} ${styles.resultCard}`}
-            aria-live="polite"
-          >
-            <p className={styles.resultTitle}>{scenario.label}</p>
+          {/* The full result for screen readers; on screen the map stays clear and each tab carries its headline change. */}
+          <div className="visually-hidden" aria-live="polite">
             {result ? (
               <>
-                <p className={styles.cardMeta}>{result.when}</p>
-                <div className={styles.resultHead} aria-hidden>
-                  <span>{result.beforeLabel}</span>
-                  <span>{result.afterLabel}</span>
-                </div>
-                <ul className={styles.resultRows}>
+                <p>
+                  {scenario.label}, {result.when}. {result.beforeLabel} and {result.afterLabel}:
+                </p>
+                <ul>
                   {result.rows.map((row) => (
                     <li key={row.id}>
-                      <span className={styles.resultName}>
-                        {row.name}
-                        {row.at && <span className={styles.resultAt}> · {row.at}</span>}
-                      </span>
-                      <span className={styles.resultChange}>
-                        <Reading share={row.before} />
-                        <span className={styles.resultArrow} aria-label="to">→</span>
-                        <Reading share={row.after} strong />
-                      </span>
+                      {row.name}
+                      {row.at ? ` at ${row.at}` : ''}: {row.before != null ? reading(row.before) : 'unavailable'} to {row.after != null ? reading(row.after) : 'unavailable'}.
                     </li>
                   ))}
                 </ul>
-                {result.note && <p className={styles.resultExtra}>{result.note}</p>}
-                <p className={styles.resultNote}>Simulated, not measured.</p>
+                {result.note && <p>{result.note}</p>}
+                <p>Simulated, not measured.</p>
               </>
             ) : (
-              <p className={styles.cardMeta}>{loading ? 'Loading the simulation…' : 'No simulation data for this scenario yet.'}</p>
+              <p>{loading ? 'Loading the simulation.' : 'No simulation data for this scenario yet.'}</p>
             )}
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function Reading({ share, strong = false }: { share: number | null; strong?: boolean }) {
-  if (share == null) return <span className={styles.reading}>Unavailable</span>;
-  return (
-    <span className={`${styles.reading} ${strong ? styles.readingStrong : ''}`}>
-      <Dot share={share} size="sm" />
-      {reading(share)}
-    </span>
-  );
+/** A scenario's biggest change in one line, for its tab: "Warren Dining · Quiet 7% → Busy 43%". */
+function headline(result: ScenarioResult | null): string | null {
+  const row = result?.rows[0];
+  if (!row || row.before == null || row.after == null) return result?.tag ?? null;
+  return `${row.name} · ${reading(row.before)} → ${reading(row.after)}`;
 }
 
 /* ---------- 04 Hourly preview ---------- */
