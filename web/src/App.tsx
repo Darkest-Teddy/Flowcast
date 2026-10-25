@@ -21,6 +21,7 @@ import CheckIn from './pages/CheckIn';
 import Profile from './pages/Profile';
 import Calendars from './pages/Calendars';
 import Privacy from './pages/Privacy';
+import PublicPrivacy from './pages/PublicPrivacy';
 import Settings from './pages/Settings';
 import ClubPage from './pages/club/ClubPage';
 import ClubCalendar from './pages/club/ClubCalendar';
@@ -48,9 +49,12 @@ const Join = lazy(() => import('./pages/Join'));
 function StudentArea() {
   const { session, ready, profileFailed } = useSession();
   const atIndex = useMatch('/') !== null;
+  const atPrivacy = useMatch('/privacy') !== null;
   // Signed out: no stored sign-in means the landing page right away, without waiting for the check.
   // Signed in with a profile that didn't load: RequireAuth shows AccountError instead.
   if (atIndex && !session && !profileFailed && (ready || !mayBeSignedIn())) return <Landing />;
+  // The privacy policy and terms are public (Google's OAuth review links here); signed in, /privacy adds the account tools.
+  if (atPrivacy && !session && !profileFailed && (ready || !mayBeSignedIn())) return <PublicPrivacy />;
   return (
     <RequireAuth>
       <StudentLayout />

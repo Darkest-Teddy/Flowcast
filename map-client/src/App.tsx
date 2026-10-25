@@ -168,6 +168,12 @@ const BOSTON_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_Yo
 /** Today's calendar date in Boston, "2026-10-24". */
 function wallClockDate(): string { return BOSTON_DATE.format(new Date()); }
 
+// Library mode: only libraries show their fill (tags and glow). Off by default and remembered.
+const LIBRARY_MODE_KEY = 'flowcast.libraryMode';
+function storedLibraryMode(): boolean {
+  try { return localStorage.getItem(LIBRARY_MODE_KEY) === '1'; } catch { return false; }
+}
+
 // Parking is an opt-in estimate layer (Transit tab), off by default and remembered.
 const PARKING_KEY = 'flowcast.parking';
 function storedParking(): boolean {
@@ -421,6 +427,9 @@ export default function App() {
   const showBikesRef = useRef(true);
   const parkingRef = useRef<Parking | null>(null);
   const parkingTagsRef = useRef<ParkingTagsHandle>(null);
+  /* Library mode: only libraries keep their tag and glow, so every library's fill reads at a glance. */
+  const [libraryMode, setLibraryMode] = useState(storedLibraryMode);
+  const libraryModeRef = useRef(libraryMode);
   const [showParking, setShowParking] = useState(storedParking);
   const showParkingRef = useRef(showParking);
   const [parkingView, setParkingView] = useState<ParkingState | null>(null);
@@ -991,6 +1000,7 @@ export default function App() {
       let buildingOccupancy: BuildingOccupancy[] = [];
       let buildingsFrom: Occupancy[] | null = null;
       let buildingsPlayback: Playback | null = null;
+      let buildingsLibraryMode = libraryModeRef.current;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       let parkingState: ParkingState | null = null; // only while the Parking toggle is on
       let lastParking = 0;
@@ -1132,11 +1142,15 @@ export default function App() {
             (id) => (id.startsWith('visitor:') ? visitorModel(plan, id) : modelOf(id))), models, t, basemap.getZoom()));
         }
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
-        if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
-          buildingOccupancy = playback.byBuilding(occupancy);
-          buildings = withVenueEvents(splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights), eventDayRef.current, t, populationBase.locations);
+        if (occupancy !== buildingsFrom || playback !== buildingsPlayback || libraryModeRef.current !== buildingsLibraryMode) {
+          // Library mode rolls up library spaces only: other buildings get no tag and no glow.
+          const shown = libraryModeRef.current ? occupancy.filter((o) => o.location.kind === 'library') : occupancy;
+          buildingOccupancy = playback.byBuilding(shown);
+          const tagged = splitSharedTags(buildingOccupancy, shown, day.buildings, roofHeights);
+          buildings = libraryModeRef.current ? tagged : withVenueEvents(tagged, eventDayRef.current, t, populationBase.locations);
           buildingsFrom = occupancy;
           buildingsPlayback = playback;
+          buildingsLibraryMode = libraryModeRef.current;
         }
         if (!cleanRef.current) {
           const tagBuildings = buildings.filter(building => !damagedIds.has(building.id.split('#')[0]));
@@ -1391,6 +1405,13 @@ export default function App() {
     showCountsRef.current = !showCountsRef.current;
     setShowCounts(showCountsRef.current);
     try { localStorage.setItem(COUNTS_KEY, showCountsRef.current ? '1' : '0'); } catch { /* storage blocked: this session only */ }
+  };
+  const toggleLibraryMode = () => {
+    libraryModeRef.current = !libraryModeRef.current;
+    setLibraryMode(libraryModeRef.current);
+    // The Places list follows: libraries ("Study") while it's on, every kind again after.
+    setCategory(libraryModeRef.current ? 'library' : 'all');
+    try { localStorage.setItem(LIBRARY_MODE_KEY, libraryModeRef.current ? '1' : '0'); } catch { /* storage blocked: this session only */ }
   };
   const toggleParking = () => {
     showParkingRef.current = !showParkingRef.current;
@@ -2035,6 +2056,7 @@ export default function App() {
    * the people glyph, which now belongs to the crowd scale alone.
    */
   const railItems: RailItem[] = [
+    { id: 'libraries', label: libraryMode ? 'Show every building' : 'Library mode: only libraries', icon: <HudIcons.library />, on: libraryMode, hue: 'violet', onSelect: toggleLibraryMode },
     { id: 'transit', label: showTransit ? 'Hide MBTA' : 'Show MBTA', icon: <HudIcons.transit />, on: showTransit, hue: 'green', onSelect: toggleTransit },
     ...(bikes ? [{ id: 'bikes', label: showBikes ? 'Hide Bluebikes' : 'Show Bluebikes', icon: <HudIcons.bikes />, on: showBikes, hue: 'orange' as const, onSelect: toggleBikes }] : []),
     ...(mapKind === 'mapbox'
@@ -2150,7 +2172,7 @@ export default function App() {
           )}
 
           {/* Bottom left: what the three colours mean. */}
-          <HudLegend levels={legendLevels} />
+          <HudLegend levels={legendLevels} scope={libraryMode ? 'Libraries only' : undefined} />
 
           {/*
             Everything about when, in one block: the clock and the temperature to
