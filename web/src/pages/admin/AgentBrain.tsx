@@ -107,7 +107,7 @@ export default function AgentBrain() {
 
           <SectionHeading actions={<Tag tone="warn">Estimates</Tag>}>Cost and usage</SectionHeading>
           <p className={styles.lead}>Placeholder numbers worked out by hand, not measured. They'll be replaced by real counts once Jev is connected.</p>
-          <Grid columns={4}>
+          <Grid columns={4} phoneColumns={2}>
             {brain.usage.map((u) => (
               <StatCard key={u.id} label={u.label} value={u.value} detail={`Estimate. ${u.detail}`} />
             ))}

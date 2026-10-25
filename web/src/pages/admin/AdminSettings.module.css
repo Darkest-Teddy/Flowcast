@@ -3,22 +3,29 @@
   color: var(--color-ink-tertiary);
 }
 
+/* Adding an admin is the last row of the Team admins card. */
 .addRow,
 .inline {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-4);
+}
+
+.addRow {
+  padding: var(--space-4) 0 var(--space-3);
+  border-top: 1px solid var(--color-hairline);
+}
+
+.card {
+  composes: glass from global;
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
 }
 
 .addRow > button,
 .inline > button {
   margin-top: calc(var(--text-sm) * var(--leading-normal) + var(--space-1));
-}
-
-.inline {
-  margin-top: 0;
 }
 
 .addField {
@@ -30,8 +37,11 @@
   margin-top: var(--space-2);
 }
 
+/* Google sign-in facts: one glass card, like Settings. */
 .rows {
-  border-top: 1px solid var(--color-hairline);
+  composes: glass from global;
+  padding: var(--space-1) var(--space-5);
+  border-radius: var(--radius-card);
 }
 
 .rows > div:first-child {
@@ -47,7 +57,8 @@
 }
 
 .note {
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
+  padding: 0 var(--space-5);
   max-width: 72ch;
   font-size: var(--text-sm);
   color: var(--color-ink-secondary);
@@ -98,4 +109,17 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-3);
+}
+
+/* Phones: the field takes the whole row and the button goes under it, not under its hint's gap. */
+@media (max-width: 560px) {
+  .addRow > button,
+  .inline > button {
+    margin-top: 0;
+  }
+
+  .addField {
+    flex-basis: 100%;
+    max-width: none;
+  }
 }

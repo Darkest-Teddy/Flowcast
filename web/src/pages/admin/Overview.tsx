@@ -34,7 +34,7 @@ export default function Overview() {
         <Loading label="Loading overview" />
       ) : (
         <div className={styles.stack}>
-          <Grid columns={4}>
+          <Grid columns={4} phoneColumns={2}>
             <StatCard label="Users" value={String(users.length)} detail="Signed in at least once" />
             <StatCard label="Calendars connected" value={String(users.filter((u) => u.calendarConnected).length)} detail={`of ${users.length} users`} />
             <StatCard label="Verified clubs" value={String(clubs.filter((c) => c.verified).length)} detail={`${pending.length} waiting for review`} />

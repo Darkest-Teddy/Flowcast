@@ -4,12 +4,12 @@
 
 .columns {
   columns: 2;
-  column-gap: var(--space-4);
+  column-gap: var(--space-5);
 }
 
 .columns > section {
   break-inside: avoid;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .number {
@@ -68,5 +68,18 @@
 @media (max-width: 860px) {
   .columns {
     columns: 1;
+  }
+}
+
+@media (max-width: 560px) {
+  .columns > section {
+    margin-bottom: var(--space-4);
+  }
+}
+
+@media (pointer: coarse) {
+  .number {
+    height: 44px;
+    font-size: var(--text-lg);
   }
 }
