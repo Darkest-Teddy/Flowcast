@@ -222,26 +222,48 @@ export function HudTabs<T extends string>({
 /* ---------------------------------------------------------------------------
  * Top right: the clock and the weather.
  * ------------------------------------------------------------------------- */
+/*
+ * One block in the top right for everything about when.
+ *
+ * The reading sits on top -- the clock and the temperature, the two things you
+ * glance at -- and everything that changes the time sits under it: the day, the
+ * drag bar, and the transport. They were spread across two corners before, which
+ * meant the control that moved the clock was nowhere near the clock.
+ */
 export function HudStatus({
   time,
   live,
+  day,
   scrubber,
+  controls,
   children,
 }: {
   time: string;
   live: boolean;
-  /** The time drag bar. It belongs with the clock it moves, not across the screen. */
+  /** Which day of the week is being simulated. Part of the time, so it lives here. */
+  day?: ReactNode;
   scrubber?: ReactNode;
+  controls?: ReactNode;
+  /** The weather chip, portalled in by WeatherControls. */
   children?: ReactNode;
 }) {
   return (
-    <div className="hud-status">
-      <output className="hud-clock" aria-live="off">
-        {time}
-      </output>
-      {live && <span className="hud-live">Clock</span>}
-      {scrubber && <div className="hud-scrubber">{scrubber}</div>}
-      {children}
+    <div className="hud-status" role="group" aria-label="Time and weather">
+      <div className="hud-status-reading">
+        <output className="hud-clock" aria-live="off">
+          {time}
+        </output>
+        {live && <span className="hud-live">Clock</span>}
+        {children}
+      </div>
+
+      {(day || scrubber || controls) && (
+        <div className="hud-status-controls">
+          {day}
+          {scrubber && <div className="hud-scrubber">{scrubber}</div>}
+          {controls}
+        </div>
+      )}
     </div>
   );
 }

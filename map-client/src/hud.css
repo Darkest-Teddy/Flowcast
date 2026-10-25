@@ -166,12 +166,27 @@
   top: 12px;
   right: 12px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 40px;
-  padding: 0 14px;
-  border-radius: 999px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 10px;
+  border-radius: 16px;
   font-size: 13px;
+}
+
+/* The reading: clock and temperature, the two things you glance at. */
+.hud-status-reading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 26px;
+}
+
+/* Under it, everything that changes the time. */
+.hud-status-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .hud-clock {
@@ -199,17 +214,34 @@
 /* ---------------------------------------------------------------------------
  * Time, bottom left
  * ------------------------------------------------------------------------- */
+/*
+ * No longer its own corner: the transport sits inside the status block, under
+ * the clock it moves. It keeps its own class so the buttons stay grouped.
+ */
 .hud-time {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 10px 0 6px;
-  border-radius: 999px;
-  font-size: 13px;
+  gap: 2px;
+}
+
+/* The day of the week, beside the time it belongs to. */
+.hud-day {
+  flex: none;
+  height: 26px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.1);
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hud-day:focus-visible {
+  outline: 2px solid var(--color-accent, #2997ff);
+  outline-offset: 2px;
 }
 
 .hud-time-play {
@@ -309,11 +341,11 @@
   color: var(--color-ink, #f5f5f7);
 }
 
-/* The drag bar, in the status group beside the clock it moves. */
+/* The drag bar, under the clock it moves. */
 .hud-status .hud-scrubber {
   display: flex;
   align-items: center;
-  width: 150px;
+  width: 128px;
 }
 
 .hud-status .hud-scrubber input[type='range'] {
@@ -638,10 +670,10 @@
 .app .perf {
   top: auto;
   right: auto;
-  /* Above the time bar on the left. Bottom-right is the panel's corner, and the
-     two overlapped whenever a tab was open. */
+  /* Bottom left, which is empty now that the transport moved up into the time
+     block. Bottom right is the panel's corner and the two overlapped there. */
   left: 12px;
-  bottom: 64px;
+  bottom: 12px;
   z-index: 4;
   min-width: 0;
   max-width: 280px;
@@ -668,6 +700,11 @@
 /* The sheet's own stats line duplicated what the panel already says and was the
    only thing visible when it was collapsed. */
 .app .sheet .sheet-stats {
+  display: none;
+}
+
+/* The simulation day moved into the time block, beside the clock it changes. */
+.app .sheet .day-picker {
   display: none;
 }
 

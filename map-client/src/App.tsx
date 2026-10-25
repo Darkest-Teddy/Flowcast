@@ -1376,10 +1376,31 @@ export default function App() {
 
           <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
 
-          {/* The drag bar sits with the clock it moves, not across the screen. */}
+          {/*
+            Everything about when, in one block: the clock and the temperature to
+            read, and under them the day, the drag bar and the transport that
+            change them.
+          */}
           <HudStatus
             time={formatClock(hud.time)}
             live={live}
+            day={
+              sourceData && (
+                <select
+                  className="hud-day"
+                  value={weekday}
+                  onChange={(event) => changeDay(Number(event.target.value))}
+                  aria-label="Simulation day"
+                  title="Which day of the week is simulated"
+                >
+                  {WEEKDAYS.map((name, index) => (
+                    <option key={name} value={index}>
+                      {name.slice(0, 3)}
+                    </option>
+                  ))}
+                </select>
+              )
+            }
             scrubber={
               <input
                 type="range"
@@ -1393,19 +1414,20 @@ export default function App() {
                 aria-valuetext={formatClock(hud.time)}
               />
             }
+            controls={
+              <HudTime
+                playing={playing}
+                onPlay={togglePlaying}
+                speed={speed}
+                speeds={SPEEDS}
+                onSpeed={changeSpeed}
+                live={live}
+                onLive={goLive}
+              />
+            }
           >
             <span className="weather-chip-slot" ref={setWeatherChip} />
           </HudStatus>
-
-          <HudTime
-            playing={playing}
-            onPlay={togglePlaying}
-            speed={speed}
-            speeds={SPEEDS}
-            onSpeed={changeSpeed}
-            live={live}
-            onLive={goLive}
-          />
 
           {askContext && (
             <HudAsk>
