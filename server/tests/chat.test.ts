@@ -282,6 +282,18 @@ test('visuals come from tool outputs: a day line with the asked time, a ranking,
   assert.ok(impact.marker);
 });
 
+test('missing Sunday library hours produce no ranking visual instead of crashing on omitted counts', async () => {
+  const sunday = await campus.playback(6);
+  const { out, log } = await call('rank_places_by_crowd', {
+    kind: 'library', weekday: null, time: '01:19', near: null, order: null, openOnly: null,
+  }, { ...ctx, weekday: 6, time: 4740, occupancyAt: (t) => sunday.occupancyAt(t) });
+  assert.ok(out.hoursNotInData);
+  assert.equal(out.leastCrowded, null);
+  assert.ok(out.places.length > 0);
+  assert.ok(out.places.every((p: any) => !('students' in p) && !('percent' in p)));
+  assert.deepEqual(buildVisuals(log.results), []);
+});
+
 test('at most four visuals, de-duplicated, and percentages are never clamped', () => {
   const day = (place: string, pct: number) => ({ tool: 'place_day', value: { place, day: 'Wednesday', modeled: true, now: { time: '12:30 PM' }, hours: { columns: ['hour', 'open', 'percent', 'students'], rows: [[11, 1, 90, 900], [12, 1, pct, 1300], [13, 0, 20, 10]] } } });
   const results = [day('A', 130), day('B', 50), day('A', 131), day('C', 10), day('D', 10), day('E', 10), { tool: 'place_day', value: { error: 'x' } }];
