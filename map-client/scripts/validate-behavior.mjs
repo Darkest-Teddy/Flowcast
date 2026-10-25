@@ -25,4 +25,5 @@ console.log('\nAudit numbers (Wednesday):');
 for (const key of Object.keys(audits.current)) console.log(`  ${key.padEnd(42)} ${String(+audits.legacy[key].toFixed(3)).padStart(9)} → ${+audits.current[key].toFixed(3)}`);
 const timings = [...legacy.built.map(row => ({ label: `Today’s model, ${row.spec.label}${row.ms < 5 ? ' (cached weekday)' : ''}`, ms: row.ms })),
   ...current.built.map(row => ({ label: `Conditions engine, ${row.spec.label}`, ms: row.ms }))];
-if (!process.argv.includes('--no-report')) console.log(`\nWrote ${writeReport({ legacy: legacy.scores, current: current.scores, audits, timings, search: model.behavior.search, accepted: model.behavior.search?.accepted })}`);
+if (!process.argv.includes('--no-report')) console.log(`\nWrote ${writeReport({ legacy: legacy.scores, current: current.scores, audits, timings, search: model.behavior.search, accepted: model.behavior.search?.accepted,
+  observed: [['Today’s model', legacy.built], ['Conditions engine', current.built]] })}`);
