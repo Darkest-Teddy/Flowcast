@@ -109,3 +109,209 @@
 }
 .intro-error button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
+
+/* ── Tips carousel (IntroTips.tsx) ───────────────────────────────────────────────────────────────
+   A glass card over the still, on the progress line's layer, teaching the features while the map
+   loads. Art over a photo, like the progress line: it keeps the dark glass values and light ink in
+   both themes. */
+
+.intro-tips {
+  pointer-events: auto;
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  top: calc(50% - 40px); /* clear of the progress line at the bottom */
+  width: min(max(68vw, 720px), 1120px, calc(100% - 32px));
+  max-height: calc(100% - 152px);
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  transform: translate(-50%, -50%);
+  color: #f5f5f7;
+  background: rgba(28, 28, 30, 0.72);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* wrap-reverse: when the card is too narrow for two columns (phones) the shot lands on top. */
+.intro-tips-row {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  min-height: min(60vh, 560px, calc(100vh - 152px));
+}
+
+.intro-tips-text {
+  flex: 1 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px 32px 24px 36px;
+}
+
+.intro-tips-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a1a1a6;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.intro-tips-eyebrow img { border-radius: var(--radius-sm); }
+
+/* Every tip sits in the same cell, so the card is as tall as the longest one and never resizes. */
+.intro-tips-stack {
+  display: grid;
+  flex: 1;
+}
+.intro-tip {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity 400ms var(--ease-standard), transform 400ms var(--ease-standard);
+}
+.intro-tip.is-on {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.intro-tip h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.2vw, 48px);
+  font-weight: 700;
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+}
+.intro-tip-body {
+  margin: 0;
+  font-size: clamp(15px, 1.25vw, 19px);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-text);
+  text-wrap: pretty;
+}
+.intro-tip-where {
+  margin: 2px 0 0;
+  color: #a1a1a6;
+  font-size: clamp(13px, 1vw, 15px);
+  line-height: var(--leading-snug);
+}
+
+.intro-tips-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+/* Dots double as the timer: the open one stretches and fills white over the tip's seven seconds. */
+.intro-tips-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.intro-tips-dots button {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.28);
+  cursor: pointer;
+  transition: width var(--duration-base) var(--ease-standard);
+}
+.intro-tips-dots button.is-on { width: 28px; }
+.intro-tips-dots button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.intro-tips-dots span {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-full);
+  background: #fff;
+  transform-origin: left;
+  animation: intro-tip-timer linear forwards; /* duration and play state from IntroTips */
+}
+@keyframes intro-tip-timer {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.intro-tips-arrows { display: flex; gap: 6px; }
+.intro-tips-arrows button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #f5f5f7;
+  opacity: 0.85;
+  cursor: pointer;
+}
+.intro-tips-arrows button:hover { opacity: 1; }
+.intro-tips-arrows button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: var(--radius-full); }
+.intro-tips-arrows svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The shots run the full height of the card, edge to edge, and crossfade with the text. They hold
+   44% and don't grow into the spare width: the captures are framed for that column (about 5:6), and
+   a wider one would cover-crop the playback controls and the crowd scale out of every shot. */
+.intro-tips-shots {
+  position: relative;
+  flex: 0 0 44%;
+  max-width: 100%;
+  align-self: stretch;
+  min-height: 220px;
+  overflow: hidden;
+}
+.intro-tips-shots img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 500ms var(--ease-standard);
+}
+.intro-tips-shots img.is-on { opacity: 1; }
+/* Softens the seam into the text column. */
+.intro-tips-seam {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(28, 28, 30, 0.55) 0%, rgba(28, 28, 30, 0) 28%);
+  pointer-events: none;
+}
+
+/* Less motion: the crossfades stay (they're what makes the swap legible), the timer bar goes, and
+   the card holds on its tip until an arrow or dot is pressed (IntroTips). */
+@media (prefers-reduced-motion: reduce) {
+  .intro-tip { transition: opacity 400ms var(--ease-standard); transform: none; }
+  .intro-tips-dots span { animation: none; transform: none; }
+}
+
+/* On a short window the card would crowd the progress line: the shot goes and the text leads. */
+@media (max-height: 560px) {
+  .intro-tips { top: calc(50% - 28px); }
+  .intro-tips-row { min-height: 0; }
+  .intro-tips-shots { display: none; }
+  .intro-tips-text { padding: 20px 24px 16px; gap: 12px; }
+}
