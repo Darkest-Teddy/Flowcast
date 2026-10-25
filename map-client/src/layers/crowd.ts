@@ -23,10 +23,19 @@ type RGB = readonly [number, number, number];
 import { crowdLevel, type CrowdLevelInfo } from './crowdLevels';
 export { crowdLevel, type CrowdLevelInfo };
 
-/** CSS custom properties for a level (`--lv` is "r, g, b" for rgb()/rgba(); `--lv-text` a colour). */
+/**
+ * CSS custom properties for a level. On the always-dark tags: `--lv` ("r, g, b" for rgb()/rgba())
+ * and its pale text twin `--lv-text`. On the panels, which follow the light or dark theme:
+ * `--lv-ink` and `--lv-fill`, the theme's --crowd-* tokens (theme/tokens.css).
+ */
 export function crowdLevelStyle(share: number): Record<string, string> {
   const level = crowdLevel(share);
-  return { '--lv': level.glow.slice(0, 3).join(', '), '--lv-text': level.text };
+  return {
+    '--lv': level.glow.slice(0, 3).join(', '),
+    '--lv-text': level.text,
+    '--lv-ink': `var(--crowd-${level.key}-text)`,
+    '--lv-fill': `var(--crowd-${level.key})`,
+  };
 }
 
 /** The selected building is outlined in white: every hue already means a level. */

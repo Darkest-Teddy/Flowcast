@@ -1,5 +1,6 @@
 /* Startup overlay (LoadingScreen.tsx). Only transform/opacity animate, so the compositor does the
-   work while the main thread parses models and builds the population. */
+   work while the main thread parses models and builds the population. The vignette is art: dark
+   in both themes, with its own ink (--ld-*), so the page's theme doesn't reach it. */
 
 .loader {
   position: absolute;
@@ -8,6 +9,11 @@
   display: grid;
   place-items: center;
   overflow: hidden;
+  --ld-ink: #f4f5f7;
+  --ld-muted: #b7bcc8;
+  --ld-accent: #ffd60a;
+  color-scheme: dark;
+  color: var(--ld-ink);
   background: radial-gradient(ellipse at 50% 40%, #151b2a 0%, #0b0d12 70%);
   transition: opacity 0.9s ease 0.15s;
 }
@@ -169,7 +175,7 @@
   45%, 70% { stroke-dashoffset: 0; }
   100% { stroke-dashoffset: -1; }
 }
-.ld-tagline { margin: 6px 0 22px; color: var(--muted); font-size: 14px; animation: ld-up 0.8s ease 0.45s both; }
+.ld-tagline { margin: 6px 0 22px; color: var(--ld-muted); font-size: 14px; animation: ld-up 0.8s ease 0.45s both; }
 @keyframes ld-up { from { opacity: 0; transform: translateY(8px); } }
 @keyframes ld-fade { from { opacity: 0; } }
 
@@ -207,7 +213,7 @@
   align-items: baseline;
   min-height: 20px;
   margin: 12px 0 0;
-  color: var(--muted);
+  color: var(--ld-muted);
   font-size: 13px;
   animation: ld-up 0.8s ease 0.7s both;
 }
@@ -223,14 +229,14 @@
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
-  color: var(--text);
+  color: var(--ld-ink);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 .ld-error button:hover { background: rgba(255, 255, 255, 0.14); }
-.ld-error button:focus-visible { outline: 2px solid var(--accent); }
+.ld-error button:focus-visible { outline: 2px solid var(--ld-accent); }
 /* A failed start freezes the city. */
 .ld-failed .ld-agent, .ld-failed .ld-heat, .ld-failed .ld-ping { animation-play-state: paused; }
 .ld-failed .ld-mark path { animation: none; stroke-dashoffset: 0; stroke: #ff8a75; }

@@ -324,7 +324,8 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind,
     percent,
     hasPercentage,
     level: hasPercentage ? level.key : 'unmodeled',
-    style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1' },
+    // Not modeled: slate on the tags, plain secondary ink and a neutral bar on the panels.
+    style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' },
     description: hasPercentage ? `${primary} of ${seats ? 'classroom seats' : 'capacity'}, ${secondary}` : primary,
   };
 }

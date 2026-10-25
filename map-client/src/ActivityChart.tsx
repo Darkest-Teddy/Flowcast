@@ -1,5 +1,6 @@
 // A one-series area chart of a day in fixed-size bins, with the playback time marked and a
-// hover readout. Used for the typical-weekday Bluebikes activity at a campus's docks.
+// hover readout. Used for the typical-weekday Bluebikes activity at a campus's docks. Colours come
+// from styles.css (.activity-*): the series in the accent, the playback time in ink.
 import { useState } from 'react';
 import { formatClock } from './sim/playback';
 
@@ -7,7 +8,6 @@ const W = 288;
 const H = 64;
 const TOP = 4;
 const BASE = 50; // y of the baseline; tick labels sit below it
-const LINE = '#60a5fa'; // 7:1 on the panel; text never takes this colour
 const TICKS = [6, 12, 18].map((h) => ({ at: h * 3600, text: h === 12 ? 'noon' : h < 12 ? `${h} AM` : `${h - 12} PM` }));
 
 interface Props {
@@ -55,21 +55,21 @@ export function ActivityChart({ values, binSeconds, time, unit, label }: Props) 
         }}
         onPointerLeave={() => setHover(null)}
       >
-        <line x1={0} x2={W} y1={BASE} y2={BASE} stroke="rgba(255,255,255,0.18)" strokeWidth={1} />
-        <path d={area} fill="rgba(96,165,250,0.22)" />
-        <polyline points={points.join(' ')} fill="none" stroke={LINE} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        <line x1={0} x2={W} y1={BASE} y2={BASE} className="activity-base" strokeWidth={1} />
+        <path d={area} className="activity-area" />
+        <polyline points={points.join(' ')} className="activity-line" fill="none" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {TICKS.map((t) => (
           <text key={t.at} x={x(t.at)} y={H - 2} textAnchor="middle" className="tick">
             {t.text}
           </text>
         ))}
         {/* Playback time */}
-        <line x1={x(time)} x2={x(time)} y1={TOP - 2} y2={BASE} stroke="#ffd60a" strokeWidth={2} />
-        <circle cx={mid(nowBin)} cy={y(values[nowBin])} r={4} fill="#ffd60a" stroke="#11141c" strokeWidth={2} />
+        <line x1={x(time)} x2={x(time)} y1={TOP - 2} y2={BASE} className="activity-now" strokeWidth={2} />
+        <circle cx={mid(nowBin)} cy={y(values[nowBin])} r={4} className="activity-now-dot" strokeWidth={2} />
         {hover !== null && (
           <>
-            <line x1={mid(hover)} x2={mid(hover)} y1={TOP - 2} y2={BASE} stroke="rgba(255,255,255,0.6)" strokeWidth={1} />
-            <circle cx={mid(hover)} cy={y(values[hover])} r={4} fill={LINE} stroke="#11141c" strokeWidth={2} />
+            <line x1={mid(hover)} x2={mid(hover)} y1={TOP - 2} y2={BASE} className="activity-hover" strokeWidth={1} />
+            <circle cx={mid(hover)} cy={y(values[hover])} r={4} className="activity-hover-dot" strokeWidth={2} />
           </>
         )}
         {/* A full-height hit area so hovering anywhere over the chart reads it. */}

@@ -3,8 +3,11 @@
 // Rain and snow are deck.gl particles (src/weather/precipitation.ts, drawn by App's frame loop);
 // fog and a wet or snowy ground go through the base map (Mapbox only); a light screen overlay
 // (tint, distance haze, lightning) is drawn here so it also works on the MapLibre fallback.
+// The readout and mode buttons are drawn into the sheet's Weather tab (`panel`), with a small
+// temperature chip in the sheet's header (`chip`); the overlay stays here, over the map.
 // Keyboard, while focus isn't in a form control: W cycles the weather.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { Basemap, LightPreset } from './map/basemap';
 import {
   FORECAST_REFRESH_MS,
@@ -37,6 +40,11 @@ interface Props {
   simTime?: number | null;
   live?: boolean;
   onChange?: (weather: ActiveWeather) => void;
+  /** Where the readout and mode buttons go (the Weather tab panel); nothing is drawn there without one. */
+  panel?: HTMLElement | null;
+  /** Where the header chip goes, and what pressing it does (open the Weather tab). */
+  chip?: HTMLElement | null;
+  onOpen?: () => void;
 }
 
 const clock = (iso: string | number) =>
@@ -78,7 +86,7 @@ function usePolled<T>(load: (signal: AbortSignal) => Promise<T>, every: number, 
   return [value, error] as const;
 }
 
-export function WeatherControls({ basemap, light, simTime = null, live = true, onChange }: Props) {
+export function WeatherControls({ basemap, light, simTime = null, live = true, onChange, panel = null, chip = null, onOpen }: Props) {
   const [mode, setMode] = useState<WeatherMode>('live');
   const [reading, error] = usePolled<WeatherReading>(fetchWeather, REFRESH_MS, cachedWeather()?.reading ?? null);
   const [forecast] = usePolled<Forecast>(fetchForecast, FORECAST_REFRESH_MS, null);
@@ -169,37 +177,47 @@ export function WeatherControls({ basemap, light, simTime = null, live = true, o
         <div className="weather-flash" ref={flashRef} />
       </div>
 
-      <section className="panel weather" aria-label="Weather">
-        <div className="weather-readout" role="status">
-          <WeatherIcon condition={active.condition} size={30} />
-          <strong className="weather-temp">{active.temperatureF == null ? '—' : `${Math.round(active.temperatureF)}°F`}</strong>
-          <span className="weather-text">
-            <span className="weather-condition">{active.text}</span>
-            <span className={active.source === 'live' ? 'live-badge' : active.source === 'forecast' ? 'forecast-badge' : 'sim-badge'}>{badge}</span>
-          </span>
-        </div>
-        <p className="weather-detail">{detail}</p>
-        {strip.length > 0 && (
-          <ol className="weather-hours" aria-label="Hourly forecast">
-            {strip.map(({ hour, reading: r }, i) => (
-              <li key={hour} className={i === 0 ? 'current' : undefined}>
-                <span className="weather-hour">{hourLabel(hour).replace(' ', '')}</span>
-                <WeatherIcon condition={r.condition} size={16} />
-                <span>{Math.round(r.temperatureF)}°</span>
-              </li>
+      {panel && createPortal(
+        <section className="weather" aria-label="Weather">
+          <div className="weather-readout" role="status">
+            <WeatherIcon condition={active.condition} size={30} />
+            <strong className="weather-temp">{active.temperatureF == null ? '—' : `${Math.round(active.temperatureF)}°F`}</strong>
+            <span className="weather-text">
+              <span className="weather-condition">{active.text}</span>
+              <span className={`badge ${active.source === 'live' ? 'live-badge' : active.source === 'forecast' ? 'forecast-badge' : 'sim-badge'}`}>{badge}</span>
+            </span>
+          </div>
+          <p className="weather-detail">{detail}</p>
+          {strip.length > 0 && (
+            <ol className="weather-hours" aria-label="Hourly forecast">
+              {strip.map(({ hour, reading: r }, i) => (
+                <li key={hour} className={i === 0 ? 'current' : undefined}>
+                  <span className="weather-hour">{hourLabel(hour).replace(' ', '')}</span>
+                  <WeatherIcon condition={r.condition} size={16} />
+                  <span>{Math.round(r.temperatureF)}°</span>
+                </li>
+              ))}
+            </ol>
+          )}
+          <div className="weather-modes" role="group" aria-label="Weather">
+            {WEATHER_MODES.map((m) => (
+              <button key={m.mode} onClick={() => setMode(m.mode)} aria-pressed={mode === m.mode} title={m.title} className={m.mode === 'live' ? 'span-2' : undefined}>
+                {m.mode === 'live' ? <span className="live-dot" aria-hidden="true" /> : <WeatherIcon condition={MODE_ICON[m.mode]} size={18} />}
+                {m.label}
+              </button>
             ))}
-          </ol>
-        )}
-        <div className="weather-modes" role="group" aria-label="Weather">
-          {WEATHER_MODES.map((m) => (
-            <button key={m.mode} onClick={() => setMode(m.mode)} aria-pressed={mode === m.mode} title={m.title} className={m.mode === 'live' ? 'span-2' : undefined}>
-              {m.mode === 'live' ? <span className="live-dot" aria-hidden="true" /> : <WeatherIcon condition={MODE_ICON[m.mode]} size={18} />}
-              {m.label}
-            </button>
-          ))}
-        </div>
-        <p className="weather-hint">W cycles · data: Open-Meteo</p>
-      </section>
+          </div>
+          <p className="weather-hint">W cycles · data: Open-Meteo</p>
+        </section>,
+        panel,
+      )}
+      {chip && createPortal(
+        <button className="weather-chip" onClick={onOpen} aria-label={`Weather: ${active.temperatureF == null ? 'no reading' : `${Math.round(active.temperatureF)}°F`}, ${active.text}. Show weather`} title="Weather (W cycles)">
+          <WeatherIcon condition={active.condition} size={18} />
+          {active.temperatureF == null ? '—' : `${Math.round(active.temperatureF)}°`}
+        </button>,
+        chip,
+      )}
     </>
   );
 }

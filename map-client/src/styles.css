@@ -1,164 +1,387 @@
+/* The design tokens (theme/tokens.css). Imported here rather than from TypeScript so both dev
+   servers can load them: Vite inlines CSS imports from disk, while a script import of ../../theme
+   is refused by map-client's own dev server. The panels follow the light or dark theme
+   (theme.ts); the tags on the map stay dark in both. */
+@import '../../theme/tokens.css';
+
+/* Map values derived from the tokens. The sheet and popovers sit over a live map that can be
+   white (day) or black (night, the dim), so their text is checked against both: on
+   --map-sheet-fill (glass-fill-strong pushed half way to the opaque surface: 94% light, 95% dark)
+   ink is ≥13:1, --map-ink-secondary ≥5.6:1, accent ≥4.8:1, --map-bad-ink ≥4.9:1 and every
+   --crowd-*-text ≥4.7:1. The toolbar is real glass (--glass-fill, blurred) and holds ink only
+   (≥6.1:1). Reduced transparency makes all of it the solid surface. */
 :root {
-  /* Near-opaque instead of a frosted blur: backdrop-filter re-blurs the animated map under every
-     panel every frame, on the same Chrome GPU thread as WebGL (it cost a third of the frame rate). */
-  --panel: rgba(17, 20, 28, 0.92);
-  --text: #f4f5f7;
-  --muted: #b7bcc8;
-  --accent: #ffd60a;
-  font-family: Inter, system-ui, -apple-system, sans-serif;
-  color: var(--text);
+  --map-sheet-fill: color-mix(in srgb, var(--glass-fill-strong) 50%, var(--color-surface));
+  --map-ink-secondary: color-mix(in srgb, var(--color-ink-secondary) 80%, var(--color-ink));
+  --map-bad-ink: color-mix(in srgb, var(--color-bad) 85%, var(--color-ink));
+  --map-hairline: color-mix(in srgb, var(--color-ink) 12%, transparent);
+  --map-control: color-mix(in srgb, var(--color-ink) 6%, transparent); /* resting fill of a control on glass */
+  --map-hover: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  --map-dim: #000; /* behind an open sheet (.sheet-dim) */
+  --sheet-ms: 280ms;
+  --sheet-ease: cubic-bezier(0.32, 0.72, 0, 1); /* quick out, soft landing, like a thrown sheet */
+
+  /* Tags on the map: dark pills in both themes, so they read on the map rather than the theme.
+     Selection and focus take the dark theme's accent (6:1 on the pill). */
+  --tag-accent: #2997ff;
+  --tag-accent-rgb: 41, 151, 255;
+
+  font-family: var(--font-text);
+  color: var(--color-ink);
 }
 
 * { box-sizing: border-box; }
-html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background: #0b0d12; }
+html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background: var(--color-canvas); }
+/* Set by the sheet (Sheet.tsx) once it has measured itself. */
+.app { --sheet-visible: 0px; --sheet-space: 0px; }
 /* Two classes so it beats .maplibregl-map / .mapboxgl-map (position: relative), whose CSS loads later. */
 .app .map { position: absolute; inset: 0; }
+[hidden] { display: none !important; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-.panel {
-  position: absolute;
-  background: var(--panel);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+/* One focus ring for the panels: the accent, which keeps ≥4.8:1 on them over any map. */
+.sheet :focus-visible, .toolbar :focus-visible, .perf :focus-visible, .deck-tooltip :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
-.title { top: 16px; left: 16px; padding: 12px 18px; }
-.title h1 { margin: 0; font-size: 22px; letter-spacing: 0.02em; }
-.title p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+/* Glass, the way the tokens define it: near-opaque and unblurred for anything big (re-blurring the
+   animated map under a large panel every frame cost a third of the frame rate, on the same GPU
+   thread as WebGL); real blur only on the small toolbar. */
+.sheet, .popover-panel, .panel {
+  background: var(--map-sheet-fill);
+  box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
+  color: var(--color-ink);
+}
 
-.side { top: 16px; right: 16px; width: 320px; padding: 12px 16px 14px; max-height: calc(100% - 130px); overflow-y: auto; }
-.side h2 { margin: 10px 0 8px; font-size: 15px; color: var(--muted); font-weight: 600; }
-.side ol { list-style: none; margin: 0; padding: 0; }
-.tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); }
-.tabs button {
-  flex: 1 1 auto; /* sized to their labels, so three tabs fit on one line */
-  padding: 0 8px;
-  white-space: nowrap;
-  min-height: 34px;
+/* Over the map: the auto-lighting veil, then the dim behind an open sheet. */
+/* Auto lighting: a blue multiply veil darkens the chosen preset to the sun's brightness (App sets
+   its opacity every frame). A scene effect, so its colour is literal. */
+.light-veil { position: absolute; inset: 0; pointer-events: none; background: rgb(18, 24, 52); mix-blend-mode: multiply; }
+/* A plain alpha layer: one more full-screen quad for the compositor and no blend mode or filter
+   (desaturating the map would need one, a full extra pass over the WebGL canvas every frame).
+   At 0 it isn't drawn at all. */
+.sheet-dim { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--map-dim); opacity: 0; transition: opacity var(--sheet-ms) var(--ease-standard); }
+.sheet-dim[data-dim='open'] { opacity: 0.08; }
+.sheet-dim[data-dim='half'] { opacity: 0.16; }
+.sheet-dim[data-dim='full'] { opacity: 0.32; }
+
+/* ---- The sheet (Sheet.tsx): right side on wide screens, bottom sheet on phones ---- */
+
+.sheet {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(372px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-sheet);
+  overflow: hidden;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+/* Closed (wide screens): just the header card. */
+.sheet:not(.is-phone):not(.is-open) { bottom: auto; }
+.sheet-head { position: relative; flex: none; padding: 16px 14px 12px 20px; }
+.sheet-title { display: flex; align-items: flex-start; gap: var(--space-2); }
+.sheet-heading { flex: 1; min-width: 0; }
+.sheet h1 { margin: 0; font-family: var(--font-display); font-size: var(--text-xl); font-weight: var(--weight-bold); line-height: var(--leading-tight); letter-spacing: var(--tracking-display); }
+.sheet-summary { margin: 3px 0 0; color: var(--map-ink-secondary); font-size: var(--text-sm); }
+.sheet-stats { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0 0; color: var(--map-ink-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.sheet-stats b { color: var(--color-ink); font-weight: var(--weight-semibold); }
+.sheet-actions { display: flex; align-items: center; gap: var(--space-1); flex: none; }
+.weather-chip-slot { display: contents; }
+.sheet-toggle, .weather-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 8px;
-  background: none;
-  color: var(--muted);
+  border-radius: var(--radius-capsule);
+  background: var(--map-control);
+  color: var(--color-ink);
   font: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
-.tabs button[aria-selected='true'] { background: rgba(255, 255, 255, 0.14); color: var(--text); }
-.tabs button:focus-visible { outline: 2px solid var(--accent); }
-.mobility-tabs { flex-wrap: wrap; }
-.incident-panel form, .incident-panel label { display: grid; gap: 8px; }
-.incident-panel form { gap: 14px; margin-top: 16px; }
-.incident-panel label, .incident-result { font-size: 13px; }
-.incident-panel select, .incident-panel button {
+.sheet-toggle { padding: 0; }
+.sheet-toggle:hover, .weather-chip:hover { background: var(--map-hover); }
+
+.sheet-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px 16px; }
+.sheet-context { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding-bottom: var(--space-3); }
+.sheet-context .model-note { flex: 1 1 100%; margin: 0; }
+.sheet-context .alert { flex: 1 1 100%; margin: 0; }
+.alert { color: var(--map-bad-ink); }
+.model-note { font-size: 12px; color: var(--map-ink-secondary); line-height: 1.4; }
+.day-picker { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--map-ink-secondary); }
+
+/* Form controls in the panels: solid, so they read the same over any map. */
+.sheet select, .sheet input[type='date'], .sheet input:not([type]), .popover-panel select {
   min-height: 36px;
-  padding: 8px;
-  border: 1px solid var(--muted);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--text);
+  padding: 0 10px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-ink);
   font: inherit;
-  max-width: 100%;
-  min-width: 0;
+  font-size: var(--text-sm);
 }
-.incident-panel button { cursor: pointer; }
-.incident-panel button[type='submit'] { border-color: var(--accent); }
-.incident-panel button:disabled { opacity: 0.5; cursor: default; }
-.incident-panel :is(button, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.incident-result h3 { font-size: 15px; color: var(--accent); }
-.incident-result dl { display: grid; gap: 6px; }
-.incident-result dt { color: var(--muted); }
-.incident-result dd { margin: 0 0 8px; }
-.incident-casualties, .incident-response { margin: 16px 0; padding: 14px 0; border-block: 1px solid var(--muted); }
-.incident-casualties h4, .incident-response h4 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
-.incident-casualties .model-note, .incident-response .model-note { margin-bottom: 0; }
-.incident-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.incident-result .incident-counts { grid-template-columns: 1fr 1fr; gap: 12px; }
-.incident-counts dd { margin: 4px 0 0; font-size: 18px; font-variant-numeric: tabular-nums; }
-.incident-decisions { margin: 16px 0; }
-.incident-decisions summary { cursor: pointer; line-height: 1.5; }
-.incident-decisions ul { list-style: none; padding: 0; display: grid; gap: 16px; }
-.incident-decisions li { border-left: 2px solid var(--muted); padding-left: 10px; }
-.incident-decisions li p { margin: 6px 0; color: var(--muted); line-height: 1.5; }
-.fire-response { margin: 16px 0; }
-.fire-units { list-style: none; padding: 0; display: grid; gap: 10px; }
-.fire-units li { border-left: 2px solid #e8141e; padding-left: 10px; line-height: 1.45; }
-.fire-unit-from { color: var(--muted); }
-.incident-panel .fire-siren { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; line-height: 1.4; }
-.fire-siren input { margin-top: 2px; accent-color: var(--accent); }
-.incident-decisions summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.sheet input::placeholder { color: var(--map-ink-secondary); }
+
+/* Buttons in the panels: a quiet fill; pressed ones take the accent tint (accent on accent-soft,
+   ≥4.8:1 in both themes); the one primary action per form is the strong button. */
+.toggles { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+/* Segmented controls (campus, traffic layer): one capsule track, the chosen segment tinted. */
+.campuses, .mobility-modes { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: var(--radius-capsule); background: var(--map-control); }
+.campuses button, .mobility-modes button { background: none; }
+.campuses button, .toggles button, .incident-panel button, .events-list button, .source-data .source-events button,
+.mobility-modes button, .weather-modes button, .camera-grid button, .perf-quality button, .ask-examples button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-capsule);
+  background: var(--map-control);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+:is(.campuses, .toggles, .incident-panel, .events-list, .source-events, .mobility-modes, .weather-modes, .camera-grid, .perf-quality, .ask-examples) button:hover:not(:disabled) { background: var(--map-hover); }
+:is(.campuses, .toggles, .mobility-modes, .weather-modes, .camera-grid, .perf-quality) button[aria-pressed='true'],
+.tool[aria-pressed='true'], .tabs [role='tab'][aria-selected='true'] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+}
+.ask-form button, .incident-panel button[type='submit'] {
+  background: var(--color-strong);
+  border-color: var(--color-strong);
+  color: var(--color-on-strong);
+  font-weight: var(--weight-semibold);
+}
+.ask-form button:hover, .incident-panel button[type='submit']:hover:not(:disabled) { background: var(--color-strong); opacity: 0.88; }
+button:disabled { opacity: 0.45; cursor: default; }
+.link { padding: 0; border: 0; background: none; color: var(--color-accent); font: inherit; font-weight: var(--weight-semibold); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.layer-note { margin: var(--space-2) 0; padding: 8px 10px; border-radius: var(--radius-lg); background: var(--map-control); color: var(--map-ink-secondary); }
+
+/* Tabs: a 4-column segmented grid that sticks to the top of the scrolling sheet. The track is
+   tinted over the sheet's own fill, so rows scrolling under it don't show through. */
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  margin: 0 -6px var(--space-2);
+  padding: 3px;
+  border-radius: 14px;
+  background: linear-gradient(var(--map-control), var(--map-control)), var(--map-sheet-fill);
+}
+.tabs [role='tab'] {
+  min-height: 32px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: none;
+  color: var(--map-ink-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.tabs [role='tab']:hover:not([aria-selected='true']) { background: var(--map-hover); color: var(--color-ink); }
+
+/* Hierarchy: h2 names a section, h3 labels a group inside it (quieter, like a list header). */
+.sheet h2 { margin: var(--space-5) 0 var(--space-2); font-size: var(--text-lg); font-weight: var(--weight-bold); line-height: var(--leading-tight); letter-spacing: var(--tracking-text); color: var(--color-ink); }
+[role='tabpanel'] > h2:first-child, [role='tabpanel'] > :first-child h2:first-child { margin-top: var(--space-1); }
+.sheet h3 { margin: var(--space-4) 0 var(--space-2); font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--map-ink-secondary); }
+.sheet p { margin: var(--space-2) 0; }
+.sheet ol, .rows { list-style: none; margin: 0; padding: 0; }
+
+/* Grouped lists: each list is one card, its rows split by hairlines (inset grouped lists). */
+.rows, .events-list, .mobility-locations, .buses,
+.source-data .source-meetings, .source-data .source-evidence, .source-data .source-events, .source-data .source-building-list {
+  margin: 0 0 var(--space-3);
+  padding: 2px var(--space-3);
+  border-radius: 16px;
+  background: var(--map-control);
+}
+.rows { padding: var(--space-1); }
+.rows > li + li { border-top: 1px solid var(--map-hairline); }
+.muted { color: var(--map-ink-secondary); font-weight: 400; font-size: 12px; }
+
+/* Ranked rows (Crowds, Ask, Parking): the crowd level's ink and fill from crowdLevelStyle. */
 .row {
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-areas: 'name value' 'bar bar';
-  gap: 4px 8px;
+  gap: 6px var(--space-3);
   width: 100%;
-  padding: 8px;
+  padding: 10px var(--space-2);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: none;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
-.row:hover, .row:focus-visible { background: rgba(255, 255, 255, 0.06); outline: none; }
-.row.selected { border-color: var(--accent); }
-.row .name { grid-area: name; font-size: 14px; }
-.row .value { grid-area: value; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
-.row .bar { grid-area: bar; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
-.row .bar span { display: block; height: 100%; border-radius: 3px; }
+.row:hover { background: var(--map-hover); }
+.row.selected { border-color: var(--color-accent); }
+.row .name { grid-area: name; font-size: 14px; line-height: var(--leading-snug); }
+.row .value { white-space: nowrap; }
+.row .value { grid-area: value; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--lv-ink, var(--map-ink-secondary)); font-weight: var(--weight-semibold); }
+.row .value b { color: var(--color-ink); font-weight: var(--weight-bold); }
+.row .bar { grid-area: bar; height: 4px; border-radius: 2px; background: var(--map-hairline); overflow: hidden; }
+.row .bar span { display: block; height: 100%; border-radius: 2px; background: var(--lv-fill, var(--color-off)); transition: width 0.6s ease; }
 
-.timeline {
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  width: min(880px, calc(100% - 32px));
+/* ---- The floating toolbar: time, speed, camera and layers ---- */
+
+.toolbar {
+  position: absolute;
+  z-index: 3;
+  left: 12px;
+  right: calc(var(--sheet-space) + 12px);
+  bottom: 12px;
+  width: min(780px, calc(100% - var(--sheet-space) - 24px));
+  margin-inline: auto;
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 10px 16px;
-}
-.timeline input[type='range'] { flex: 1; accent-color: var(--accent); min-height: 32px; }
-.clock { min-width: 84px; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-.live-badge { padding: 2px 6px; border-radius: 4px; background: #d62828; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; }
-.timeline button, .timeline select {
-  min-height: 36px;
-  min-width: 44px;
-  padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  font: inherit;
+  gap: var(--space-2);
+  padding: 6px;
+  border-radius: var(--radius-capsule);
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
+  color: var(--color-ink);
   font-size: 14px;
-  cursor: pointer;
 }
-.timeline button[aria-pressed='true'] { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
-.speeds { display: flex; gap: 4px; }
-
-.note { left: 16px; bottom: 90px; margin: 0; padding: 8px 12px; font-size: 12px; color: var(--muted); }
-.note code { color: var(--text); }
-
-.deck-tooltip { font-family: inherit !important; border-radius: 6px; }
-
-/* Transit & traffic tab */
-#panel-transit .toggles { margin-top: 10px; }
-#panel-transit h3 { margin: 12px 0 6px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
-.muted { color: var(--muted); font-weight: 400; font-size: 12px; }
-.toggles { display: flex; gap: 6px; }
-.toggles button {
-  min-height: 32px;
+.toolbar-time { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; }
+.toolbar-map { display: flex; align-items: center; gap: var(--space-1); }
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 40px;
+  height: 40px;
   padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-capsule);
+  background: var(--map-control);
+  color: var(--color-ink);
   font: inherit;
-  font-size: 13px;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.tool:hover { background: var(--map-hover); }
+.tool-icon { padding: 0; }
+.tool svg { flex: none; }
+select.tool { padding: 0 8px 0 12px; }
+.clock { min-width: 84px; font-size: var(--text-lg); font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+/* The scrubber in ink: it keeps 3:1 on the glass over any map, which the accent can't promise. */
+.scrubber { flex: 1; min-width: 80px; min-height: 32px; margin: 0; accent-color: var(--color-ink); }
+
+/* Popovers (Popover.tsx) open above the toolbar, from its right end. */
+.popover-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 4;
+  width: min(320px, calc(100vw - 16px));
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: var(--radius-card);
+  font-size: var(--text-sm);
+}
+.camera-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.camera-grid .span-2 { grid-column: span 2; }
+.camera-grid .span-3 { grid-column: span 3; }
+.camera-grid .span-6 { grid-column: span 6; }
+.camera-grid button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 6px; font-weight: var(--weight-semibold); }
+.camera-status { margin: 10px 2px 0; font-size: 12px; color: var(--map-ink-secondary); line-height: 1.3; }
+
+.layer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.layer-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
-.toggles button[aria-pressed='true'] { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
+.layer-switch:hover { background: var(--map-hover); }
+.layer-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.layer-name { font-size: 14px; font-weight: var(--weight-semibold); }
+.layer-detail { font-size: 12px; color: var(--map-ink-secondary); }
+/* The switch: off is an outlined track (≥5:1), on the accent with the knob at the far end. */
+.switch {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 24px;
+  border-radius: var(--radius-capsule);
+  box-shadow: inset 0 0 0 1.5px var(--map-ink-secondary);
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--map-ink-secondary);
+  transition: translate var(--duration-base) var(--ease-standard);
+}
+[aria-checked='true'] > .switch { background: var(--color-accent); box-shadow: none; }
+[aria-checked='true'] > .switch::after { translate: 16px 0; background: var(--color-knob); }
+.lighting { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-2); padding: 10px 8px 2px; border-top: 1px solid var(--map-hairline); }
+.lighting label { display: flex; align-items: center; gap: var(--space-2); font-weight: var(--weight-semibold); }
+.light-status { font-size: 12px; color: var(--map-ink-secondary); white-space: nowrap; }
+
+/* Badges: a word on its own solid tint, so they read on any surface. */
+.badge { padding: 1px 5px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 800; letter-spacing: 0.06em; line-height: 1.4; }
+.live-badge { background: var(--color-bad-soft); color: var(--color-bad); }
+.forecast-badge { background: var(--color-accent-soft); color: var(--color-accent); }
+.sim-badge { box-shadow: inset 0 0 0 1px var(--map-hairline); color: var(--color-ink); }
+
+.deck-tooltip {
+  font-family: inherit !important;
+  background: var(--map-sheet-fill) !important;
+  color: var(--color-ink) !important;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
+}
+
+/* ---- Tab contents ---- */
+
+/* Transit tab */
+#panel-transit h3 { display: flex; align-items: center; gap: 6px; }
 .route-badge {
   display: inline-flex;
   align-items: center;
@@ -170,66 +393,248 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   font-size: 12px;
   font-weight: 800;
 }
-.arrivals { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-.arrivals th, .arrivals td { padding: 4px 2px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
-.arrivals th[scope='row'], .arrivals thead th:first-child { text-align: left; font-weight: 500; }
-.arrivals thead th { color: var(--muted); font-weight: 600; font-size: 12px; }
-.buses, .legend { list-style: none; margin: 0; padding: 0; font-size: 13px; }
-.buses li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 4px 0; }
-.buses .bus-text { color: var(--muted); font-size: 12px; line-height: 1.3; }
+#panel-transit h3 .route-badge + .route-badge { margin-left: -2px; }
+/* Tables are cards too; numbers are tabular and right-aligned, names take the spare width. */
+.arrivals { width: 100%; margin-bottom: var(--space-3); padding: 2px var(--space-3); border-collapse: separate; border-spacing: 0; border-radius: 16px; background: var(--map-control); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.arrivals th, .arrivals td { padding: 7px 3px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--map-hairline); }
+.arrivals th[scope='row'] { white-space: normal; width: 100%; }
+.arrivals tbody tr:last-child > * { border-bottom: 0; }
+.arrivals th[scope='row'], .arrivals thead th:first-child { text-align: left; font-weight: var(--weight-medium); }
+.arrivals thead th { color: var(--map-ink-secondary); font-weight: var(--weight-semibold); font-size: 12px; }
+.buses, .legend { list-style: none; margin: 0; padding: 0; font-size: var(--text-sm); }
+.buses li { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-2); align-items: center; padding: var(--space-2) 0; }
+.buses li + li { border-top: 1px solid var(--map-hairline); }
+.buses .bus-text { color: var(--map-ink-secondary); font-size: 12px; line-height: 1.3; }
 .buses strong { font-variant-numeric: tabular-nums; }
 .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
 .legend li { display: flex; align-items: center; gap: 8px; }
 .legend .swatch { display: inline-block; width: 26px; border-radius: 3px; }
 
-.campuses { display: flex; gap: 4px; margin-top: 10px; }
-.campuses button {
-  min-height: 32px;
-  padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-.campuses button[aria-pressed='true'] { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
-#panel-transit h3 .route-badge + .route-badge { margin-left: -2px; }
+/* Bikes tab */
+#panel-bikes p { margin: 4px 0; }
+#panel-bikes .arrivals thead th { white-space: nowrap; }
+.bike-summary { font-size: 14px; }
+.bike-summary strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+#panel-bikes .source { margin-top: 12px; line-height: 1.4; }
+.activity { margin: 0; }
+.activity svg { display: block; width: 100%; height: auto; cursor: crosshair; }
+.activity .tick { fill: var(--map-ink-secondary); font-size: 10px; }
+.activity-readout { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.activity-base { stroke: var(--map-hairline); }
+.activity-area { fill: color-mix(in srgb, var(--color-accent) 20%, transparent); }
+.activity-line, .activity-hover-dot { stroke: var(--color-accent); }
+.activity-hover-dot { fill: var(--color-surface); }
+.activity-now { stroke: var(--color-ink); }
+.activity-now-dot { fill: var(--color-ink); stroke: var(--color-surface); }
+.activity-hover { stroke: var(--map-ink-secondary); }
 
-/* Camera controls (CameraControls.tsx): left edge, under the title card. */
-.camera { top: 148px; left: 16px; width: 240px; padding: 10px; }
-.camera-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.camera-grid .span-2 { grid-column: span 2; }
-.camera-grid .span-3 { grid-column: span 3; }
-.camera-grid button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0 6px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  touch-action: manipulation;
+/* Incidents tab */
+.incident-panel form, .incident-panel label { display: grid; gap: 8px; }
+.incident-panel form { gap: var(--space-4); margin-top: var(--space-4); padding: var(--space-4); border-radius: 16px; background: var(--map-control); }
+.incident-panel label { gap: 6px; font-weight: var(--weight-semibold); }
+.incident-panel form .model-note { margin: 0; font-weight: 400; }
+.incident-panel label select { font-weight: 400; }
+.incident-panel label, .incident-result { font-size: var(--text-sm); }
+.incident-panel button[type='submit'] { min-height: 44px; border-radius: var(--radius-capsule); }
+.incident-panel > .model-note, .incident-panel > details { margin: var(--space-3) 0; }
+.incident-panel select, .incident-panel button { max-width: 100%; min-width: 0; }
+.incident-result h3 { font-size: var(--text-md); color: var(--color-accent); }
+.incident-result dl { display: grid; gap: 6px; }
+.incident-result dt { color: var(--map-ink-secondary); }
+.incident-result dd { margin: 0 0 8px; }
+.incident-casualties, .incident-response { margin: 16px 0; padding: 14px 0; border-block: 1px solid var(--map-hairline); }
+.incident-casualties h4, .incident-response h4 { margin: 0 0 10px; font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.incident-casualties .model-note, .incident-response .model-note { margin-bottom: 0; }
+.incident-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.incident-result .incident-counts { grid-template-columns: 1fr 1fr; gap: 12px; }
+.incident-counts dd { margin: 4px 0 0; font-size: 18px; font-variant-numeric: tabular-nums; }
+.incident-decisions { margin: 16px 0; }
+.incident-decisions summary { cursor: pointer; line-height: 1.5; }
+.incident-decisions ul { list-style: none; padding: 0; display: grid; gap: 16px; }
+.incident-decisions li { border-left: 2px solid var(--map-hairline); padding-left: 10px; }
+.incident-decisions li p { margin: 6px 0; color: var(--map-ink-secondary); line-height: 1.5; }
+.fire-response { margin: 16px 0; }
+.fire-units { list-style: none; padding: 0; display: grid; gap: 10px; }
+.fire-units li { border-left: 2px solid var(--color-bad); padding-left: 10px; line-height: 1.45; }
+.fire-unit-from { color: var(--map-ink-secondary); }
+.incident-panel .fire-siren { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; line-height: 1.4; }
+.fire-siren input { margin-top: 2px; accent-color: var(--color-accent); }
+
+/* Weather tab (WeatherControls.tsx draws into it) */
+.weather-readout { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 4px; }
+.weather-icon { flex: none; }
+.weather-temp { font-size: var(--text-2xl); font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
+.weather-text { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.weather-condition { font-size: var(--text-md); font-weight: var(--weight-semibold); line-height: 1.15; }
+.weather-detail { margin: 8px 0 10px; font-size: var(--text-sm); color: var(--map-ink-secondary); line-height: 1.35; }
+.weather-hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; list-style: none; margin: 0 0 12px; padding: 0; }
+.weather-hours li { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0; border-radius: var(--radius-lg); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--map-ink-secondary); }
+.weather-hours li.current { background: var(--map-control); color: var(--color-ink); }
+.weather-hour { font-size: 11px; font-weight: var(--weight-semibold); }
+.weather-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.weather-modes button { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 48px; padding: 0 2px; border-radius: var(--radius-lg); font-size: 12px; font-weight: var(--weight-semibold); }
+.weather-modes button.span-2 { grid-column: span 2; flex-direction: row; gap: 7px; font-size: var(--text-sm); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-bad); box-shadow: 0 0 0 2px var(--color-bad-soft); }
+.weather-hint { margin: 10px 0 0; font-size: 12px; color: var(--map-ink-secondary); }
+
+/* Weather screen overlay (WeatherControls.tsx), between the map and the panels: tint, distance
+   haze, lightning. Scene effects, so their colours are literal. No z-index on the wrapper: a
+   stacking context there would isolate the blend modes from the map. */
+.weather-sky { position: absolute; inset: 0; pointer-events: none; }
+.weather-sky > div { position: absolute; inset: 0; z-index: 1; }
+.weather-tint { mix-blend-mode: multiply; transition: background-color 1.2s ease; }
+.weather-haze { transition: opacity 1.2s ease; }
+/* Thicker toward the top of the screen, which in a tilted view is the far distance. */
+.weather-haze.cool { background: linear-gradient(to bottom, rgba(214, 221, 230, 0.95), rgba(214, 221, 230, 0.35) 45%, rgba(214, 221, 230, 0.08)); }
+.weather-haze.warm { background: linear-gradient(to bottom, rgba(255, 214, 160, 0.9), rgba(255, 220, 175, 0.32) 45%, rgba(255, 225, 185, 0.06)); }
+.weather-haze.cool.dark { background: linear-gradient(to bottom, rgba(96, 103, 124, 0.9), rgba(96, 103, 124, 0.34) 45%, rgba(96, 103, 124, 0.08)); }
+.weather-haze.warm.dark { background: linear-gradient(to bottom, rgba(150, 96, 60, 0.85), rgba(150, 100, 70, 0.3) 45%, rgba(150, 100, 70, 0.05)); }
+.weather-flash {
+  opacity: 0;
+  mix-blend-mode: screen;
+  background: radial-gradient(ellipse at 55% 0%, rgba(225, 232, 255, 1), rgba(170, 185, 230, 0.55) 55%, rgba(120, 135, 190, 0.2));
 }
-.camera-grid button:hover { background: rgba(255, 255, 255, 0.12); }
-.camera-grid button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.camera-grid button:disabled { opacity: 0.4; cursor: default; }
-.camera-grid button[aria-pressed='true'] { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
-.camera-grid svg { flex: none; }
-.camera-status { margin: 8px 2px 0; font-size: 12px; color: var(--muted); line-height: 1.3; }
+
+/* Ask tab */
+.ask { margin-top: 4px; }
+.ask-form { display: flex; gap: 6px; }
+.ask-form input { flex: 1; min-width: 0; }
+.ask-form button { min-height: 36px; padding: 0 16px; border-radius: var(--radius-capsule); }
+.ask-answer { margin-top: 12px; }
+.ask-text { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
+.ask-answer ol { list-style: none; margin: 0 0 6px; padding: 0; }
+.ask-note { margin: 6px 0; line-height: 1.4; }
+.ask-clear { padding: 0; border: 0; background: none; color: var(--map-ink-secondary); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.ask-examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.ask-examples button { min-height: 32px; padding: 0 12px; font-size: 12px; background: none; border-color: var(--map-hairline); }
+
+/* Parking (Transit tab, with the Parking layer on) */
+.parking-panel h3 { margin-top: 14px; }
+.parking-panel .row .value .trend { color: var(--map-ink-secondary); font-weight: 500; }
+.parking-events { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.parking-events li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: var(--text-sm); padding: 6px 8px; border-radius: var(--radius-lg); background: var(--map-control); }
+.parking-events li.is-now { background: var(--color-warn-soft); box-shadow: inset 0 0 0 1px var(--color-warn); }
+.parking-events .when { color: var(--map-ink-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.parking-events li.is-now .when, .parking-events li.is-now .meta { color: var(--color-ink); }
+.parking-events .meta { grid-column: 1 / -1; color: var(--map-ink-secondary); font-size: 12px; }
+.parking-events .sample { padding: 0 5px; border-radius: 5px; background: var(--map-control); color: var(--color-ink); font-size: 10.5px; font-weight: 700; }
+
+/* ---- Performance monitor (PerfMonitor.tsx): a small dev panel, top left ---- */
+.panel { position: absolute; z-index: 2; border-radius: var(--radius-card); }
+.perf {
+  top: 12px;
+  left: 12px;
+  padding: 10px 14px;
+  min-width: 240px;
+  max-width: min(340px, calc(100% - 24px));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.perf-head { display: flex; align-items: baseline; gap: 14px; }
+.perf-fps { font-size: 22px; font-weight: 800; line-height: 1; }
+.perf-low { font-size: 15px; font-weight: 700; line-height: 1; }
+.perf-fps span, .perf-low span { font-size: 11px; font-weight: 600; color: var(--map-ink-secondary); }
+.perf-fps.good, .perf-low.good { color: var(--color-ok); }
+.perf-fps.ok, .perf-low.ok { color: var(--color-warn); }
+.perf-fps.bad, .perf-low.bad, .perf-warn { color: var(--map-bad-ink); }
+.perf-warn { font-weight: 700; }
+.perf-graph { display: block; width: 100%; height: 24px; margin: 6px 0 4px; }
+.perf-graph line { stroke: var(--map-hairline); stroke-width: 0.5; }
+.perf-graph polyline { fill: none; stroke: var(--color-ok); stroke-width: 1.2; }
+.perf dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; }
+.perf dt { color: var(--map-ink-secondary); }
+.perf dd { margin: 0; overflow-wrap: anywhere; }
+.perf-hint { margin: 4px 0 0; color: var(--map-ink-secondary); font-size: 11px; }
+/* Performance switch: the panel ignores the pointer, its buttons don't. */
+.perf-quality { display: flex; align-items: center; gap: 4px; margin-top: 6px; pointer-events: auto; }
+.perf-quality span { color: var(--map-ink-secondary); margin-right: 2px; }
+.perf-quality button { min-height: 26px; padding: 0 9px; font-size: 11px; }
+
+/* The base map's corner controls (logo, attribution) stay in the uncovered map: left of the sheet
+   on wide screens, above the sheet and toolbar on phones. */
+.app .mapboxgl-ctrl-bottom-right, .app .maplibregl-ctrl-bottom-right { right: var(--sheet-space); }
+
+/* ---- Phones: the bottom sheet ---- */
+@media (max-width: 800px) {
+  .sheet.is-phone {
+    top: calc(env(safe-area-inset-top) + 44px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+    transition: transform var(--sheet-ms) var(--sheet-ease);
+    will-change: transform;
+  }
+  .sheet.is-measuring { visibility: hidden; }
+  .sheet.is-phone .sheet-head { padding: 22px 12px 10px 20px; touch-action: none; }
+  /* The grabber: a 44 px tall button over the top of the header; the visible pill is in its middle. */
+  .sheet-grabber {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    z-index: 1;
+    width: 112px;
+    height: 44px;
+    margin-left: -56px;
+    padding: 0;
+    border: 0;
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+    background: none;
+    cursor: grab;
+    touch-action: none;
+  }
+  .sheet-grabber span { display: block; width: 36px; height: 5px; margin: 8px auto 0; border-radius: var(--radius-capsule); background: var(--map-ink-secondary); }
+  .sheet-grabber:focus-visible { outline-offset: -2px; }
+  .sheet-toggle, .weather-chip { height: 44px; min-width: 44px; }
+  .tabs [role='tab'] { min-height: 44px; }
+  .campuses button, .toggles button, .incident-panel button, .incident-panel select, .events-list button, .mobility-modes button,
+  .weather-modes button, .perf-quality button, .ask-examples button, .ask-form button, .sheet select, .sheet input[type='date'], .sheet input:not([type]), .popover-panel select { min-height: 44px; }
+  .row { min-height: 44px; }
+
+  /* The toolbar rides on the sheet (--sheet-visible), in two rows; hidden while the sheet is full. */
+  .toolbar {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-radius: var(--radius-card);
+    transform: translate3d(0, calc(-1 * var(--sheet-visible)), 0);
+    transition: transform var(--sheet-ms) var(--sheet-ease), opacity var(--sheet-ms) var(--ease-standard), visibility var(--sheet-ms);
+  }
+  .sheet.is-phone[data-detent='full'] ~ .toolbar { opacity: 0; visibility: hidden; }
+  .toolbar-time { flex: 1 1 100%; }
+  .toolbar-map { flex: 1 1 100%; justify-content: flex-end; }
+  .toolbar-map .speed { margin-right: auto; }
+  .tool { height: 44px; min-width: 44px; }
+  .clock { min-width: 0; font-size: var(--text-md); }
+  .popover-panel { right: 0; width: 100%; max-height: 60vh; }
+  .camera-grid button { min-height: 44px; }
+  .layer-switch { min-height: 52px; }
+
+  .app :is(.mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right) {
+    transform: translate3d(0, calc(-1 * (var(--sheet-visible) + var(--toolbar-h, 0px) + 12px)), 0);
+    transition: transform var(--sheet-ms) var(--sheet-ease);
+  }
+  .perf { top: calc(env(safe-area-inset-top) + 6px); left: 8px; min-width: 0; max-width: calc(100% - 16px); padding: 6px 10px; }
+  .perf dl, .perf-graph { display: none; }
+}
+.app.is-dragging .sheet, .app.is-dragging .toolbar, .app.is-dragging .sheet-dim { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .toolbar, .sheet-dim, .switch, .switch::after, .row .bar span { transition: none !important; }
+}
 
 /* Building tags (BuildingTags.tsx): glass cards on a stem standing on the roof. Each tag's root
    sits exactly on its roof anchor (moved by a transform every frame); --stem is the stem length,
    --lv the level colour as "r, g, b" and --lv-text its pale, 4.5:1-on-glass twin. */
 .btags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+/* Tags stay dark in the light theme too: their own scheme and ink, never the page's. Each layer is
+   its own stacking context, so an open tag (z-index 5) stays under the sheet and toolbar. */
+.btags, .gtags { z-index: 0; color-scheme: dark; color: #fff; }
 .btag {
   position: absolute;
   left: 0;
@@ -303,7 +708,7 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   transition: opacity 0.16s ease, scale 0.2s ease;
 }
 .btag:hover .btag-pill, .btag:focus-within .btag-pill, .btag.is-open .btag-pill { opacity: 0; scale: 0.9; }
-.btag-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; opacity: 1; }
+.btag-pill:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; opacity: 1; }
 .btag-pdot { position: relative; flex: none; width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--lv)); box-shadow: 0 0 6px rgba(var(--lv), 0.9); }
 .btag[data-level='packed'] .btag-pdot::after {
   content: '';
@@ -314,17 +719,17 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   animation: btag-ping 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
 }
 .btag-ppct { color: var(--lv-text); font-variant-numeric: tabular-nums; font-weight: 700; }
-.btag.is-selected .btag-pill { border-color: var(--accent); }
+.btag.is-selected .btag-pill { border-color: var(--tag-accent); }
 .btags.is-compact .btag-pname { display: none; }
-.btag-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btag-card:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; }
 .btag[data-level='busy'] .btag-card { border-color: rgba(var(--lv), 0.38); }
 .btag[data-level='packed'] .btag-card {
   border-color: rgba(var(--lv), 0.6);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 22px -8px rgba(0, 0, 0, 0.6), 0 0 20px -2px rgba(var(--lv), 0.5);
 }
 .btag.is-selected .btag-card {
-  border-color: var(--accent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 22px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--accent), 0 0 24px -2px rgba(255, 214, 10, 0.5);
+  border-color: var(--tag-accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 22px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--tag-accent), 0 0 24px -2px rgba(var(--tag-accent-rgb), 0.5);
 }
 
 .btag-icon {
@@ -381,7 +786,7 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   height: var(--stem);
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6), rgba(var(--lv), 0.95));
 }
-.btag.is-selected .btag-stem { background: var(--accent); width: 2px; left: -1px; }
+.btag.is-selected .btag-stem { background: var(--tag-accent); width: 2px; left: -1px; }
 .btag-dot {
   position: absolute;
   left: -4px;
@@ -394,7 +799,7 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   pointer-events: auto; /* hovering the roof dot opens the tag too */
 }
 .btag-dot::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
-.btag.is-selected .btag-dot { background: var(--accent); box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.75), 0 0 12px 3px rgba(255, 214, 10, 0.8); }
+.btag.is-selected .btag-dot { background: var(--tag-accent); box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.75), 0 0 12px 3px rgba(var(--tag-accent-rgb), 0.8); }
 
 /* The overview: tighter, so more tags fit. */
 .btags.is-compact .btag-card { gap: 6px; padding: 4px 10px 6px 4px; border-radius: 10px; }
@@ -407,152 +812,6 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   .btag-pulse::after { animation: none; }
   .btag-card, .btag-pill, .btag-fill, .btag { transition: none; }
   .btag[data-level='packed'] .btag-pdot::after { animation: none; }
-}
-
-/* Side panel bars in the same language as the tags (--lv set per row). */
-.row .bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: visible; }
-.row .bar span {
-  border-radius: 2px;
-  background: linear-gradient(90deg, rgba(var(--lv), 0.55), rgb(var(--lv)));
-  box-shadow: 0 0 8px rgba(var(--lv), 0.7);
-  transition: width 0.6s ease;
-}
-.row .value { color: var(--lv-text, var(--muted)); font-weight: 600; }
-.row .value b { color: var(--text); font-weight: 700; }
-/* Weather (WeatherControls.tsx): bottom-left card above the timeline row, plus a screen overlay
-   between the map and the panels (tint, distance haze, lightning). */
-.panel { z-index: 2; }
-/* No z-index on the wrapper: a stacking context there would isolate the blend modes from the map. */
-.weather-sky { position: absolute; inset: 0; pointer-events: none; }
-.weather-sky > div { position: absolute; inset: 0; z-index: 1; }
-.weather-tint { mix-blend-mode: multiply; transition: background-color 1.2s ease; }
-.weather-haze { transition: opacity 1.2s ease; }
-/* Thicker toward the top of the screen, which in a tilted view is the far distance. */
-.weather-haze.cool { background: linear-gradient(to bottom, rgba(214, 221, 230, 0.95), rgba(214, 221, 230, 0.35) 45%, rgba(214, 221, 230, 0.08)); }
-.weather-haze.warm { background: linear-gradient(to bottom, rgba(255, 214, 160, 0.9), rgba(255, 220, 175, 0.32) 45%, rgba(255, 225, 185, 0.06)); }
-.weather-haze.cool.dark { background: linear-gradient(to bottom, rgba(96, 103, 124, 0.9), rgba(96, 103, 124, 0.34) 45%, rgba(96, 103, 124, 0.08)); }
-.weather-haze.warm.dark { background: linear-gradient(to bottom, rgba(150, 96, 60, 0.85), rgba(150, 100, 70, 0.3) 45%, rgba(150, 100, 70, 0.05)); }
-.weather-flash {
-  opacity: 0;
-  mix-blend-mode: screen;
-  background: radial-gradient(ellipse at 55% 0%, rgba(225, 232, 255, 1), rgba(170, 185, 230, 0.55) 55%, rgba(120, 135, 190, 0.2));
-}
-
-.weather { left: 16px; bottom: 96px; width: 240px; padding: 10px; }
-.weather-readout { display: flex; align-items: center; gap: 8px; min-height: 36px; }
-.weather-icon { flex: none; }
-.weather-temp { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.weather-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; margin-left: 2px; }
-.weather-condition { font-size: 13px; font-weight: 600; line-height: 1.15; }
-.weather-text .live-badge, .sim-badge { font-size: 10px; padding: 1px 5px; }
-.forecast-badge { font-size: 10px; padding: 1px 5px; border-radius: 4px; background: #3a6fd8; color: #fff; font-weight: 800; letter-spacing: 0.06em; }
-.weather-hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; list-style: none; margin: 0 0 8px; padding: 0; }
-.weather-hours li { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 3px 0; border-radius: 6px; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
-.weather-hours li.current { background: rgba(255, 255, 255, 0.1); color: var(--text); }
-.weather-hour { font-size: 10px; font-weight: 600; }
-.sim-badge { border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.45); color: var(--text); font-weight: 800; letter-spacing: 0.06em; }
-.weather-detail { margin: 6px 2px 8px; font-size: 12px; color: var(--muted); line-height: 1.3; }
-.weather-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.weather-modes button {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-height: 44px;
-  padding: 0 2px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-.weather-modes button.span-2 { grid-column: span 2; flex-direction: row; gap: 7px; font-size: 13px; }
-.weather-modes button:hover { background: rgba(255, 255, 255, 0.12); }
-.weather-modes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.weather-modes button[aria-pressed='true'] { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 700; }
-.live-dot { width: 8px; height: 8px; border-radius: 50%; background: #d62828; box-shadow: 0 0 0 2px rgba(214, 40, 40, 0.3); }
-.weather-hint { margin: 8px 2px 0; font-size: 12px; color: var(--muted); }
-/* The fallback-map note sits where the weather card is; lift it above the card. */
-.weather ~ .note { bottom: 380px; }
-
-/* Crowds tab: one line on how the weather changes campus routines. */
-.weather-impact { margin: 10px 0 2px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); font-size: 13px; line-height: 1.35; }
-.weather-impact .muted { display: block; margin-top: 2px; }
-
-/* Performance monitor (build-time) */
-.perf {
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 8px 12px;
-  min-width: 240px;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-}
-.perf-fps { font-size: 22px; font-weight: 800; line-height: 1; }
-.perf-fps span { font-size: 11px; font-weight: 600; color: var(--muted); }
-.perf-fps.good { color: #4ade80; }
-.perf-fps.ok { color: #facc15; }
-.perf-fps.bad { color: #f87171; }
-.perf-graph { display: block; width: 100%; height: 24px; margin: 6px 0 4px; }
-.perf-graph line { stroke: rgba(255, 255, 255, 0.15); stroke-width: 0.5; }
-.perf-graph polyline { fill: none; stroke: #4ade80; stroke-width: 1.2; }
-.perf dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; }
-.perf dt { color: var(--muted); }
-.perf dd { margin: 0; }
-.perf-hint { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
-/* Performance switch: the panel ignores the pointer, its buttons don't. */
-.perf-quality { display: flex; align-items: center; gap: 4px; margin-top: 6px; pointer-events: auto; }
-.perf-quality span { color: var(--muted); margin-right: 2px; }
-.perf-quality button { font: inherit; font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.18); background: transparent; color: inherit; cursor: pointer; }
-.perf-quality button[aria-pressed='true'] { background: #facc15; border-color: #facc15; color: #111; font-weight: 700; }
-.perf-head { display: flex; align-items: baseline; gap: 14px; }
-.perf-low { font-size: 15px; font-weight: 700; line-height: 1; }
-.perf-low span { font-size: 11px; font-weight: 600; color: var(--muted); }
-.perf-low.good { color: #4ade80; }
-.perf-low.ok { color: #facc15; }
-.perf-low.bad { color: #f87171; }
-.perf-warn { color: #f87171; font-weight: 700; }
-
-/* Bikes tab */
-#panel-bikes .toggles { margin-top: 10px; }
-#panel-bikes h3 { margin: 14px 0 6px; font-size: 13px; font-weight: 700; }
-#panel-bikes p { margin: 4px 0; }
-#panel-bikes .arrivals thead th { white-space: nowrap; }
-.bike-summary { font-size: 14px; }
-.bike-summary strong { font-size: 18px; font-variant-numeric: tabular-nums; }
-#panel-bikes .source { margin-top: 12px; line-height: 1.4; }
-.activity { margin: 0; }
-.activity svg { display: block; width: 100%; height: auto; cursor: crosshair; }
-.activity .tick { fill: var(--muted); font-size: 10px; }
-.activity-readout { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-variant-numeric: tabular-nums; }
-
-.title { max-width: calc(100% - 370px); }
-.model-note { font-size: 12px; color: var(--muted); line-height: 1.4; }
-.day-picker { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 13px; }
-.day-picker select { background: #202530; color: var(--text); border: 1px solid #687080; border-radius: 6px; min-height: 36px; padding: 0 8px; }
-.camera { top: 230px; }
-@media (max-width: 800px) {
-  .title { top: 8px; left: 8px; right: 8px; max-width: none; padding: 10px; }
-  .title p { font-size: 12px; }
-  .side { top: 204px; right: 8px; width: min(320px, calc(100% - 16px)); max-height: 30vh; }
-  .camera { top: auto; bottom: 182px; left: 8px; max-height: 112px; overflow: auto; }
-  .timeline { bottom: 8px; width: calc(100% - 16px); flex-wrap: wrap; gap: 8px; padding: 8px; }
-  .timeline input[type=range] { min-width: 140px; width: 40%; }
-  .timeline button, .timeline select, .tabs button { min-height: 44px; }
-  .note { bottom: 140px; max-width: calc(100% - 16px); }
-}
-
-@media (max-width: 800px) {
-  .camera { width: calc(50% - 12px); }
-  .weather { bottom: 182px; left: auto; right: 8px; width: calc(50% - 12px); max-height: 112px; overflow: auto; }
-  .perf { top: auto; bottom: 302px; left: 8px; transform: none; min-width: 0; max-width: calc(100% - 16px); max-height: 84px; overflow: auto; z-index: 3; pointer-events: auto; }
 }
 
 /* Transit, shuttle and Bluebikes tags (TransitTags.tsx, tags/glassTags.ts): the building tags'
@@ -711,7 +970,7 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 }
 .gtag.is-below .gtag-pill { top: var(--stem); transform-origin: 50% 0; }
 .gtag.is-above .gtag-pill { bottom: var(--stem); transform-origin: 50% 100%; }
-.gtag-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gtag-pill:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; }
 .gtag-picon { display: grid; place-items: center; width: 17px; height: 17px; }
 .gtag-picon svg { width: 17px; height: 17px; }
 .gtag-picon.gtag-icon--bike svg { width: 13px; height: 13px; }
@@ -747,64 +1006,6 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .gtag--place .gtag-icon svg { width: 15px; height: 15px; }
 .gtag--place .gtag-stats { font-weight: 500; }
 
-/* Ask tab */
-.ask { margin-top: 10px; }
-.ask-form { display: flex; gap: 6px; }
-.ask-form input {
-  flex: 1;
-  min-width: 0;
-  min-height: 34px;
-  padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-}
-.ask-form input::placeholder { color: var(--muted); opacity: 0.8; }
-.ask-form input:focus-visible, .ask-form button:focus-visible, .ask-examples button:focus-visible, .ask-clear:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-.ask-form button {
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #111;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.ask-answer { margin-top: 12px; }
-.ask-text { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
-.ask-answer ol { list-style: none; margin: 0 0 6px; padding: 0; }
-.ask-note { margin: 6px 0; line-height: 1.4; }
-.ask-clear {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 12px;
-  text-decoration: underline;
-  cursor: pointer;
-}
-.ask-examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-.ask-examples button {
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-.ask-examples button:hover { background: rgba(255, 255, 255, 0.08); }
 /* Parking tags (ParkingTags.tsx), only with the Parking toggle on: the lot's level colour (--lv,
    set per tag from crowdLevelStyle) on the "P", the percentage and the stem; the words carry the
    level too ("Busy", "FULL"). */
@@ -818,13 +1019,3 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .gtag--parking .gtag-stats { color: #e5e7eb; }
 .gtag--parking.is-full .gtag-pill, .gtag--parking.is-full .gtag-card { border-color: rgba(var(--lv), 0.75); }
 .gtag--parking .gtag-state { padding: 0 4px; font-size: 9.5px; background: rgba(var(--lv), 0.22); color: var(--lv-text); }
-
-/* Parking panel (Transit tab). */
-.parking-panel h3 { margin-top: 14px; }
-.parking-panel .row .value .trend { color: var(--muted); font-weight: 500; }
-.parking-events { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
-.parking-events li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
-.parking-events li.is-now { background: rgba(249, 115, 22, 0.12); box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.35); }
-.parking-events .when { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.parking-events .meta { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
-.parking-events .sample { padding: 0 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.12); color: #e5e7eb; font-size: 10.5px; font-weight: 700; }
