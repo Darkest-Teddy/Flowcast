@@ -184,7 +184,7 @@ export default function Home() {
         loading={schedule.loading || locations.loading || geo.loading || profile.loading || hours.loading || events.loading} />
 
       <AskChat scheduleAvailable={schedule.data !== null} visible composer={(ask, pending, resetToken) => (
-        <AskBar resetToken={resetToken} pending={pending} onSubmit={(question) => void ask(question)} trailing={<LiveVoice compact />} />
+        <AskBar resetToken={resetToken} pending={pending} onSubmit={(question) => void ask(question)} voice={(field) => <LiveVoice compact>{field}</LiveVoice>} />
       )} data={{
         locations: locations.data ?? [], schedule: schedule.data ?? [],
         events: events.data ?? [], clubs: clubs.data ?? [],
