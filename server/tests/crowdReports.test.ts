@@ -23,6 +23,7 @@ function fakePool() {
   const writes: { sql: string; params: unknown[] }[] = [];
   const pool = {
     async query(sql: string, params: unknown[] = []) {
+      if (sql.includes('dashboard_current')) return { rows: [{ snapshot_hash: 'test' }] };
       if (sql.includes('dashboard_snapshots')) return { rows: [{ payload: { impact: { places: [place('marciano', 'dining'), place('mugar', 'library')] } } }] };
       if (sql.startsWith('INSERT INTO dashboard_crowd_reports')) {
         writes.push({ sql, params });

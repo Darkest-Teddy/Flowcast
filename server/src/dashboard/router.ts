@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import type pg from 'pg';
 import { z } from 'zod';
+import { gzip } from 'node:zlib';
+import { promisify } from 'node:util';
 import { openAt } from '../../../map-client/src/insights';
 import { weekBestTimes, weekFrom } from '../../../map-client/src/bestTimes';
 import { SLOT_CAVEAT, SLOT_METHOD, type SlotQuery, type SlotResult } from '../eventSlots';
@@ -58,6 +60,28 @@ export function publicBestTimes(impact: Snapshot['impact'], campus: Snapshot['ca
   });
 }
 
+const gzipAsync = promisify(gzip);
+/** Smaller JSON bodies aren't worth the CPU: the common ones (/me, /schedule) are a few hundred bytes. */
+const COMPRESS_MIN_BYTES = 8 * 1024;
+/**
+ * Gzip large JSON answers for clients that accept it. /public is ~540 kB of JSON (about 100 kB
+ * gzipped) and nothing between here and the browser compresses it: not serve.mjs's proxy, not Express.
+ */
+function compressJson(req: Request, res: Response) {
+  const json = res.json.bind(res);
+  res.json = (body: unknown) => {
+    const text = JSON.stringify(body);
+    if (text === undefined || text.length < COMPRESS_MIN_BYTES) return json(body);
+    res.vary('Accept-Encoding');
+    if (!req.acceptsEncodings('gzip')) return json(body);
+    gzipAsync(text, { level: 4 }).then((zipped) => {
+      if (res.headersSent) return;
+      res.set('Content-Encoding', 'gzip').type('json').send(zipped);
+    }, () => { if (!res.headersSent) json(body); });
+    return res;
+  };
+}
+
 export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUser; authConfig?: () => AuthConfig; eventSlots?: (query: SlotQuery) => SlotResult; crowdThrottle?: CrowdThrottle; now?: () => Date; admins?: OrgDeps['admins']; conflicts?: (date: string, near: string | null) => ConflictFacts; venues?: () => VenueCalendar | null; forecast?: ClubToolDeps['forecast'] } = {}) {
   const config = options.authConfig ?? authConfig;
   const verifyUser = options.verifyUser ?? createUserVerifier(config);
@@ -68,6 +92,7 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   const router = Router();
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
+    compressJson(req, res);
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       let origin: URL | undefined;
       try { if (req.headers.origin) origin = new URL(req.headers.origin); } catch { /* Invalid origins are rejected below. */ }
@@ -77,10 +102,25 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     }
     next();
   });
+  /*
+   * The snapshot is ~3.8 MB of JSON; fetching and parsing it took ~40 ms on every request that touched
+   * it (most of them). Snapshots are content-addressed and never change once written, so the parsed
+   * payload is kept per hash and only the current hash is read each time. Callers treat it as read-only.
+   */
+  let cached: { hash: string; payload: Promise<Snapshot> } | null = null;
   async function snapshot(): Promise<Snapshot> {
-    const result = await pool!.query('SELECT payload FROM dashboard_snapshots JOIN dashboard_current ON hash=snapshot_hash WHERE singleton=true');
-    if (!result.rows.length) throw new Error('Snapshot unavailable');
-    return result.rows[0].payload;
+    const current = await pool!.query('SELECT snapshot_hash FROM dashboard_current WHERE singleton=true');
+    const hash: string | undefined = current.rows[0]?.snapshot_hash;
+    if (!hash) throw new Error('Snapshot unavailable');
+    if (cached?.hash !== hash) {
+      const payload = pool!.query('SELECT payload FROM dashboard_snapshots WHERE hash=$1', [hash]).then((result) => {
+        if (!result.rows.length) throw new Error('Snapshot unavailable');
+        return result.rows[0].payload as Snapshot;
+      });
+      cached = { hash, payload };
+      payload.catch(() => { if (cached?.payload === payload) cached = null; });
+    }
+    return cached.payload;
   }
   async function account(res: Response): Promise<Account> {
     const user = res.locals.dashboardUser as VerifiedUser;

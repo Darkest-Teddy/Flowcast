@@ -56,6 +56,34 @@ function captureSink(): Plugin {
   };
 }
 
+/*
+ * The landing page is its own chunk (App.tsx), so a signed-out visitor would only start fetching it
+ * once the main bundle had run. For a browser with no stored Supabase sign-in (the same test as
+ * mayBeSignedIn in auth/session.tsx) opening / or /landing, this starts that download alongside the
+ * main bundle. Signed-in visitors skip it.
+ */
+function preloadLanding(): Plugin {
+  return {
+    name: 'flowcast-preload-landing',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (!ctx.bundle || !ctx.filename.endsWith('index.html')) return html;
+        const chunks = Object.values(ctx.bundle);
+        const landing = chunks.find((c) => c.type === 'chunk' && c.facadeModuleId?.endsWith('/src/pages/Landing.tsx'));
+        if (!landing || landing.type !== 'chunk') return html;
+        const js = [landing.fileName, ...landing.imports].filter((file) => !html.includes(file)).map((file) => `/${file}`);
+        const css = [...(landing.viteMetadata?.importedCss ?? [])].map((file) => `/${file}`);
+        const script = `try{if(['/','/landing'].includes(location.pathname)&&!Object.keys(localStorage).some(function(k){return /^sb-.+-auth-token$/.test(k)})){`
+          + `${JSON.stringify(js)}.forEach(function(h){var l=document.createElement('link');l.rel='modulepreload';l.crossOrigin='';l.href=h;document.head.appendChild(l)});`
+          + `${JSON.stringify(css)}.forEach(function(h){var l=document.createElement('link');l.rel='preload';l.as='style';l.crossOrigin='';l.href=h;document.head.appendChild(l)})}}catch(e){}`;
+        return { html, tags: [{ tag: 'script', children: script, injectTo: 'head' }] };
+      },
+    },
+  };
+}
+
 function mapPage(): Plugin {
   const rewrite: Connect.NextHandleFunction = (req, _res, next) => {
     if (req.url && /^\/map\/?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/map\/?/, '/map.html');
@@ -80,7 +108,7 @@ export default defineConfig(({ mode }) => {
     || '';
   const privateBundle = fileURLToPath(new URL('../data-pipeline/.cache/hackathon/campus-data.json', import.meta.url));
   return {
-    plugins: [react(), buApiPlugin(buKey, privateBundle), mapPage(), captureSink()],
+    plugins: [react(), buApiPlugin(buKey, privateBundle), mapPage(), captureSink(), preloadLanding()],
     // One server for everyone: the dashboard plus the map, its data and its models.
     publicDir: `${mapDir}/public`,
     resolve: {

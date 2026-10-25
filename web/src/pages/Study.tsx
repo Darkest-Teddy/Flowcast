@@ -6,7 +6,7 @@ import { findStudySpots } from '../lib/studyFinder';
 import { bostonTime, getDeparturePlan } from '../lib/departure';
 import { answerMapLink } from '../lib/askMapLink';
 import { config } from '../config';
-import { Button, EmptyState, Loading, Page, PageHeader, Segmented, SelectField } from '../ui';
+import { Button, EmptyState, Loading, LoadErrors, Page, PageHeader, Segmented, SelectField } from '../ui';
 import { useDepartureClock } from './student/DepartureCard';
 import { CrowdReportNow, rememberCrowdSuggestion } from './student/CrowdReport';
 import { StudyExamSeason } from './StudyExamSeason';
@@ -108,7 +108,7 @@ export default function Study() {
       {!schedule.loading && !schedule.error && !schedule.data?.length && <p><Link to="/calendars">Import your classes</Link> to check for class conflicts.</p>}
       {defaults.current && <p role="status">In class until {bostonTime(defaults.current.end)}; no session fits now.</p>}
     </section>
-    {resources.filter(r => r.error).map((r, i) => <p role="alert" key={i}>{r.error?.message} <Button size="sm" variant="ghost" onClick={r.reload}>Try again</Button></p>)}
+    <LoadErrors resources={resources} />
     <div className={styles.resultsHeader}>
       <p role="status">{loading ? 'Checking study spaces…' : `${results.length} ${results.length === 1 ? 'space' : 'spaces'} match`}</p>
       <SelectField label="Sort by" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
