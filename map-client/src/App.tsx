@@ -28,6 +28,8 @@ import { buildSourceDay, type SourceDay } from './sim/sourceDay';
 import { weekdayOf } from './sim/gatherings';
 import { EventsPanel } from './EventsPanel';
 import { createTransitService, mergeSchedules, type TransitService } from './sim/transitService';
+import { loadObservations, type CalibrationObservations } from './data/observations';
+import { buildPublicCrowd, isPublicId, type PublicCrowd } from './sim/publicCrowd';
 import { waitingCharacters, waitingRiderLayers } from './layers/waitingRiders';
 import { SourceDataPanel } from './SourceDataPanel';
 import { AMENITY_KINDS, displayName, displayShort } from './tags/names';
@@ -135,6 +137,8 @@ interface Hud {
   riding: Map<string, number>;
   /** Students standing at stops for a published departure. */
   waiting: number;
+  /** Public (non-student) walkers on the streets: never counted with the students. */
+  public?: number;
 }
 
 interface Transit {
@@ -217,6 +221,11 @@ export default function App() {
   const transitServiceRef = useRef<TransitService | undefined>(undefined);
   const loadDeferredRef = useRef<((campus: string) => void) | null>(null);
   const playbackRef = useRef<Playback | null>(null);
+  // Observed MBTA and pedestrian counts (null: file missing, public crowd off) and the non-student
+  // crowd built from them for the shown day. Students alone fill university buildings.
+  const observationsRef = useRef<CalibrationObservations | null>(null);
+  const publicCrowdRef = useRef<PublicCrowd | null>(null);
+  const publicBuildRef = useRef(0);
   // Campus events: on by default. Which date's events play is decided by eventDateFor().
   const [eventsOn, setEventsOn] = useState(START_EVENTS);
   const eventsOnRef = useRef(START_EVENTS);
@@ -237,6 +246,21 @@ export default function App() {
   const playDay = (base: PopulationBase, data: CampusData, day: number): Playback => {
     const built = buildSourceDay(base, data, day, transitServiceRef.current, { eventDate: eventDateFor(data, day) });
     setSimDay(built);
+    // The public crowd (about a second to build) follows on the next task, so the day starts at once;
+    // a newer day cancels it.
+    const observations = observationsRef.current;
+    const build = ++publicBuildRef.current;
+    publicCrowdRef.current = null;
+    if (observations) {
+      setTimeout(() => {
+        if (build !== publicBuildRef.current) return;
+        try {
+          publicCrowdRef.current = buildPublicCrowd({ observations, day: built, weekday: day, transit: transitServiceRef.current });
+        } catch {
+          publicCrowdRef.current = null; // the students' day plays on without the public crowd
+        }
+      }, 0);
+    }
     return new Playback(built);
   };
   const [campuses, setCampuses] = useState<Campus[]>([]);
@@ -278,6 +302,8 @@ export default function App() {
       const track = loadProgress.track;
       // BU Shuttle timetable (recorded TransLoc schedules + BU's GTFS baseline); MBTA-only without it.
       const shuttleTimetable = loadPublishedSchedule('/data/shuttle-schedule.json').catch(() => null);
+      // Observed counts for the public crowd; without them the map shows students only.
+      const observationsLoad = loadObservations().catch(() => null);
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields] = await Promise.all([
         track('Drawing the map', createBasemap(mapElement, shownLight)),
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
@@ -300,6 +326,7 @@ export default function App() {
       ]);
       if (cancelled) return basemap.remove();
       const shuttleSchedule = await shuttleTimetable;
+      observationsRef.current = await observationsLoad;
       const timetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
       basemapRef.current = basemap;
       setMapKind(basemap.kind);
@@ -431,6 +458,7 @@ export default function App() {
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
           // Riders walking to a stop are headed for a transit stop, not a building.
+          if (isPublicId(agent.id)) return agent.to === 'street' ? 'Public pedestrian (not a student)' : `Public rider (not a student) · ${transit?.data.stops.find((s) => s.id === agent.to)?.short ?? 'MBTA stop'}`;
           return `Student ${agent.id} → ${playbackRef.current?.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
         },
       });
@@ -525,6 +553,7 @@ export default function App() {
         const q = quality.settings;
         setParticleScale(q.particles);
         const walking = playback.walkingAt(t);
+        const publicWalking = publicCrowdRef.current?.walkingAt(t) ?? [];
         const waitingRiders = playback.waitingAt(t);
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
@@ -534,7 +563,7 @@ export default function App() {
           if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
           const ridingByCampus = new Map<string, number>();
           for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
-          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length });
+          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length, public: publicWalking.length });
         }
         // Reserve the active assembly label before placing building and transit tags.
         const placer = createPlacer(basemap.project);
@@ -640,7 +669,8 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(thinForZoom(inView(nearView(walking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
+          ...agentLayers(withPublic(thinForZoom(inView(nearView(walking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom()),
+            thinForZoom(inView(nearView(publicWalking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom() }),
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
@@ -653,7 +683,7 @@ export default function App() {
         // Siren (off unless switched on): only while apparatus run lights-and-siren and the clock runs.
         sirenRef.current?.set(playingRef.current ? FireSiren.levelAt(nearestResponding(incidentRunRef.current?.response ?? null, basemap.getCamera().center)) : 0);
         perfRef.current = {
-          walkers: walking.length,
+          walkers: walking.length + publicWalking.length,
           vehicles: source ? source.positionsAt(now).length : 0,
           layers: frameLayers.length,
         };
@@ -967,6 +997,7 @@ export default function App() {
         <h1>Flowcast</h1>
         <p>
           {currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]} {hud ? `· ${hud.walking} walking` : ''}{hud?.waiting ? ` · ${hud.waiting} at stops` : ''}
+          {hud?.public ? ` · ${hud.public} public on streets` : ''}
           {bikes && showBikes && hud ? ` · ${ridingHere} on Bluebikes` : ''}
         </p>
         <p className="model-note">{sourceData ? 'Campus simulation · Fall 2026' : 'Campus simulation · Demo'}</p>
@@ -1025,6 +1056,11 @@ export default function App() {
               )}
 
               <h2>Campus activity</h2>
+              {hud?.public ? (
+                <p className="muted">
+                  Students only. Streets: {hud.walking.toLocaleString()} students walking · {hud.public.toLocaleString()} public (non-students), from MBTA ridership and pedestrian counts.
+                </p>
+              ) : null}
               <ol>
                 {ranked.slice(0, 8).map((o) => {
                   const display = activityDisplay({
@@ -1148,6 +1184,7 @@ export default function App() {
           ) : tab === 'data' ? (
             <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
               {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
+              {publicCrowdRef.current && <p>Public (non-students): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
               {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
             </section>
           ) : (
@@ -1435,6 +1472,20 @@ function shareOf(id: string): number {
     walkerShare.set(id, (v = (h >>> 0) / 4294967296));
   }
   return v;
+}
+/**
+ * Public walkers join the students' walker layers (same characters, no new layers), capped so the
+ * extra skinned instances stay a small share of the frame: at most PUBLIC_DRAW_SHARE of the drawn
+ * students (and PUBLIC_DRAW_MIN..PUBLIC_DRAW_MAX). The same people stay drawn frame to frame (by id).
+ */
+const PUBLIC_DRAW_SHARE = 0.3;
+const PUBLIC_DRAW_MIN = 150;
+const PUBLIC_DRAW_MAX = 500;
+function withPublic(students: WalkingAgent[], publicWalkers: WalkingAgent[]): WalkingAgent[] {
+  if (!publicWalkers.length) return students;
+  const cap = Math.min(PUBLIC_DRAW_MAX, Math.max(PUBLIC_DRAW_MIN, Math.round(students.length * PUBLIC_DRAW_SHARE)));
+  const keep = publicWalkers.length <= cap ? publicWalkers : publicWalkers.filter((w) => shareOf(w.id) < cap / publicWalkers.length);
+  return students.concat(keep);
 }
 function thinForZoom(walkers: WalkingAgent[], zoom: number): WalkingAgent[] {
   if (zoom >= DRAW_ALL_FROM_ZOOM) return walkers;

@@ -20,3 +20,10 @@ python3 data-pipeline/fetch_street.py --timings-only
 
 To refresh OSM geometry and all plans, omit `--timings-only` (requires network).
 The client displays each active plan's basis, date, and source page in its tooltip.
+
+# Transcribed pedestrian counts
+
+`pedestrian_counts_extra.json` holds public pedestrian count sheets near BU (BU Data Sciences
+Center PNF 2018, BU Transportation Master Plan 2013, BMC IMP 2021 appendix), with PDF pages.
+`fetch_calibration_observations.py` locates each site in OSM and writes
+`map-client/public/data/calibration-observations.json`. See `docs/calibration-observations.md`.
