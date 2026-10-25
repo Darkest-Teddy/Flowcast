@@ -106,7 +106,7 @@ function SimulatedGamePanel({ time, game, estimate, onGame }: {
   );
 }
 
-export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate, siren = false, onSiren, responsePending, game = null, gameEstimate = null, onGame }: {
+export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate, siren = false, onSiren, responsePending, game = null, gameEstimate = null, onGame, landmarks = [] }: {
   locations: CampusLocation[];
   time: number;
   run: IncidentRun | null;
@@ -119,6 +119,8 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
   game?: SimulatedGame | null;
   gameEstimate?: VenueEventEstimate | null;
   onGame?: (game: SimulatedGame | null) => void;
+  /** Off-campus targets for meteors and earthquakes (Fenway Park). */
+  landmarks?: readonly CampusLocation[];
 }) {
   const [kind, setKind] = useState<IncidentKind>('fire-drill');
   const [locationId, setLocationId] = useState('');
@@ -126,7 +128,10 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
   const [error, setError] = useState('');
   const [radius, setRadius] = useState(250);
   const [outdoorCrowd, setOutdoorCrowd] = useState(true);
-  const available = locations.filter((location) => location.kind !== 'off-campus' && location.kind !== 'outdoor').sort((a, b) => a.name.localeCompare(b.name));
+  const areaKind = kind === 'earthquake' || kind === 'meteor';
+  const buildings = locations.filter((location) => location.kind !== 'off-campus' && location.kind !== 'outdoor').sort((a, b) => a.name.localeCompare(b.name));
+  // Meteors and earthquakes can also be aimed at landmarks off the simulated campus.
+  const available = areaKind ? [...landmarks, ...buildings] : buildings;
   const target = available.find((location) => location.id === locationId) ?? available.find((location) => location.short === 'CDS') ?? available[0];
   const progress = run && incidentProgress(run, time);
   const trucks = run?.fireResponse ? fireResponseAt(run.fireResponse, time) : [];
@@ -250,7 +255,7 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
           </label>
           <label>Building
             <select aria-label="Building" value={target?.id ?? ''} onChange={(event) => setLocationId(event.target.value)}>
-              {available.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+              {available.map((location) => <option key={location.id} value={location.id}>{location.kind === 'outdoor' ? `${location.name} (off campus)` : location.name}</option>)}
             </select>
           </label>
           {areaEvent && <label>Affected radius

@@ -44,6 +44,7 @@ import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
 import { atmosphereLayers } from './weather/atmosphere';
 import { ragdollLayers, ragdollsAt } from './layers/ragdolls';
+import { LANDMARK_TARGETS, withLandmarkTarget } from './sim/landmarks';
 import { quality } from './perf/quality';
 import { pacer } from './perf/pacer';
 import {
@@ -1289,7 +1290,9 @@ export default function App() {
     if (start + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
     const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start, duration, radiusMetres,
       ...(kind === 'fire' && outdoorCrowd ? { outdoorCrowd: true } : {}) };
-    const location = baseline.locations.find((entry) => entry.id === locationId)!;
+    // An area disaster can also be aimed at a landmark off the simulated campus (Fenway Park).
+    const target = kind === 'meteor' || kind === 'earthquake' ? withLandmarkTarget(baseline.data, locationId) : baseline.data;
+    const location = target.locations.find((entry) => entry.id === locationId)!;
     // The trucks depend only on the fire's active period, so they are planned first: the outdoor crowd keeps clear of where they park.
     const responsePlan = kind === 'fire' ? (transitRef.current
       ? planDisasterFireResponse({ incident, location, hazard: { activeUntil: incident.start + duration } }, transitRef.current.data, baseline.data.buildings)
@@ -1301,7 +1304,7 @@ export default function App() {
         ...segmentsNear((transitRef.current?.feed.tracks ?? []).filter((track) => track.route.startsWith('Green-')).map((track) => track.points), location.position, 600, 5.5)],
       apparatus: (fireResponse?.trucks ?? []).flatMap((truck) => fireResponseAt(fireResponse, truck.fightStart).filter((frame) => frame.id === truck.id).map((frame) => frame.position)),
     } : undefined;
-    const result = applyIncident(baseline.data, incident, sourceData
+    const result = applyIncident(target, incident, sourceData
       ? { sourceData, weekday: weekdayRef.current, transit: transitServiceRef.current, ...(fireScene ? { fireScene } : {}) } : undefined);
     const playback = new Playback(result.day);
     baselinePlaybackRef.current = baseline;
@@ -1532,7 +1535,7 @@ export default function App() {
           <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
             onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
             siren={siren} onSiren={toggleSiren} responsePending={responsePending}
-            game={simulatedGame} gameEstimate={eventDay.events.find((e) => e.event.id === GAME_ID) ?? null} onGame={playSimulatedGame} />
+            game={simulatedGame} gameEstimate={eventDay.events.find((e) => e.event.id === GAME_ID) ?? null} onGame={playSimulatedGame} landmarks={LANDMARK_TARGETS} />
         )}
         {hud && (
           <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={tab !== 'ask'}>
