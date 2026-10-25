@@ -108,6 +108,32 @@ function visualFor(r: Result, index: number): { key: string; visual: Visual } | 
       };
       return { key: `free:${o.building}:${o.day}:${o.time}`, visual: v };
     }
+    case 'best_times': {
+      const days: Out[] = o.byDay ?? [];
+      if (!days.length) return null;
+      const percent = /percent/.test(String(o.measure));
+      const fig = (h: Out | null) => (!h ? null : percent ? intOrNull(h.percent) : intOrNull(h.students));
+      const v: TableVisual = {
+        id, kind: 'table', title: `Best times this week, ${o.place}${o.window ? ` (${o.window})` : ''}`, source: 'simulated',
+        note: `Model-derived, ${o.week}; open hours by published hours only. ${percent ? 'Simulated students over stated capacity' : 'Simulated students'}; not live`,
+        columns: [{ key: 'day', label: 'Day', align: 'left' }, { key: 'quiet', label: 'Quietest', align: 'left' }, { key: 'quietValue', label: percent ? '% full' : 'Students', align: 'right' },
+          { key: 'busy', label: 'Busiest', align: 'left' }, { key: 'busyValue', label: percent ? '% full' : 'Students', align: 'right' }],
+        rows: days.map((d) => ({ day: d.day, quiet: d.quietest?.time ?? null, quietValue: fig(d.quietest), busy: d.busiest?.time ?? null, busyValue: fig(d.busiest) })),
+      };
+      return { key: `best:${o.place}:${o.window ?? ''}`, visual: v };
+    }
+    case 'event_slots': {
+      const slots: Out[] = o.slots ?? [];
+      if (!slots.length) return null;
+      const v: TableVisual = {
+        id, kind: 'table', title: `Event slots for ${n(o.headcount)}, ${o.window}`, source: 'mixed',
+        note: 'Published seats, classes and venue events; nearby crowding model-derived; parking is stated spaces, not availability. A free room may be in use or locked; nothing is booked',
+        columns: [{ key: 'when', label: 'When', align: 'left' }, { key: 'room', label: 'Room', align: 'left' }, { key: 'seats', label: 'Seats', align: 'right' },
+          { key: 'crowd', label: 'Nearby % full', align: 'right' }, { key: 'parking', label: 'Parking spaces', align: 'right' }],
+        rows: slots.slice(0, 25).map((x) => ({ when: `${x.day} ${x.start}–${x.end}`, room: `${x.building} ${x.room}`, seats: intOrNull(x.seats), crowd: intOrNull(x.nearbyCrowdPercent), parking: intOrNull(x.parkingSpacesNearby) })),
+      };
+      return { key: `slots:${o.headcount}:${o.window}`, visual: v };
+    }
     case 'list_events': {
       const events: Out[] = o.events ?? [];
       if (!events.length) return null;
@@ -274,6 +300,8 @@ function suggestionsFor(r: Result): string[] {
     case 'campus_overview': return ['Which library is least crowded right now?', 'Which dining hall is busiest right now?'];
     case 'list_events': return ['How do these events change crowding?', 'Are there games or concerts that day?'];
     case 'free_rooms': return [`How busy is ${o.building} over the day?`, 'Which library is least crowded right now?'];
+    case 'best_times': return o.quietest?.length ? [`How busy is ${o.place} over the day?`, `What drives the crowds at ${o.place}?`] : [`What are ${o.place}’s opening hours?`];
+    case 'event_slots': return o.slots?.length && !String(o.slots[0].building).endsWith('…') ? [`Where can I park near ${o.slots[0].building}?`, 'What events are on this week?'] : ['What events are on this week?'];
     case 'find_course': return o.next?.building ? [`Which rooms in ${o.next.building} are free now?`, `How busy is ${o.next.building} right now?`] : [];
     case 'walking_route': return [`How busy is ${o.to} right now?`, `Which transit stops are near ${o.to}?`];
     case 'model_basis': return ['How does the simulation compare with real counts?'];

@@ -147,3 +147,67 @@
 
 .basis summary { cursor: pointer; }
 .basis p { margin-top: var(--space-2); max-width: 75ch; }
+
+/* Best times this week: one tile per day, the week's quietest days marked. */
+.best {
+  margin-top: var(--space-8);
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.day {
+  composes: glass from global;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  border: 1px solid transparent;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.day strong {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.bestDay {
+  border-color: var(--color-accent);
+}
+
+.dayName {
+  color: var(--color-ink-secondary);
+  font-weight: var(--weight-medium);
+}
+
+.dayNote {
+  color: var(--color-ink-tertiary);
+}
+
+.bestBasis {
+  margin-top: var(--space-3);
+  max-width: 75ch;
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 860px) {
+  .strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -35,6 +35,8 @@ import { crowdLevel } from '../../map-client/src/layers/crowdLevels';
 import { formatClock, type CampusLocation, type LocationKind } from '../../map-client/src/sim/playback';
 import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData } from '../../map-client/src/data/campusData';
 import { BASIS_TOPICS, clip, dayContext, type ServerAskContext } from './facts';
+import { bestTimesForPlace, weekFrom, type HourFigure } from '../../map-client/src/bestTimes';
+import { findEventSlots, SLOT_CAVEAT } from './eventSlots';
 
 export const PLACE_KINDS = ['library', 'dining', 'gym', 'dorm', 'classroom'] as const satisfies readonly LocationKind[];
 
@@ -628,6 +630,130 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
     },
   });
 
+  const daysParam = z.array(z.number().int().min(0).max(6)).max(7).nullable()
+    .describe('Days of the reference week to include, 0 = Monday … 6 = Sunday, or null for the whole week.');
+
+  const bestTimes = tool({
+    name: 'best_times',
+    description:
+      'The quietest and busiest open hours of one place across the reference week (or chosen days and an optional time window), with each day’s quietest and busiest hour. ' +
+      'Model-derived: hourly simulated head count from the event-impact build (with simulated campus events) over stated capacity. Only whole hours open by published hours are ranked; ' +
+      'places without published hours are not ranked (never call them quiet), and hoursNotInData lists days whose hours are not in the data.',
+    parameters: z.object({
+      place: placeParam,
+      days: daysParam,
+      from: clockParam('Earliest hour to consider, HH:MM 24-hour (rounded down to the hour), or null for the start of the day.'),
+      to: clockParam('Latest end of an hour to consider, HH:MM 24-hour (rounded up to the hour), or null for the end of the day.'),
+    }),
+    execute: ({ place, days, from, to }) => {
+      called('best_times');
+      const data = ctx.data;
+      const impact = ctx.facts?.chat?.eventImpact;
+      if (!data || !impact) return noFacts();
+      const fromSec = parseClock(from, 0);
+      if (fromSec === null) return result(badTime(from));
+      const toSec = parseClock(to, 86400);
+      if (toSec === null) return result(badTime(to));
+      if (toSec <= fromSec) return result({ error: 'The window must end after it starts.' });
+      const p = resolvePlace(place, ctx);
+      if ('error' in p) return result({ error: p.error });
+      const loc = p.location;
+      const source = data.locations[loc.id];
+      const week = weekFrom(data.referenceWeekStart).filter((d) => !days?.length || days.includes(d.weekday));
+      const base = {
+        place: loc.name, kind: loc.kind, label: 'model-derived',
+        week: `reference week ${dateForWeekday(data, 0)} to ${dateForWeekday(data, 6)}`,
+        ...(from || to ? { window: `${formatClock(fromSec)} to ${toSec >= 86400 ? 'end of day' : formatClock(toSec)}` } : {}),
+      };
+      const show: MapEntry = { tool: 'best_times', show: { route: null, select: loc.id, points: [loc.position] }, rows: [] };
+      if (source?.hoursStatus !== 'published') {
+        return result({
+          ...base, hoursStatus: source?.hoursStatus ?? 'unknown', quietest: [], busiest: [],
+          note: source?.hoursStatus === 'restricted'
+            ? `${loc.name} is restricted by its published hours information, so it has no open hours to rank.`
+            : `${loc.name} doesn’t publish opening hours, so no hour can be ranked as open. Don’t call any hour quiet; place_day gives its simulated day.`,
+        }, show);
+      }
+      const capacity = comparable(loc, loc.activityModeled) ? loc.capacity : null;
+      const r = bestTimesForPlace({
+        impact, placeId: loc.id, capacity, days: week,
+        fromHour: Math.floor(fromSec / 3600), toHour: Math.ceil(toSec / 3600),
+        open: (day, sec) => {
+          const s = openAt(loc.id, day.weekday, sec, data);
+          return s.open === true && s.fromPreviousDay ? null : s.open;
+        },
+      });
+      const figure = (h: HourFigure) => ({
+        day: WEEKDAYS[h.weekday], date: h.date, time: formatClock(h.hour * 3600),
+        ...(r.measure === 'share' ? { percent: percent(h.share) } : { students: h.students }),
+      });
+      const short = (h: HourFigure | null) => (h ? { time: formatClock(h.hour * 3600), ...(r.measure === 'share' ? { percent: percent(h.share) } : { students: h.students }) } : null);
+      return result({
+        ...base,
+        measure: r.measure === 'share' ? 'percent of stated capacity' : 'simulated students (capacity not comparable as a percentage)',
+        quietest: r.quietest.map(figure),
+        busiest: r.busiest.map(figure),
+        byDay: r.byDay.filter((d) => d.openHours > 0).map((d) => ({ day: WEEKDAYS[d.weekday], openHours: d.openHours, quietest: short(d.quietest), busiest: short(d.busiest) })),
+        ...(r.daysClosed.length ? { closedAllWindow: r.daysClosed.map((d) => WEEKDAYS[d.weekday]) } : {}),
+        ...(r.daysWithoutHours.length ? {
+          hoursNotInData: {
+            days: dayList(r.daysWithoutHours.map((d) => d.weekday), WEEKDAYS),
+            note: 'Opening hours for these days aren’t in the data: say so; don’t call them open, closed, quiet or busy.',
+          },
+        } : {}),
+        method: 'Model-derived hourly mean simulated head count (with simulated campus events where the event-impact build has them), not live or measured. Hours with no simulated students are left out, not called quiet; after-midnight hours are not modeled.',
+      }, show);
+    },
+  });
+
+  const eventSlots = tool({
+    name: 'event_slots',
+    description:
+      'For planning a club event: rooms with enough published seats and start times in the reference week that have no published class or listed event in the room, no big venue event (game, concert) within 1 km around that time, ' +
+      'ranked by low nearby modeled crowding, then parking spaces nearby, then the smallest room that fits. A free room may still be in use or locked; nothing is booked.',
+    parameters: z.object({
+      headcount: z.number().int().min(1).max(2000).describe('Expected attendees; rooms need at least this many published seats.'),
+      days: daysParam,
+      from: clockParam('Earliest start, HH:MM 24-hour, or null for 18:00.'),
+      to: clockParam('Latest end, HH:MM 24-hour, or null for 22:00.'),
+      durationMinutes: z.number().int().min(30).max(360).nullable().describe('Event length in minutes, or null for 90.'),
+      campus: campusParam,
+    }),
+    execute: ({ headcount, days, from, to, durationMinutes, campus }) => {
+      called('event_slots');
+      const data = ctx.data;
+      const chat = ctx.facts?.chat;
+      if (!data || !chat?.eventImpact) return noFacts();
+      const fromSec = parseClock(from, 18 * 3600);
+      if (fromSec === null) return result(badTime(from));
+      const toSec = parseClock(to, 22 * 3600);
+      if (toSec === null) return result(badTime(to));
+      const durationMin = durationMinutes ?? 90;
+      if (toSec - fromSec < durationMin * 60) return result({ error: `A ${durationMin}-minute event doesn’t fit between ${formatClock(fromSec)} and ${formatClock(toSec)}.` });
+      const r = findEventSlots({ headcount, days: days?.length ? days : null, fromSec, toSec, durationMin, campus: campus ?? ctx.campus, limit: 5 }, {
+        locations: ctx.locations, meetings: ctx.meetings, referenceWeekStart: data.referenceWeekStart,
+        impact: chat.eventImpact, venues: chat.venues, parking: chat.parking,
+      });
+      const top = r.slots[0] ? byId.get(r.slots[0].locationId) : undefined;
+      return result({
+        kind: 'published schedule and model-derived',
+        headcount, campus: r.campus, window: `${r.window.from} to ${r.window.to}`, durationMinutes: durationMin,
+        week: `reference week ${dateForWeekday(data, 0)} to ${dateForWeekday(data, 6)}`,
+        slots: r.slots.map((s) => ({
+          day: WEEKDAYS[s.weekday], start: s.start, end: s.end, building: clip(s.building, 40), room: s.room, seats: s.seats,
+          nearbyCrowdPercent: s.nearbyCrowd?.percent ?? null, ...(s.nearbyCrowd ? { busiestNearby: clip(s.nearbyCrowd.place, 30) } : {}),
+          parkingSpacesNearby: s.parking.spaces,
+          ...(s.venueEventsSameDay.length ? { venueEventThatDay: clip(s.venueEventsSameDay[0], 36) } : {}),
+        })),
+        checked: { roomsWithSeats: r.counts.roomsWithSeats, withClass: r.counts.withClass, nearVenueEvent: r.counts.nearVenueEvent, free: r.counts.free },
+        ...(r.venueConflicts.length ? { ruledOutByVenueEvents: r.venueConflicts.slice(0, 2).map((e) => `${clip(e.name, 40)}, ${e.venue}, ${WEEKDAYS[(new Date(`${e.date}T12:00:00Z`).getUTCDay() + 6) % 7]} ${e.start}`) } : {}),
+        ...(r.largestRoom ? { note: `No room with published seats holds ${headcount}; the largest is ${r.largestRoom.building} ${r.largestRoom.room} (${r.largestRoom.seats} seats).` } : {}),
+        caveat: SLOT_CAVEAT,
+        method: 'Seats, classes and venue events are published; nearby crowding is model-derived; parking is stated spaces within 800 m, not availability.',
+      }, top ? { tool: 'event_slots', show: { route: null, select: top.id, points: [top.position] }, rows: [] } : undefined);
+    },
+  });
+
   const modelBasis = tool({
     name: 'model_basis',
     description: 'Short statements of how the simulation works and what its numbers rest on, by topic. Use it for "why" and "how do you know" questions.',
@@ -709,5 +835,5 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
       return result(personalScheduleFacts(personalSchedule));
     },
   })];
-  return [...personalTools, findPlaces, rankPlaces, walkingRoute, findCourse, placeDay, placeInfo, campusOverview, listEvents, freeRooms, modelBasis, publishedCounts];
+  return [...personalTools, findPlaces, rankPlaces, walkingRoute, findCourse, placeDay, placeInfo, campusOverview, listEvents, freeRooms, bestTimes, eventSlots, modelBasis, publishedCounts];
 }

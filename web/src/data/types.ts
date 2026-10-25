@@ -1,5 +1,8 @@
 // Dashboard contracts shared by the HTTP client and server.
 
+// Relative, not @map: the server compiles this file too (dashboard router).
+import type { PlaceWeek } from '../../../map-client/src/bestTimes';
+
 export type Role = 'student' | 'clubOfficer' | 'admin';
 
 export interface User {
@@ -320,6 +323,8 @@ export interface DashboardPublic {
   impact: EventImpactData;
   hourly: HourlyForecast[];
   places: PlaceForecast[];
+  /** Best times over the next seven days for places with published hours (model-derived); absent from older servers. */
+  bestTimes?: PlaceWeek[];
   clubs: Club[];
 }
 

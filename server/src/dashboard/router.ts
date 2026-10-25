@@ -2,6 +2,8 @@ import { Router, type Request, type Response } from 'express';
 import type pg from 'pg';
 import { z } from 'zod';
 import { openAt } from '../../../map-client/src/insights';
+import { weekBestTimes, weekFrom } from '../../../map-client/src/bestTimes';
+import { SLOT_CAVEAT, SLOT_METHOD, type SlotQuery, type SlotResult } from '../eventSlots';
 import { bostonDate, clubsFromBundle, forecastsFromBundle, locationsFromBundle, organizerId } from '../../../web/src/data/realData';
 import type { Profile, NotificationPrefs } from '../../../web/src/data/types';
 import type { Snapshot } from './import';
@@ -12,14 +14,44 @@ import type { ScheduleImportState } from '../../../web/src/data/types';
 const time = z.union([z.literal(''), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)]);
 const location = z.string().min(1).max(160).nullable();
 const profilePatch = z.object({ name: z.string().trim().max(100), homeLocationId: location, studySpotId: location, lunchTime: time, dinnerTime: time, avatarSwatch: z.number().int().min(0).max(5) }).partial().strict();
-const preferencesPatch = z.object({ packedRoute: z.boolean(), clubEvents: z.boolean(), scheduleChanges: z.boolean() }).partial().strict();
+const clock = z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/);
+const toSeconds = (hhmm: string) => Number(hhmm.split(':')[0]) * 3600 + Number(hhmm.split(':')[1]) * 60;
+/** GET /event-slots query: headcount, optional days ("0,2,4", 0 = Monday), window, duration, campus and limit. */
+const slotQuery = z.object({
+  headcount: z.coerce.number().int().min(1).max(2000),
+  days: z.string().regex(/^[0-6](,[0-6]){0,6}$/).optional(),
+  from: clock.optional(),
+  to: z.union([clock, z.literal('24:00')]).optional(),
+  duration: z.coerce.number().int().min(30).max(360).optional(),
+  campus: z.enum(['charles-river', 'medical', 'fenway']).optional(),
+  limit: z.coerce.number().int().min(1).max(20).optional(),
+}).strict();
+const preferencesPatch =z.object({ packedRoute: z.boolean(), clubEvents: z.boolean(), scheduleChanges: z.boolean() }).partial().strict();
 interface Account { id: string; profile: Profile; preferences: NotificationPrefs; following: string[]; schedule: ScheduleImportState['items']; schedule_import: Omit<ScheduleImportState, 'items'> | null; created_at: Date; updated_at: Date }
 const blankProfile: Profile = { name: '', homeLocationId: null, studySpotId: null, lunchTime: '', dinnerTime: '', avatarSwatch: 0 };
 const blankPrefs: NotificationPrefs = { packedRoute: false, clubEvents: false, scheduleChanges: false };
 function session(account: Account, user: VerifiedUser) {
   return { user: { id: account.id, name: account.profile.name || 'Account', email: user.email, homeLocationId: account.profile.homeLocationId }, roles: [], officerOfClubId: null, calendarConnected: false, calendarSyncedAt: null, onboarded: false };
 }
-export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUser; authConfig?: () => AuthConfig } = {}) {
+/**
+ * Best times this week for /public: the seven Boston days from `today`, for places with published
+ * hours, each date's hours read from its own week (as the forecasts shift the reference Monday).
+ * After-midnight hours from the previous day's listing are not modeled, so they are not ranked.
+ */
+export function publicBestTimes(impact: Snapshot['impact'], campus: Snapshot['campus'], today: string) {
+  const week = weekFrom(today);
+  const weekCampus = new Map(week.map((d) => {
+    const monday = new Date(`${d.date}T12:00:00Z`); monday.setUTCDate(monday.getUTCDate() - d.weekday);
+    return [d.date, { ...campus, referenceWeekStart: monday.toISOString().slice(0, 10) }];
+  }));
+  const withHours = impact.places.filter((p) => campus.locations[p.id]?.hoursStatus === 'published');
+  return weekBestTimes(impact, withHours, week, (id, d, seconds) => {
+    const s = openAt(id, d.weekday, seconds, weekCampus.get(d.date)!);
+    return s.open === true && s.fromPreviousDay ? null : s.open;
+  });
+}
+
+export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUser; authConfig?: () => AuthConfig; eventSlots?: (query: SlotQuery) => SlotResult } = {}) {
   const config = options.authConfig ?? authConfig;
   const verifyUser = options.verifyUser ?? createUserVerifier(config);
   const router = Router();
@@ -47,11 +79,28 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   }
   router.get('/auth/config', (_req, res) => { res.json(config()); });
   router.use(async (req, res, next) => {
-    if ((req.method === 'GET' || req.method === 'HEAD') && /^\/public\/?$/i.test(req.path)) { next(); return; }
+    // Public reads: the snapshot, and event slots (published schedules and model figures, nothing personal).
+    if ((req.method === 'GET' || req.method === 'HEAD') && /^\/(public|event-slots)\/?$/i.test(req.path)) { next(); return; }
     const token = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization ?? '')?.[1];
     if (!token) throw new DashboardAuthError(401);
     res.locals.dashboardUser = await verifyUser(token);
     next();
+  });
+  // Answered from the Ask server's loaded campus model, so it needs no database. Never books anything.
+  router.get('/event-slots', (req, res) => {
+    if (!options.eventSlots) { res.status(503).json({ error: 'Event planning is unavailable on this server.' }); return; }
+    const parsed = slotQuery.safeParse(req.query);
+    if (!parsed.success) { res.status(400).json({ error: 'Send headcount (1–2000), and optionally days (0 = Monday, comma-separated), from and to (HH:MM), duration (30–360 minutes), campus and limit (1–20).' }); return; }
+    const q = parsed.data;
+    const fromSec = toSeconds(q.from ?? '18:00');
+    const toSec = toSeconds(q.to ?? '22:00');
+    const durationMin = q.duration ?? 90;
+    if (toSec - fromSec < durationMin * 60) { res.status(400).json({ error: 'The event doesn’t fit in that window.' }); return; }
+    const result = options.eventSlots({
+      headcount: q.headcount, days: q.days ? [...new Set(q.days.split(',').map(Number))] : null, fromSec, toSec, durationMin,
+      campus: q.campus ?? 'charles-river', limit: q.limit ?? 10, maxPerDay: 3,
+    });
+    res.json({ ...result, label: 'published schedule and model-derived', caveat: SLOT_CAVEAT, method: SLOT_METHOD });
   });
   router.use((_req, res, next) => {
     if (!pool) { res.status(503).json({ error: 'Dashboard database is unavailable.' }); return; }
@@ -65,8 +114,9 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     const monday = new Date(`${day}T12:00:00Z`); monday.setUTCDate(monday.getUTCDate() - weekday);
     const currentCampus = { ...campus, referenceWeekStart: monday.toISOString().slice(0, 10) };
     const forecasts = forecastsFromBundle(impact, at, (id, w, seconds) => openAt(id, w, seconds, currentCampus).open);
+    const bestTimes = publicBestTimes(impact, campus, day);
     const events = impact.events.map((e) => ({ id: e.id, title: e.name, locationId: e.locationId, venue: e.locationName, start: e.start, end: e.end, organizer: e.organizer, clubId: e.organizer?.trim() ? organizerId(e.organizer.trim()) : null, source: 'terrier-central', sourceUrl: e.sourceUrl, mapStatus: e.status }));
-    res.json({ locations: locationsFromBundle(impact), geo, events, impact, ...forecasts, clubs: clubsFromBundle(impact) });
+    res.json({ locations: locationsFromBundle(impact), geo, events, impact, ...forecasts, bestTimes, clubs: clubsFromBundle(impact) });
   });
   router.get('/me', async (req, res) => {
     const g = await account(res);
