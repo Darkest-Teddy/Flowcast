@@ -62,7 +62,7 @@ export function bostonClock(at: Date): { weekday: number; time: number } {
 
 export type AskOutcome<A, E> =
   | { source: 'agent'; answer: A; question: string }
-  | { source: 'device'; reason: 'personal' }
+  | { source: 'device'; reason: 'personal' | 'privateFollowup' }
   | { source: 'device'; reason: 'failed'; error: E }
   | { source: 'cancelled' };
 
@@ -75,11 +75,30 @@ export async function routeQuestion<A, E extends { kind: string }>(
   question: string,
   agent: (question: string) => Promise<{ ok: true; value: A } | { ok: false; error: E }>,
   homeName: string | null = null,
+  context?: ConversationPrivacy,
 ): Promise<AskOutcome<A, E>> {
   const plan = planQuestion(question, homeName);
   if (plan.local) return { source: 'device', reason: 'personal' };
+  if (needsPrivateClarification(question, context)) return { source: 'device', reason: 'privateFollowup' };
   const result = await agent(plan.question);
   if (result.ok) return { source: 'agent', answer: result.value, question: plan.question };
   if (result.error.kind === 'aborted') return { source: 'cancelled' };
   return { source: 'device', reason: 'failed', error: result.error };
+}
+
+export interface ConversationPrivacy {
+  afterDevice: boolean;
+  locationNames: string[];
+}
+
+/** After a device answer, only a self-contained named-place question may start a new remote context. */
+export function needsPrivateClarification(question: string, context?: ConversationPrivacy): boolean {
+  if (!context?.afterDevice) return false;
+  const q = normalize(question).toLowerCase();
+  const referencesPrior = /\b(it|there|that|those|them|they|this|these|same|instead|other|another|one|ones|next|previous|before|after|then|also|too|again)\b/.test(q);
+  const namesPlace = context.locationNames.some((name) => {
+    const escaped = name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return escaped.length > 1 && new RegExp(`\\b${escaped}\\b`, 'i').test(q);
+  });
+  return referencesPrior || !namesPlace;
 }

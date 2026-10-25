@@ -8,9 +8,19 @@ import { WEEKDAYS } from '../../map-client/src/data/campusData';
 import type { CampusModel } from './campus';
 import type { AskResult } from './agent';
 import type { ServerAskContext } from './facts';
+import type { AgentMessage } from '../../map-client/src/askClient';
+import { MAX_HISTORY_PAIRS, MAX_USER_LENGTH, MAX_ASSISTANT_LENGTH, MAX_HISTORY_LENGTH } from '../../map-client/src/askConversation';
+
+const historySchema = z.array(z.discriminatedUnion('role', [
+  z.object({ role: z.literal('user'), content: z.string().max(MAX_USER_LENGTH) }),
+  z.object({ role: z.literal('assistant'), content: z.string().max(MAX_ASSISTANT_LENGTH) }),
+])).max(MAX_HISTORY_PAIRS * 2)
+  .refine((history) => history.length % 2 === 0 && history.every((message, i) => message.role === (i % 2 === 0 ? 'user' : 'assistant')), 'History must contain complete user/assistant pairs')
+  .refine((history) => history.reduce((total, message) => total + message.content.length, 0) <= MAX_HISTORY_LENGTH, 'History is too long');
 
 export const AskRequest = z.object({
   question: z.string().trim().min(1).max(300),
+  history: historySchema.optional(),
   weekday: z.number().int().min(0).max(6),
   time: z.number().int().min(0).max(86399),
   campus: z.string().min(1).max(40),
@@ -18,7 +28,7 @@ export const AskRequest = z.object({
 
 export interface AppOptions {
   campus: CampusModel;
-  ask: (question: string, ctx: ServerAskContext, signal: AbortSignal) => Promise<AskResult>;
+  ask: (question: string, ctx: ServerAskContext, signal: AbortSignal, history?: AgentMessage[]) => Promise<AskResult>;
   keyConfigured: boolean;
   model: string;
   /** Per client address, per minute. */
@@ -92,7 +102,7 @@ export function createApp(options: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', options.trustProxyHops ?? Number(process.env.TRUST_PROXY_HOPS ?? 0));
-  app.use(express.json({ limit: '4kb' }));
+  app.use(express.json({ limit: '128kb' }));
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, model: options.model, keyConfigured: options.keyConfigured, privateBundle: campus.privateBundle });
@@ -109,7 +119,7 @@ export function createApp(options: AppOptions) {
       res.status(503).json({ error: 'Ask is not configured on this server (no OpenAI key).' });
       return;
     }
-    const { question, weekday, time, campus: campusId } = parsed.data;
+    const { question, weekday, time, campus: campusId, history } = parsed.data;
     const playback = campus.ready(weekday);
     if (!playback) {
       // Start (or keep) building the day in the background; the client asks again shortly.
@@ -142,7 +152,7 @@ export function createApp(options: AppOptions) {
     // Day builds block the event loop, so none starts while this answer runs (campus.ts InFlight).
     const done = campus.asks?.begin();
     try {
-      const result = await ask(question, ctx, signal);
+      const result = await ask(question, ctx, signal, history);
       if (!disconnect.signal.aborted) res.json(result);
     } catch (error) {
       if (disconnect.signal.aborted) {

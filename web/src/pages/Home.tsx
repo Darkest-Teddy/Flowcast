@@ -21,7 +21,8 @@ import {
 } from '../ui';
 import { isUpcoming } from './student/days';
 import { eventVenue } from './student/events';
-import { ExampleQuestions, SearchResults } from './student/SearchResults';
+import { AskChat } from './student/AskChat';
+import { SearchResults } from './student/SearchResults';
 import styles from './Home.module.css';
 
 export default function Home() {
@@ -37,7 +38,8 @@ export default function Home() {
   const [range, setRange] = useState<StatRange>('7d');
   const stats = useResource(() => api.getWeekStats(range), [range]);
 
-  const [search, setSearch] = useState<{ query: string; mode: SearchMode } | null>(null);
+  const [search, setSearch] = useState<string | null>(null);
+  const [mode, setMode] = useState<SearchMode>('search');
   const [accepting, setAccepting] = useState<string | null>(null);
   const [acceptedCount, setAcceptedCount] = useState(0);
 
@@ -83,28 +85,28 @@ export default function Home() {
 
       <SearchBar
         placeholder="Search buildings, events, clubs and classes"
-        onSubmit={(query, mode) => setSearch({ query, mode })}
+        mode={mode}
+        onModeChange={setMode}
+        onSubmit={(query) => setSearch(query)}
       />
 
-      {!search && <ExampleQuestions onAsk={(query) => setSearch({ query, mode: 'ask' })} />}
+      <AskChat visible={mode === 'ask'} data={{
+        locations: locations.data ?? [], schedule: schedule.data ?? [],
+        events: events.data ?? [], clubs: clubs.data ?? [],
+        hourly: hourly.data ?? [], places: places.data ?? [],
+        geo: geo.data ?? { positions: {}, walkMeters: {} },
+        homeLocationId: session?.user.homeLocationId ?? null,
+      }} />
 
-      {search && (
-        <SearchResults
-          query={search.query}
-          mode={search.mode}
-          onClear={() => setSearch(null)}
-          onAsk={(query) => setSearch({ query, mode: 'ask' })}
+      {mode === 'search' && search && (
+        <SearchResults query={search} onClear={() => setSearch(null)}
           data={{
-            locations: locations.data ?? [],
-            schedule: schedule.data ?? [],
-            events: events.data ?? [],
-            clubs: clubs.data ?? [],
-            hourly: hourly.data ?? [],
-            places: places.data ?? [],
+            locations: locations.data ?? [], schedule: schedule.data ?? [],
+            events: events.data ?? [], clubs: clubs.data ?? [],
+            hourly: hourly.data ?? [], places: places.data ?? [],
             geo: geo.data ?? { positions: {}, walkMeters: {} },
             homeLocationId: session?.user.homeLocationId ?? null,
-          }}
-        />
+          }} />
       )}
 
       <div className={styles.forYou}>

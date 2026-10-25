@@ -1202,12 +1202,13 @@ export default function App() {
     () => (sourceData ? askMeetings(sourceData) : []),
     [sourceData],
   );
-  const askContext: AskContext | null = hud && playbackRef.current
+  const askPlayback = playbackRef.current;
+  const askContext: AskContext | null = hud && askPlayback
     ? {
-        locations: playbackRef.current.locations.filter((l) => l.kind !== 'off-campus'),
+        locations: askPlayback.locations.filter((l) => l.kind !== 'off-campus'),
         walkRoutes: walkRoutesRef.current,
         meetings,
-        occupancyAt: (t) => playbackRef.current!.occupancyAt(t),
+        occupancyAt: (t) => askPlayback.occupancyAt(t),
         time: Math.floor(hud.time / 60) * 60,
         weekday,
         campus,
@@ -1216,7 +1217,11 @@ export default function App() {
     : null;
   const showAsk = (show: AskShow | null) => {
     askRouteRef.current = show?.route ?? null;
-    if (!show) return;
+    if (!show) {
+      selectedRef.current = null;
+      setSelected(null);
+      return;
+    }
     if (show.select) {
       if (show.select.campus) setCampus(show.select.campus);
       selectedRef.current = show.select.building;
@@ -1359,8 +1364,8 @@ export default function App() {
             onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
             siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
         )}
-        {hud && tab === 'ask' && (
-          <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask">
+        {hud && (
+          <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={tab !== 'ask'}>
             {askContext
               ? <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
               : <p className="muted" role="status">Loading the day…</p>}

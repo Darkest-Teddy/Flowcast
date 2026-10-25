@@ -523,13 +523,23 @@ select.tool { padding: 0 8px 0 12px; }
 /* Ask tab */
 .ask { margin-top: 4px; }
 .ask-form { display: flex; gap: 6px; }
+.ask-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ask-heading h2 { margin-bottom: 0; }
+.ask-transcript { list-style: none; margin: 0; padding: 0; }
+.ask-exchange { padding: 14px 0; border-bottom: 1px solid var(--map-hairline); overflow-wrap: anywhere; }
+.ask-question { margin: 0 0 6px; font-weight: 600; white-space: pre-wrap; }
+.ask-context { margin: 0; font-size: 12px; }
+.ask-heading .ask-clear, .ask-show { min-height: 44px; }
+.ask-show { padding: 0 12px; border: 1px solid var(--map-hairline); border-radius: var(--radius-capsule); background: none; color: var(--color-ink); font: inherit; cursor: pointer; }
+.ask-show:hover { background: var(--map-hover); }
+.ask :is(button, input):focus-visible { outline: 2px solid var(--color-strong); outline-offset: 2px; }
 .ask-form input { flex: 1; min-width: 0; }
 .ask-form button { min-height: 36px; padding: 0 16px; border-radius: var(--radius-capsule); }
 .ask-answer { margin-top: 12px; }
 .ask-answer:empty { margin-top: 0; }
 .ask-status { margin: 0 0 8px; font-size: 13px; }
 .ask-form button:disabled { opacity: 0.75; cursor: progress; }
-.ask-text { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
+.ask-text { margin: 0 0 8px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; }
 .ask-answer .rows { margin-bottom: var(--space-2); }
 .ask-note { margin: 6px 0; line-height: 1.4; }
 .ask-clear { padding: 0; border: 0; background: none; color: var(--map-ink-secondary); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }

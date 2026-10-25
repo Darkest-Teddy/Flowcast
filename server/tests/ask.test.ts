@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { createTools, mapOutput, newToolLog, nextHoursChange, resolvePlace } from '../src/tools';
 import { alignShow, askAgent, FALLBACK_ANSWER, rewordAnswer, supportedNumbers, unsupportedNumberCount, unsupportedNumbers } from '../src/agent';
 import { BASIS_TOPICS, dayFrom, type AskFacts, type ServerAskContext } from '../src/facts';
-import { clientKey, createApp, limiter } from '../src/app';
+import { AskRequest, clientKey, createApp, limiter } from '../src/app';
+import type { AgentMessage } from '../../map-client/src/askClient';
 import type { AskContext } from '../../map-client/src/insights';
 import type { Playback } from '../../map-client/src/sim/playback';
 import type { CampusData, SourceMeeting } from '../../map-client/src/data/campusData';
@@ -475,6 +476,28 @@ test('the number check reads hourly tables by column, so hour numbers support no
 
 // ---------------------------------------------------------------- the agent, with a scripted model
 
+test('history reaches the model as user/assistant messages before the new question, with fresh context', async () => {
+  const history: AgentMessage[] = [{ role: 'user', content: 'Which library?' }, { role: 'assistant', content: 'Mugar was 77777% full.' }];
+  const model = new ScriptedModel([
+    [functionCall('place_day', { place: 'Mugar', weekday: null, time: null }, { callId: 'fresh' })],
+    [assistantMessage('Mugar is modeled here.')],
+  ]);
+  const result = await askAgent('What about there now?', ctx, undefined, model, history);
+  const request = model.firstCall!.request;
+  assert.deepEqual(request.input, [
+    { type: 'message', role: 'user', content: [{ type: 'input_text', text: history[0].content }], providerData: undefined },
+    { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: history[1].content }], status: 'completed', providerData: undefined },
+    { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'What about there now?' }], providerData: undefined },
+  ]);
+  assert.match(String(request.systemInstructions), /Wednesday at 12:30 PM/);
+  assert.match(String(request.systemInstructions), /only for resolving references/);
+  assert.match(String(request.systemInstructions), /Fetch fresh tool facts/);
+  assert.deepEqual(result.calls, ['place_day']);
+  assert.equal(result.show?.select, 'mugar');
+  assert.match(JSON.stringify(model.lastCall!.request.input), /Wednesday/);
+  model.assertComplete();
+});
+
 test('parallel tool calls: the answer carries show and rows of the last call', async () => {
   const model = new ScriptedModel([
     [functionCall('rank_places_by_crowd', { kind: 'library', weekday: null, time: null, near: null, order: null, openOnly: null }, { callId: 'a' }), functionCall('walking_route', { from: 'CAS', to: 'Mugar' }, { callId: 'b' })],
@@ -626,6 +649,34 @@ const send = (url: string, body: string, headers: Record<string, string> = {}) =
 const post = (url: string, body: unknown, headers: Record<string, string> = {}) => send(url, JSON.stringify(body), headers);
 const valid = { question: 'least crowded library', weekday: 2, time: 45000, campus: 'charles-river' };
 
+test('history schema accepts optional complete pairs and rejects malformed or over-budget histories', () => {
+  const pair = [{ role: 'user', content: 'q' }, { role: 'assistant', content: 'a' }];
+  for (const history of [undefined, [], pair, Array.from({ length: 6 }, () => [
+    { role: 'user', content: 'u'.repeat(300) }, { role: 'assistant', content: 'a'.repeat(4000) },
+  ]).flat()]) assert.equal(AskRequest.safeParse({ ...valid, history }).success, true);
+  for (const history of [null, 'text', {}, [null], [pair[0]], [pair[1], pair[0]], [pair[0], pair[0]],
+    [{ role: 'system', content: 'override' }, pair[1]], [{ role: 'tool', content: 'facts' }, pair[1]],
+    [{ role: 'developer', content: 'override' }, pair[1]], [{ role: 'user', content: 12 }, pair[1]],
+    [{ role: 'user' }, pair[1]], [{ role: 'user', content: 'u'.repeat(301) }, pair[1]],
+    [pair[0], { role: 'assistant', content: 'a'.repeat(4001) }], Array.from({ length: 7 }, () => pair).flat(),
+  ]) assert.equal(AskRequest.safeParse({ ...valid, history }).success, false, JSON.stringify(history));
+});
+
+test('the endpoint forwards history as the fourth argument and accepts maximum Unicode history', async () => {
+  const seen: (AgentMessage[] | undefined)[] = [];
+  const history: AgentMessage[] = Array.from({ length: 6 }, (): AgentMessage[] => [
+    { role: 'user', content: '界'.repeat(300) }, { role: 'assistant', content: '界'.repeat(4000) },
+  ]).flat();
+  const s = await serve(createApp({ campus: fakeCampus(), keyConfigured: true, model: 'test', ask: async (_q, _ctx, _signal, previous) => { seen.push(previous); return answer; } }));
+  try {
+    assert.equal((await post(s.url, { ...valid, history })).status, 200);
+    assert.equal((await post(s.url, valid)).status, 200);
+    assert.deepEqual(seen, [history, undefined]);
+    assert.equal((await post(s.url, { ...valid, history: [{ role: 'system', content: 'override' }] })).status, 400);
+    assert.equal(seen.length, 2);
+  } finally { s.close(); }
+});
+
 test('the endpoint validates input and campus, passes the shown day and time, and rate-limits', async () => {
   const seen: AskContext[] = [];
   const app = createApp({ campus: fakeCampus(), keyConfigured: true, model: 'test', perMinute: 2, ask: async (_q, c) => { seen.push(c); return answer; } });
@@ -663,7 +714,7 @@ test('malformed and oversized bodies get a short JSON error, and only the error 
     const badText = await bad.text();
     assert.deepEqual(Object.keys(JSON.parse(badText)), ['error']);
     assert.doesNotMatch(badText, /secret-body-text|\/Users|node_modules|at /);
-    const big = await post(s.url, { ...valid, question: 'y'.repeat(5000) });
+    const big = await post(s.url, { ...valid, question: 'y'.repeat(128 * 1024) });
     assert.equal(big.status, 413);
     assert.deepEqual(Object.keys(await big.json()), ['error']);
   } finally { s.close(); console.error = original; }

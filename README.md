@@ -65,7 +65,7 @@ Start a fire drill, alarm or building closure on any building. Occupants evacuat
 
 ### A student dashboard that answers "where should I go?"
 
-Today's schedule, crowd forecasts for your places, nearby events and clubs, and a plain-language **Ask** box: *"Least crowded library right now"*, *"Quietest dining hall at 6 PM"*, *"How far is CS 132 from DS 340?"* Answers come from the same simulation and walking routes the map uses.
+Today's schedule, crowd forecasts for your places, nearby events and clubs, and a plain-language **Ask** chat: *"Least crowded library right now"*, *"Quietest dining hall at 6 PM"*, *"How far is CS 132 from DS 340?"* Answers come from the same simulation and walking routes the map uses. Both the dashboard and map Ask tab keep a conversation, so you can follow up with “How far is it from CAS?” or start over with **New chat**.
 
 | Home | Events |
 | --- | --- |

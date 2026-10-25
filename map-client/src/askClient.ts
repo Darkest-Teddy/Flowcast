@@ -5,8 +5,14 @@
 
 export type AskCampus = 'charles-river' | 'fenway' | 'medical';
 
+export interface AgentMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface AgentRequest {
   question: string;
+  history?: AgentMessage[];
   /** 0 = Monday … 6 = Sunday. */
   weekday: number;
   /** Seconds since midnight. */

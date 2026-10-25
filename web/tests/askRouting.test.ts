@@ -88,3 +88,34 @@ test('Boston clock: Monday is 0 and time is Eastern, across daylight saving', ()
   // After the change: Monday 2 Nov 2026, 00:05 EST = 05:05 UTC.
   assert.deepEqual(bostonClock(new Date('2026-11-02T05:05:00Z')), { weekday: 0, time: 300 });
 });
+
+test('follow-ups after personal context stay on-device until a self-contained place question', async () => {
+  const sent: string[] = [];
+  const agent = async (q: string) => { sent.push(q); return { ok: true as const, value: 'Campus answer' }; };
+  const context = { afterDevice: true, locationNames: ['Mugar Memorial Library', 'Mugar', 'CAS'] };
+  for (const question of ['How far is it?', 'When should I leave?', 'What about tomorrow?', 'Is that near Mugar?', 'How about there?', 'Mugar instead?', 'Is it busy at CAS?', 'Where should I eat?']) {
+    assert.deepEqual(await routeQuestion(question, agent, null, context), { source: 'device', reason: 'privateFollowup' }, question);
+  }
+  assert.deepEqual(sent, []);
+  assert.deepEqual(await routeQuestion('When is Mugar quiet?', agent, null, context), { source: 'agent', question: 'When is Mugar quiet?', answer: 'Campus answer' });
+  assert.deepEqual(sent, ['When is Mugar quiet?']);
+});
+
+test('named places never override personal-question protection', async () => {
+  let calls = 0;
+  const result = await routeQuestion('How far is my next class from Mugar?', async () => {
+    calls++;
+    return { ok: true as const, value: 'Must not run' };
+  }, null, { afterDevice: true, locationNames: ['Mugar'] });
+  assert.equal(calls, 0);
+  assert.deepEqual(result, { source: 'device', reason: 'personal' });
+});
+
+test('public follow-ups and repeated questions may reach the agent', async () => {
+  const sent: string[] = [];
+  const agent = async (q: string) => { sent.push(q); return { ok: true as const, value: 'Answer' }; };
+  for (const question of ['When is Mugar quiet?', 'How about tomorrow?', 'How about tomorrow?']) {
+    assert.equal((await routeQuestion(question, agent, null, { afterDevice: false, locationNames: [] })).source, 'agent');
+  }
+  assert.deepEqual(sent, ['When is Mugar quiet?', 'How about tomorrow?', 'How about tomorrow?']);
+});
