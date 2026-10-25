@@ -37,6 +37,9 @@ import { dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData } from '
 import { BASIS_TOPICS, clip, dayContext, type ServerAskContext } from './facts';
 import { bestTimesForPlace, weekFrom, type HourFigure } from '../../map-client/src/bestTimes';
 import { findEventSlots, SLOT_CAVEAT } from './eventSlots';
+import { findClasses, formatClassTimes, type ClassPlace } from '../../map-client/src/classSearch';
+
+const compactCode = (code: string) => code.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 export const PLACE_KINDS = ['library', 'dining', 'gym', 'dorm', 'classroom'] as const satisfies readonly LocationKind[];
 
@@ -333,27 +336,57 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
   const findCourse = tool({
     name: 'find_course',
     description:
-      'Where and when a course meets, from the published Fall 2026 class schedule. Accepts codes like "CAS CS 132" or "CS 132". ' +
-      'If the code names more than one course it returns ambiguous: the full codes; ask the user which one they mean.',
-    parameters: z.object({ code: z.string().max(40) }),
+      'Where and when a course meets, from the published Fall 2026 class schedule: the building (code, name, street address) and the floor read from the room number, ' +
+      'with days, times, section and the published instructor. Accepts codes like "CAS CS 132", "CS 132" or "cs132", a code and section ("CS 112 A1"), or title words ("intro to CS"). ' +
+      'Tell the user the building and floor (e.g. "CAS, 725 Comm Ave, basement"); mention the room only as a detail. ' +
+      'If the search names more than one course it returns ambiguous: the full codes (with titles for a title search); ask the user which one they mean.',
+    parameters: z.object({ code: z.string().max(60) }),
     execute: ({ code }) => {
       called('find_course');
+      const directory = ctx.facts?.classDirectory;
+      const search = findClasses(code, ctx.meetings, directory, 6);
       const mention = courseMentions(code)[0];
-      if (!mention) return result({ error: `"${code}" doesn't look like a course code such as CAS CS 132.` });
-      const courses = coursesFor(mention.code, ctx);
-      if (courses.length > 1) return result({ ambiguous: courses.map((c) => c.courseCode) });
-      const all = courses[0]?.meetings ?? [];
+      if (!mention && !search.results.length) return result({ error: `"${code}" doesn't look like a course code such as CAS CS 132, and no published course title matches it.` });
+      if (search.results.length > 1) {
+        return result({ ambiguous: search.results.map((c) => (mention ? c.courseCode : `${c.courseCode} ${c.title}`)) });
+      }
+      const course = search.results[0];
+      const sectionNames = new Set(course?.sections.map((s) => s.section));
+      const all = course ? (coursesFor(compactCode(course.courseCode), ctx)[0]?.meetings ?? []).filter((m) => sectionNames.has(m.section)) : [];
       const next = nextMeeting(all, ctx.weekday, ctx.time);
-      if (!next) return result({ error: `No published meeting of ${code} is in a mapped building.` });
+      if (!course || !next) return result({ error: `No published meeting of ${code} is in a mapped building this week.` });
       const where = byId.get(next.locationId);
-      const sections = new Map<string, Set<string>>();
-      for (const m of all) sections.set(m.locationId, (sections.get(m.locationId) ?? new Set()).add(m.section));
+      const nextPlace = course.sections.find((s) => s.section === next.section)?.places.find((p) => p.locationId === next.locationId && p.roomCode === next.roomCode);
+      const MAX_SECTIONS = 6;
+      const shown = course.sections.slice(0, MAX_SECTIONS);
+      const buildings: Record<string, { name: string; address: string | null }> = {};
+      for (const p of [...shown.flatMap((s) => s.places), ...(nextPlace ? [nextPlace] : [])]) {
+        buildings[p.buildingCode] ??= {
+          name: directory?.buildings[p.buildingCode]?.name ?? byId.get(p.locationId)?.name ?? p.locationId,
+          address: directory?.buildings[p.buildingCode]?.address ?? null,
+        };
+      }
       return result(
         {
-          courseCode: next.courseCode,
-          title: next.title,
-          next: { ...meetingWhen(next), building: where?.name ?? next.locationId, room: next.roomCode, section: next.section },
-          sectionsByBuilding: [...sections].map(([id, s]) => ({ building: byId.get(id)?.name ?? id, sections: s.size })),
+          courseCode: course.courseCode,
+          title: course.title,
+          ...(search.query.section ? { sectionAsked: search.query.section, sectionFound: search.sectionMatched } : {}),
+          next: {
+            ...meetingWhen(next),
+            building: where?.name ?? next.locationId,
+            ...(nextPlace ? { buildingCode: nextPlace.buildingCode, address: buildings[nextPlace.buildingCode]?.address ?? null, floor: nextPlace.floor.label } : {}),
+            room: next.roomCode,
+            section: next.section,
+          },
+          buildings,
+          sections: shown.map((s) => ({
+            section: s.section,
+            instructor: s.instructor,
+            ...(s.restricted ? { datesVary: true } : {}),
+            meets: s.places.map((p) => ({ building: p.buildingCode, floor: p.floor.label, room: p.roomCode, times: formatClassTimes(p.times) })),
+          })),
+          ...(course.sections.length > MAX_SECTIONS ? { moreSections: course.sections.length - MAX_SECTIONS } : {}),
+          floorRule: 'Floor is read from the room number (leading digit; B = basement); not a confirmed floor plan.',
         },
         where ? { tool: 'find_course', show: { route: null, select: where.id, points: [where.position] }, rows: [] } : undefined,
       );

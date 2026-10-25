@@ -15,6 +15,7 @@ import { formatDayTime, formatHour, formatMeters, formatPercent, formatTime } fr
 import { interpret, type InsightData, type Walk } from '../../lib/insights';
 import type { AgentAnswer } from '@map/askClient';
 import type { TransitContext } from '../../lib/transitDeparture';
+import { classAnswerText, classRowDetail, findClassRows, FLOOR_NOTE, isClassQuestion, type ClassFinderData } from '../../lib/classFinder';
 
 export interface CampusData {
   locations: CampusLocation[];
@@ -27,14 +28,18 @@ export interface CampusData {
   homeLocationId: string | null;
   /** Published timetables for leave-by times by T or BU Shuttle; walking only without them. */
   transit?: TransitContext;
+  /** The published class schedule, for "where does CS 112 meet"; class results are left out without it. */
+  classes?: ClassFinderData | null;
 }
 
 export interface SearchResult {
   id: string;
-  kind: 'Place' | 'Your day' | 'Event' | 'Club';
+  kind: 'Class' | 'Place' | 'Your day' | 'Event' | 'Club';
   title: string;
   detail: string;
   to: string;
+  /** Class results: the building's map location, for "Show on map". */
+  locationId?: string;
 }
 
 const kindLabel: Record<LocationKind, string> = {
@@ -47,6 +52,22 @@ const kindLabel: Record<LocationKind, string> = {
 };
 
 const describe = (share: number) => `${formatPercent(share)} ${crowdFor(share).label.toLowerCase()}`;
+
+/** Class meetings for a course code or title, as building + floor rows; empty without the published schedule. */
+export function searchClasses(query: string, d: CampusData, now = new Date()) {
+  if (!d.classes || query.trim().length < 3) return null;
+  const found = findClassRows(query, d.classes, d, now);
+  if (!found.rows.length) return null;
+  const results: SearchResult[] = found.rows.map((row) => ({
+    id: row.id,
+    kind: 'Class',
+    title: `${row.courseCode} ${row.section} · ${row.title}`,
+    detail: classRowDetail(row, found.from),
+    to: '/schedule',
+    locationId: row.locationId,
+  }));
+  return { results, moreSections: found.moreSections, courses: found.courses };
+}
 
 /** Plain substring search over places, the person's day, events and clubs. */
 export function searchCampus(query: string, d: CampusData): SearchResult[] {
@@ -121,6 +142,7 @@ export function agentAnswer(result: AgentAnswer, question: string): Answer {
 
 export const EXAMPLE_QUESTIONS = [
   'Where is my next class?',
+  'Where does CS 112 meet?',
   'Least crowded library right now',
   'How far is CS 132 from DS 340?',
   'Quietest dining hall at 6pm',
@@ -165,6 +187,15 @@ export function answerQuestion(query: string, d: CampusData, now = new Date()): 
   const short = (id: string) => locationName(d.locations, id);
   if (/\bwhen (?:should|must|can|do) i (?:need to )?(?:leave|depart|head out)\b|\bam i late\b|\bcan i make it\b|\bleave.by time\b/i.test(query)) {
     return departureAnswer(d.schedule, d.locations, d.geo, d.homeLocationId, now.getTime(), d.transit);
+  }
+  if (d.classes && isClassQuestion(query)) {
+    const found = findClassRows(query, d.classes, d, now, 4);
+    return {
+      text: classAnswerText(found, query),
+      rows: found.rows.map((row) => ({ id: row.id, title: `${row.courseCode} ${row.section}`, detail: classRowDetail(row, found.from) })),
+      note: found.rows.length ? FLOOR_NOTE : undefined,
+      focus: [...new Set(found.rows.slice(0, 1).map((row) => row.locationId))],
+    };
   }
   const insight = interpret(query, data, now);
 

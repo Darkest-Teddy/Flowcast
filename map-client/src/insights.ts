@@ -305,13 +305,18 @@ export function courseMentions(query: string): { at: number; len: number; code: 
   return out;
 }
 
+/** Whether a compact code from courseMentions ("cs132" or "cascs132") names this published course code ("CAS CS 132"). */
+export function courseCodeMatches(code: string, courseCode: string): boolean {
+  const full = compact(courseCode);
+  return full === code || (code.length < full.length && full.endsWith(code) && full.length - code.length === 3);
+}
+
 /** Every published meeting of a course, matched with or without the school prefix. */
 export function meetingsFor(code: string, ctx: AskContext): CourseMeeting[] {
   const out: CourseMeeting[] = [];
   for (const { locationId, meeting } of ctx.meetings) {
     if (meeting.calendarRestricted) continue;
-    const full = compact(meeting.courseCode);
-    if (full !== code && !(code.length < full.length && full.endsWith(code) && full.length - code.length === 3)) continue;
+    if (!courseCodeMatches(code, meeting.courseCode)) continue;
     for (const iv of meeting.intervals) {
       out.push({ locationId, courseCode: meeting.courseCode, title: meeting.title, section: meeting.section, roomCode: meeting.roomCode, startSec: iv.startSec, endSec: iv.endSec });
     }

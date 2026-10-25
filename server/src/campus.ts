@@ -18,6 +18,8 @@ const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
 
 export const PUBLIC_BUNDLE = 'map-client/public/data/campus-data.json';
 export const PRIVATE_BUNDLE = 'data-pipeline/.cache/hackathon/campus-data.json';
+/** Building names/addresses and published instructors for the class finder (build_class_directory.py). */
+export const CLASS_DIRECTORY = 'map-client/public/data/class-directory.json';
 
 /**
  * Which campus bundle to load. Tool outputs are sent to OpenAI, and the project spec keeps
@@ -184,6 +186,7 @@ export function loadCampusModel(env: Record<string, string | undefined> = proces
     assumptions: assumptionTable(campus, locations, populationSummary),
     allLocations: base.locations,
     chat: loadChatFacts((path) => readJson(root(path)), campus, population),
+    ...(existsSync(root(CLASS_DIRECTORY)) ? { classDirectory: readJson(root(CLASS_DIRECTORY)) } : {}),
   };
 
   return {
