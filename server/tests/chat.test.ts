@@ -295,6 +295,16 @@ test('at most four visuals, de-duplicated, and percentages are never clamped', (
   assert.deepEqual(buildVisuals([]), []);
 });
 
+test('a ranking whose hours are not in the data draws no bar chart', () => {
+  // Weekend dining: the tool lists the places without percents or students and says not to rank them.
+  const value = {
+    day: 'Sunday', date: '2026-11-01', time: '1:02 AM', from: null, leastCrowded: null,
+    hoursNotInData: { note: 'Opening hours for these places aren’t in the data.', daysWithPublishedHours: 'Monday to Friday' },
+    places: [{ id: 'warren-dining', name: 'Warren Towers Dining Hall', open: null, modeled: true }],
+  };
+  assert.deepEqual(buildVisuals([{ tool: 'rank_places_by_crowd', value }]), []);
+});
+
 test('every new domain produces a visual with provenance, and citations name directory domains', async () => {
   const log = await run([
     ['bluebikes', { near: 'Mugar' }], ['transit_near', { place: 'CAS', weekday: null, time: null, mode: null }], ['housing', { residence: null, time: null }],

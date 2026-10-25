@@ -49,7 +49,8 @@ function visualFor(r: Result, index: number): { key: string; visual: Visual } | 
     }
     case 'rank_places_by_crowd': {
       const places: Out[] = o.places ?? [];
-      if (!places.length) return null;
+      // hoursNotInData lists the places without percents or students: there is no ranking to draw.
+      if (!places.length || o.hoursNotInData) return null;
       const detail = (p: Out) => (p.open === false ? 'Closed' : p.open === null && p.percent === null ? 'Hours not published'
         : !p.modeled ? 'Not modeled this day' : p.percent === null ? `${n(p.students)} students, capacity not comparable`
         : `${n(p.students)} students${typeof p.walkMinutes === 'number' ? ` · ${p.walkMinutes} min walk` : ''}`);
