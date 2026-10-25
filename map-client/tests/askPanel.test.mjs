@@ -163,3 +163,20 @@ test('fallback retains submitted day and unmodeled warnings, and old rows remain
   resolve(reply());
   await tick();
 });
+
+test('Hide chat folds the conversation away, keeps the composer, and asking again reopens it', async () => {
+  const p = panel();
+  assert.equal(p.find((n) => n.props.className === 'ask-collapse'), undefined);
+  await p.submit('Where is Mugar?');
+  const log = () => p.find((n) => n.props.role === 'log');
+  const toggle = () => p.find((n) => n.props.className === 'ask-collapse');
+  assert.equal(p.text(toggle()), 'Hide chat');
+  toggle().props.onClick(); p.render();
+  assert.equal(log().props.hidden, true);
+  assert.equal(toggle().props['aria-expanded'], false);
+  assert.match(p.text(toggle()), /Show chat \(1\)/);
+  assert.ok(p.find((n) => n.type === 'form'));
+  await p.submit('When is GSU quiet?');
+  assert.equal(log().props.hidden, false);
+  assert.equal(p.text(toggle()), 'Hide chat');
+});

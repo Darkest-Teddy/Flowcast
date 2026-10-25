@@ -256,6 +256,8 @@ export function AskPanel({
   contextRef.current = context;
 
   const [busy, setBusy] = useState<string | null>(null); // what the panel is waiting for, or null
+  // Folds the conversation away so the map shows again; the composer stays, and asking reopens it.
+  const [collapsed, setCollapsed] = useState(false);
   const history = useRef<AgentMessage[]>([]);
   const afterDevice = useRef(false);
   const nextId = useRef(0);
@@ -271,6 +273,7 @@ export function AskPanel({
     const controller = new AbortController();
     inFlight.current = controller;
     setQuestion('');
+    setCollapsed(false);
     const ctx = contextRef.current;
     const campus = ASK_CAMPUSES.includes(ctx.campus) ? (ctx.campus as AskCampus) : 'charles-river';
     const id = nextId.current++;
@@ -358,6 +361,7 @@ export function AskPanel({
     setBusy(null);
     setExchanges([]);
     setQuestion('');
+    setCollapsed(false);
     onShow(null);
     composer.current?.focus();
   };
@@ -366,11 +370,16 @@ export function AskPanel({
     <div className="ask">
       <div className="ask-heading">
         <h2>Ask about campus</h2>
+        {exchanges.length > 0 && (
+          <button type="button" className="ask-collapse" aria-expanded={!collapsed} aria-controls="ask-transcript" onClick={() => setCollapsed((c) => !c)}>
+            {collapsed ? `Show chat (${exchanges.length})` : 'Hide chat'}
+          </button>
+        )}
         <button type="button" className="ask-clear" onClick={clear}>New chat</button>
       </div>
       {exchanges.length === 0 && <p className="muted">Ask about places, crowd projections, courses or walks. Follow up to explore an answer.</p>}
       <p className="muted ask-note">Each reply uses the map context when asked. Earlier answers do not refresh when the day, time or campus changes.</p>
-      <ol className="ask-transcript" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Campus conversation">
+      <ol id="ask-transcript" className="ask-transcript" hidden={collapsed} role="log" aria-live="polite" aria-relevant="additions text" aria-label="Campus conversation">
         {exchanges.map((exchange) => (
           <li className="ask-exchange" key={exchange.id}>
             <p className="ask-question"><span className="visually-hidden">You: </span>{exchange.question}</p>
@@ -396,7 +405,7 @@ export function AskPanel({
           </li>
         ))}
       </ol>
-      <p className="muted ask-status" role="status">{busy ?? (exchanges.length > 0 ? 'Answer ready.' : '')}</p>
+      <p className="muted ask-status" role="status">{busy ?? (exchanges.length > 0 && !collapsed ? 'Answer ready.' : '')}</p>
       <form className="ask-form" onSubmit={submit}>
         <input
           ref={composer}

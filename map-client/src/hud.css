@@ -886,6 +886,27 @@
   min-height: 0;
 }
 
+/* Hide / show the conversation: a small glass capsule above the card, so the map can be seen again. */
+.hud-ask .ask-collapse {
+  min-height: 0;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-capsule);
+  background: var(--hud-fill);
+  box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.hud-ask .ask-transcript[hidden] {
+  display: none;
+}
+
 /* The conversation: a card above the pill, scrolling, never taller than the view. */
 .hud-ask .ask-transcript {
   margin: 0;
