@@ -7,7 +7,7 @@ import { SLOT_CAVEAT, SLOT_METHOD, type SlotQuery, type SlotResult } from '../ev
 import { bostonDate, clubsFromBundle, forecastsFromBundle, locationsFromBundle, organizerId } from '../../../web/src/data/realData';
 import type { Profile, NotificationPrefs } from '../../../web/src/data/types';
 import type { Snapshot } from './import';
-import { authConfig, createUserVerifier, DashboardAuthError, type AuthConfig, type VerifiedUser, type VerifyUser } from './auth';
+import { authConfig, createUserVerifier, DashboardAuthError, DEV_BYPASS_TOKEN, DEV_BYPASS_USER, devAuthBypass, type AuthConfig, type VerifiedUser, type VerifyUser } from './auth';
 import { emptySchedule, previewSchedule, ScheduleError, scheduleState, validateSchedule } from './schedule';
 import type { ScheduleImportState } from '../../../web/src/data/types';
 import type { ConflictFacts } from '../conflicts';
@@ -61,6 +61,8 @@ export function publicBestTimes(impact: Snapshot['impact'], campus: Snapshot['ca
 export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUser; authConfig?: () => AuthConfig; eventSlots?: (query: SlotQuery) => SlotResult; crowdThrottle?: CrowdThrottle; now?: () => Date; admins?: OrgDeps['admins']; conflicts?: (date: string, near: string | null) => ConflictFacts; venues?: () => VenueCalendar | null; forecast?: ClubToolDeps['forecast'] } = {}) {
   const config = options.authConfig ?? authConfig;
   const verifyUser = options.verifyUser ?? createUserVerifier(config);
+  const devBypass = devAuthBypass();
+  if (devBypass) console.warn('FLOWCAST_DEV_AUTH_BYPASS is on: the dashboard accepts the local-dev token as the Local demo account');
   const crowdThrottle = options.crowdThrottle ?? createCrowdThrottle();
   const now = options.now ?? (() => new Date());
   const router = Router();
@@ -94,7 +96,7 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     if ((req.method === 'GET' || req.method === 'HEAD') && (/^\/(public|event-slots|crowd-reports|conflicts|club-profiles|venue-events|fairs|weather)\/?$/i.test(req.path) || PUBLIC_ORG_PATHS.test(req.path))) { next(); return; }
     const token = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization ?? '')?.[1];
     if (!token) throw new DashboardAuthError(401);
-    res.locals.dashboardUser = await verifyUser(token);
+    res.locals.dashboardUser = devBypass && token === DEV_BYPASS_TOKEN ? DEV_BYPASS_USER : await verifyUser(token);
     next();
   });
   // Answered from the Ask server's loaded campus model, so it needs no database. Never books anything.

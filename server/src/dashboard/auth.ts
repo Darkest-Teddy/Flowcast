@@ -9,6 +9,17 @@ export interface AuthConfig { url: string; publishableKey: string }
 export interface VerifiedUser { id: string; email: string; name: string }
 export type VerifyUser = (token: string) => Promise<VerifiedUser>;
 
+/**
+ * Local development only: with FLOWCAST_DEV_AUTH_BYPASS=1 (ignored in production and on Railway),
+ * the bearer token `local-dev` signs in as a fixed demo account, so the dashboard opens without
+ * Google. The web app sends it when VITE_DEV_AUTH_BYPASS=1 in dev mode (web/src/auth/client.ts).
+ */
+export const DEV_BYPASS_TOKEN = 'local-dev';
+export const DEV_BYPASS_USER: VerifiedUser = { id: '00000000-0000-4000-8000-000000000001', email: '', name: 'Local demo' };
+export function devAuthBypass(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.FLOWCAST_DEV_AUTH_BYPASS === '1' && env.NODE_ENV !== 'production' && !env.RAILWAY_ENVIRONMENT;
+}
+
 export function authConfig(env: NodeJS.ProcessEnv = process.env): AuthConfig {
   const key = env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY;
   try {

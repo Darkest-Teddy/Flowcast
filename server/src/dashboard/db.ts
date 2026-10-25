@@ -4,7 +4,9 @@ import { CLUB_TOOL_TABLES, CLUB_TOOL_TABLE_NAMES } from './clubTools';
 
 export function database(url = process.env.DATABASE_URL): pg.Pool | undefined {
   if (!url) return undefined;
-  const pool = new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 3000, statement_timeout: 10000 });
+  // A day build blocks the event loop for several seconds (campus.ts); a short connect timeout then
+  // fires as soon as the loop frees, failing requests whose connection was fine.
+  const pool = new pg.Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 20000, statement_timeout: 10000 });
   pool.on('error', () => console.error('dashboard database connection failed'));
   return pool;
 }

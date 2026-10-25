@@ -144,6 +144,12 @@ export function createApp(options: AppOptions) {
   const chatFacts = campus.facts?.chat;
   const referenceWeekStart = campus.facts?.data?.referenceWeekStart;
   const placeById = new Map(campus.locations.map((l) => [l.id, l]));
+  // Day builds block the event loop, so none starts while a dashboard request runs (campus.ts InFlight).
+  app.use('/api/dashboard', (_req, res, next) => {
+    const done = campus.asks?.begin();
+    res.on('close', () => done?.());
+    next();
+  });
   app.use('/api/dashboard', dashboardRouter(options.dashboardPool, {
     eventSlots: chatFacts?.eventImpact && referenceWeekStart ? (query) => findEventSlots(query, {
       locations: campus.locations, meetings: campus.meetings, referenceWeekStart,
