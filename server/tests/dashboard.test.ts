@@ -8,10 +8,11 @@ import { database, migrate } from '../src/dashboard/db';
 import { importSources, defaultDataDir } from '../src/dashboard/import';
 import { dashboardRouter } from '../src/dashboard/router';
 import { DashboardAuthError, type VerifiedUser } from '../src/dashboard/auth';
+import { emptySchedule, scheduleWindow } from '../src/dashboard/schedule';
 const users = new Map<string, VerifiedUser>();
 const verifyUser = async (token: string) => { const user = users.get(token); if (!user) throw new DashboardAuthError(401); return user; };
 async function serve(pool?: ReturnType<typeof database>) {
-  const app = express(); app.use(express.json()); app.use('/api/dashboard', dashboardRouter(pool, { verifyUser }));
+  const app = express(); app.use(express.json({ limit: '7mb' })); app.use('/api/dashboard', dashboardRouter(pool, { verifyUser }));
   const server = app.listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => server.once('listening', resolve));
   return { origin: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, close: () => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }) };
@@ -82,8 +83,43 @@ test('PostgreSQL import, sessions, persistence, isolation, validation, export, d
     const club = data.clubs[0].id;
     for (let i = 0; i < 2; i++) assert.deepEqual(await (await call(`/following/${encodeURIComponent(club)}`, ca, 'PUT', { following: true })).json(), [club]);
     assert.equal((await call('/following/unknown', ca, 'PUT', { following: true })).status, 400);
+    for (const [path, method, body] of [['/schedule', 'GET', undefined], ['/schedule/preview', 'POST', {}], ['/schedule', 'PUT', {}], ['/schedule', 'DELETE', undefined]] as const) {
+      for (const token of ['', 'forged-token']) assert.equal((await call(path, token, method, body)).status, 401);
+      if (method !== 'GET') assert.equal((await call(path, ca, method, body, { Origin: 'https://evil.example' })).status, 403);
+    }
+    assert.deepEqual(await (await call('/schedule', ca)).json(), emptySchedule());
+    const starts = new Date(Date.parse(scheduleWindow().windowStart) + 12 * 3600000);
+    const ends = new Date(+starts + 3600000);
+    const icsDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace('.000', '');
+    const content = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:test-import\r\nSUMMARY:Private calendar test\r\nDTSTART:${icsDate(starts)}\r\nDTEND:${icsDate(ends)}\r\nLOCATION:Unmapped venue\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+    const previewResponse = await call('/schedule/preview', ca, 'POST', { fileName: 'schedule.ics', content });
+    assert.equal(previewResponse.status, 200);
+    const preview = await previewResponse.json(); assert.equal(preview.items.length, 1);
+    assert.equal(preview.items[0].locationId, '');
+    assert.deepEqual(await (await call('/schedule', ca)).json(), emptySchedule());
+    const save = { fileName: preview.fileName, items: [{ ...preview.items[0], locationId: data.locations[0].id }] };
+    const savedResponse = await call('/schedule', ca, 'PUT', save); assert.equal(savedResponse.status, 200);
+    const savedSchedule = await savedResponse.json(); assert.ok(savedSchedule.importedAt);
+    assert.deepEqual(savedSchedule.items, save.items);
+    assert.deepEqual(await (await call('/schedule', cb)).json(), emptySchedule());
+    for (const invalid of [{ ...save, items: [{ ...save.items[0], source: 'club' }] }, { ...save, items: [...save.items, ...save.items] }, { ...save, ownerId: ids[1] }, { ...save, items: [{ ...save.items[0], locationId: 'unknown' }] }]) assert.equal((await call('/schedule', ca, 'PUT', invalid)).status, 400);
+    assert.equal((await call('/schedule/preview', ca, 'POST', { fileName: 'bad.ics', content: 'broken' })).status, 400);
+    assert.ok((await call('/schedule/preview', ca, 'POST', { fileName: 'large.ics', content: 'x'.repeat(1024 * 1024 + 1) })).status >= 400);
+    assert.deepEqual(await (await call('/schedule', ca)).json(), savedSchedule);
+    const privateExport = await (await call('/export', ca)).json();
+    assert.deepEqual(privateExport.events, save.items); assert.deepEqual(privateExport.scheduleImport, savedSchedule);
+    assert.equal(privateExport.calendars[0].fileName, 'schedule.ics');
+    assert.equal((await (await call('/me', ca)).json()).session.calendarConnected, false);
     await s.close(); await pool.end(); pool = database(process.env.TEST_DATABASE_URL)!; s = await serve(pool);
     const restored = await (await call('/me', 'device-a-second')).json(); assert.equal(restored.profile.name, 'Alice'); assert.equal(restored.notificationPrefs.packedRoute, true); assert.deepEqual(restored.following, [club]);
+    assert.deepEqual(await (await call('/schedule', 'device-a-second')).json(), savedSchedule);
+    const replaced = await (await call('/schedule', ca, 'PUT', { ...save, items: [{ ...save.items[0], title: 'Replacement' }] })).json();
+    assert.equal(replaced.items.length, 1); assert.equal(replaced.items[0].title, 'Replacement');
+    assert.deepEqual(await (await call('/schedule', ca, 'DELETE')).json(), emptySchedule());
+    assert.deepEqual(await (await call('/schedule', ca)).json(), emptySchedule());
+    const clearedExport = await (await call('/export', ca)).json();
+    assert.deepEqual(clearedExport.events, []); assert.deepEqual(clearedExport.calendars, []);
+    assert.deepEqual(clearedExport.scheduleImport, emptySchedule());
     await Promise.all([
       call('/profile', ca, 'PATCH', { lunchTime: '12:30' }),
       call('/profile', ca, 'PATCH', { dinnerTime: '18:00' }),

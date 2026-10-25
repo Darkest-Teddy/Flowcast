@@ -1,4 +1,4 @@
-# server (Node.js + TypeScript)
+# server (Node.js 22+ + TypeScript)
 
 The Ask server. `POST /api/ask` answers campus questions and short follow-ups (the quick Ask on Home and the map), and `POST /api/chat` holds a longer conversation over every dataset the project ships, with server-built charts and tables (the Ask Flowcast page, `/ask`). Both use an OpenAI agent (`gpt-6-luna` by default, via `@openai/agents`) that reads the same simulation, walking routes, class schedule and opening hours the map plays. The model only picks tools and words the reply; every number comes from a tool. The OpenAI key stays on this server.
 
@@ -140,9 +140,19 @@ All routes are under `/api/dashboard` and return `Cache-Control: no-store`:
 - `PUT /following/:id`: `{following: boolean}`, returns the current user's `string[]` organizer IDs.
   URL-encode the entire organizer ID. Only published organizers are accepted; repeated writes do
   not duplicate IDs.
+- `GET /schedule`: `{items, fileName, importedAt, windowStart, windowEnd}`. Before an import or after
+  clearing, items is `[]` and all metadata is `null`.
+- `POST /schedule/preview`: `{fileName, content}` previews a UTF-8 `.ics` file without saving it.
+  Returns `{items, fileName, warnings, windowStart, windowEnd}`. The frontend can select rows and
+  remap their `locationId` before saving. Unknown/ambiguous buildings use `locationId: ''`.
+- `PUT /schedule`: `{fileName, items}` replaces the account's imported schedule and returns the
+  complete schedule state, with server-generated import time and window metadata.
+- `DELETE /schedule`: clears items and metadata, returning the empty schedule state.
 - `GET /export`: `{exportedAt, account, profile, notificationPrefs, followedOrganizers, createdAt,
-  updatedAt, calendars: [], events: []}` from the current persisted account. No token/hash is exported.
-- `DELETE /me`: deletes only the Flowcast profile/preferences/following for the verified UUID and
+  updatedAt, calendars, events, scheduleImport}` from the current persisted account. `events` contains
+  imported schedule items, `calendars` contains the import metadata (or `[]`), and `scheduleImport`
+  is the same state as `GET /schedule`. No token/hash is exported.
+- `DELETE /me`: deletes only the Flowcast profile/preferences/following/imported schedule for the verified UUID and
   returns 204. It does not delete or sign out the Google/Supabase identity. The client must clearly
   describe this scope and sign out afterward. A later authenticated personal request creates a fresh
   Flowcast profile with the same UUID. Public snapshots, guests, and other accounts are untouched.
@@ -152,6 +162,38 @@ Mutations require an Origin with the same host (including port) as the request a
 Unknown write fields and invalid values return 400, origin failures 403, deleted-session races 409,
 and database/unimported-data failures sanitized 503. Writes never report success after a failed query.
 The API does not enable cross-origin credential access.
+
+### Imported calendars
+
+Parsing uses pinned [node-ical](https://github.com/jens-maus/node-ical), including its documented
+`expandRecurringEvent` API for timezone-aware RRULE, EXDATE and RECURRENCE-ID expansion.
+The dependency requires Node 22+, including on hosts whose root package still permits Node 20.
+IANA timezones and exact Windows labels from the dependency's bundled mapping are accepted;
+unknown/custom TZIDs fail explicitly. VTIMEZONE observances are left unchanged. Floating event
+times are interpreted in `America/New_York` with a preview warning. All-day events are skipped
+with a warning. Timed events need a positive DTEND/DURATION of at most seven days.
+
+The window starts at today's Boston midnight and ends exclusively at Boston midnight 120 days
+later. Only occurrences starting in that window are imported; an event may end after the window.
+Daily, weekly, monthly and yearly RRULEs, DURATION, EXDATE, moved exceptions and cancelled exceptions
+are supported. Sub-daily frequencies/BYHOUR/BYMINUTE/BYSECOND, RDATE, EXRULE and RANGE exceptions fail
+explicitly. Duplicate UID/recurrence identities fail instead of arbitrarily selecting a version.
+Location matching uses normalized exact building names/short names, optionally followed by a room
+number; ambiguous matches remain unmapped. The original location is retained as `locationText`.
+
+Limits: 1 MiB UTF-8 source, 255-character `.ics` filename, 2,000 source events and output items,
+300-character titles, 1,000-character locations, 16 KiB unfolded properties. Preview runs in a
+worker with a three-second timeout, 64 MiB old/16 MiB young heap limits, and at most two concurrent
+workers (busy requests receive 429). Parser diagnostics are not forwarded because they may contain
+calendar text. Schedule-only JSON parsing allows 6 MiB + 4 KiB for worst-case JSON escaping;
+the decoded file is still checked against 1 MiB. Existing chat/other route limits are unchanged.
+Save accepts unique IDs, source `calendar`, known location IDs or `''`, and valid bounded ISO times;
+unknown fields are rejected. Neither raw files nor imported items enter an OpenAI context.
+
+The idempotent migration adds `dashboard_accounts.schedule` (JSONB, default `[]`) and
+`schedule_import` (nullable JSONB). Existing RLS and grants remain intact. Calendar import does
+not connect or sync Google Calendar: session `calendarConnected` remains false and
+`calendarSyncedAt` remains null. Apply the migration explicitly before deploying these routes.
 
 ### Auth configuration and identity
 

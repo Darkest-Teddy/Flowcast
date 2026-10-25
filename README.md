@@ -185,6 +185,20 @@ In Supabase URL Configuration, allow each Flowcast origin's `/auth/callback` rou
 before deploying account support. Profile access is tied to the verified Supabase user;
 Google login does not grant access to Google Calendar.
 
+### Import a class schedule
+
+Open **Calendars** and upload an `.ics` export (up to 1 MB). Preview the next 120 days,
+select classes, and match room names to campus buildings before importing. A new import replaces
+only your imported schedule; it does not connect or change Google Calendar. Reimport when your
+classes change. The imported schedule is saved to your signed-in account and included in your
+data export.
+
+Home shows your next class and a leave-by time using saved campus walking routes at 1.4 m/s,
+rounded up to whole minutes, plus an arrival buffer (5 minutes by default). Confirm the **From**
+building: it starts from your earlier class or profile home, not GPS. Unmapped buildings and
+missing routes do not receive guessed departure times. Schedule times are shown in Boston time.
+
+
 
 **Run the tests:**
 

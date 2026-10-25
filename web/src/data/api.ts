@@ -10,7 +10,7 @@ import type { ChatRequest } from '@map/chatContract';
 import type {
   AdminSettings, AdminUser, AgentBrain, ApplicationStatus, CalendarConnection, CalendarImport,
   CampusEvent, CampusLocation, ClubApplication, ClubDetails, DataSource, EventImpactData,
-  NotificationPrefs, Profile, ScheduleItem, SimulationSettings, StatRange, Suggestion, WeekStat,
+  NotificationPrefs, Profile, ScheduleItem, ScheduleImportState, SchedulePreview, SimulationSettings, StatRange, Suggestion, WeekStat,
 } from './types';
 
 const copy = <T,>(value: T): Promise<T> => Promise.resolve(structuredClone(value));
@@ -65,7 +65,11 @@ function pause(ms: number, signal?: AbortSignal): Promise<boolean> {
 export const api = {
   getSession: () => dashboard.getMe().then((data) => data.session),
   getLocations: () => dashboard.getPublic().then((data) => data.locations),
-  getSchedule: (): Promise<ScheduleItem[]> => copy([]),
+  getSchedule: (): Promise<ScheduleItem[]> => dashboard.request<ScheduleImportState>('/schedule').then((state) => state.items),
+  getScheduleImport: () => dashboard.request<ScheduleImportState>('/schedule'),
+  previewSchedule: (fileName: string, content: string) => dashboard.request<SchedulePreview>('/schedule/preview', 'POST', { fileName, content }),
+  importSchedule: (fileName: string, items: ScheduleItem[]) => dashboard.mutate<ScheduleImportState>('/schedule', 'PUT', { fileName, items }),
+  clearSchedule: () => dashboard.mutate<ScheduleImportState>('/schedule', 'DELETE'),
   getPlaceForecasts: () => dashboard.getPublic().then((data) => data.places),
   getHourlyForecasts: () => dashboard.getPublic().then((data) => data.hourly),
   getCampusGeo: () => dashboard.getPublic().then((data) => data.geo),

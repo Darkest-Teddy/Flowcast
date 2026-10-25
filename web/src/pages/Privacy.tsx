@@ -7,6 +7,7 @@ import { Button, ListRow, Page, PageHeader, SectionHeading, SectionList } from '
 import styles from './Privacy.module.css';
 
 const kept = [
+  { title: 'Your imported schedule', detail: 'Selected classes and room mappings are saved to your account, not shared with the campus model' },
   { title: 'Your profile', detail: 'The name, dorm, meal times, study spot and avatar colour you enter' },
   { title: 'Your preferences', detail: 'Notification preferences and club follows saved to your Flowcast account' },
 ];
@@ -39,7 +40,7 @@ export default function Privacy() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setMessage('Your profile data couldn’t be prepared. Please try again.');
+      setMessage('Your account data couldn’t be prepared. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -60,7 +61,7 @@ export default function Privacy() {
 
   return (
     <Page>
-      <PageHeader title="Privacy & data" description="Manage profile details and preferences saved to your Flowcast account." />
+      <PageHeader title="Privacy & data" description="Manage data saved to your Flowcast account." />
 
       <div className={styles.columns}>
         <SectionList title="Flowcast account data">
@@ -81,11 +82,11 @@ export default function Privacy() {
       <div className={styles.actions}>
         <div className={styles.action}>
           <div>
-            <p className={styles.actionTitle}>Download profile data</p>
-            <p className={styles.actionBody}>A JSON file of your saved profile, notification preferences and club follows.</p>
+            <p className={styles.actionTitle}>Download account data</p>
+            <p className={styles.actionBody}>A JSON file of your saved profile, imported schedule, notification preferences and club follows.</p>
           </div>
           <Button icon={<Download aria-hidden />} onClick={download} disabled={downloading}>
-            {downloading ? 'Preparing…' : 'Download profile data'}
+            {downloading ? 'Preparing…' : 'Download account data'}
           </Button>
         </div>
 
@@ -93,7 +94,7 @@ export default function Privacy() {
           <div>
             <p className={styles.actionTitle}>Delete profile data</p>
             <p className={styles.actionBody}>
-              Clears your Flowcast profile, notification preferences and club follows, then signs you out. This does not delete your Google account.
+              Clears your Flowcast profile, imported schedule, notification preferences and club follows, then signs you out. This does not delete your Google account.
             </p>
           </div>
           {!confirming && (
@@ -105,7 +106,7 @@ export default function Privacy() {
 
         {confirming && (
           <div className={styles.confirm} role="group" aria-labelledby="delete-confirm">
-            <p id="delete-confirm">Delete your saved profile, preferences and club follows? This can’t be undone.</p>
+            <p id="delete-confirm">Delete your saved profile, imported schedule, preferences and club follows? This can’t be undone.</p>
             <div className={styles.confirmActions}>
               <Button variant="danger" onClick={remove} disabled={deleting}>
                 {deleting ? 'Deleting…' : 'Delete profile data'}

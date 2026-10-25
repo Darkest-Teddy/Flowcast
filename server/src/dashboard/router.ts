@@ -6,12 +6,14 @@ import { bostonDate, clubsFromBundle, forecastsFromBundle, locationsFromBundle, 
 import type { Profile, NotificationPrefs } from '../../../web/src/data/types';
 import type { Snapshot } from './import';
 import { authConfig, createUserVerifier, DashboardAuthError, type AuthConfig, type VerifiedUser, type VerifyUser } from './auth';
+import { emptySchedule, previewSchedule, ScheduleError, scheduleState, validateSchedule } from './schedule';
+import type { ScheduleImportState } from '../../../web/src/data/types';
 
 const time = z.union([z.literal(''), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)]);
 const location = z.string().min(1).max(160).nullable();
 const profilePatch = z.object({ name: z.string().trim().max(100), homeLocationId: location, studySpotId: location, lunchTime: time, dinnerTime: time, avatarSwatch: z.number().int().min(0).max(5) }).partial().strict();
 const preferencesPatch = z.object({ packedRoute: z.boolean(), clubEvents: z.boolean(), scheduleChanges: z.boolean() }).partial().strict();
-interface Account { id: string; profile: Profile; preferences: NotificationPrefs; following: string[]; created_at: Date; updated_at: Date }
+interface Account { id: string; profile: Profile; preferences: NotificationPrefs; following: string[]; schedule: ScheduleImportState['items']; schedule_import: Omit<ScheduleImportState, 'items'> | null; created_at: Date; updated_at: Date }
 const blankProfile: Profile = { name: '', homeLocationId: null, studySpotId: null, lunchTime: '', dinnerTime: '', avatarSwatch: 0 };
 const blankPrefs: NotificationPrefs = { packedRoute: false, clubEvents: false, scheduleChanges: false };
 function session(account: Account, user: VerifiedUser) {
@@ -40,7 +42,7 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   async function account(res: Response): Promise<Account> {
     const user = res.locals.dashboardUser as VerifiedUser;
     await pool!.query('INSERT INTO dashboard_accounts(id,profile,preferences) VALUES($1,$2,$3) ON CONFLICT (id) DO NOTHING', [user.id, { ...blankProfile, name: user.name }, blankPrefs]);
-    const result = await pool!.query('SELECT id,profile,preferences,following,created_at,updated_at FROM dashboard_accounts WHERE id=$1', [user.id]);
+    const result = await pool!.query('SELECT id,profile,preferences,following,schedule,schedule_import,created_at,updated_at FROM dashboard_accounts WHERE id=$1', [user.id]);
     return result.rows[0];
   }
   router.get('/auth/config', (_req, res) => { res.json(config()); });
@@ -69,6 +71,26 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   router.get('/me', async (req, res) => {
     const g = await account(res);
     res.json({ session: session(g, res.locals.dashboardUser), profile: g.profile, notificationPrefs: g.preferences, following: g.following });
+  });
+  router.get('/schedule', async (_req, res) => { res.json(scheduleState(await account(res))); });
+  router.post('/schedule/preview', async (req, res) => {
+    const { impact } = await snapshot();
+    res.json(await previewSchedule(req.body, locationsFromBundle(impact)));
+  });
+  router.put('/schedule', async (req, res) => {
+    const { impact } = await snapshot();
+    const { items, ...metadata } = validateSchedule(req.body, locationsFromBundle(impact));
+    const g = await account(res);
+    const result = await pool!.query('UPDATE dashboard_accounts SET schedule=$1::jsonb, schedule_import=$2::jsonb, updated_at=now() WHERE id=$3 RETURNING schedule,schedule_import',
+      [JSON.stringify(items), JSON.stringify({ ...metadata, importedAt: new Date().toISOString() }), g.id]);
+    if (!result.rows[0]) { res.status(409).json({ error: 'Account profile was deleted.' }); return; }
+    res.json(scheduleState(result.rows[0]));
+  });
+  router.delete('/schedule', async (_req, res) => {
+    const g = await account(res);
+    const result = await pool!.query("UPDATE dashboard_accounts SET schedule='[]'::jsonb, schedule_import=NULL, updated_at=now() WHERE id=$1 RETURNING id", [g.id]);
+    if (!result.rows[0]) { res.status(409).json({ error: 'Account profile was deleted.' }); return; }
+    res.json(emptySchedule());
   });
   router.patch('/profile', async (req, res) => {
     const parsed = profilePatch.safeParse(req.body);
@@ -101,13 +123,14 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   });
   router.get('/export', async (req, res) => {
     const g = await account(res);
-    res.json({ exportedAt: new Date().toISOString(), account: session(g, res.locals.dashboardUser).user, profile: g.profile, notificationPrefs: g.preferences, followedOrganizers: g.following, createdAt: g.created_at, updatedAt: g.updated_at, calendars: [], events: [] });
+    res.json({ exportedAt: new Date().toISOString(), account: session(g, res.locals.dashboardUser).user, profile: g.profile, notificationPrefs: g.preferences, followedOrganizers: g.following, createdAt: g.created_at, updatedAt: g.updated_at, calendars: g.schedule_import ? [g.schedule_import] : [], events: g.schedule, scheduleImport: scheduleState(g) });
   });
   router.delete('/me', async (req, res) => {
     await pool!.query('DELETE FROM dashboard_accounts WHERE id=$1', [res.locals.dashboardUser.id]);
     res.status(204).end();
   });
   router.use((_error: unknown, _req: Request, res: Response, _next: import('express').NextFunction) => {
+    if (_error instanceof ScheduleError) { res.status(_error.status).json({ error: _error.message }); return; }
     if (_error instanceof DashboardAuthError) { res.status(_error.status).json({ error: _error.message }); return; }
     console.error('dashboard database request failed');
     res.status(503).json({ error: 'Dashboard data is unavailable. Please try again later.' });

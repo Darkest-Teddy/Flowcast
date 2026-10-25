@@ -1,6 +1,6 @@
 // Which Ask Flowcast questions may leave the device. Questions that need the person's own schedule
 // ("where is my next class?") are answered here from their calendar and never sent to the Ask
-// server: personal schedules stay in the owner's session. A question that only names the person's
+// server: personal schedules are not sent to the AI. A question that only names the person's
 // home ("how far is Mugar from my dorm?") is sent with the home's place name in place of "my dorm",
 // and nothing else from the profile. Everything else goes to the server's agent as asked, with this
 // device's answer as the fallback. No imports, so node --test can run it directly.
@@ -13,6 +13,8 @@ const NEEDS_SCHEDULE = [
   /\bnext (class|lecture|section|lab|seminar)\b/,
   /\bbetween (my )?classes\b/,
   /\bwhat('?s| is) next\b/,
+  /\bwhen (?:should|must|can) i (?:leave|depart|head out)\b/,
+  /\b(?:am i late|can i make it|leave.by time)\b/,
   /\bwhen do i\b/, // when do I have class, when do I need to leave
   /\b(i|i'?m|me)\b.*\b(class|classes|schedule|calendar|lecture|timetable)\b/, // do I have class, am I late for class
 ];

@@ -45,9 +45,26 @@ export interface ScheduleItem {
   start: string; // ISO
   end: string; // ISO
   source: EventSource;
+  locationText?: string; // Original calendar location, including room information.
   clubId?: string;
   note?: string;
   accepted?: boolean; // a suggested item the person added to their day
+}
+
+export interface ScheduleImportState {
+  items: ScheduleItem[];
+  fileName: string | null;
+  importedAt: string | null;
+  windowStart: string | null;
+  windowEnd: string | null;
+}
+
+export interface SchedulePreview {
+  items: ScheduleItem[];
+  fileName: string;
+  warnings: string[];
+  windowStart: string;
+  windowEnd: string;
 }
 
 export interface PlaceForecast {

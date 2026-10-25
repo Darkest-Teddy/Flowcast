@@ -35,6 +35,8 @@ export async function migrate(pool: pg.Pool) {
       );
     `);
     await client.query(`
+      ALTER TABLE dashboard_accounts ADD COLUMN IF NOT EXISTS schedule jsonb NOT NULL DEFAULT '[]'::jsonb;
+      ALTER TABLE dashboard_accounts ADD COLUMN IF NOT EXISTS schedule_import jsonb;
       ALTER TABLE dashboard_accounts ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_snapshots ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_current ENABLE ROW LEVEL SECURITY;

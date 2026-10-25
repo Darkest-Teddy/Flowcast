@@ -25,10 +25,6 @@
   color: var(--color-ink-secondary);
 }
 
-.forYou {
-  margin-top: var(--space-10);
-}
-
 .columns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -60,24 +56,6 @@
   border-radius: var(--radius-xs);
 }
 
-/* One suggestion: the sentence, then its action at the end of the line. */
-.suggestion {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
-  padding: var(--space-3) 0;
-  color: var(--color-ink);
-}
-
-.suggestion p {
-  max-width: 72ch;
-}
-
-.suggestion > :last-child {
-  flex-shrink: 0;
-}
-
 /* Narrow desktop windows: Your clubs needs more than a quarter of the column. */
 @media (max-width: 1100px) {
   .bottom {
@@ -96,10 +74,6 @@
     gap: var(--space-4);
   }
 
-  .suggestion {
-    flex-direction: column;
-    align-items: flex-start;
-  }
 }
 
 @media (max-width: 560px) {
@@ -111,7 +85,6 @@
     font-size: var(--text-2xl);
   }
 
-  .forYou,
   .bottom {
     margin-top: var(--space-8);
   }

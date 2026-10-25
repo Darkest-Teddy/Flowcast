@@ -53,7 +53,7 @@ const newId = () => `m${Date.now().toString(36)}${(nextId++).toString(36)}`;
 /** Questions to start with when the directory can't load. */
 const FALLBACK_EXAMPLES = ['Least crowded library right now', 'Quietest dining hall at 6 PM', 'When is GSU quiet?', 'Where is my next class?'];
 
-const DEVICE_NOTE = 'Answered on this device from your schedule. Your schedule isn’t sent anywhere.';
+const DEVICE_NOTE = 'Calculated from your schedule, without sending it to AI.';
 
 function errorAnnouncement(error: ChatError): string {
   if (error.kind === 'notConfigured') return 'Answers need the Ask server’s OpenAI key.';
@@ -147,17 +147,23 @@ export default function Ask() {
     if (isPersonalQuestion(q)) {
       setPending('Checking your schedule on this device…');
       setAnnouncement('Checking your schedule on this device.');
-      const [locations, schedule, hourly, places, geo, events, clubs] = await Promise.all([
-        api.getLocations(), api.getSchedule(), api.getHourlyForecasts(), api.getPlaceForecasts(), api.getCampusGeo(),
-        api.getCampusEvents().catch(() => []), api.getClubs(),
-      ]);
-      const data: CampusData = { locations, schedule, hourly, places, geo, events, clubs, homeLocationId: session?.user.homeLocationId ?? null };
-      const answer = answerQuestion(q, data);
-      if (!messagesRef.current.some((m) => m.id === user.id)) return;
-      finish(
-        { id: newId(), role: 'assistant', status: 'device', text: answer.text, rows: answer.rows, note: [answer.note, DEVICE_NOTE].filter(Boolean).join(' ') },
-        `Answered on this device. ${answer.text}`,
-      );
+      try {
+        const [locations, schedule, hourly, places, geo, events, clubs] = await Promise.all([
+          api.getLocations(), api.getSchedule(), api.getHourlyForecasts(), api.getPlaceForecasts(), api.getCampusGeo(),
+          api.getCampusEvents().catch(() => []), api.getClubs(),
+        ]);
+        const data: CampusData = { locations, schedule, hourly, places, geo, events, clubs, homeLocationId: session?.user.homeLocationId ?? null };
+        const answer = answerQuestion(q, data);
+        if (!messagesRef.current.some((m) => m.id === user.id)) return;
+        finish(
+          { id: newId(), role: 'assistant', status: 'device', text: answer.text, rows: answer.rows, note: [answer.note, DEVICE_NOTE].filter(Boolean).join(' ') },
+          `Answered on this device. ${answer.text}`,
+        );
+      } catch {
+        if (!messagesRef.current.some((m) => m.id === user.id)) return;
+        const text = 'Your schedule could not be loaded. Try again or open Calendars.';
+        finish({ id: newId(), role: 'assistant', status: 'device', text, rows: [], note: '' }, text);
+      }
       return;
     }
 

@@ -128,6 +128,8 @@ export function createApp(options: AppOptions) {
   // A chat request carries up to 12 turns (64 KB); an ask request with its history up to 128 KB.
   // The first parser to run wins.
   app.use('/api/chat', express.json({ limit: '64kb' }));
+  // JSON escaping can expand a 1 MiB calendar to six times its UTF-8 size.
+  app.use(/^\/api\/dashboard\/schedule(?:\/preview)?\/?$/i, express.json({ limit: 6 * 1024 * 1024 + 4096 }));
   app.use(express.json({ limit: '128kb' }));
   app.use('/api/dashboard', dashboardRouter(options.dashboardPool));
   let domains: DataDomain[] | undefined;
