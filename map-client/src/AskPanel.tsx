@@ -86,10 +86,11 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       if (best.open === false) {
         return { text: `By their published hours, all the ${PLURAL[placeKind]} here are closed ${when(time)}.`, rows, show: { ...show, route: null, select: null } };
       }
-      if (rankTier(best) === 2) {
+      const missingHours = ctx.data ? ranked.filter((r) => rankTier(r) === 2 && ctx.data!.locations[r.location.id]?.hoursStatus === 'published') : [];
+      if (rankTier(best) === 2 && missingHours.length) {
         // Nothing open by published hours, and these places have no hours in the data for the shown
         // date (the dining halls' dated hours end before the reference weekend): no ranking.
-        const days = ctx.data ? dayList(daysWithPublishedHours(ranked.filter((r) => rankTier(r) === 2).map((r) => r.location.id), ctx.data), WEEKDAYS) : '';
+        const days = ctx.data ? dayList(daysWithPublishedHours(missingHours.map((r) => r.location.id), ctx.data), WEEKDAYS) : '';
         const date = ctx.data ? ` (${dateForWeekday(ctx.data, ctx.weekday)})` : '';
         return {
           text: `Opening hours for the ${PLURAL[placeKind]} here aren't in the data for ${WEEKDAYS[ctx.weekday]}${date}, so the map can't say which is least crowded.${days ? ` Published hours cover ${days}: pick one of those days in the day picker.` : ''}`,

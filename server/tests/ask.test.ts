@@ -222,6 +222,20 @@ test('weekend dining: hours not in the data for the date give no ranking and nam
   const info = (await call('place_info', { place: 'Marciano Commons', weekday: null, time: null }, saturday)).out;
   assert.equal(info.openNow, null);
   assert.equal(info.daysWithPublishedHours, 'Monday to Friday');
+  // Classrooms never publish hours: ranked as before, on any day.
+  const rooms = (await call('rank_places_by_crowd', { kind: 'classroom', weekday: null, time: '12:30', near: null, order: null, openOnly: null }, saturday)).out;
+  assert.equal('hoursNotInData' in rooms, false);
+  const weekdayRooms = (await rank({ kind: 'classroom', time: '12:30' })).out;
+  assert.equal('hoursNotInData' in weekdayRooms, false);
+  assert.ok(weekdayRooms.places.some((p: any) => p.percent !== null));
+  // ... with an answer: the top place with a percent, which the map selects.
+  const first = weekdayRooms.places[0];
+  assert.equal(weekdayRooms.leastCrowded, first.name);
+  assert.equal(first.open, null);
+  assert.notEqual(first.percent, null);
+  const dorms = await rank({ kind: 'dorm', time: '12:30' });
+  assert.ok(dorms.out.leastCrowded === null || dorms.out.leastCrowded === dorms.out.places[0].name);
+  assert.equal(dorms.map.show?.select ?? null, dorms.out.leastCrowded === null ? null : dorms.out.places[0].id);
   // A weekday is ranked as before.
   assert.ok((await rank({ kind: 'dining', time: '12:30' })).out.leastCrowded);
 });

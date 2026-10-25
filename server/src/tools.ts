@@ -185,7 +185,7 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
     name: 'rank_places_by_crowd',
     description:
       'Rank places on the campus in view by simulated crowding at a time. Rows come in tiers: open with a percent, open with a headcount only, hours not published, closed, not modeled. ' +
-      'leastCrowded (or mostCrowded) is the top open place with a comparable percent, the answer even when rounded percents tie; it is null when no place qualifies. Never re-rank by student count. ' +
+      'leastCrowded (or mostCrowded) is the top open place with a comparable percent (for classrooms and dorms, which publish no hours, the top place with a percent), the answer even when rounded percents tie; it is null when no place qualifies. Never re-rank by student count. ' +
       'percent is simulated students over stated capacity; null means not comparable, closed, or (open=null with 0 students) no published hours, so the simulation sends no one there: never call those quiet. open=false is closed by published hours (never call it quiet); open=null means hours are not published. ' +
       'modeled=false means the simulation does not model that place on this day.',
     parameters: z.object({
@@ -223,7 +223,14 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
         open: r.open ?? null,
         walkMinutes: r.walk?.minutes ?? null,
       }));
-      const best = ranked[0] && rankTier(ranked[0]) === 0 ? ranked[0] : null;
+      // Classrooms and dorms never publish hours, so they all sit in the hours-unknown tier: there
+      // the top place with a percent is the answer, unless some place does have hours for the date.
+      const neverPublishes = (r: RankedPlace) => {
+        const status = dctx.data?.locations[r.location.id]?.hoursStatus;
+        return status !== 'published' && status !== 'restricted';
+      };
+      const top = ranked[0];
+      const best = top && (rankTier(top) === 0 || (rankTier(top) === 2 && top.share !== null && neverPublishes(top))) ? top : null;
       if (!ranked.length) {
         return result({
           ...dayDate(dctx, dctx.weekday),
@@ -236,7 +243,9 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
       // Nothing open by published hours, and some places have no hours in the data for this date
       // (the dining halls' dated hours end before the reference weekend): a ranking of those would
       // read as an answer, so the tool says the hours are missing and which days have them.
-      const unknownHours = !ranked.some((r) => rankTier(r) <= 1) ? ranked.filter((r) => rankTier(r) === 2) : [];
+      // Places that never publish hours (classrooms, dorms) rank as before.
+      const unknownHours = dctx.data && !ranked.some((r) => rankTier(r) <= 1)
+        ? ranked.filter((r) => rankTier(r) === 2 && dctx.data!.locations[r.location.id]?.hoursStatus === 'published') : [];
       if (unknownHours.length && dctx.data) {
         const days = daysWithPublishedHours(unknownHours.map((r) => r.location.id), dctx.data);
         const { day, date } = dayDate(dctx, dctx.weekday);

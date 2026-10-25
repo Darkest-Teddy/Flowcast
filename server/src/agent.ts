@@ -48,6 +48,7 @@ function instructions(ctx: ServerAskContext): string {
     '- If a tool says a course code is ambiguous, ask which of the listed courses the user means.',
     '- You don’t know anyone’s personal schedule; the map is also shown on shared screens. For "my next class" and similar, say so and suggest asking by course code (e.g. "where is CAS CS 132?") or on their Flowcast home page.',
     '- When a place name is ambiguous or unknown, call find_places before giving up.',
+    '- Busier means a higher percent of stated capacity; compare simulated students only when a percent is null, and say so. Work out the comparison before you write the answer.',
     '- To compare places the user names ("is Mugar or SEL busier?"), call place_day for each of them rather than ranking a whole kind.',
     '- Reply in plain text, one to three short sentences, no markdown or lists. Use the names the tools return.',
     '- Only answer questions about the campus, its places, crowds, walks and classes. Politely decline anything else.',
