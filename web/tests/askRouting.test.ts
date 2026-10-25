@@ -19,6 +19,7 @@ const PERSONAL = [
 const HOME = [
   ['How far is Mugar from my dorm?', 'How far is Mugar from Warren Towers?'],
   ['walk from my room to CAS', 'walk from Warren Towers to CAS'],
+  ['walk from my dorm room to CAS', 'walk from Warren Towers to CAS'],
   ['quietest library near my dorm', 'quietest library near Warren Towers'],
   ['How long to get home from the GSU', 'How long to get home from the GSU'], // "get home" isn't a place
   ['how far is FitRec from home', 'how far is FitRec from Warren Towers'],
@@ -52,6 +53,7 @@ test('a question that only names the person’s home is sent with the home’s p
   }
   assert.equal(mentionsHome('How far is Mugar from my dorm?'), true);
   assert.equal(mentionsHome('How far is Mugar from CAS?'), false);
+  assert.deepEqual(planQuestion('walk from my dorm to CAS', '$& Hall'), { local: false, question: 'walk from $& Hall to CAS' });
   // Without a home on the profile there is nothing to send, so it stays on the device.
   assert.deepEqual(planQuestion('How far is Mugar from my dorm?', null), { local: true });
   // Schedule questions stay local even with a home.

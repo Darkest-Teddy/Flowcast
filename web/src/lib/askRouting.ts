@@ -18,7 +18,7 @@ const NEEDS_SCHEDULE = [
 ];
 
 /** "my dorm", "my room", "from home": the person's home, which the profile names. */
-const HOME_REF = /\b(?:my|our) (?:dorm|dorm room|room|residence hall|residence|home|house|apartment|place|building)\b|\b(?<=(?:from|to|near|at|back) )home\b/g;
+const HOME_REF = /\b(?:my|our) (?:dorm room|dorm|room|residence hall|residence|home|house|apartment|place|building)\b|\b(?<=(?:from|to|near|at|back) )home\b/g;
 
 const normalize = (question: string) => question.replace(/[’‘]/g, "'");
 
@@ -45,7 +45,7 @@ export function planQuestion(question: string, homeName: string | null): AskPlan
   if (isPersonalQuestion(question)) return { local: true };
   if (!mentionsHome(question)) return { local: false, question };
   if (!homeName) return { local: true };
-  return { local: false, question: normalize(question).replace(new RegExp(HOME_REF.source, 'gi'), homeName) };
+  return { local: false, question: normalize(question).replace(new RegExp(HOME_REF.source, 'gi'), () => homeName) };
 }
 
 /** Day of the week (0 = Monday) and seconds since midnight in Boston, for the Ask server. */
