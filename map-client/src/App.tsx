@@ -160,6 +160,8 @@ const NO_PADDING = { top: 0, left: 0, right: 0, bottom: 0 };
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const nextFrames = (n: number) => new Promise<void>((resolve) => { const step = (left: number) => (left ? requestAnimationFrame(() => step(left - 1)) : resolve()); step(n); });
+/** Lets the page paint (a stage label, the bar's next ease) before work that blocks it; timers, not frames, so it also runs in a prerendered page. */
+const letPaint = () => new Promise<void>((resolve) => setTimeout(resolve, 40));
 /** Waits until `count` frames in a row come under `ms` apart (the app has settled), or `capMs` at most. */
 async function steadyFrames(count: number, ms: number, capMs: number) {
   const from = performance.now();
@@ -508,6 +510,11 @@ export default function App() {
         track('Hanging shop signs', loadSigns()).catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
+      // The downloads are in; what follows is computing, which blocks the page: name each part and
+      // give the bar its rough length, so it keeps moving through it.
+      loadProgress.stage('Placing students', 0.62, 4500);
+      await letPaint();
+      if (cancelled) return basemap.remove();
       const shuttleSchedule = await shuttleTimetable;
       observationsRef.current = await observationsLoad;
       const candidateTimetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
@@ -574,6 +581,9 @@ export default function App() {
       setMobilityData(mobilitySnapshot);
       transitServiceRef.current = timetable ? createTransitService(timetable) : undefined;
       const playback = playDay(populationBase, snapshot, weekdayRef.current);
+      loadProgress.stage('Starting the simulation', 0.84, 3000);
+      await letPaint();
+      if (cancelled) return basemap.remove();
       playbackRef.current = playback;
       // Conditions engine: the day above (the unconditioned model) shows until the worker's
       // conditioned day for the live conditions is ready.
@@ -704,6 +714,7 @@ export default function App() {
           await nextFrames(2);
           loadProgress.finish();
         } else {
+          loadProgress.stage('Lining up the view', 0.97, 2000);
           // Still under the still: fetch the tiles of the views the camera will pass through (it would
           // otherwise fetch them on the way, in stutters), then back to the sky. The first frames after
           // loading also build layers and shaders: let them settle so the drops run smoothly.

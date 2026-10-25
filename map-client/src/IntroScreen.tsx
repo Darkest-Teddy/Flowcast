@@ -13,11 +13,20 @@ export interface LoadState {
   /** What's still downloading, in the order it was started. */
   pending: string[];
   error: string | null;
+  /**
+   * Past the downloads: the work in hand (building the day, starting the simulation, lining up the
+   * view), where the bar should get to by its end, and roughly how long it takes. The bar eases
+   * there over that time on the compositor, so it keeps moving while the work blocks the page.
+   */
+  stage: { label: string; to: number; ms: number } | null;
   ready: boolean;
 }
 
+/** The share of the bar the downloads fill; the stages after them fill the rest. */
+const DOWNLOADS_SHARE = 0.3;
+
 export function createLoadProgress() {
-  let state: LoadState = { done: 0, total: 0, pending: [], error: null, ready: false };
+  let state: LoadState = { done: 0, total: 0, pending: [], error: null, stage: null, ready: false };
   let epoch = 0; // bumped by reset(), so downloads from a discarded start (StrictMode's first mount) don't count
   const listeners = new Set<() => void>();
   const set = (next: Partial<LoadState>) => {
@@ -32,7 +41,7 @@ export function createLoadProgress() {
     get: () => state,
     reset: () => {
       epoch++;
-      set({ done: 0, total: 0, pending: [], error: null, ready: false });
+      set({ done: 0, total: 0, pending: [], error: null, stage: null, ready: false });
     },
     /** Counts a startup download; its label shows while it's the oldest one still pending. */
     track<T>(label: string, promise: Promise<T>): Promise<T> {
@@ -47,6 +56,7 @@ export function createLoadProgress() {
       return promise;
     },
     fail: (error: string) => set({ error }),
+    stage: (label: string, to: number, ms: number) => set({ stage: { label, to, ms } }),
     finish: () => set({ ready: true }),
   };
 }
@@ -77,11 +87,13 @@ function stillFor(preset: LightPreset): { src: string; srcSet?: string } {
 export function IntroScreen({ progress, preset }: { progress: LoadProgress; preset: LightPreset }) {
   const state = useSyncExternalStore(progress.subscribe, progress.get);
   const [still] = useState(() => stillFor(preset));
-  // The bar eases between real counts; start it slightly filled so it never sits empty.
-  const fraction = state.ready ? 1 : state.total ? 0.04 + 0.92 * (state.done / state.total) : 0.04;
+  // Downloads fill the first part of the bar by count (slightly filled from the start, so it never
+  // sits empty); each stage after them eases on to its mark over its expected time.
+  const fraction = state.ready ? 1 : state.stage ? state.stage.to : 0.02 + (DOWNLOADS_SHARE - 0.02) * (state.total ? state.done / state.total : 0);
+  const easeMs = state.stage && !state.ready ? state.stage.ms : 600;
 
   if (state.ready && !state.error) return null;
-  const step = state.pending[0] ?? (state.total ? 'Placing students' : 'Starting up');
+  const step = state.stage?.label ?? state.pending[0] ?? 'Starting up';
 
   return (
     <div className={`loader intro${state.error ? ' intro-failed' : ''}`} aria-busy={!state.error}>
@@ -104,7 +116,7 @@ export function IntroScreen({ progress, preset }: { progress: LoadProgress; pres
         <div className="intro-progress">
           <p className="intro-step" aria-live="polite">{step}…</p>
           <div className="intro-bar" role="progressbar" aria-label="Loading the map" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)}>
-            <span style={{ transform: `scaleX(${fraction})` }} />
+            <span style={{ transform: `scaleX(${fraction})`, transitionDuration: `${easeMs}ms` }} />
           </div>
         </div>
       )}

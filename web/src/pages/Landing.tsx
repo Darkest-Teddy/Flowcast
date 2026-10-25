@@ -11,7 +11,7 @@ import { formatPercent } from '../lib/format';
 import { CampusScene } from './landing/CampusScene';
 import { introSources, presetNow } from '@map/intro';
 import { IntroSky } from '@map/IntroSky';
-import { openMap, STILL_ATTR } from './landing/openMap';
+import { openMap, prepareMap, STILL_ATTR } from './landing/openMap';
 import { item, rise, stagger } from './landing/motion';
 import { scrollToElement, useSmoothScroll } from './landing/smoothScroll';
 import {
@@ -187,6 +187,9 @@ function Hero() {
   // map's loading screen starts from (map-client/src/intro.ts).
   const [preset] = useState(presetNow);
   const still = introSources(preset);
+  // Once the still is up, start the map behind the scenes (prepareMap), so it opens ready or nearly.
+  const [stillUp, setStillUp] = useState<HTMLImageElement | null>(null);
+  useEffect(() => (stillUp ? prepareMap(config.mapUrl, stillUp) : undefined), [stillUp]);
 
   return (
     <section id="top" tabIndex={-1} className={`${styles.dark} ${styles.hero}`} data-theme="dark" aria-labelledby="hero-title">
@@ -217,6 +220,7 @@ function Hero() {
           sizes="100vw"
           alt="Boston University's campus along the Charles River on the Flowcast map, seen from above through cloud"
           fetchPriority="high"
+          onLoad={(e) => setStillUp(e.currentTarget)}
         />
         <IntroSky light={preset} />
       </div>
