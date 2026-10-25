@@ -61,6 +61,7 @@
 .hud-legend,
 .hud-ask .ask-form,
 .hud-ask .ask-transcript,
+.hud-ask .ask-clear,
 .hud-tag-menu,
 .hud-month {
   background: var(--hud-fill);
@@ -865,7 +866,7 @@
 }
 
 /*
- * Panel furniture, hidden in the bar: the heading, both notes, "New chat" and
+ * Panel furniture, hidden in the bar: the heading, both notes and
  * the example questions. On a bar over a map they were chrome standing between
  * the reader and the campus; they still read in full on the dashboard's own Ask
  * page, where the box is the screen rather than a bar over something else.
@@ -873,7 +874,6 @@
 .hud-ask .ask-heading h2,
 .hud-ask > .ask > .muted:not(.ask-status),
 .hud-ask .ask > .ask-note,
-.hud-ask .ask-clear,
 .hud-ask .ask-examples {
   display: none;
 }
@@ -906,6 +906,13 @@
 .hud-ask .ask-transcript[hidden] {
   display: none;
 }
+.hud-ask .ask-heading:not([data-clearable='true']) { display: none; }
+.hud-ask .ask-clear {
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-capsule);
+  text-decoration: none;
+}
+.hud-ask .ask-clear:hover { background: var(--color-surface-hover); }
 
 /* The conversation: a card above the pill, scrolling, never taller than the view. */
 .hud-ask .ask-transcript {
@@ -969,7 +976,7 @@
   box-shadow: var(--glass-inner-shadow), var(--glass-shadow), 0 0 0 2px var(--color-accent);
 }
 
-.hud-ask .ask-form button {
+.hud-ask .ask-form button:not([data-voice-control]) {
   flex: none;
   min-height: 0;
   height: var(--hud-button);

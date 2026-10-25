@@ -32,6 +32,7 @@ function panel({ agent = async () => reply(), configured = async () => true, ini
   const bindings = {
     ...insights, ...routing, appendExchange, formatClock, WEEKDAYS, dateForWeekday,
     crowdLevel: () => ({ label: 'Quiet' }), crowdLevelStyle: () => ({}),
+    LiveVoice: 'LiveVoice',
     React: { createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat(Infinity).filter((x) => x !== false && x != null) }) },
     useState(value) { const index = cursor++; if (!(index in slots)) slots[index] = value; return [slots[index], (next) => { slots[index] = typeof next === 'function' ? next(slots[index]) : next; }]; },
     useRef(value) { const index = cursor++; return slots[index] ??= { current: value }; },
@@ -56,9 +57,30 @@ function panel({ agent = async () => reply(), configured = async () => true, ini
       nodes().find((n) => n.type === 'form').props.onSubmit({ preventDefault() {} });
       await tick(); render();
     },
-    clear() { nodes().find((n) => n.type === 'button' && text(n) === 'New chat').props.onClick(); render(); },
+    clear() { nodes().find((n) => n.type === 'button' && text(n) === 'Clear chat').props.onClick(); render(); },
   };
 }
+
+test('voice answers enter the transcript and map without sending voice history in typed follow-ups', async () => {
+  const p = panel();
+  const voice = () => p.find(n => n.type === 'LiveVoice');
+  voice().props.onActiveChange(true);
+  p.render();
+  await p.submit('Where is Mugar?');
+  assert.equal(p.requests.length, 0, 'text submission is blocked during voice');
+  voice().props.onAnswer(reply().value, 'Show Mugar');
+  voice().props.onActiveChange(false);
+  p.render();
+  assert.match(p.text(), /Show Mugar.*Voice.*Mugar is quiet/s);
+  assert.equal(p.shown.at(-1).select.id, 'mugar');
+  await p.submit('How far is it?');
+  assert.equal(p.requests.length, 0, 'ambiguous voice follow-up requires a named place');
+  await p.submit('Where is Mugar?');
+  assert.deepEqual(p.requests[0].request.history, []);
+  const oldKey = voice().props.key;
+  p.clear();
+  assert.notEqual(voice().props.key, oldKey, 'new chat disposes the old voice component');
+});
 
 test('follow-ups send successful exchanges, repeat questions, preserve labels and replay old map actions', async () => {
   const p = panel();
