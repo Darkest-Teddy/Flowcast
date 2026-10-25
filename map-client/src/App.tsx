@@ -98,6 +98,13 @@ import { campusParkingEvents, createParkingModel, loadParking, parkingAt, parkin
 import { loadEventSources, type EventSources } from './data/eventCalendar';
 import { eventLoadAt, eventLoadLabel, NO_EVENT_DAY, planEventDay, setCurrentEventDay, type EventDay } from './sim/eventAttendance';
 import { NO_VISITORS, planVisitors, setCurrentVisitorPlan, visitorFromId, visitorsAt, type VisitorPlan } from './sim/visitors';
+// Joined students (persona/): a phone builds a character at /join, this display draws it, starred.
+import { JoinQrCard } from './persona/JoinQrCard';
+import { PersonaDetails } from './persona/PersonaDetails';
+import { PERSONA_PICK_LAYER_IDS, personaLayers, personaTooltip } from './persona/layers';
+import { personaUnder, placePersonas } from './persona/placement';
+import { readPersonas, subscribePersonas } from './persona/store';
+import type { Persona } from './persona/model';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -244,6 +251,13 @@ export default function App() {
   const showParkingRef = useRef(showParking);
   const [parkingView, setParkingView] = useState<ParkingState | null>(null);
   const [parkingError, setParkingError] = useState<string | null>(null);
+
+  // Joined students: the list the /join flow writes, and whichever one's details are open. Both the
+  // frame loop and the click handler read these through refs, so neither re-creates the map.
+  const [personas, setPersonas] = useState<Persona[]>(readPersonas);
+  const personasRef = useRef<Persona[]>(personas);
+  const [openPersonaId, setOpenPersonaId] = useState<string | null>(null);
+  const openPersonaRef = useRef<string | null>(null);
 
   const [loadProgress] = useState(createLoadProgress);
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
@@ -593,7 +607,22 @@ export default function App() {
           }
         },
         // Building footprints and labels both carry the building id; anything else clears.
-        onClick: ({ object }: PickingInfo) => {
+        onClick: (info: PickingInfo) => {
+          const { object } = info;
+          /*
+           * A joined student opens their own card in the corner slot, and nothing else: they are not
+           * a building, and selecting one must not disturb whichever panel is open.
+           *
+           * The second pick is what makes the character itself clickable. Someone standing at a
+           * building stands at its centroid, inside it, so the invisible building pick-target is in
+           * front of them and the first pick returns the building; re-picking against only the
+           * persona layers ignores every other layer's depth.
+           */
+          const joined = personaUnder(object) ?? personaUnder(overlay?.pickObject({ x: info.x, y: info.y, radius: 10, layerIds: PERSONA_PICK_LAYER_IDS })?.object);
+          if (joined) {
+            setOpenPersonaId(joined.personaId);
+            return;
+          }
           if (object && 'mobilityKind' in object) {
             selectedMobilityRef.current = object.id;
             setSelectedMobility(object.id);
@@ -617,6 +646,10 @@ export default function App() {
           }
         },
         getTooltip: ({ object }: PickingInfo) => {
+          // First: a joined student carries a bearing like any walker, so without this they would
+          // fall through to the "Student" tooltip at the bottom of this chain.
+          const joined = personaUnder(object);
+          if (joined) return personaTooltip(joined);
           const countTooltip = mobilityTooltip(object);
           if (countTooltip) return countTooltip;
           const fireText = fireTooltip(object);
@@ -886,6 +919,14 @@ export default function App() {
           // public (non-student) crowd, thinned on its own (data/observations.ts, sim/publicCrowd.ts).
           ...agentLayers(withPublic(thinForZoom(withVisitors(inView(nearView(walking, camera.center, q.walkerRadius).concat(nearView(outside?.moving ?? [], camera.center, q.walkerRadius)), view), visitorFrame.drawn), basemap.getZoom()),
             thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom() }),
+          // Students who joined from a phone. Drawn with the same character layers as everyone else
+          // so they walk identically, but starred with their name so they read as real people in the
+          // simulated crowd. On the simulation clock (t), not wall time, so they keep pace with it.
+          ...personaLayers(placePersonas(personasRef.current, playback.locations, t * 1000), models, t, {
+            zoom: basemap.getZoom(),
+            selectedId: openPersonaRef.current,
+            showLabels: !cleanRef.current,
+          }),
           ...(outside && drawSitters ? outdoorLayers(outside.sitting, models, t, basemap.getZoom()) : []),
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
@@ -938,6 +979,26 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [updatePadding]);
+
+  /*
+   * Joined students arrive from somewhere else: the /join flow runs in the dashboard, in another tab
+   * on this same origin, and writes through persona/store.ts. This picks a new character up the
+   * moment it lands, and drops an open details card if that character has been removed.
+   */
+  useEffect(() => {
+    const apply = (list: Persona[]) => {
+      personasRef.current = list;
+      setPersonas(list);
+    };
+    apply(readPersonas());
+    return subscribePersonas(apply);
+  }, []);
+
+  // The frame loop highlights the open character; it reads the id from a ref so opening a card
+  // never restarts the map.
+  useEffect(() => {
+    openPersonaRef.current = openPersonaId;
+  }, [openPersonaId]);
 
   useEffect(() => {
     lightModeRef.current = light;
@@ -1340,6 +1401,8 @@ export default function App() {
    */
   // The map dims a little behind an open sheet (styles.css, .sheet-dim).
   const dim = detent === 'peek' ? 'off' : phone ? detent : 'open';
+  // Derived, not stored: a character removed from the list closes its own card with no extra work.
+  const openPersona = personas.find((p) => p.id === openPersonaId) ?? null;
   const hiddenNote = (what: string, show: () => void) => (
     <p className="layer-note">
       {what} hidden on the map. <button className="link" onClick={show}>Show</button>
@@ -1425,6 +1488,20 @@ export default function App() {
               <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
             </HudAsk>
           )}
+
+          {/*
+            The bottom-left slot: the invitation to join, or the details of the character you just
+            clicked. One at a time and at a fixed height, because the performance readout stacks
+            directly above it (hud.css). The details card reads the simulation clock, so it agrees
+            with the character walking on screen.
+          */}
+          <div className="join-slot">
+            {openPersona ? (
+              <PersonaDetails persona={openPersona} nowMs={hud.time * 1000} onClose={() => setOpenPersonaId(null)} />
+            ) : (
+              <JoinQrCard />
+            )}
+          </div>
         </div>
       )}
 

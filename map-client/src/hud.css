@@ -806,6 +806,26 @@
   opacity: 0.85;
 }
 
+/*
+ * The join slot claims this corner when the chrome is up.
+ *
+ * The QR invitation is the one piece of chrome addressed to the room rather than the operator, so it
+ * takes the corner and the readout stacks on top of it. 188px is the slot's fixed height (164) plus
+ * the 12px gutter and a hair: persona.css keeps that height constant whether the slot is showing the
+ * invitation or a clicked student's details, so this offset is never wrong. The readout is still a
+ * development instrument, dismissable with ?perf=0 and the P key.
+ */
+.app:has(.join-slot) .perf {
+  bottom: 188px;
+}
+
+/* Narrow screens hide the slot (persona.css), so the readout keeps the corner. */
+@media (max-width: 860px) {
+  .app:has(.join-slot) .perf {
+    bottom: 12px;
+  }
+}
+
 /* Below the time block, which is two rows tall now. */
 .app .sheet {
   top: 116px;

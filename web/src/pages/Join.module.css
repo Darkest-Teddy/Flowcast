@@ -1,0 +1,611 @@
+/*
+ * /join -- the phone flow.
+ *
+ * A full-viewport phone screen rather than a page inside the dashboard shell: this is the only thing
+ * on screen when someone scans the code, and the builder's stage needs the whole height above the
+ * sheet. It is laid out for a 402x874 viewport (the handoff's frame) and grows from there.
+ *
+ * Measurements come from the handoff and are exact where it is exact (44px controls, 50px buttons,
+ * 112px option cards, the 64px colour slot). Colours, type and radii are tokens throughout.
+ */
+
+.screen,
+.form {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-text);
+}
+
+/* The builder: stage fills what is left above the sheet. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+/* The three typed screens share one padded column. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 58px var(--space-5) var(--space-10);
+}
+
+/* ---------------------------------------------------------------------------
+ * Progress
+ * ------------------------------------------------------------------------- */
+.progress {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.progressSegment {
+  flex: 1;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-hairline);
+}
+
+.progressSegment[data-on] {
+  background: var(--color-accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Headings
+ * ------------------------------------------------------------------------- */
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-ink-secondary);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+}
+
+.statusTitle {
+  margin-top: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * Step 1: the stage
+ * ------------------------------------------------------------------------- */
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.stageCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Floats over the character; only its own button takes taps. */
+.stageOverlay {
+  position: absolute;
+  top: 58px;
+  left: var(--space-5);
+  right: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.headRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.iconButton {
+  pointer-events: auto;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--control-height-touch);
+  height: var(--control-height-touch);
+  padding: 0;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.iconButton:active {
+  transform: scale(0.92);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.dragHint {
+  position: absolute;
+  left: var(--space-5);
+  bottom: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-ink-tertiary);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Step 1: the sheet
+ * ------------------------------------------------------------------------- */
+.sheet {
+  flex: none;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: 0 -8px 28px rgb(0 0 0 / 0.08);
+  padding: 14px 0 34px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Horizontal rows throughout the sheet; the scrollbar itself is never shown on a phone. */
+.tabs,
+.cards,
+.swatches {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar,
+.cards::-webkit-scrollbar,
+.swatches::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs {
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+}
+
+.tab {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-ink-secondary);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  background: var(--color-strong);
+  color: var(--color-on-strong);
+}
+
+.tab:focus-visible,
+.card:focus-visible,
+.swatchHit:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.cards {
+  gap: 10px;
+  padding: 2px var(--space-5);
+  scroll-padding: 0 var(--space-5);
+  scroll-snap-type: x mandatory;
+}
+
+.card {
+  position: relative;
+  flex: none;
+  width: 112px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1.5px solid var(--color-hairline-soft);
+  border-radius: var(--radius-lg);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.card:active {
+  transform: scale(0.94);
+}
+
+.card[data-on] {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.cardCanvas {
+  width: 100%;
+  height: 112px;
+  display: block;
+}
+
+.cardLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  padding: 0 6px 10px;
+  text-align: center;
+}
+
+.cardCheck {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+}
+
+/*
+ * A fixed 64px slot. Categories without a colour row still reserve it, so moving between Skin and
+ * Hair does not make the sheet (and the Next button under it) jump.
+ */
+.colorSlot {
+  flex: none;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.colorTitle {
+  padding: 0 var(--space-5);
+  font-size: 12px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-ink-secondary);
+}
+
+.swatches {
+  gap: 2px;
+  padding: 0 14px;
+}
+
+/* A 40x44 target around a 28px dot: the dot is the design, the target is the minimum. */
+.swatchHit {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: var(--control-height-touch);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.swatchHit:active {
+  transform: scale(0.9);
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+
+.swatch[data-on] {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------------------- */
+.primary,
+.secondary {
+  height: 50px;
+  border-radius: var(--radius-lg);
+  font: inherit;
+  font-size: var(--text-lg);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
+}
+
+.primary {
+  margin: 0 var(--space-5);
+  border: 0;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--weight-semibold);
+}
+
+.secondary {
+  padding: 0 18px;
+  border: 1px solid var(--color-hairline);
+  background: transparent;
+  color: var(--color-ink);
+  font-weight: var(--weight-medium);
+}
+
+/* Inside the padded column the primary button needs no margin of its own. */
+.form .primary {
+  margin: 0;
+}
+
+.primary:active,
+.secondary:active {
+  transform: scale(0.98);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.primary:disabled,
+.secondary:disabled {
+  cursor: not-allowed;
+}
+
+.primary[data-busy] {
+  opacity: 0.6;
+}
+
+.grow {
+  flex: 1;
+}
+
+.footer {
+  margin-top: auto;
+  display: flex;
+  gap: 10px;
+}
+
+.removeButton {
+  margin-top: auto;
+}
+
+/* ---------------------------------------------------------------------------
+ * Step 2: fields
+ * ------------------------------------------------------------------------- */
+.formHead {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.miniCard {
+  flex: none;
+  width: 72px;
+  height: 88px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.miniCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-ink-secondary);
+}
+
+.input,
+.select,
+.textarea {
+  box-sizing: border-box;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-lg);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.input,
+.select {
+  height: var(--control-height-touch);
+  padding: 0 var(--space-3);
+}
+
+.textarea {
+  padding: 10px var(--space-3);
+  line-height: var(--leading-snug);
+  resize: none;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-field-focus);
+}
+
+/* The platform chevron is inconsistent across phones; this one is ours. */
+.select {
+  padding-right: 36px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%2386868b' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--color-ink-tertiary);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-bad);
+}
+
+/* ---------------------------------------------------------------------------
+ * Step 3 and status: the big preview
+ * ------------------------------------------------------------------------- */
+.preview {
+  position: relative;
+  flex: none;
+  height: 380px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.previewCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.personaName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+}
+
+.personaBio {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  color: var(--color-ink-secondary);
+  text-wrap: pretty;
+}
+
+.personaOutfit {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--color-ink-tertiary);
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------------------
+ * Status: what you are doing
+ * ------------------------------------------------------------------------- */
+.rightNow {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-lg);
+  padding: 14px var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rightNowLabel {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-secondary);
+}
+
+.rightNowValue {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rightNowValue p {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.okDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-ok);
+}
+
+/* ---------------------------------------------------------------------------
+ * Wider screens: the flow stays a phone-width column, centred.
+ * ------------------------------------------------------------------------- */
+@media (min-width: 520px) {
+  .screen,
+  .form {
+    max-width: 402px;
+    margin: 0 auto;
+    border-inline: 1px solid var(--color-hairline-soft);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .iconButton,
+  .swatchHit,
+  .primary,
+  .secondary,
+  .input,
+  .select,
+  .textarea {
+    transition: none;
+  }
+
+  .card:active,
+  .iconButton:active,
+  .swatchHit:active,
+  .primary:active,
+  .secondary:active {
+    transform: none;
+  }
+}

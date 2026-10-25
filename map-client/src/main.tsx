@@ -9,6 +9,8 @@ import { syncTheme } from './theme';
 import './styles.css';
 // After styles.css: the chrome layer positions itself over everything that file lays out.
 import './hud.css';
+// After hud.css: the join slot takes the bottom-left corner and hud.css stacks the perf readout above it.
+import './persona/persona.css';
 
 syncTheme();
 preferHighPerformanceGpu();
