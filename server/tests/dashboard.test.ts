@@ -53,7 +53,7 @@ test('PostgreSQL import, sessions, persistence, isolation, validation, export, d
     s = await serve(pool);
     const call = (path: string, cookie = '', method = 'GET', body?: unknown, headers: Record<string, string> = {}) => fetch(`${s!.origin}/api/dashboard${path}`, { method, headers: { Authorization: cookie ? `Bearer ${cookie}` : '', Origin: s!.origin, 'Content-Type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
     const pub = await call('/public'); assert.equal(pub.status, 200); const data = await pub.json();
-    assert.deepEqual(Object.keys(data).sort(), ['locations','geo','events','impact','hourly','places','clubs'].sort());
+    assert.deepEqual(Object.keys(data).sort(), ['locations','geo','events','impact','hourly','places','bestTimes','clubs'].sort());
     assert.equal(data.events.length, rows.rows[0].payload.impact.events.length);
     const ca = 'device-a'; const cb = 'device-b';
     ids.push(randomUUID(), randomUUID());
