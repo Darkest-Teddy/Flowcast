@@ -1,25 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { ArrowRight, ChevronDown, Eraser } from 'lucide-react';
+import { ArrowRight, Eraser } from 'lucide-react';
 import { api } from '../data/api';
 import { bostonClock, isPersonalQuestion } from '../lib/askRouting';
 import { plainText } from '../lib/chatMarkdown';
 import {
   buildChatRequest,
-  CAMPUSES,
   clockText,
   restoreConversation,
   serializeConversation,
   STORAGE_KEY,
-  weekdayOfDate,
-  WEEKDAYS,
   type ChatContext,
   type ChatMessage,
 } from '../lib/chatHistory';
 import { parseChatBody, type ChatError, type DirectoryResult } from '../lib/chatParse';
 import { config } from '../config';
 import { Button, Page, PageHeader } from '../ui';
-import { Composer, ContextControls, MessageItem, PendingItem } from './ask/Chat';
+import { Composer, MessageItem, PendingItem } from './ask/Chat';
 import { Directory, StartServerHint } from './ask/Directory';
 import { buildPersonalSchedule } from '../lib/personalSchedule';
 import styles from './Ask.module.css';
@@ -43,9 +40,10 @@ function store(messages: ChatMessage[]) {
   }
 }
 
-function nowContext(campus: ChatContext['campus'] = 'charles-river'): ChatContext {
+/** Every question goes out with now in Boston; a day, time, campus or date the person names is read from the conversation. */
+function nowContext(): ChatContext {
   const { weekday, time } = bostonClock(new Date());
-  return { weekday, time: clockText(time), campus, date: null };
+  return { weekday, time: clockText(time), campus: 'charles-river', date: null };
 }
 
 let nextId = 0;
@@ -71,7 +69,6 @@ export default function Ask() {
   const [params, setParams] = useSearchParams();
 
   const [messages, setMessages] = useState<ChatMessage[]>(loadStored);
-  const [context, setContext] = useState<ChatContext>(() => nowContext());
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -80,13 +77,11 @@ export default function Ask() {
 
   // Refs so send() always sees the latest values, whoever calls it (chips, Home's ?q=, retry).
   const messagesRef = useRef(messages);
-  const contextRef = useRef(context);
   const pendingRef = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLOListElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollTo = useRef<string | null>(null);
-  contextRef.current = context;
 
   const commit = useCallback((next: ChatMessage[]) => {
     messagesRef.current = next;
@@ -133,7 +128,7 @@ export default function Ask() {
     controller.current = ctrl;
     setPending('Checking your schedule…');
     setAnnouncement('Checking your schedule.');
-    const request = buildChatRequest(before, q, contextRef.current);
+    const request = buildChatRequest(before, q, nowContext());
     try {
       request.personalSchedule = buildPersonalSchedule(await api.getSchedule());
     } catch {
@@ -219,11 +214,6 @@ export default function Ask() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const changeContext = (next: ChatContext) => {
-    const day = next.date ? weekdayOfDate(next.date) : null;
-    setContext(day === null ? next : { ...next, weekday: day });
-  };
-
   const busy = pending !== null;
   const empty = messages.length === 0 && !busy;
   const chatOff = directory?.ok && !directory.value.chatAvailable;
@@ -273,17 +263,8 @@ export default function Ask() {
           )}
 
           <div className={styles.dock}>
-            <details className={styles.context}>
-              <summary>
-                <span>{CAMPUSES.find((c) => c.value === context.campus)?.label} <span aria-hidden>·</span> {context.date ?? WEEKDAYS[context.weekday]} <span aria-hidden>·</span> {context.time} Boston time</span>
-                <span className={styles.editContext}>Change <ChevronDown aria-hidden /></span>
-              </summary>
-              <div className={styles.contextFields}>
-                <ContextControls context={context} onChange={changeContext} onNow={() => setContext(nowContext(context.campus))} />
-              </div>
-            </details>
             <Composer value={draft} onChange={setDraft} onSend={() => void send(draft)} onStop={stop} busy={busy} textareaRef={textareaRef} />
-            <p className={styles.disclosure}>Crowds are simulated, not live. Answers include sources. Your next two weeks of imported classes are shared with the AI.</p>
+            <p className={styles.disclosure}>Answers are for now in Boston unless you name a day, time or campus. Crowds are simulated, not live. Answers include sources. Your next two weeks of imported classes are shared with the AI.</p>
           </div>
           {empty && (
             <ul className={styles.starters} aria-label="Try a question">

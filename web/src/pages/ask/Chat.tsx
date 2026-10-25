@@ -1,10 +1,10 @@
-import { useId, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { ArrowUp, Map as MapIcon, RotateCcw, Square } from 'lucide-react';
 import { crowdFor } from '@theme/tokens';
 import type { ChatResponse } from '@map/chatContract';
 import { Button, Tag } from '../../ui';
 import { parseMarkdown } from '../../lib/chatMarkdown';
-import { CAMPUSES, MAX_QUESTION_CHARS, WEEKDAYS, type ChatContext, type ChatMessage } from '../../lib/chatHistory';
+import { MAX_QUESTION_CHARS, type ChatMessage } from '../../lib/chatHistory';
 import type { ChatError } from '../../lib/chatParse';
 import { VisualCard } from './Visuals';
 import styles from './Chat.module.css';
@@ -210,61 +210,5 @@ export function Composer({
         )}
       </div>
     </form>
-  );
-}
-
-/** Day, time, campus and optional event date sent with every question. */
-export function ContextControls({ context, onChange, onNow }: { context: ChatContext; onChange: (c: ChatContext) => void; onNow: () => void }) {
-  const ids = { day: useId(), time: useId(), campus: useId(), date: useId() };
-  const dateRef = useRef<HTMLInputElement>(null);
-  return (
-    <fieldset className={styles.context}>
-      <legend className="visually-hidden">Question context</legend>
-      <div className={styles.ctxField}>
-        <label htmlFor={ids.day}>Day</label>
-        <select id={ids.day} value={context.weekday} disabled={context.date !== null} onChange={(e) => onChange({ ...context, weekday: Number(e.target.value) })}>
-          {WEEKDAYS.map((d, i) => (
-            <option key={d} value={i}>
-              {d}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className={styles.ctxField}>
-        <label htmlFor={ids.time}>Time</label>
-        <input id={ids.time} type="time" value={context.time} step={300} onChange={(e) => e.target.value && onChange({ ...context, time: e.target.value })} />
-      </div>
-      <div className={styles.ctxField}>
-        <label htmlFor={ids.campus}>Campus</label>
-        <select id={ids.campus} value={context.campus} onChange={(e) => onChange({ ...context, campus: e.target.value as ChatContext['campus'] })}>
-          {CAMPUSES.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className={styles.ctxField}>
-        <label htmlFor={ids.date}>Event date <span className={styles.optional}>(optional)</span></label>
-        <span className={styles.dateRow}>
-          <input ref={dateRef} id={ids.date} type="date" value={context.date ?? ''} onChange={(e) => onChange({ ...context, date: e.target.value || null })} />
-          {context.date && (
-            <button
-              type="button"
-              className={styles.linkButton}
-              onClick={() => {
-                onChange({ ...context, date: null });
-                dateRef.current?.focus();
-              }}
-            >
-              Clear<span className="visually-hidden"> event date</span>
-            </button>
-          )}
-        </span>
-      </div>
-      <button type="button" className={styles.linkButton} onClick={onNow}>
-        Now in Boston
-      </button>
-    </fieldset>
   );
 }

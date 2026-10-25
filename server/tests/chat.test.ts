@@ -260,7 +260,7 @@ function checkVisual(v: Visual) {
 test('visuals come from tool outputs: a day line with the asked time, a ranking, an event comparison', async () => {
   const log = await run([
     ['place_day', { place: 'Mugar', weekday: null, time: null }],
-    ['rank_places_by_crowd', { kind: 'dining', weekday: null, time: null, near: null, order: null, openOnly: null }],
+    ['rank_places_by_crowd', { kind: 'dining', weekday: null, time: null, near: null, order: null, openOnly: null, campus: null }],
     ['event_impact', { date: '2026-10-29', place: null }],
   ]);
   const visuals = buildVisuals(log.results);
@@ -285,7 +285,7 @@ test('visuals come from tool outputs: a day line with the asked time, a ranking,
 test('missing Sunday library hours produce no ranking visual instead of crashing on omitted counts', async () => {
   const sunday = await campus.playback(6);
   const { out, log } = await call('rank_places_by_crowd', {
-    kind: 'library', weekday: null, time: '01:19', near: null, order: null, openOnly: null,
+    kind: 'library', weekday: null, time: '01:19', near: null, order: null, openOnly: null, campus: null,
   }, { ...ctx, weekday: 6, time: 4740, occupancyAt: (t) => sunday.occupancyAt(t) });
   assert.ok(out.hoursNotInData);
   assert.equal(out.leastCrowded, null);
@@ -312,7 +312,7 @@ test('every new domain produces a visual with provenance, and citations name dir
     ['bluebikes', { near: 'Mugar' }], ['transit_near', { place: 'CAS', weekday: null, time: null, mode: null }], ['housing', { residence: null, time: null }],
     ['population_summary', {}], ['model_validation', { day: null }], ['weather_effects', { condition: 'rain', temperatureF: 50 }],
     ['emergency_info', { place: 'CDS', time: null }], ['parking_lots', { near: 'Agganis Arena', buOnly: null }], ['library_gate_counts', { weekday: null }],
-    ['what_if_scenarios', { scenario: 'snow-day' }], ['published_counts', { source: 'fitrec_visits', weekday: 2 }], ['campus_overview', { weekday: null, time: null }],
+    ['what_if_scenarios', { scenario: 'snow-day' }], ['published_counts', { source: 'fitrec_visits', weekday: 2 }], ['campus_overview', { weekday: null, time: null, campus: null }],
     ['free_rooms', { building: 'CDS', weekday: null, time: null }], ['list_events', { weekday: null, place: null }],
   ]);
   // One at a time, so each kind is checked.
@@ -349,7 +349,7 @@ test('every new domain produces a visual with provenance, and citations name dir
 });
 
 test('follow-ups are 0–3 server-written questions; map links use only the map’s parameters', async () => {
-  const log = await run([['rank_places_by_crowd', { kind: 'library', weekday: null, time: '15:00', near: null, order: null, openOnly: null }], ['place_day', { place: 'Mugar', weekday: null, time: '15:00' }]]);
+  const log = await run([['rank_places_by_crowd', { kind: 'library', weekday: null, time: '15:00', near: null, order: null, openOnly: null, campus: null }], ['place_day', { place: 'Mugar', weekday: null, time: '15:00' }]]);
   const f = followUpsFor(log.results, ['least crowded library?']);
   assert.ok(f.length >= 1 && f.length <= 3);
   assert.equal(new Set(f).size, f.length);
