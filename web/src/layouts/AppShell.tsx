@@ -173,10 +173,6 @@ export function AppShell({
             <span className={styles.brandName}>Flowcast</span>
           </NavLink>
           {brandTag && <span className={styles.brandTag}>{brandTag}</span>}
-          <button type="button" className={`${styles.tool} ${styles.collapse}`} onClick={toggleCollapsed}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-pressed={collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-            {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
-          </button>
           <button ref={closeButton} className={styles.close} onClick={() => setOpen(false)} aria-label="Close menu">
             <X aria-hidden />
           </button>
@@ -203,6 +199,12 @@ export function AppShell({
             </div>
           ))}
         </nav>
+        {/* A full-width row just above the profile; an icon alone on the rail. */}
+        <button type="button" className={`${styles.item} ${styles.collapse}`} onClick={toggleCollapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-pressed={collapsed} title={collapsed ? 'Expand sidebar' : undefined}>
+          {collapsed ? <PanelLeftOpen aria-hidden className={styles.itemIcon} /> : <PanelLeftClose aria-hidden className={styles.itemIcon} />}
+          <span className={styles.itemLabel}>{collapsed ? 'Expand' : 'Collapse'}</span>
+        </button>
         {sidebarFooter && <div className={styles.footer}>{sidebarFooter}</div>}
       </aside>
       {open && <div className={styles.scrim} onClick={() => setOpen(false)} aria-hidden />}
