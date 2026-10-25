@@ -153,6 +153,7 @@ export function createApp(options: AppOptions) {
         return from && to ? walkBetween(from, to, campus.walkRoutes).minutes : null;
       },
     }) : undefined,
+    venues: () => chatFacts?.venues ?? null,
     conflicts: (date, near) => conflictFacts(date, near, { venues: chatFacts?.venues ?? null, calendar: campus.facts?.data?.academicCalendar, locations: campus.locations }),
   }));
   let domains: DataDomain[] | undefined;
