@@ -3,7 +3,7 @@
 // simulate), and the simulated students themselves carry day-to-day and assumption uncertainty.
 // Display only: counts, occupancy and every total stay the simulation's own numbers.
 //
-// A 90% band built from three parts:
+// A heuristic display band, without measured coverage, built from three parts:
 //  - sampling: who turns up varies day to day, roughly Poisson: ±1.645·√count;
 //  - model: behaviour rates (attendance, visit rates, timing) are assumptions: ±15% of the count;
 //  - unmodelled presence: staff, visitors and non-students only ever add people, so the upper
@@ -19,7 +19,7 @@ export interface CountInterval {
   high: number;
 }
 
-/** 90% interval (people) around a simulated count, given the place's capacity (0 if unknown). */
+/** Heuristic range in people, not a calibrated confidence interval; capacity is 0 if unknown. */
 export function countInterval(count: number, capacity: number): CountInterval {
   const c = Math.max(0, count);
   const spread = Z90 * Math.sqrt(c) + MODEL_SHARE * c;

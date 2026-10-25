@@ -34,11 +34,13 @@ export function loadInputs() {
   return { data, base, transit, bikes: readData('bikes'), outdoor: readData('outdoor'), observations };
 }
 
-/** Representative days: two ordinary days compared with measured series, two sanity scenarios. */
+/** The Tuesday/Thursday runs match the weekdays of the dated crossing surveys. */
 export function representativeDays(data) {
   const wednesday = dateForWeekday(data, 2), saturday = dateForWeekday(data, 5);
   return [
+    { label: 'Tuesday, classes, dry 62°F', weekday: 1, kind: 'normal', conditions: { date: dateForWeekday(data, 1), weather: { condition: 'clear', temperatureF: 62 } } },
     { label: 'Wednesday, classes, dry 62°F', weekday: 2, kind: 'normal', conditions: { date: wednesday, weather: { condition: 'clear', temperatureF: 62 } } },
+    { label: 'Thursday, classes, dry 62°F', weekday: 3, kind: 'normal', conditions: { date: dateForWeekday(data, 3), weather: { condition: 'clear', temperatureF: 62 } } },
     { label: 'Saturday, dry 62°F', weekday: 5, kind: 'normal', conditions: { date: saturday, weather: { condition: 'clear', temperatureF: 62 } } },
     { label: 'Finals Wednesday, dry 45°F', weekday: 2, kind: 'sanity', conditions: { date: '2026-12-16', weather: { condition: 'clear', temperatureF: 45 } } },
     { label: 'Rainy Wednesday, 50°F', weekday: 2, kind: 'sanity', rain: true, conditions: { date: wednesday, weather: { condition: 'rain', temperatureF: 50 } } },
@@ -63,7 +65,7 @@ export function scoreModel({ base, data, bikes, transit, observations }, model, 
     if (spec.weekday === 2 && !spec.rain && spec.kind === 'normal') dryOutdoor = outdoor15;
     if (spec.rain && model) {
       const share = dryOutdoor ? outdoor15 / dryOutdoor : 0;
-      const metric = { id: 'outdoor-rain-share', label: 'People by the river at 15:00 in rain ÷ same day dry', value: share, loss: Math.max(0, share - 0.15) / 0.3, target: '≤ 15%', weight: 0.5 };
+      const metric = { id: 'outdoor-rain-share', label: 'People by the river at 15:00 in rain ÷ same day dry', value: share, loss: Math.max(0, share - 0.15) / 0.3, target: '≤ 15% (assumed)', weight: validate.ASSUMPTION_WEIGHT_SCALE, basis: 'assumed sanity target' };
       score.metrics.push(metric); score.loss += metric.weight * metric.loss;
     }
     scores.push(score);
