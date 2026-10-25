@@ -712,8 +712,7 @@ function Transparency({ day, sources }: { day: DayForecast | null; sources: Camp
           </motion.h2>
           <p className={styles.transparencyBody}>
             Flowcast’s crowd levels come from a simulation built on stated assumptions, such as students attending their scheduled classes
-            and eating during posted dining hours. They are not measurements of real students. The map’s Data tab shows the published BU
-            source behind each building’s classes and hours.
+            and eating during posted dining hours. They are not measurements of real students. The map’s Data tab shows each building’s class schedules and opening hours.
           </p>
         </div>
         <div className={styles.evidence}>
@@ -726,8 +725,7 @@ function Transparency({ day, sources }: { day: DayForecast | null; sources: Camp
               <dd>
                 {hours.length ? hours.map((entry, i) => (
                   <span key={i}>
-                    <a href={entry.sourceUrl}>{entry.text}</a>{entry.qualifier ? ` (${entry.qualifier})` : ''}
-                    <span className={styles.published}>Published</span>
+                    {entry.text}
                   </span>
                 )) : 'Unavailable for this date'}
               </dd>
