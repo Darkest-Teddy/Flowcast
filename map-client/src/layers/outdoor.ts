@@ -1,8 +1,8 @@
 // People spending free time by the Charles (sim/outdoor.ts): sitting on BU Beach and the
-// Esplanade lawns (Kenney 'idle' clip, at stable per-person spots) and walking or running the
-// river path (they join the walkers' existing layers, so they add no layers of their own).
+// Esplanade lawns (Kenney 'idle' clip, at stable per-person spots; drawn, unpickable, in the waiting
+// riders' idle layers) and walking or running the river path (they join the walkers' existing
+// layers). Neither adds layers of their own.
 // Only people near the camera are drawn, at most OUTDOOR_DRAW_CAP.
-import { characterLayers, type LoadedModels } from './agents';
 import type { DayData, Stay, WalkingAgent } from '../sim/playback';
 import { alongRoute, isOutdoor, loopPace, sittingSpot, type OutdoorFile, type OutdoorSpot } from '../sim/outdoor';
 
@@ -81,9 +81,4 @@ export function outdoorPeople(index: OutdoorIndex | null, t: number, center: [nu
     if (sitting.length + moving.length >= OUTDOOR_DRAW_CAP) break;
   }
   return { sitting, moving };
-}
-
-/** One idle layer per character model (empty ones aren't drawn). */
-export function outdoorLayers(sitting: WalkingAgent[], models: LoadedModels, time: number, zoom: number) {
-  return characterLayers(sitting, models, time, { id: 'outdoor-idle', zoom, clip: 'idle', pickable: false, hideEmpty: true });
 }
