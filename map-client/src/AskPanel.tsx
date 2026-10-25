@@ -50,6 +50,8 @@ const SINGULAR: Record<LocationKind, string> = {
 const MODEL_NOTE = 'Simulated students over each place’s stated capacity, on the shown day’s modeled schedule. Not a live count.';
 
 const pct = (share: number) => `${Math.round(share * 100)}%`;
+/** A headcount-only place, as on the building tags: under 3 is a special building few can use, shown as 0. */
+const headcount = (count: number) => `${count < 3 ? 0 : count.toLocaleString()} students`;
 const level = (share: number) => crowdLevel(share).label.toLowerCase();
 const meters = (m: number) => (m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(m / 1000).toFixed(1)} km`);
 const walkText = (w: Walk) =>
@@ -74,7 +76,7 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       const rows = ranked.map((r: RankedPlace) => ({
         location: r.location,
         // A residence near full could be fuller still (as on the building tags).
-        primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.share === null ? `${r.count.toLocaleString()} students`
+        primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.share === null ? headcount(r.count)
           : `${r.location.kind === 'dorm' && Math.round(r.share * 100) >= 95 ? '≥' : ''}${pct(r.share)} ${crowdLevel(r.share).label}`,
         secondary: [r.modeled && r.open === null ? 'Hours not published' : '', r.walk ? (r.walk.meters === 0 ? 'here' : `${r.walk.basis === 'estimate' ? '~' : ''}${r.walk.minutes} min walk`) : ''].filter(Boolean).join(' · '),
         share: r.open === false ? null : r.share,
@@ -197,7 +199,7 @@ function fromAgent(result: AgentAnswer, byId: Map<string, CampusLocation>): Answ
     const share = r.open === false || r.percent === null ? null : r.percent / 100;
     return [{
       location,
-      primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.percent === null ? `${r.students.toLocaleString()} students` : `${r.percent}% ${r.level ?? crowdLevel(r.percent / 100).label}`,
+      primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.percent === null ? headcount(r.students) : `${r.percent}% ${r.level ?? crowdLevel(r.percent / 100).label}`,
       secondary: [r.modeled && r.open === null ? 'Hours not published' : '', r.walkMinutes === null ? '' : r.walkMinutes === 0 ? 'here' : `${r.walkMinutes} min walk`].filter(Boolean).join(' · '),
       share,
     }];

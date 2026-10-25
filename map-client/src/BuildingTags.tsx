@@ -303,7 +303,7 @@ interface ActivityDisplayInput {
 }
 
 /** Labels refer to the modeled space and its denominator, not every use of its building. */
-/** Below these, a place shows "<N%" / "<N students" instead of a figure that rounds to zero. */
+/** Below these, a place shows "<N%" instead of a figure that rounds to zero, or "0 students". */
 const NEAR_ZERO_PERCENT = 5;
 const NEAR_ZERO_STUDENTS = 3;
 /** At or above this, a residence shows "≥N%": halls are modeled just under full (sim/population.ts
@@ -331,7 +331,8 @@ export function activityDisplay({ count, capacity: total, modeled, capacityBasis
   const primary = modeled === false ? 'Not modeled'
     : hasPercentage
       ? percent < NEAR_ZERO_PERCENT && !(allowZero && count === 0) ? `<${nearZeroPct}%${unit}` : `${nearFull ? '≥' : ''}${percent}%${unit}`
-      : count < NEAR_ZERO_STUDENTS && !(allowZero && count === 0) ? `<${NEAR_ZERO_STUDENTS} students` : `${count.toLocaleString()} ${count === 1 ? 'student' : 'students'}`;
+      // Headcount-only places this quiet are special buildings few students can use: shown as 0.
+      : count < NEAR_ZERO_STUDENTS ? '0 students' : `${count.toLocaleString()} students`;
   const secondary = hasPercentage ? level.label : '';
   return {
     primary,
