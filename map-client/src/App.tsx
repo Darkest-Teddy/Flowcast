@@ -33,7 +33,7 @@ import { loadObservations, type CalibrationObservations } from './data/observati
 import { buildPublicCrowd, isPublicId, type PublicCrowd } from './sim/publicCrowd';
 import { waitingCharacters, waitingRiderLayers } from './layers/waitingRiders';
 import { SourceDataPanel } from './SourceDataPanel';
-import { AMENITY_KINDS, displayName, displayShort } from './tags/names';
+import { displayName, displayShort, sharedTagParts } from './tags/names';
 import { assignNames, type NameLists } from './sim/names';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
@@ -1924,7 +1924,8 @@ const AMENITY_SPREAD_M = 14;
  * Building tags: one per building, named for the building (sim/../tags/names.ts), plus a dot of
  * its own for every dining hall, library or gym that shares a building with something else
  * (Warren Towers and Warren Dining; Questrom and Pardee Library; Fenway Center, Fenway Dining and
- * FitRec at Fenway). The building's tag carries its main space's load; the glow still uses the
+ * FitRec at Fenway; Mugar and the Music and African Studies libraries inside it). The building's tag
+ * carries its main space's load (sharedTagParts); the glow still uses the
  * busiest space.
  */
 function splitSharedTags(
@@ -1941,8 +1942,7 @@ function splitSharedTags(
   const out: BuildingOccupancy[] = [];
   for (const b of buildings) {
     const places = byBuilding.get(b.id) ?? [];
-    const amenities = places.filter((o) => AMENITY_KINDS.has(o.location.kind));
-    const rest = places.filter((o) => !AMENITY_KINDS.has(o.location.kind));
+    const { rest, amenities } = sharedTagParts(places);
     // A building with one kind of place (or only amenities): its single tag, cleanly named.
     if (!amenities.length || !rest.length) {
       out.push({ ...b, name: displayName(b.name), short: displayShort(b.short, b.name) });
