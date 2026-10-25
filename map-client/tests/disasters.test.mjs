@@ -331,3 +331,73 @@ test('real Wednesday transit day: CDS earthquake 250 m and meteor 100 m at noon 
   console.log(JSON.stringify(summary));
   assert.equal(JSON.stringify([original.stays, original.trips, original.transitRides]), saved);
 });
+
+test('meteor occupants run on saved routes, then resume fixed schedules at normal speed', () => {
+  const base = fixture(), original = structuredClone(base);
+  const result = applyIncident(base, at('meteor'));
+  const p = result.participants.find(p => p.agentId === 'onQuad');
+  const escape = result.day.trips.find(t => t.agent === p.agentId);
+  assert.deepEqual(escape.path, base.walkRoutes['quad>d'].path);
+  assert.ok(Math.abs(escape.timestamps.at(-1) - p.departAt - 70 / 2.4) < 1e-7);
+  assert.deepEqual(base, original);
+  assert.deepEqual(result, applyIncident(base, at('meteor')));
+  assertWellFormed(result.day);
+  assertNoEarlyReentry(result, 1000);
+  assertConserved(result.day, [999, 1000, p.departAt + 1, 3000, 86399]);
+  assert.deepEqual(result.day.stays.filter(s => s.agent === 'inD'), base.stays.filter(s => s.agent === 'inD'));
+});
+
+test('nearby outdoor through-walkers flee continuously away from impact and keep later appointments', () => {
+  const base = fixture();
+  const left = [-71.002, 42], near = [-70.9995, 42], right = [-70.996, 42];
+  for (const [id, x] of [['west', left[0]], ['east', right[0]]]) base.locations.push({ ...loc('d', ''), id, position: [x, 42], kind: 'outdoor' });
+  for (const [id, path] of [['outward', [left, near, right]], ['inward', [right, near, left]]]) {
+    const from = id === 'outward' ? 'west' : 'east', to = id === 'outward' ? 'east' : 'west';
+    base.agents.push({ id, home: from, model: 0, walkSpeed: 1.4 });
+    base.trips.push({ agent: id, from, to, path, timestamps: [900, 1000, 1200] });
+    base.stays.push({ agent: id, location: from, start: 0, end: 900 }, { agent: id, location: to, start: 1200, end: DAY });
+  }
+  const result = applyIncident(base, at('meteor'));
+  for (const id of ['outward', 'inward']) {
+    const trips = result.day.trips.filter(t => t.agent === id);
+    const before = trips[0], flee = trips[1];
+    assert.deepEqual(before.path.at(-1), near);
+    assert.deepEqual(flee.path[0], near);
+    assert.equal(before.timestamps.at(-1), 1000);
+    assert.equal(flee.timestamps[0], 1000);
+    assert.equal(flee.to, 'east');
+    assert.ok(flee.path.every(p => p[0] >= near[0]));
+    const metres = (right[0] - near[0]) * 111320 * Math.cos(42 * Math.PI / 180);
+    assert.ok(Math.abs((flee.timestamps.at(-1) - 1000) - metres / (1.4 * 2.4)) < 0.5);
+  }
+  assert.equal(result.day.stays.find(s => s.agent === 'outward' && s.location === 'east').end, DAY);
+  assertWellFormed(result.day);
+  assert.deepEqual(result, applyIncident(base, at('meteor')));
+  assertConserved(result.day, [950, 999.99, 1000, 1050, 1200, 86399]);
+});
+
+test('meteor escape preserves a partial approach and declines paths that turn toward impact', async () => {
+  const { meteorEscape } = await import('../src/sim/meteorFlee.ts');
+  const center = [-71, 42];
+  const trip = { agent: 'walker', from: 'west', to: 'east', path: [[-70.9999, 42], [-70.998, 42]], timestamps: [900, 1100] };
+  const escape = meteorEscape(trip, 950, center, 100, new Set());
+  assert.ok(escape);
+  assert.deepEqual(escape.route.path[0], escape.approach.path.at(-1));
+  assert.equal(escape.approach.cumulative.at(-1), 50);
+  assert.equal(meteorEscape(trip, 950, center, 1, new Set()), undefined);
+  assert.equal(meteorEscape(trip, 950, center, 100, new Set(['east'])), undefined);
+  const bend = { ...trip, path: [[-70.9995, 42], [-71, 42], [-70.998, 42]], timestamps: [900, 1000, 1100] };
+  assert.equal(meteorEscape(bend, 900, center, 100, new Set()), undefined);
+});
+
+test('meteor running ends at escape destination without accelerating subsequent schedule trips', () => {
+  const base = fixture();
+  base.stays.find(s => s.agent === 'leaver' && s.location === 'home').end = 2000;
+  base.trips.push({ agent: 'leaver', from: 'home', to: 'd', path: [[X.home, 42], [X.d, 42]], timestamps: [2000, 2200] });
+  base.stays.push({ agent: 'leaver', location: 'd', start: 2200, end: DAY });
+  const result = applyIncident(base, at('meteor'));
+  const walks = result.day.trips.filter(t => t.agent === 'leaver');
+  assert.ok(Math.abs(walks[0].timestamps.at(-1) - walks[0].timestamps[0] - 50 / 2.4) < 1e-7);
+  assert.deepEqual(walks[1], base.trips.at(-1));
+  assertWellFormed(result.day);
+});

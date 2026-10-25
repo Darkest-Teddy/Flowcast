@@ -78,6 +78,8 @@ import { applyIncident, type IncidentKind } from './sim/incidents';
 import { damageAt } from './sim/disasterDamage';
 import { damageExclusionAreas, fallbackDamageLayers } from './layers/damageFallback';
 import { incidentLayers } from './layers/incidents';
+import { METEOR_APPROACH_SECONDS } from './layers/disasterEffects';
+import { impactShake } from './layers/impactShake';
 import { planFireResponse as planDisasterFireResponse, fireResponseAt } from './sim/disasterFireResponse';
 import { fireResponseLayers } from './layers/fireResponse';
 import { AskPanel, type AskShow } from './AskPanel';
@@ -452,6 +454,7 @@ export default function App() {
     const mapElement = document.createElement('div');
     mapElement.className = 'map';
     containerRef.current!.appendChild(mapElement);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     (async () => {
       loadProgress.reset();
@@ -747,6 +750,8 @@ export default function App() {
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       let parkingState: ParkingState | null = null; // only while the Parking toggle is on
       let lastParking = 0;
+      let runnersFor: IncidentRun | null = null;
+      let meteorRunners = new Map<string, IncidentRun['participants'][number]>();
       const tick = (now: number) => {
         // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
         if (!pacer.shouldRender(now)) {
@@ -775,6 +780,12 @@ export default function App() {
         }
         const playback = playbackRef.current!;
         const t = timeRef.current;
+        const impact = incidentRunRef.current;
+        const [shakeX, shakeY] = impact?.incident.kind === 'meteor' && playingRef.current
+          ? impactShake(t - impact.incident.start, impact.hazard?.radiusMetres ?? 100, reducedMotion.matches)
+          : [0, 0];
+        mapElement.style.transform = shakeX || shakeY
+          ? `translate(${shakeX}px, ${shakeY}px) scale(1.025)` : '';
         if (lightModeRef.current === 'auto') {
           // Mapbox Standard has four presets: pick one by the sun (cached per sim half-minute) and set
           // the veil in the same frame, so the switch itself doesn't flash.
@@ -797,6 +808,16 @@ export default function App() {
         const q = quality.settings;
         setParticleScale(q.particles);
         const walking = playback.walkingAt(t);
+        if (runnersFor !== impact) {
+          runnersFor = impact;
+          meteorRunners = new Map(impact?.incident.kind === 'meteor'
+            ? impact.participants.map(p => [p.agentId, p]) : []);
+        }
+        const runningIds = new Set<string>();
+        for (const person of walking) {
+          const p = meteorRunners.get(person.id);
+          if (p && t >= p.departAt && t < p.resumedAt && person.to === p.decision?.destinationId) runningIds.add(person.id);
+        }
         const publicWalking = publicCrowdRef.current?.walkingAt(t) ?? [];
         const waitingRiders = playback.waitingAt(t);
         // Outdoor free time by the river (layers/outdoor.ts): indexed once per day, drawn near the camera.
@@ -931,7 +952,7 @@ export default function App() {
           // Students walking, plus river walkers/runners (conditions engine), plus event visitors; then the
           // public (non-student) crowd, thinned on its own (data/observations.ts, sim/publicCrowd.ts).
           ...agentLayers(withPublic(thinForZoom(withVisitors(inView(nearView(walking, camera.center, q.walkerRadius).concat(nearView(outside?.moving ?? [], camera.center, q.walkerRadius)), view), visitorFrame.drawn), basemap.getZoom()),
-            thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom() }),
+            thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom(), runningIds }),
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
@@ -1210,8 +1231,9 @@ export default function App() {
   const startIncident = (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number, outdoorCrowd?: boolean) => {
     const baseline = playbackRef.current;
     if (!baseline || baselinePlaybackRef.current) throw new Error('Reset the current scenario before starting another incident.');
-    if (timeRef.current + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
-    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration, radiusMetres,
+    const start = timeRef.current + (kind === 'meteor' ? METEOR_APPROACH_SECONDS : 0);
+    if (start + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
+    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start, duration, radiusMetres,
       ...(kind === 'fire' && outdoorCrowd ? { outdoorCrowd: true } : {}) };
     const location = baseline.locations.find((entry) => entry.id === locationId)!;
     // The trucks depend only on the fire's active period, so they are planned first: the outdoor crowd keeps clear of where they park.
