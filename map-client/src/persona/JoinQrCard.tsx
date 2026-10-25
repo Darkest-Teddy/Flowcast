@@ -20,6 +20,7 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { JOINED_MARK } from './model';
+import { JoinCharacter } from './JoinCharacter';
 
 /** Where the phone should land. Set VITE_JOIN_URL to point a display at another host. */
 export function joinUrl(): string {
@@ -59,6 +60,9 @@ export function JoinQrCard({ url = joinUrl() }: { url?: string }) {
           </span>
         )}
       </div>
+      {/* A real character, because the card is asking for one. */}
+      <JoinCharacter />
+
       <div className="join-card-body">
         <span className="join-card-mark" aria-hidden="true">
           {JOINED_MARK}

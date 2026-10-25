@@ -38,8 +38,7 @@
 .hud-tabs,
 .hud-status-controls,
 .hud-legend,
-.hud-ask,
-.hud-panel {
+.hud-ask {
   background: var(--glass-fill-strong, rgb(28 32 38 / 0.72));
   -webkit-backdrop-filter: blur(18px) saturate(1.5);
   backdrop-filter: blur(18px) saturate(1.5);
@@ -217,8 +216,8 @@
  * a crowd level sitting in the layer rail.
  */
 .hud-rail-button[aria-pressed='true'] {
-  background: rgb(var(--hue) / 0.18);
-  border-color: rgb(var(--hue) / 0.55);
+  background: rgba(var(--hue), 0.18);
+  border-color: rgba(var(--hue), 0.55);
   color: rgb(var(--hue));
 }
 
@@ -303,8 +302,7 @@
 
 .hud-rail-button:focus-visible,
 .hud-tabs [role='tab']:focus-visible,
-.hud-time button:focus-visible,
-.hud-panel-close:focus-visible {
+.hud-time button:focus-visible {
   outline: 2px solid var(--color-accent, #2997ff);
   outline-offset: 2px;
 }
@@ -1065,66 +1063,6 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Right panel
- * ------------------------------------------------------------------------- */
-.hud-panel {
-  position: absolute;
-  top: 116px;
-  right: 12px;
-  bottom: 12px;
-  width: min(380px, 34vw);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.hud-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex: none;
-  padding: 14px 10px 10px 16px;
-}
-
-.hud-panel-head h2 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.hud-panel-close {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--map-ink-secondary, #a1a1a6);
-  cursor: pointer;
-}
-
-@media (hover: hover) {
-  .hud-panel-close:hover {
-    background: rgb(255 255 255 / 0.1);
-    color: var(--color-ink, #f5f5f7);
-  }
-}
-
-.hud-panel-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  /* Scrolling the panel must never scroll anything behind it. */
-  overscroll-behavior: contain;
-  padding: 0 16px 16px;
-}
-
-/* ---------------------------------------------------------------------------
  * Retiring the previous chrome.
  *
  * The old bottom toolbar ran the full width for a play button, a clock and five
@@ -1205,13 +1143,6 @@
 .app[data-view='none'] .sheet,
 .app[data-view='none'] .sheet-dim {
   display: none;
-}
-
-/* Clear of the status group, which now carries the clock, the drag bar and the
-   weather across the top right. */
-/* Below the time block, which is two rows tall now. */
-.app .sheet {
-  top: 116px;
 }
 
 /* The sheet's own stats line duplicated what the panel already says and was the
@@ -1301,26 +1232,69 @@
  * The rail and the panel cannot share a phone's width, so the panel becomes a
  * bottom sheet and the ask bar moves above the time bar rather than beside it.
  * ------------------------------------------------------------------------- */
+/*
+ * Under 1100px the three top pieces stop fitting side by side: the brand on the
+ * left, the tabs centred and the 380px status on the right add up to more than
+ * the width. The tabs keep their icons and drop their labels, which is what the
+ * hues were for.
+ */
+@media (max-width: 1100px) {
+  .hud-tabs [role='tab'] {
+    padding: 0 10px;
+  }
+
+  .hud-tabs [role='tab'] span:not([class]),
+  .hud-tabs [role='tab'] {
+    font-size: 0;
+  }
+
+  .hud-tabs [role='tab'] svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .hud-status {
+    width: min(300px, 40vw);
+  }
+}
+
+/*
+ * Phone and small tablet. The panel is the Sheet's own bottom-sheet mode here
+ * (Sheet.tsx handles the detents), so the chrome's job is to get out of its way:
+ * the ask bar moves above it and the bottom-left column stands down, since the
+ * legend and the join card cannot share this width with anything.
+ */
 @media (max-width: 860px) {
-  .hud-panel {
+  .app .sheet {
     top: auto;
-    left: 12px;
-    right: 12px;
-    bottom: 120px;
-    width: auto;
-    max-height: 46vh;
   }
 
   .hud-ask {
+    left: 12px;
     width: calc(100vw - 24px);
     bottom: 68px;
   }
 
-  .hud-brand-context {
+  /* The campus still reads in the menu; the pill has no room for it. */
+  .hud-campus {
     display: none;
+  }
+
+  .hud-status-controls {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .hud-status .hud-scrubber {
+    width: 72px;
   }
 }
 
+/*
+ * Narrowest. The rail cannot be a left column and leave room for a map, so it
+ * becomes a row along the bottom, and everything above it shifts up by its
+ * height. The tag flyout opens upward from there rather than off the screen.
+ */
 @media (max-width: 560px) {
   .hud-rail {
     top: auto;
@@ -1330,14 +1304,36 @@
     flex-direction: row;
     justify-content: space-between;
     overflow-x: auto;
+    overscroll-behavior: contain;
   }
 
-  .hud-panel {
-    bottom: 170px;
+  .hud-rail-divider {
+    width: 1px;
+    height: auto;
+    margin: 6px 4px;
+  }
+
+  .hud-tag-menu {
+    top: auto;
+    bottom: calc(100% + 8px);
+    left: auto;
+    right: 0;
+    width: min(236px, calc(100vw - 24px));
   }
 
   .hud-ask {
-    bottom: 118px;
+    bottom: 126px;
+  }
+
+  /* One line of reading, and the controls under it, both full width. */
+  .hud-status {
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+
+  .hud-brand {
+    max-width: calc(100vw - 24px);
   }
 }
 

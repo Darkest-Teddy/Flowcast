@@ -10,6 +10,9 @@ import { activityDisplay, BuildingTags, type BuildingTagsHandle, type TagMode } 
 import { orderPlaces, PlacesPanel, type Category } from './panel/Places';
 import { BikesPanel, TransitPanel, type DockRow, type ShuttleRow, type StopRow } from './panel/TransitBikes';
 import { EventDetail, EventsList, type EventWhen } from './panel/Events';
+import { defaultRadius, gathers, radiusLimits, SCENARIOS, WhatIfForm, type ScenarioKind } from './panel/WhatIf';
+import { WhatIfCircle, type WhatIfCircleHandle } from './WhatIfCircle';
+import { DISASTER_LIMITATIONS, hazardZone } from './sim/disasters';
 import './panel/panel.css';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
@@ -242,6 +245,11 @@ const ANALYTICS_SUBS: { id: 'places' | 'transit' | 'bikes'; label: string; hue: 
   { id: 'bikes', label: 'Bikes', hue: 'orange', icon: <HudIcons.bikes /> },
 ];
 
+/** The pin on a row that would become the what-if's centre. */
+const CENTRE_PIN =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>';
+
 const SEARCH_PLACEHOLDER: Record<'places' | 'transit' | 'bikes', string> = {
   places: 'Search buildings',
   transit: 'Search stops',
@@ -326,6 +334,19 @@ export default function App() {
   const [eventWhen, setEventWhen] = useState<EventWhen>('today');
   const [openEventId, setOpenEventId] = useState<string | null>(null);
   const [eventsExpanded, setEventsExpanded] = useState(false);
+  /*
+   * The what-if being set up: a scenario, a centre and a radius. The radius is
+   * dragged on the map, so the circle overlay reads it through a ref while the
+   * panel reads it from state; both are the same number.
+   */
+  const [whatIfKind, setWhatIfKind] = useState<ScenarioKind>('fire-drill');
+  const [whatIfCentreId, setWhatIfCentreId] = useState<string | null>(null);
+  const [whatIfRadius, setWhatIfRadius] = useState(defaultRadius('fire-drill'));
+  const [whatIfMinutes, setWhatIfMinutes] = useState(30);
+  const [whatIfOutside, setWhatIfOutside] = useState(true);
+  const [assumptionsOpen, setAssumptionsOpen] = useState(false);
+  const circleRef = useRef<WhatIfCircleHandle>(null);
+  const circleFrameRef = useRef<{ centre: [number, number] | null; radius: number; rgb: string }>({ centre: null, radius: 0, rgb: '245, 245, 247' });
   const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitTagsRef = useRef<TransitTagsHandle>(null);
   const placeTagsRef = useRef<PlaceTagsHandle>(null);
@@ -935,6 +956,15 @@ export default function App() {
           tagMode: tagModeRef.current,
           focusIds: focusRef.current,
         });
+        // The what-if's area, re-projected every frame: its shape depends on the
+        // camera, and a circle that lagged the map would be describing a different
+        // piece of ground from the one the engine is using.
+        circleRef.current?.update({
+          centre: circleFrameRef.current.centre,
+          radiusMetres: circleFrameRef.current.radius,
+          rgb: circleFrameRef.current.rgb,
+          project: basemap.project,
+        });
         // Parking (toggle on only): the estimate is refreshed at most twice a second, then its tags
         // (with the toggle on, lots are what the user asked to see: placed before the transit tags).
         const parking = showParkingRef.current ? parkingRef.current : null;
@@ -1475,6 +1505,110 @@ export default function App() {
   })();
 
   /*
+   * The what-if's centre, radius and catchment.
+   *
+   * Fenway is fixed for the Red Sox game, because a sell-out crowd arrives at one
+   * place; everything else centres on whatever is selected, falling back to the
+   * busiest building so the circle is never nowhere. hazardZone is the engine's
+   * own test, so the chips below the form name exactly the buildings the run
+   * will act on rather than an approximation of them.
+   */
+  const fenway = eventSourcesRef.current.calendar?.venues.find((v) => /fenway/i.test(v.name)) ?? null;
+  const whatIfCentre = (() => {
+    if (whatIfKind === 'red-sox') return fenway ? { id: fenway.id, name: fenway.name, position: fenway.position as [number, number] } : null;
+    const byId = whatIfCentreId ? ranked.find((o) => o.location.id === whatIfCentreId)?.location : undefined;
+    const bySelection = selected ? ranked.find((o) => o.location.building === selected)?.location : undefined;
+    const pick = byId ?? bySelection ?? ranked.find((o) => o.location.kind !== 'outdoor')?.location;
+    return pick ? { id: pick.id, name: pick.name, position: pick.position } : null;
+  })();
+
+  const whatIfHue = SCENARIOS.find((sc) => sc.id === whatIfKind)?.hue ?? 'neutral';
+  const HUE_RGB: Record<string, string> = {
+    teal: '95, 211, 195', green: '134, 211, 154', violet: '183, 174, 247',
+    orange: '244, 172, 131', pink: '241, 167, 198', neutral: '245, 245, 247',
+  };
+
+  /*
+   * The buildings the circle catches, as chips in their own crowd colours.
+   *
+   * Memoised on the centre and the radius, and nothing else. hazardZone walks
+   * every building ring on the campus with a point-to-polygon distance for each,
+   * and this panel re-renders twice a second as the clock ticks: recomputing it
+   * per render froze the tab outright at a 500 m radius. The crowd figures inside
+   * the chips go stale between recomputes, which is the right trade; the chips
+   * answer "which buildings", and the list only changes when the circle does.
+   */
+  const whatIfZoneKey = `${view}|${whatIfCentre?.id ?? ''}|${Math.round(whatIfRadius)}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const whatIfZone = useMemo(() => {
+    const day = baseDayRef.current;
+    if (!day || !whatIfCentre || view !== 'log') return { chips: [], count: 0 };
+    const target = day.locations.find((l) => l.id === whatIfCentre.id)
+      ?? ({ ...whatIfCentre, kind: 'classroom', capacity: 0, building: '', short: whatIfCentre.name } as unknown as CampusLocation);
+    const zone = hazardZone(day, target, whatIfRadius);
+    const found = zone.locationIds
+      .map((id) => ranked.find((o) => o.location.id === id))
+      .filter((o): o is NonNullable<typeof o> => Boolean(o));
+    const chips = found
+      .slice(0, 12)
+      .map((o) => {
+        const d = activityDisplay({
+          count: o.count, capacity: o.location.capacity, share: o.share,
+          modeled: o.modeled ?? o.location.activityModeled,
+          capacityBasis: o.location.capacityBasis, kind: o.location.kind,
+        });
+        return { id: o.location.id, name: o.location.short || o.location.name, icon: d.icon, style: d.style as Record<string, string> };
+      });
+    return { chips, count: found.length };
+  }, [whatIfZoneKey]);
+
+  // Read by the frame loop, which owns the projection and runs whether or not
+  // React has re-rendered.
+  circleFrameRef.current = {
+    centre: view === 'log' && whatIfCentre ? whatIfCentre.position : null,
+    radius: whatIfRadius,
+    rgb: HUE_RGB[whatIfHue],
+  };
+
+  const pickScenario = (next: ScenarioKind) => {
+    setWhatIfKind(next);
+    setWhatIfRadius(defaultRadius(next));
+    setWhatIfMinutes(next === 'fire-drill' || next === 'fire-alarm' ? 30 : 120);
+    setWhatIfOutside(gathers(next));
+  };
+
+  /** Clamp a dragged radius to the scenario's own limits, in 10 m steps. */
+  const setRadiusClamped = (metres: number) => {
+    const { min, max, step } = radiusLimits(whatIfKind);
+    setWhatIfRadius(Math.min(max, Math.max(min, Math.round(metres / step) * step)));
+  };
+
+  /*
+   * Starting a what-if. Six of the seven are incidents the engine runs directly.
+   * The Red Sox game is not an incident at all: it is a crowd, and the engine
+   * already models Fenway's games through the venue calendar, so it plays the
+   * next real game rather than inventing one.
+   */
+  const nextFenwayGame = (() => {
+    const calendar = eventSourcesRef.current.calendar;
+    if (!calendar || !fenway) return null;
+    return calendar.events
+      .filter((e) => e.venueId === fenway.id && /red sox|baseball|mlb/i.test(`${e.name} ${e.kind}`))
+      .sort((a, b) => a.start.localeCompare(b.start))[0] ?? null;
+  })();
+
+  const startWhatIf = () => {
+    if (whatIfKind === 'red-sox') {
+      if (!nextFenwayGame) return;
+      const start = new Date(nextFenwayGame.start);
+      jumpToVenueEvent(nextFenwayGame.start.slice(0, 10), start.getHours() * 3600 + start.getMinutes() * 60);
+      return;
+    }
+    if (!whatIfCentre) return;
+    startIncident(whatIfKind, whatIfCentre.id, whatIfMinutes * 60, whatIfRadius, whatIfOutside);
+  };
+
+  /*
    * One search, read by every list in the panel. Declared here because the
    * events list below is the first to use it and `const` has no hoisting: with
    * it further down, opening the Events tab threw before the panel rendered.
@@ -1648,6 +1782,7 @@ export default function App() {
         <div ref={veilRef} className="light-veil" aria-hidden="true" style={{ opacity: daylightAt(hud.time).veil }} />
       )}
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
+      <WhatIfCircle ref={circleRef} onRadius={setRadiusClamped} onDragEnd={() => undefined} />
       <TransitTags ref={transitTagsRef} />
       <PlaceTags ref={placeTagsRef} />
       {showParking && <ParkingTags ref={parkingTagsRef} />}
@@ -1806,9 +1941,88 @@ export default function App() {
           was the thing this layout set out to remove.
         */}
         {hud && view === 'log' && (
-          <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
-            onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
-            siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
+          <section id="hud-panel-log" role="tabpanel" aria-labelledby="hud-tab-log">
+            <div className="pn-search">
+              <HudIcons.search />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                placeholder="Search a building to target"
+                aria-label="Search a building to target"
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} aria-label="Clear search">
+                  <HudIcons.close />
+                </button>
+              )}
+            </div>
+
+            {/* While a what-if is running, the panel is its readout; the form
+                comes back when it is reset. */}
+            {incidentRun ? (
+              <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
+                onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
+                siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
+            ) : (
+              <>
+                {search.trim() && (
+                  <div className="pn-card">
+                    <p className="pn-label">Pick a building · top {Math.min(3, searchedPlaces.length)}</p>
+                    <ol className="pn-rows">
+                      {searchedPlaces.slice(0, 3).map((o) => (
+                        <li key={o.location.id}>
+                          <button
+                            type="button"
+                            className="pn-row"
+                            aria-pressed={whatIfCentre?.id === o.location.id}
+                            onClick={() => {
+                              setWhatIfCentreId(o.location.id);
+                              setSearch('');
+                            }}
+                          >
+                            <span className="pn-tile pn-tile--plain" dangerouslySetInnerHTML={{ __html: CENTRE_PIN }} />
+                            <span className="pn-name">{displayName(o.location.name)}</span>
+                            <span className="pn-value" />
+                            <span className="pn-chev" aria-hidden="true">›</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                    {searchedPlaces.length === 0 && <p className="pn-empty">No matches. Try a building code like CAS.</p>}
+                  </div>
+                )}
+
+                <WhatIfForm
+                  kind={whatIfKind}
+                  onKind={pickScenario}
+                  centreName={whatIfCentre?.name ?? null}
+                  radius={whatIfRadius}
+                  onRadius={setRadiusClamped}
+                  affected={whatIfZone.chips}
+                  affectedCount={whatIfZone.count}
+                  minutes={whatIfMinutes}
+                  onMinutes={setWhatIfMinutes}
+                  outside={whatIfOutside}
+                  onOutside={setWhatIfOutside}
+                  startLabel={whatIfKind === 'red-sox'
+                    ? (nextFenwayGame ? `Play ${nextFenwayGame.name}` : 'No Fenway game in the calendar')
+                    : `Start at ${formatClock(hud.time)}`}
+                  onStart={startWhatIf}
+                  canStart={whatIfKind === 'red-sox' ? Boolean(nextFenwayGame) : Boolean(whatIfCentre)}
+                  onAssumptions={() => setAssumptionsOpen((v) => !v)}
+                />
+
+                {assumptionsOpen && (
+                  <div className="pn-card pn-split">
+                    {DISASTER_LIMITATIONS.map((line) => (
+                      <p key={line}>{line}</p>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
         )}
         {/*
           Ask is the bar at the bottom of the screen, not a panel here as well.

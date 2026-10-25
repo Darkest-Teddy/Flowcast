@@ -11,11 +11,7 @@
  * the hues name things, and on this map blue already means Quiet.
  */
 
-.hud-panel-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+/* The panel's own container is the sheet (hud.css sets its column layout). */
 
 /* ---------------------------------------------------------------------------
  * Search, pinned above whatever the tab is showing
@@ -223,7 +219,7 @@
   padding: 0 2px;
   border: 1px solid transparent;
   border-radius: 11px;
-  background: rgb(var(--hue) / 0.06);
+  background: rgba(var(--hue), 0.06);
   color: var(--color-ink, #f5f5f7);
   font: inherit;
   font-size: 11px;
@@ -254,13 +250,13 @@
 
 @media (hover: hover) {
   .pn-cats button:hover[aria-pressed='false'] {
-    background: rgb(var(--hue) / 0.12);
+    background: rgba(var(--hue), 0.12);
   }
 }
 
 .pn-cats button[aria-pressed='true'] {
-  background: rgb(var(--hue) / 0.16);
-  border-color: rgb(var(--hue) / 0.7);
+  background: rgba(var(--hue), 0.16);
+  border-color: rgba(var(--hue), 0.7);
 }
 
 /* ---------------------------------------------------------------------------
@@ -359,7 +355,7 @@
   width: 32px;
   height: 32px;
   border-radius: 9px;
-  background: rgb(var(--lv) / 0.14);
+  background: rgba(var(--lv), 0.14);
   color: rgb(var(--lv));
 }
 
@@ -439,7 +435,12 @@
 /* ---------------------------------------------------------------------------
  * Focus rings, one ring for everything in here
  * ------------------------------------------------------------------------- */
-.hud-panel-body :focus-visible {
+/*
+ * One ring for everything in the panel. White rather than the accent, because
+ * blue is the Quiet crowd colour on this map and a blue ring around a row read
+ * as a level rather than as focus.
+ */
+.sheet-body :focus-visible {
   outline: 2px solid var(--color-ink, #f5f5f7);
   outline-offset: 2px;
 }
@@ -859,4 +860,275 @@
   .pn-secondary {
     transition: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * Log: the what-if form
+ * ------------------------------------------------------------------------- */
+/*
+ * Said once, at the top, and never again. The old form repeated it in three
+ * places; a warning repeated is a warning nobody reads.
+ */
+.wi-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.05);
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.wi-note svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+/* Four across, two down: seven scenarios and a gap, rather than a scrolling row. */
+.wi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  flex: none;
+}
+
+.wi-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 62px;
+  padding: 0 2px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: rgba(var(--hue), 0.05);
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.wi-grid button { --hue: var(--hue-neutral); }
+.wi-grid button[data-hue='teal'] { --hue: var(--hue-teal); }
+.wi-grid button[data-hue='green'] { --hue: var(--hue-green); }
+.wi-grid button[data-hue='violet'] { --hue: var(--hue-violet); }
+.wi-grid button[data-hue='orange'] { --hue: var(--hue-orange); }
+.wi-grid button[data-hue='pink'] { --hue: var(--hue-pink); }
+
+.wi-icon {
+  display: block;
+  color: rgb(var(--hue));
+}
+
+.wi-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+@media (hover: hover) {
+  .wi-grid button:hover[aria-pressed='false'] {
+    background: rgba(var(--hue), 0.1);
+  }
+}
+
+.wi-grid button[aria-pressed='true'] {
+  background: rgba(var(--hue), 0.16);
+  border-color: rgba(var(--hue), 0.7);
+}
+
+/* What the chosen scenario will do, in one line under the grid. */
+.wi-line {
+  margin: -2px 0 0 4px;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* Centre and radius: a reading with its own hint, not an input to fill in. */
+.wi-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.06);
+  font-size: 13px;
+}
+
+.wi-field svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--map-ink-secondary, #b4b4b9);
+}
+
+.wi-field-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.wi-field-hint {
+  margin-left: auto;
+  flex: none;
+  color: var(--color-ink-tertiary, #8e8e93);
+  font-size: 11px;
+}
+
+/*
+ * The same radius, as a slider.
+ *
+ * The handle on the map is the control this form is built around, and a drag is
+ * not reachable from a keyboard, so the value needs a second path. Kept quiet:
+ * it is an alternative, not the main event.
+ */
+.wi-slider {
+  width: 100%;
+  margin: -4px 0 0;
+  accent-color: #f5f5f7;
+}
+
+.wi-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: none;
+}
+
+/* One building the circle caught, in its own crowd colour. */
+.wi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.06);
+  color: var(--lv-text, #f5f5f7);
+  font-size: 12px;
+}
+
+.wi-chip svg {
+  width: 13px;
+  height: 13px;
+  color: rgb(var(--lv));
+}
+
+.wi-duration {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.06);
+  color: var(--map-ink-secondary, #b4b4b9);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.wi-duration[aria-pressed='true'] {
+  background: #f5f5f7;
+  color: #1d1d1f;
+  font-weight: 600;
+}
+
+/* Gather outside: a real checkbox with its own track drawn over it. */
+.wi-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wi-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.wi-track {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+  transition: background-color 160ms ease;
+}
+
+.wi-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #f5f5f7;
+  transition: translate 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.wi-switch input:checked + .wi-track {
+  background: var(--color-ok, #30d158);
+}
+
+.wi-switch input:checked + .wi-track::after {
+  translate: 16px 0;
+}
+
+.wi-switch input:focus-visible + .wi-track {
+  outline: 2px solid var(--color-ink, #f5f5f7);
+  outline-offset: 2px;
+}
+
+.wi-start {
+  height: 42px;
+  font-size: 14px;
+}
+
+/* The long explanation that used to sit above the form, behind a link. */
+.wi-assumptions {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wi-grid button,
+  .wi-duration,
+  .wi-track,
+  .wi-track::after {
+    transition: none;
+  }
+}
+
+/* The overflow chip: a count, not a building, so it carries no level colour. */
+.wi-chip--more {
+  color: var(--color-ink-tertiary, #8e8e93);
 }
