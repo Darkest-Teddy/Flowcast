@@ -206,13 +206,21 @@ function fromAgent(result: AgentAnswer, byId: Map<string, CampusLocation>): Answ
   return { text: result.answer, rows, note: rows.some((r) => r.share !== null) ? MODEL_NOTE : undefined, show };
 }
 
-/** Why the answer below came from this device, in plain words. */
+/*
+ * Why the answer below came from this device.
+ *
+ * Kept, and no longer shown. Where the answer was computed is a fact about our
+ * plumbing, not about the campus, and a line of apology under every reply made
+ * the fallback look like a fault rather than the same answer by another route.
+ * `device` still rides along on the exchange so it reaches the console and any
+ * future diagnostics; see where it is set in answerLocally.
+ */
 function deviceReason(error: AgentError | null): string {
-  if (!error || error.kind === 'notConfigured') return 'Answered on this device: the Ask server isn’t set up.';
-  if (error.kind === 'rateLimited') return 'Answered on this device: too many questions to the Ask server just now.';
-  if (error.kind === 'timeout') return 'Answered on this device: the Ask server took too long.';
-  if (error.kind === 'warming') return 'Answered on this device: the Ask server is still simulating that day.';
-  return 'Answered on this device: the Ask server isn’t reachable.';
+  if (!error || error.kind === 'notConfigured') return 'the Ask server is not set up';
+  if (error.kind === 'rateLimited') return 'too many questions to the Ask server just now';
+  if (error.kind === 'timeout') return 'the Ask server took too long';
+  if (error.kind === 'warming') return 'the Ask server is still simulating that day';
+  return 'the Ask server is not reachable';
 }
 
 interface Exchange {
@@ -379,7 +387,6 @@ export function AskPanel({
               </ol>
             )}
             {exchange.answer.note && <p className="muted ask-note">{exchange.answer.note}</p>}
-            {exchange.answer.device && <p className="muted ask-note">{exchange.answer.device}</p>}
             {exchange.answer.show && <button type="button" className="ask-show" onClick={() => onShow(exchange.answer!.show)}>Show on map</button>}
             </div>}
           </li>

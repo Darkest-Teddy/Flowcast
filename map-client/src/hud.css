@@ -934,11 +934,14 @@
  * have, and both notes explain Ask at length; a bar over a map is the wrong place
  * for either. The same copy still reads in full on the dashboard's /ask page.
  *
- * `.ask-clear` ("New chat") is kept: it is a control, not an explanation.
+ * "New chat" goes too. On a bar over a map the conversation is a couple of
+ * exchanges long and scrolls away on its own; a button to clear it was taking up
+ * the only line of chrome the bar has, to solve a problem the bar does not have.
  */
 .hud-ask .ask-heading h2,
 .hud-ask > .ask > .muted:not(.ask-status),
-.hud-ask .ask > .ask-note {
+.hud-ask .ask > .ask-note,
+.hud-ask .ask-clear {
   display: none;
 }
 
