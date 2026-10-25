@@ -16,6 +16,7 @@ import Events from './pages/Events';
 import EventImpact from './pages/EventImpact';
 import Clubs from './pages/Clubs';
 import Meetings from './pages/Meetings';
+import ClubDetail from './pages/ClubDetail';
 import Profile from './pages/Profile';
 import Calendars from './pages/Calendars';
 import Privacy from './pages/Privacy';
@@ -85,6 +86,7 @@ const router = createBrowserRouter([
       { path: 'event-impact', element: <EventImpact /> },
       { path: 'clubs', element: <Clubs /> },
       { path: 'meetings', element: <Meetings /> },
+      { path: 'clubs/:clubId', element: <ClubDetail /> },
       { path: 'profile', element: <Profile /> },
       { path: 'calendars', element: <Calendars /> },
       { path: 'privacy', element: <Privacy /> },

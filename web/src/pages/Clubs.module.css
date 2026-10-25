@@ -85,3 +85,5 @@
     padding: var(--space-4) var(--space-5);
   }
 }
+.name h2 a { color: inherit; text-decoration: none; }
+.name h2 a:hover { text-decoration: underline; }

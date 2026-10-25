@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { api, useResource } from '../data/api';
 import { Avatar, Button, EmptyState, Loading, Page, PageHeader, Segmented, Tag } from '../ui';
 import styles from './Clubs.module.css';
@@ -25,7 +26,7 @@ export default function Clubs() {
     <PageHeader
       title="Clubs"
       description="Organizers from BU’s public event listings."
-      actions={<><Button to="/meetings" variant="secondary">Find meetings</Button><Button to="/meetings?tab=plan" variant="secondary">Plan a meeting</Button></>}
+      actions={<><Button to="/meetings" variant="secondary">Find meetings</Button><Button to="/meetings?tab=plan" variant="secondary">Plan a meeting</Button><Button to="/clubs/register" variant="ghost">Run a club?</Button></>}
     />
   );
 
@@ -75,7 +76,7 @@ export default function Clubs() {
             <li key={c.id} className={styles.card}>
               <div className={styles.name}>
                 <Avatar name={c.name} size={32} />
-                <h2>{c.name}</h2>
+                <h2><Link to={`/clubs/${encodeURIComponent(c.id)}`}>{c.name}</Link></h2>
                 {c.following && <Tag tone="accent">Following</Tag>}
               </div>
               <p className={styles.description}>{c.description}</p>
@@ -103,7 +104,7 @@ export default function Clubs() {
       )}
 
       <p className={styles.footnote}>
-        Listings do not verify membership or officer status.
+        Listings do not verify membership. Officers are confirmed by an administrator before they can post.
       </p>
     </Page>
   );

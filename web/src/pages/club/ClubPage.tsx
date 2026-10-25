@@ -1,4 +1,5 @@
 import { Upload } from 'lucide-react';
+import { Navigate } from 'react-router';
 import { useSession } from '../../auth/session';
 import { api, useResource } from '../../data/api';
 import { formatDate, formatDateTime, formatRelative } from '../../lib/format';
@@ -13,14 +14,16 @@ export default function ClubPage() {
   const events = useResource(() => api.getCampusEvents(), []);
   const imports = useResource(() => (clubId ? api.getCalendarImports(clubId) : Promise.resolve([])), [clubId]);
 
+  // Officers manage their club on its page.
+  if (clubId) return <Navigate to={`/clubs/${encodeURIComponent(clubId)}`} replace />;
   if (!clubId) {
     return (
       <Page>
         <PageHeader title="Club page" />
         <EmptyState
           title="You’re not an officer of a club yet"
-          body="Club registration and officer verification are currently unavailable."
-          action={<Button to="/clubs/register">Register your club</Button>}
+          body="Request officer access to your club; an administrator confirms it."
+          action={<Button to="/clubs/register">Request officer access</Button>}
         />
       </Page>
     );

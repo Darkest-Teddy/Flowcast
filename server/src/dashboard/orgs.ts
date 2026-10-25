@@ -79,6 +79,8 @@ export interface OrgDeps {
   clubs: () => Promise<Map<string, { id: string; name: string }>>;
   /** Mapped campus places by id. */
   places: () => Promise<Map<string, { id: string; name: string }>>;
+  /** A club's single-day listings from BU's public event listings (Terrier Central). */
+  listedEvents?: (clubId: string) => Promise<{ id: string; title: string; start: string; end: string | null; venue: string | null; locationId: string | null; url?: string }[]>;
   admins?: Set<string>;
   now?: () => Date;
 }
@@ -211,10 +213,17 @@ export function orgRoutes(deps: OrgDeps) {
     const meetings = await upcomingMeetings(c.id);
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader('Content-Disposition', `inline; filename="${c.name.replace(/[^\w\- ]+/g, '').trim().slice(0, 60) || 'club'}.ics"`);
-    res.send(clubCalendar(c.name, meetings.map((m) => ({
-      uid: m.eventId, title: m.title, start: m.start, end: m.end, cancelled: m.cancelled,
-      location: [m.room, m.locationId ? places.get(m.locationId)?.name : null].filter(Boolean).join(', '),
-    })), now()));
+    const listed = (await deps.listedEvents?.(c.id)) ?? [];
+    res.send(clubCalendar(c.name, [
+      ...meetings.map((m) => ({
+        uid: m.eventId, title: m.title, start: m.start, end: m.end, cancelled: m.cancelled,
+        location: [m.room ? `Room ${m.room}` : null, m.locationId ? places.get(m.locationId)?.name : null].filter(Boolean).join(', '),
+      })),
+      ...listed.filter((e) => Date.parse(e.end ?? e.start) > now().getTime() - 7 * 86_400_000).map((e) => ({
+        uid: e.id, title: e.title, start: e.start, end: e.end, url: e.url,
+        location: [e.venue, e.locationId ? places.get(e.locationId)?.name : null].filter(Boolean).join(', '),
+      })),
+    ], now()));
   });
 
   // ---------------------------------------------------------------- the signed-in person

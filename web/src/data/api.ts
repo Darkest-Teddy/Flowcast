@@ -23,6 +23,7 @@ import type {
   AdminSettings, AdminUser, AgentBrain, ApplicationStatus, CalendarConnection, CalendarImport,
   CampusEvent, CampusLocation, ClubApplication, ClubDetails, CrowdAnswer, CrowdReportSummary, DataSource, EventImpactData,
   NotificationPrefs, Profile, ScheduleItem, ScheduleImportState, SchedulePreview, SimulationSettings, StatRange, Suggestion, WeekStat,
+  ClubAnnouncement, ClubMeetingsPublic, ClubNotification, ConflictReport, MeetingInput, MemberAvailability, OfficerMeeting, OrgMe,
 } from './types';
 
 const copy = <T,>(value: T): Promise<T> => Promise.resolve(structuredClone(value));
@@ -208,6 +209,23 @@ export const api = {
   connectCalendar: (): Promise<CalendarConnection> => unsupported('Google Calendar connection'),
   getNotificationPrefs: () => dashboard.getMe().then((data) => data.notificationPrefs),
   updateNotificationPrefs: (patch: Partial<NotificationPrefs>) => dashboard.mutate<NotificationPrefs>('/preferences', 'PATCH', patch),
+
+  // Student organizations (server/src/dashboard/orgs.ts).
+  getOrgMe: () => dashboard.request<OrgMe>('/orgs/me'),
+  getClubMeetings: () => dashboard.request<ClubMeetingsPublic>('/club-meetings'),
+  setRsvp: (eventId: string, going: boolean) => dashboard.request<{ eventId: string; going: boolean; count: number }>(`/rsvps/${encodeURIComponent(eventId)}`, 'PUT', { going }),
+  setSharingFreeTime: (clubId: string, share: boolean) => dashboard.request<{ clubId: string; share: boolean }>(`/clubs/${encodeURIComponent(clubId)}/share-availability`, 'PUT', { share }),
+  getClubNotifications: () => dashboard.request<{ enabled: boolean; items: ClubNotification[] }>('/notifications'),
+  markClubNotificationsRead: () => dashboard.request<void>('/notifications/read', 'POST'),
+  requestOfficerRole: (clubId: string, officerName: string, note: string) => dashboard.request<ClubApplication>('/officer-requests', 'POST', { clubId, officerName, note }),
+  postClubMeeting: (clubId: string, input: MeetingInput) => dashboard.request<OfficerMeeting>(`/clubs/${encodeURIComponent(clubId)}/meetings`, 'POST', input),
+  updateClubMeeting: (clubId: string, id: string, patch: Partial<MeetingInput> & { cancelled?: boolean }) => dashboard.request<OfficerMeeting>(`/clubs/${encodeURIComponent(clubId)}/meetings/${id}`, 'PATCH', patch),
+  postClubAnnouncement: (clubId: string, body: string) => dashboard.request<{ ok: true }>(`/clubs/${encodeURIComponent(clubId)}/announcements`, 'POST', { body }),
+  getClubAnnouncements: (clubId: string) => dashboard.request<ClubAnnouncement[]>(`/clubs/${encodeURIComponent(clubId)}/announcements`),
+  getMemberAvailability: (clubId: string) => dashboard.request<MemberAvailability>(`/clubs/${encodeURIComponent(clubId)}/availability`),
+  getConflicts: (date: string, near: string | null) => dashboard.request<ConflictReport>(`/conflicts?${new URLSearchParams({ date, ...(near ? { near } : {}) })}`),
+  /** A subscribable calendar of a club's meetings (no sign-in needed, so calendar apps can fetch it). */
+  clubCalendarUrl: (clubId: string) => `${window.location.origin}/api/dashboard/clubs/${encodeURIComponent(clubId)}/calendar.ics`,
   exportMyData: () => dashboard.request<Record<string, unknown>>('/export'),
   async deleteMyData() {
     await dashboard.mutate('/me', 'DELETE');
@@ -220,7 +238,6 @@ export const api = {
   },
   getCalendarImports: (_clubId: string): Promise<CalendarImport[]> => unsupported('Club calendar import history'),
   uploadClubCalendar: (_clubId: string, _fileName: string, _eventCount: number): Promise<CalendarImport> => unsupported('Club calendar upload'),
-  submitClubApplication: (_input: Pick<ClubApplication, 'clubName' | 'officerName' | 'officerEmail' | 'listingUrl' | 'description'>): Promise<ClubApplication> => unsupported('Club application submission'),
   async getDataSources(): Promise<DataSource[]> {
     const response = await fetch('/data/campus-data.json');
     if (!response.ok) throw new Error('The deployed campus source inventory could not be loaded.');
@@ -231,8 +248,8 @@ export const api = {
   getSimulation: (): Promise<SimulationSettings> => unsupported('Shared simulation settings'),
   updateSimulation: (_patch: Partial<SimulationSettings>): Promise<SimulationSettings> => unsupported('Shared simulation updates'),
   getPlaybackSpeeds: (): Promise<number[]> => unsupported('Shared playback controls'),
-  getClubApplications: (): Promise<ClubApplication[]> => unsupported('Club application records'),
-  setApplicationStatus: (_id: string, _status: ApplicationStatus, _note?: string): Promise<ClubApplication> => unsupported('Club application review'),
+  getClubApplications: () => dashboard.request<ClubApplication[]>('/admin/officer-requests'),
+  setApplicationStatus: (id: string, status: ApplicationStatus, note?: string) => dashboard.request<ClubApplication>(`/admin/officer-requests/${id}`, 'POST', { status, ...(note ? { note } : {}) }),
   getAdminUsers: (): Promise<AdminUser[]> => unsupported('Administrative user directory'),
   resetSimulation: (): Promise<SimulationSettings> => unsupported('Shared simulation reset'),
   getAgentBrain: (): Promise<AgentBrain> => unsupported('Agent administration'),

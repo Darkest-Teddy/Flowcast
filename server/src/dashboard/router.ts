@@ -228,6 +228,9 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     account: (res) => account(res),
     clubs: async () => new Map(clubsFromBundle((await snapshot()).impact).map((c) => [c.id, c])),
     places: async () => new Map(locationsFromBundle((await snapshot()).impact).map((l) => [l.id, l])),
+    listedEvents: async (clubId) => (await snapshot()).impact.events
+      .filter((e) => e.organizer?.trim() && organizerId(e.organizer.trim()) === clubId && (!e.end || e.end.slice(0, 10) === e.start.slice(0, 10)))
+      .map((e) => ({ id: e.id, title: e.name, start: e.start, end: e.end, venue: e.locationName, locationId: e.locationId, url: e.sourceUrl })),
   }));
   router.use((_error: unknown, _req: Request, res: Response, _next: import('express').NextFunction) => {
     if (_error instanceof ScheduleError) { res.status(_error.status).json({ error: _error.message }); return; }

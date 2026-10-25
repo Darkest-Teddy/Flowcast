@@ -12,7 +12,7 @@ import { clubCalendar, freeCounts, MIN_SHARED_MEMBERS } from '../src/dashboard/o
 
 test('free-time counts: a member is busy in any hour a class overlaps, and only counts come out', () => {
   const now = new Date('2026-10-26T12:00:00Z'); // Monday 8:00 AM Boston
-  const cls = (start: string, end: string) => ({ id: start, title: 'Secret seminar', start, end, locationId: null, source: 'calendar' as const });
+  const cls = (start: string, end: string) => ({ id: start, title: 'Secret seminar', start, end, locationId: 'cas', source: 'calendar' as const });
   const days = freeCounts([
     [cls('2026-10-26T14:00:00Z', '2026-10-26T15:15:00Z')], // 10:00–11:15 Boston
     [cls('2026-10-26T14:30:00Z', '2026-10-26T15:00:00Z')], // 10:30–11:00
