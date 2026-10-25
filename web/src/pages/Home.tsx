@@ -1,30 +1,29 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, Map as MapIcon } from 'lucide-react';
 import { crowdFor } from '@theme/tokens';
 import { LiveVoice } from '@map/LiveVoice';
 import { useSession } from '../auth/session';
+import { config } from '../config';
 import { api, locationName, useResource } from '../data/api';
 import type { HourlyForecast } from '../data/types';
 import { formatDayTime, formatHour, formatPercent, formatWeekday } from '../lib/format';
 import { findStudySpots } from '../lib/studyFinder';
 import {
+  AskBar,
   Avatar,
   Button,
   ListRow,
   Page,
-  SearchBar,
   SectionList,
   Segmented,
   SelectField,
   StatCard,
   StatusBadge,
   Tag,
-  type SearchMode,
 } from '../ui';
 import { eventVenue } from './student/events';
 import { AskChat } from './student/AskChat';
-import { SearchResults } from './student/SearchResults';
 import { bostonDay, bostonTime, getDeparturePlan } from '../lib/departure';
 import { DepartureCard, useDepartureClock } from './student/DepartureCard';
 import { GapCard } from './student/GapCard';
@@ -83,8 +82,6 @@ export default function Home() {
   const spots = useResource(api.getStudySpots);
   const studyHours = useResource(api.getStudyHours);
 
-  const [search, setSearch] = useState<string | null>(null);
-  const [mode, setMode] = useState<SearchMode>('search');
   const [chartPlace, setChartPlace] = useState<string | null>(null);
   const [eventFilter, setEventFilter] = useState<'all' | 'fits'>('all');
   const now = useDepartureClock();
@@ -177,6 +174,7 @@ export default function Home() {
         <p className={styles.date}>{bostonLongDate(now)} · {bostonTime(now)} in Boston</p>
         <h1 className={styles.headline}>{greetingFor(hourNow)}{firstName ? `, ${firstName}` : ''}. Where are you headed?</h1>
         <p className={styles.status}>{calendarStatus}</p>
+        <Button href={config.mapUrl} variant="accent" size="lg" icon={<MapIcon aria-hidden />} className={styles.mapButton}>Open campus map</Button>
       </div>
 
       <TodayBrief schedule={schedule.data ?? []} locations={locations.data ?? []}
@@ -185,13 +183,8 @@ export default function Home() {
         now={now} transit={transit.context}
         loading={schedule.loading || locations.loading || geo.loading || profile.loading || hours.loading || events.loading} />
 
-      <AskChat scheduleAvailable={schedule.data !== null} visible={mode === 'ask'} composer={(ask, pending, resetToken) => (
-        <div className={styles.searchControls}>
-          <SearchBar placeholder="Search buildings, events, clubs and classes" mode={mode}
-            resetToken={resetToken} onModeChange={setMode} pending={mode === 'ask' && pending}
-            onSubmit={(query, selectedMode) => { if (selectedMode === 'ask') void ask(query); else setSearch(query); }} />
-          <LiveVoice compact />
-        </div>
+      <AskChat scheduleAvailable={schedule.data !== null} visible composer={(ask, pending, resetToken) => (
+        <AskBar resetToken={resetToken} pending={pending} onSubmit={(question) => void ask(question)} trailing={<LiveVoice compact />} />
       )} data={{
         locations: locations.data ?? [], schedule: schedule.data ?? [],
         events: events.data ?? [], clubs: clubs.data ?? [],
@@ -199,16 +192,6 @@ export default function Home() {
         geo: geoData, homeLocationId,
         transit: transit.context,
       }} />
-
-      {mode === 'search' && search && (
-        <SearchResults query={search} onClear={() => setSearch(null)}
-          data={{
-            locations: locations.data ?? [], schedule: schedule.data ?? [],
-            events: events.data ?? [], clubs: clubs.data ?? [],
-            hourly: hourly.data ?? [], places: places.data ?? [],
-            geo: geoData, homeLocationId,
-          }} />
-      )}
 
       {[locations, schedule, places, hourly, bestTimes, geo, profile, events, clubs, impact, hours, spots, studyHours].filter((resource) => resource.error).map((resource, index) => (
         <p role="alert" key={index}>{resource.error?.message} <Button variant="ghost" size="sm" onClick={resource.reload}>Try again</Button></p>
