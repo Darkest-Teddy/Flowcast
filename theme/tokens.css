@@ -171,7 +171,7 @@
   --content-max-landing: 1120px; /* landing page sections */
   --nav-capsule-max: 880px; /* landing page floating nav */
   /* The landing page: always dark (it sets data-theme="dark"), near-black and flat, with glass only on
-     the cards floating over the map. */
+     the scenario cards floating over the map. */
   --landing-canvas: #0b0c0e;
   --landing-raised: #141518; /* flat panels: the video frame, the scenario map */
   --landing-raised-2: #24262b; /* the chosen segment of a segmented control */

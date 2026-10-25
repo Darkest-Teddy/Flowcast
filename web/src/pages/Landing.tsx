@@ -12,7 +12,7 @@ import { introSources, presetNow } from '@map/intro';
 import { IntroSky } from '@map/IntroSky';
 import type { EventImpactData, ImpactPlace } from '../data/types';
 import { openMap, prepareMap, STILL_ATTR } from './landing/openMap';
-import { entrance, floatGroup, floatIn, grow, item, reveal, rise, rule, stagger } from './landing/motion';
+import { entrance, grow, item, reveal, rise, rule, stagger } from './landing/motion';
 import { scrollToElement, useSmoothScroll } from './landing/smoothScroll';
 import { fireDrill, gameNight, loadLandingScenarios, lunchRush, type ScenarioResult } from './landing/scenarios';
 import { bostonStamp, loadStudentCount } from './landing/status';
@@ -33,7 +33,7 @@ import styles from './Landing.module.css';
 
 /**
  * The public front page: signed-out visitors see it at /, and anyone at /landing. Always dark: near
- * black and flat, with glass only on the cards floating over the map. Every number comes from the
+ * black and flat, with glass only on the scenario cards floating over the map. Every number comes from the
  * model's data (forecast.ts, scenarios.ts, status.ts).
  */
 
@@ -144,7 +144,7 @@ export default function Landing() {
         </a>
         <LandingNav away={navAway} />
         <main id="main" tabIndex={-1} className={styles.main}>
-          <Hero day={day} preset={preset} still={still} />
+          <Hero preset={preset} still={still} />
           <MapVideo still={still} />
           <Scenarios
             results={[lunchRush(day), gameNight(event), fireDrill(scenarioFile.data, impact.data?.referenceWeekStart)]}
@@ -304,7 +304,7 @@ function LandingNav({ away }: { away: boolean }) {
 
 /* ---------- 01 Hero ---------- */
 
-function Hero({ day, preset, still }: { day: DayForecast | null; preset: ReturnType<typeof presetNow>; still: ReturnType<typeof introSources> }) {
+function Hero({ preset, still }: { preset: ReturnType<typeof presetNow>; still: ReturnType<typeof introSources> }) {
   // Once the still is up, start the map behind the scenes (prepareMap), so it opens ready or nearly.
   const [stillUp, setStillUp] = useState<HTMLImageElement | null>(null);
   useEffect(() => (stillUp ? prepareMap(config.mapUrl, stillUp) : undefined), [stillUp]);
@@ -315,9 +315,6 @@ function Hero({ day, preset, still }: { day: DayForecast | null; preset: ReturnT
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const textY = useTransform(scrollYProgress, [0, 1], [0, -140]);
   const textOpacity = useTransform(scrollYProgress, [0, 0.55], [1, 0]);
-
-  const mugar = day?.place('mugar');
-  const share = day?.share('mugar', HERO_HOUR) ?? null;
 
   return (
     <section ref={heroRef} id="top" tabIndex={-1} className={styles.hero} aria-labelledby="hero-title">
@@ -351,37 +348,6 @@ function Hero({ day, preset, still }: { day: DayForecast | null; preset: ReturnT
         <IntroSky light={preset} />
       </div>
 
-      {/* Real forecast cards over the map, after Felt's panels: kept below the headline and buttons. */}
-      {day && mugar && share != null && (
-        <motion.div {...floatGroup} className={styles.heroCards}>
-          <motion.div {...floatIn} className={`${styles.glassCard} ${styles.placeCard}`}>
-            <p className={styles.cardLabel}>{mugar.name}</p>
-            <p className={styles.cardReading}>
-              <Dot share={share} size="md" />
-              {reading(share)}
-            </p>
-            <p className={styles.cardMeta}>
-              {weekdayName(day.date)} · {hourLabel(HERO_HOUR)} · Simulated
-            </p>
-          </motion.div>
-          <motion.div {...floatIn} className={`${styles.glassCard} ${styles.legendCard}`}>
-            <p className={styles.cardMeta}>Crowd levels · share of capacity</p>
-            <ul className={styles.cardLegend}>
-              {crowdScale.map((s, i) => (
-                <li key={s.level}>
-                  <span className={`${styles.dot} ${styles['dot-sm']}`} style={{ background: s.color }} aria-hidden />
-                  <span className={styles.cardLegendWord}>{s.label}</span>
-                  <span className={styles.cardLegendRange}>{legendRange(i)}</span>
-                </li>
-              ))}
-            </ul>
-          </motion.div>
-          <motion.p {...floatIn} className={`${styles.glassCard} ${styles.timeChip}`}>
-            <span className={styles.liveDot} aria-hidden />
-            {weekdayName(day.date)} {hourLabel(HERO_HOUR)} · Modeled day
-          </motion.p>
-        </motion.div>
-      )}
     </section>
   );
 }

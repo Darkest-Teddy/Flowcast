@@ -66,18 +66,3 @@ export const reveal: MotionProps = {
   viewport: { once: true, amount: 0.4 },
   transition: ease,
 };
-
-/** The hero's cards settling over the map one after another once the headline is in, after Felt's panels. */
-export const floatGroup: MotionProps = {
-  initial: 'hidden',
-  animate: 'shown',
-  variants: { hidden: {}, shown: { transition: { staggerChildren: 0.14, delayChildren: 0.75 } } },
-};
-
-export const floatIn: MotionProps = {
-  variants: {
-    hidden: { opacity: 0, y: 20, scale: 0.97 },
-    shown: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] } },
-  },
-};
-
