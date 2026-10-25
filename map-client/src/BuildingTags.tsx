@@ -49,7 +49,7 @@ const SPACING = 6;
 /** Tags whose roof is this far off screen are dropped before placement. */
 const MARGIN = 60;
 /** The compact marker's diameter; it must match .btag-marker in styles.css. */
-const MARKER = 22;
+const MARKER = 24;
 /** Below this zoom the tags tighten up so more of them fit on the overview. */
 const COMPACT_ZOOM = 16;
 
@@ -401,12 +401,13 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         for (const b of markers) {
           const tag = s.tags.get(b.id)!;
           const [x, y] = anchors.get(b)!;
-          const box = { x0: x - MARKER / 2, x1: x + MARKER / 2, y0: y - MARKER / 2, y1: y + MARKER / 2 };
+          // Its box sits above the anchor by the stem, same as a pill's.
+          const box = { x0: x - MARKER / 2, x1: x + MARKER / 2, y0: y - STEM - MARKER, y1: y - STEM };
           if (pillBoxes.some((p) => box.x0 < p.x1 && p.x0 < box.x1 && box.y0 < p.y1 && p.y0 < box.y1)) continue;
           placed.add(b.id);
-          if (tag.stem !== 0) {
-            tag.stem = 0;
-            tag.root.style.setProperty('--stem', '0px');
+          if (tag.stem !== STEM) {
+            tag.stem = STEM;
+            tag.root.style.setProperty('--stem', `${STEM}px`);
           }
           tag.lift = 0;
           tag.root.style.transform = `translate3d(${snap(x)}px, ${snap(y)}px, 0)`;

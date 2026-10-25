@@ -876,10 +876,14 @@ select.tool { padding: 0 8px 0 12px; }
  *
  * In Focus mode every building the open panel is not talking about wears this
  * instead of a pill, which is what keeps a campus of eighty buildings from
- * reading as eighty pills. It is centred on the roof anchor and has no stem:
- * there is no text to hold clear of the roofline. Its name and figure live in
- * the tooltip and the accessible name, and clicking it selects the building
- * exactly as a pill does.
+ * reading as eighty pills. Its name and figure live in the tooltip and the
+ * accessible name, and clicking it selects the building exactly as a pill does.
+ *
+ * It stands on the same stem and roof dot as a pill, and that is the point: a
+ * mark floating free over a roof does not say which roof it belongs to, and on
+ * a pitched 3D view it reads as a bubble above the building rather than a label
+ * on it. The line is what attaches a tag to its building, so the compact form
+ * keeps it.
  *
  * Hidden unless the tag is explicitly in marker form, so a tag that has not been
  * given a form yet shows its pill rather than both at once.
@@ -889,13 +893,14 @@ select.tool { padding: 0 8px 0 12px; }
   position: absolute;
   left: 0;
   bottom: var(--stem);
-  translate: -50% 50%;
+  translate: -50% 0;
+  transform-origin: 50% 100%;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 1.5px solid rgb(var(--lv));
-  border-radius: 50%;
+  border-radius: 999px;
   background: rgba(13, 16, 23, 0.88);
   color: rgb(var(--lv));
   cursor: pointer;
@@ -909,10 +914,8 @@ select.tool { padding: 0 8px 0 12px; }
   .btag-marker:hover { scale: 1.15; }
 }
 .btag-marker:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; }
-/* One form at a time: the marker stands in for the whole pill, stem and card. */
+/* One form at a time. The stem and roof dot are shared furniture and stay up. */
 .btag[data-form='marker'] .btag-pill,
-.btag[data-form='marker'] .btag-stem,
-.btag[data-form='marker'] .btag-dot,
 .btag[data-form='marker'] .btag-card { display: none; }
 
 /* Stem from the card down to the roof, ending in a glowing dot. */
