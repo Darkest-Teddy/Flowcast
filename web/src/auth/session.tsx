@@ -95,10 +95,25 @@ export function useSession(): SessionState {
   return ctx;
 }
 
+/**
+ * Whether this browser holds a Supabase sign-in (supabase-js keeps it in localStorage as
+ * sb-<project>-auth-token). Read synchronously, so `/` can show the landing page at once to a
+ * visitor who has never signed in instead of waiting for the session check.
+ */
+export function mayBeSignedIn(): boolean {
+  try {
+    for (let i = 0; i < localStorage.length; i++) if (/^sb-.+-auth-token$/.test(localStorage.key(i) ?? '')) return true;
+    return false;
+  } catch {
+    return true; // storage blocked: wait for the check
+  }
+}
+
 export function RequireAuth({ role, children }: { role?: Role; children: ReactNode }) {
   const { session, ready, hasRole } = useSession();
   const location = useLocation();
-  if (!ready) return <p role="status">Loading your account…</p>;
+  // The check takes about a second: keep the page blank rather than flash a loading message.
+  if (!ready) return <p role="status" className="visually-hidden">Loading your account…</p>;
   if (!session) return <Navigate to="/signin" replace state={{ from: location.pathname }} />;
   if (role && !hasRole(role)) return <Navigate to="/" replace />;
   return <>{children}</>;

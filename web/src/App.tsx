@@ -1,5 +1,5 @@
 import { createBrowserRouter, RouterProvider, useMatch } from 'react-router';
-import { RequireAuth, SessionProvider, useSession } from './auth/session';
+import { mayBeSignedIn, RequireAuth, SessionProvider, useSession } from './auth/session';
 import { AdminLayout } from './layouts/AdminLayout';
 import { StudentLayout } from './layouts/StudentLayout';
 import Home from './pages/Home';
@@ -36,7 +36,8 @@ import AdminSettings from './pages/admin/AdminSettings';
 function StudentArea() {
   const { session, ready } = useSession();
   const atIndex = useMatch('/') !== null;
-  if (ready && !session && atIndex) return <Landing />;
+  // Signed out: no stored sign-in means the landing page right away, without waiting for the check.
+  if (atIndex && !session && (ready || !mayBeSignedIn())) return <Landing />;
   return (
     <RequireAuth>
       <StudentLayout />
