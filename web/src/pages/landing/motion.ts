@@ -58,3 +58,11 @@ export const grow: MotionProps = {
     shown: { clipPath: 'inset(-12px -12px -12px -12px)', transition: { duration: 1, ease: [0.22, 1, 0.36, 1], delay: 0.15 } },
   },
 };
+
+/** A block coming into focus as it scrolls in, after Raycast: rising and fading in out of a soft blur. */
+export const reveal: MotionProps = {
+  initial: { opacity: 0, y: 24, filter: 'blur(8px)' },
+  whileInView: { opacity: 1, y: 0, filter: 'blur(0px)' },
+  viewport: { once: true, amount: 0.4 },
+  transition: ease,
+};

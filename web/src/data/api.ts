@@ -15,6 +15,9 @@ import type { PersonalSchedule } from '@map/personalSchedule';
 import type { ClassDirectory } from '../../../map-client/src/classSearch';
 import type { CampusData as CampusBundle } from '../../../map-client/src/data/campusData';
 import type { ClassFinderData } from '../lib/classFinder';
+import { effectiveMeetingIntervals } from '@map/data/academicCalendar';
+import type { CampusData } from '@map/data/campusData';
+import type { ClassMeeting } from '../lib/freeClassrooms';
 import type { ChatRequest } from '@map/chatContract';
 import type {
   AdminSettings, AdminUser, AgentBrain, ApplicationStatus, CalendarConnection, CalendarImport,
@@ -122,6 +125,17 @@ export const api = {
     return Object.fromEntries(studySpots.map(spot => {
       const location = data.locations[spot.locationId];
       return [spot.locationId, { hours: location?.hours ?? [], hoursStatus: location?.hoursStatus }];
+    }));
+  },
+  /** Published class meetings by room, on the reference week's actual class days (term dates, holidays and substituted days applied). */
+  async getClassMeetings(): Promise<ClassMeeting[]> {
+    const response = await fetch('/data/campus-data.json');
+    if (!response.ok) throw new Error('The published class schedule could not be loaded.');
+    const data = await response.json() as CampusData;
+    if (!data.locations || typeof data.locations !== 'object') throw new Error('The published class schedule is unavailable.');
+    return Object.entries(data.locations).flatMap(([locationId, location]) => (location.meetings ?? []).flatMap((meeting) => {
+      const intervals = effectiveMeetingIntervals(meeting, data).map(({ startSec, endSec }) => ({ startSec, endSec }));
+      return intervals.length ? [{ locationId, roomCode: meeting.roomCode, seats: meeting.roomCapacity, intervals }] : [];
     }));
   },
   getSession: () => dashboard.getMe().then((data) => data.session),

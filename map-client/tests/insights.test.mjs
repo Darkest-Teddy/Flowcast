@@ -261,7 +261,7 @@ test('a residence with classrooms (Kilachand) gets a percentage of its beds; wit
   assert.equal(shownCapacity({ id: 'warren', kind: 'dorm', capacity: 600 }), 600);
 });
 
-test('days with published hours: the dining halls have every day of the reference week, weekends from their listed hours', () => {
+test('dining outlook includes the bundled weekend hours and leaves unknown places unavailable', () => {
   const data = JSON.parse(readFileSync(new URL('../public/data/campus-data.json', import.meta.url), 'utf8'));
   const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   assert.deepEqual(daysWithPublishedHours(['marciano', 'warren-dining'], data), [0, 1, 2, 3, 4, 5, 6]);
@@ -274,6 +274,7 @@ test('days with published hours: the dining halls have every day of the referenc
   assert.equal(openAt('marciano', 6, 9.5 * 3600, data).open, false);
   assert.equal(openAt('marciano', 6, 12 * 3600, data).open, true);
   assert.equal(openAt('marciano', 6, 22 * 3600, data).open, false);
+  assert.equal(openAt('not-a-place', 5, 12 * 3600, data).open, null);
   assert.deepEqual(daysWithPublishedHours(['not-a-place'], data), []);
   assert.equal(dayList([0, 1, 2, 3, 4], WEEKDAYS), 'Monday to Friday');
   assert.equal(dayList([0, 2, 4], WEEKDAYS), 'Monday, Wednesday and Friday');

@@ -6,15 +6,24 @@ import { findStudySpots } from '../lib/studyFinder';
 import { bostonTime, getDeparturePlan } from '../lib/departure';
 import { answerMapLink } from '../lib/askMapLink';
 import { config } from '../config';
-import { Button, EmptyState, Loading, Page, PageHeader, SelectField } from '../ui';
+import { Button, EmptyState, Loading, Page, PageHeader, Segmented, SelectField } from '../ui';
 import { useDepartureClock } from './student/DepartureCard';
 import { CrowdReportNow, rememberCrowdSuggestion } from './student/CrowdReport';
 import { StudyExamSeason } from './StudyExamSeason';
+import { ClassroomSearch } from './study/ClassroomSearch';
 import styles from './Study.module.css';
 
 const amenityLabels: Record<StudyAmenity, string> = { quiet: 'Silent study', group: 'Group work', outlets: 'Power outlets', whiteboard: 'Whiteboard', food: 'Food allowed' };
 const amenityKeys = Object.keys(amenityLabels) as StudyAmenity[];
 const emptyGeo = { positions: {}, walkMeters: {} };
+
+type StudyMode = 'all' | 'exam' | 'late' | 'classrooms';
+const modes: { value: StudyMode; label: string; description: string }[] = [
+  { value: 'all', label: 'All spaces', description: 'Every study space, with the filters you choose.' },
+  { value: 'exam', label: 'Exam', description: 'Silent spaces with power, open when you arrive, least crowded first, for a two-hour session that fits before your next class. Crowd projections are for a normal week, not finals.' },
+  { value: 'late', label: 'Late night', description: 'Spaces still open at 10 PM tonight, closest first. The simulation doesn’t model crowds after midnight.' },
+  { value: 'classrooms', label: 'Classrooms', description: 'Classrooms with no published class right now. Exams, events, office hours and building access aren’t in the data, so a room may still be in use or locked.' },
+];
 
 export default function Study() {
   const spots = useResource(api.getStudySpots);
@@ -33,13 +42,28 @@ export default function Study() {
   const [fitsOnly, setFitsOnly] = useState(false);
   const [maxWalk, setMaxWalk] = useState<number | null>(null);
   const [sort, setSort] = useState<'time' | 'walk' | 'crowd'>('time');
+  const [mode, setMode] = useState<StudyMode>('all');
   const defaults = getDeparturePlan({ items: schedule.data ?? [], locations: locations.data ?? [], geo: geo.data ?? emptyGeo, now, homeLocationId: profile.data?.homeLocationId ?? null });
   const from = origin ?? defaults.fromLocationId ?? '';
   const results = useMemo(() => findStudySpots({ spots: spots.data ?? [], locations: locations.data ?? [], geo: geo.data ?? emptyGeo,
     hours: hours.data ?? {}, forecasts: forecasts.data ?? [], schedule: schedule.data ?? [], scheduleKnown: !!schedule.data && !schedule.error,
     now, from, minutes, amenities, openOnly, lateOnly, fitsOnly, maxWalk, sort }),
   [spots.data, locations.data, geo.data, hours.data, forecasts.data, schedule.data, schedule.error, now, from, minutes, amenities, openOnly, lateOnly, fitsOnly, maxWalk, sort]);
-  function reset() { setAmenities([]); setOpenOnly(false); setLateOnly(false); setFitsOnly(false); setMaxWalk(null); }
+  function reset() { setAmenities([]); setOpenOnly(false); setLateOnly(false); setFitsOnly(false); setMaxWalk(null); setMode('all'); }
+  const scheduleKnown = !!schedule.data && !schedule.error;
+  /** Exam and Late night set the filters below; they stay editable afterwards. */
+  function chooseMode(next: StudyMode) {
+    setMode(next);
+    if (next === 'exam') {
+      setAmenities(['quiet', 'outlets']); setMinutes(120); setOpenOnly(!!from); setLateOnly(false);
+      // Without a starting building or a known schedule no session can be confirmed to fit, so the check would hide everything.
+      setFitsOnly(!!from && scheduleKnown); setSort('crowd');
+    } else if (next === 'late') {
+      setAmenities([]); setMinutes(60); setOpenOnly(!!from); setLateOnly(true); setFitsOnly(false); setSort('walk');
+    } else if (next === 'all') {
+      setAmenities([]); setOpenOnly(false); setLateOnly(false); setFitsOnly(false); setMaxWalk(null); setMinutes(60); setSort('time');
+    }
+  }
   const filterCount = amenities.length + Number(openOnly) + Number(lateOnly) + Number(fitsOnly) + Number(maxWalk !== null);
   const resources = [spots, locations, geo, hours, forecasts, schedule, profile];
   const loading = resources.some(r => r.loading);
@@ -47,6 +71,11 @@ export default function Study() {
   return <Page>
     <PageHeader title="Find a study spot" description="Choose a space for the time you have." />
     <StudyExamSeason now={now} from={from} locations={locations.data ?? []} geo={geo.data ?? emptyGeo} forecasts={forecasts.data ?? []} />
+    <div className={styles.modes}>
+      <Segmented label="Study mode" value={mode} onChange={chooseMode} options={modes.map(({ value, label }) => ({ value, label }))} />
+      <p className={styles.muted}>{modes.find(m => m.value === mode)!.description}</p>
+    </div>
+    {mode === 'classrooms' ? <ClassroomSearch from={from} onFrom={setOrigin} locations={locations.data ?? []} geo={geo.data ?? emptyGeo} now={now} /> : <>
     <section className={styles.filters} aria-label="Study preferences">
       <div className={styles.controls}>
         <SelectField label="Starting building" value={from} onChange={e => setOrigin(e.target.value)}>
@@ -117,5 +146,6 @@ export default function Study() {
         </article>;
       })}
     </div>}
+    </>}
   </Page>;
 }

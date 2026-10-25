@@ -1,6 +1,7 @@
 // The base 3D map. Mapbox Standard (textured, lit 3D buildings) when a token is set;
 // otherwise MapLibre + OpenFreeMap, which needs no account. deck.gl draws on top of either.
 import type { IControl } from 'mapbox-gl';
+import { finiteParam } from './deepLink';
 // Static so the styles are in place before the map is constructed (both are small; the class
 // prefixes don't clash).
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -221,12 +222,12 @@ function styleFromUrl(): string | undefined {
 
 function viewFromUrl() {
   const q = new URLSearchParams(window.location.search);
-  const num = (key: string, fallback: number) => (q.has(key) ? Number(q.get(key)) : fallback);
+  const num = (key: string, fallback: number, min: number, max: number) => finiteParam(q, key, min, max) ?? fallback;
   return {
-    center: [num('lng', DEFAULT_VIEW.center[0]), num('lat', DEFAULT_VIEW.center[1])] as [number, number],
-    zoom: num('zoom', DEFAULT_VIEW.zoom),
-    pitch: num('pitch', DEFAULT_VIEW.pitch),
-    bearing: num('bearing', DEFAULT_VIEW.bearing),
+    center: [num('lng', DEFAULT_VIEW.center[0], -180, 180), num('lat', DEFAULT_VIEW.center[1], -85, 85)] as [number, number],
+    zoom: num('zoom', DEFAULT_VIEW.zoom, 0, 22),
+    pitch: num('pitch', DEFAULT_VIEW.pitch, 0, 85),
+    bearing: num('bearing', DEFAULT_VIEW.bearing, -360, 360),
   };
 }
 

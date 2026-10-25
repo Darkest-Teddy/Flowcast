@@ -123,6 +123,6 @@ if (DRY_RUN) console.log('Dry run: nothing written.');
 else {
   writeFileSync(`${ROOT}/public/data/behavior.json`, `${JSON.stringify(finalFile, null, 2)}\n`);
   writeFileSync(`${ROOT}/public/data/personas.json`, `${JSON.stringify(personas, null, 2)}\n`);
-  console.log(`Wrote public/data/behavior.json, public/data/personas.json and ${writeReport({ legacy: legacy.scores, current: final.scores, audits, timings, search, accepted,
+  console.log(`Wrote public/data/behavior.json, public/data/personas.json and ${writeReport({ sourceInputs: inputs, legacy: legacy.scores, current: final.scores, audits, timings, search, accepted,
     observed: [['Today’s model', legacy.built], ['Before this calibration', current.built], [accepted ? 'After calibration' : 'Engine (unchanged)', final.built]] })}`);
 }

@@ -9,7 +9,12 @@ export type ObservationDayType = 'weekday' | 'friday' | 'saturday' | 'sunday';
 export type LngLat = [number, number];
 
 /** One measured interval. Times are "HH:MM" local Boston time on the calendar day; end may be "24:00". */
-export interface ObservationBin { start: string; end: string; value: number }
+export interface ObservationBin {
+  start: string; end: string; value: number;
+  /** Reporting dates behind this bin mean; absent periods are not zero observations. */
+  days?: number;
+  dates?: string[];
+}
 
 export interface ObservationSource {
   id: string;
@@ -109,7 +114,8 @@ export function seriesForWeekday(data: CalibrationObservations, weekday: number,
   const primary = options.primaryOnly ?? false;
   return {
     transit: data.transit.filter((s) => s.dayType === dayTypeFor(weekday, s.mode) && (!primary || s.role !== 'comparison')),
-    pedestrian: data.pedestrian.filter((s) => s.dayType === dayTypeFor(weekday, 'pedestrian') && (!primary || s.quality !== 'context')),
+    pedestrian: data.pedestrian.filter((s) => s.dayType === dayTypeFor(weekday, 'pedestrian')
+      && (!s.weekdays?.length || s.weekdays.includes(weekday)) && (!primary || s.quality !== 'context')),
   };
 }
 
@@ -121,6 +127,16 @@ export function clockSeconds(text: string): number {
 
 export function binBounds(bins: readonly ObservationBin[]): [number, number][] {
   return bins.map((b) => [clockSeconds(b.start), clockSeconds(b.end)]);
+}
+
+/** Smooth only adjacent, equal-duration measured bins; never bridge a missing interval. */
+export function smoothObservedBins(values: readonly number[], bins: readonly ObservationBin[]): number[] {
+  const bounds = binBounds(bins);
+  const adjacent = (a: number, b: number) => a >= 0 && b < bounds.length
+    && bounds[a][1] === bounds[b][0]
+    && bounds[a][1] - bounds[a][0] === bounds[b][1] - bounds[b][0];
+  return values.map((value, i) => ((adjacent(i - 1, i) ? values[i - 1] : value) + 2 * value
+    + (adjacent(i, i + 1) ? values[i + 1] : value)) / 4);
 }
 
 /** Index of the bin containing t (start inclusive, end exclusive), or -1. */
@@ -323,6 +339,7 @@ export function peakHoursApart(bins: readonly ObservationBin[], a: readonly numb
 export interface SeriesScore {
   id: string;
   kind: string;
+  /** Sum of reported bins, not a measured daily total when coverage/denominators differ. */
   observedTotal: number;
   simulatedTotal: number;
   /** Shape: Pearson r of the bin values (null for < 3 bins or a flat series). */

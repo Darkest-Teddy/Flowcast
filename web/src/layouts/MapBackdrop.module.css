@@ -1,0 +1,57 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Scaled past the edges so the blur never shows a soft border. */
+.backdrop img {
+  position: absolute;
+  inset: -48px;
+  width: calc(100% + 96px);
+  height: calc(100% + 96px);
+  object-fit: cover;
+  filter: blur(10px) saturate(1.15);
+}
+
+/* The frost: the canvas over the picture, thick enough that body text on bare canvas still reads. */
+.backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-canvas) 58%, transparent);
+}
+
+.dark {
+  display: none;
+}
+
+:root[data-theme='dark'] .light {
+  display: none;
+}
+
+:root[data-theme='dark'] .dark {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .light {
+    display: none;
+  }
+
+  :root:not([data-theme]) .dark {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root:not([data-transparency='full']) .backdrop {
+    display: none;
+  }
+}
+
+:root[data-transparency='reduced'] .backdrop {
+  display: none;
+}

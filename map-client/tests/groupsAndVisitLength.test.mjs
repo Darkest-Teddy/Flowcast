@@ -175,7 +175,9 @@ test('on the full campus, about a quarter of meals are shared and companions do 
   const playback = new Playback(day);
   let checked = 0;
   for (const members of [...groups.values()].slice(0, 400)) {
-    const leaving = members.map(m => tripsOf.get(m.agentId)?.find(t => t.from === m.locationId && Math.abs(t.timestamps[0] - m.endSec) < 1e-6)).filter(Boolean);
+    // Only companions walking the same way: friends heading to different places split at the door.
+    const all = members.map(m => tripsOf.get(m.agentId)?.find(t => t.from === m.locationId && Math.abs(t.timestamps[0] - m.endSec) < 1e-6)).filter(Boolean);
+    const leaving = all.filter(trip => trip.to === all[0].to);
     if (leaving.length < 2 || departures.get(`${leaving[0].from}|${Math.round(leaving[0].timestamps[0] * 100)}`) > MAX_ABREAST) continue;
     const t = leaving[0].timestamps[0] + 20;
     const positions = new Map(playback.walkingAt(t).map(w => [w.id, w.position]));

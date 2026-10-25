@@ -398,30 +398,34 @@
 }
 
 /*
- * The reading: the clock and the temperature, with nothing behind them.
+ * The reading: the clock and the temperature.
  *
- * These are readings of the world the map is drawing, not controls, so they sit
- * directly on it the way a caption sits on a photograph.
+ * Black on a pale plate. It floated bare on the map, which looked better and
+ * read worse: the basemap runs from near-white streets to the black of the
+ * night style and the river, so no single ink colour held up across it, and
+ * white type survived only because of the shadow under it. Type that needs its
+ * own shadow to be legible is type that is hard to read.
  *
- * Black, because the basemap is light by default. White type here only held up
- * because of the shadow under it, and type that depends on its own shadow to be
- * legible is type that is hard to read. The halo is light now and does the
- * reverse job: it keeps the black readable where the ground underneath goes
- * dark, over a park or a river or the night style.
+ * So the ink is black and the plate guarantees what it sits on. Barely there at
+ * 72% white with a blur behind it, which is enough to carry black type over
+ * anything the map does and little enough that it still reads as a caption on
+ * the scene rather than another panel.
  */
 .hud-status-reading {
   display: flex;
   align-items: center;
   gap: 8px;
   height: 28px;
-  padding: 0 4px 0 12px;
+  padding: 0 10px 0 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.72);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
   color: #1d1d1f;
-  text-shadow: 0 1px 6px rgb(255 255 255 / 0.85), 0 0 2px rgb(255 255 255 / 0.9);
 }
 
 .hud-status-reading svg {
   flex: none;
-  filter: drop-shadow(0 1px 3px rgb(255 255 255 / 0.9));
 }
 
 .hud-status-reading > svg {
@@ -1041,9 +1045,8 @@
   border-radius: 999px;
 }
 
-/* Answer and examples: one card above the pill, never taller than the view. */
-.hud-ask .ask-answer:not(:empty),
-.hud-ask .ask-examples {
+/* The answer: one card above the pill, never taller than the view. */
+.hud-ask .ask-answer:not(:empty) {
   padding: 10px 12px;
   border-radius: 14px;
   background: var(--glass-fill-strong, rgb(28 32 38 / 0.72));
@@ -1057,24 +1060,6 @@
   max-height: 46vh;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-/* One row that scrolls, rather than wrapping into a block that pushes the map. */
-.hud-ask .ask-examples {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.hud-ask .ask-examples::-webkit-scrollbar {
-  display: none;
-}
-
-.hud-ask .ask-examples button {
-  flex: none;
-  white-space: nowrap;
 }
 
 /* ---------------------------------------------------------------------------

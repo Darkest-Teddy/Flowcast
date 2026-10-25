@@ -30,7 +30,7 @@ import type { CampusLocation, TransitRide, Trip, WaitingRider, WalkingAgent, Wal
 import type { TransitService } from './transitService';
 import { ALIGHT_SECONDS } from './transitService';
 import {
-  binBounds, binOf, clockSeconds, dayTypeFor, screenEvents, screenOf, seriesForWeekday, simulatedPedestrians, simulatedTransit,
+  binBounds, binOf, clockSeconds, screenEvents, screenOf, seriesForWeekday, simulatedPedestrians, simulatedTransit, smoothObservedBins,
   type CalibrationObservations, type LngLat, type ObservationBin, type PedestrianSeries, type ScreenEvent, type TransitSeries,
 } from '../data/observations';
 
@@ -415,7 +415,7 @@ export class PublicCrowd {
     let transitSeries = 0;
     for (const series of today.transit) {
       const bounds = binBounds(series.bins);
-      const students = smooth(simulatedTransit(studentRides, series));
+      const students = smoothObservedBins(simulatedTransit(studentRides, series), series.bins);
       const known = extras.filter((x) => x.inObservedCounts && x.transit).map((x) => x.transit!(series));
       const gap = series.bins.map((b, i) => Math.max(0, b.value - students[i] - known.reduce((s, k) => s + (k[i] ?? 0), 0)));
       const people = wholePeople(gap);
@@ -477,11 +477,16 @@ export class PublicCrowd {
     // ---- through walkers at the count sites
     // Weekday counts only exist; weekends use the weekday people-per-activity ratio (siteHourlyTargets).
     const weekdaySeries = observations.pedestrian.filter((s) => s.dayType === 'weekday' && s.quality !== 'context' && s.bins.length);
-    const observedToday = dayTypeFor(weekday, 'pedestrian') === 'weekday';
     const weekdayProfile = activityProfile(observations, 2);
     const profile = activityProfile(observations, weekday);
     // One target per place: the newest study for each counted hour; the newest study's screen for the fill.
-    const clusters = siteClusters(weekdaySeries);
+    const matching = new Set(today.pedestrian.map(series => series.id));
+    const clusters = siteClusters(weekdaySeries).map(cluster => {
+      const recorded = cluster.series.filter(series => matching.has(series.id));
+      // Without a survey for this weekday, retain an explicit activity-profile extrapolation.
+      // Do not pin another weekday's measured bins as if they had been observed today.
+      return { ...(recorded.length ? siteClusters(recorded)[0] : cluster), observedToday: recorded.length > 0 };
+    });
     const sites = clusters.map((c) => c.reference);
     for (const site of sites) {
       const byRoute = new Map<WalkRoute, { m: number; event: ScreenEvent }[]>();
@@ -502,6 +507,7 @@ export class PublicCrowd {
     const quarterWeights = new Map<string, (number[] | null)[]>();
     for (const cluster of clusters) {
       const site = cluster.reference;
+      const observedToday = cluster.observedToday;
       const targets = siteHourlyTargets(cluster.series, weekdayProfile, profile, observedToday);
       if (targets.every((t) => t === null)) continue;
       const hours = observedHours(cluster.series);

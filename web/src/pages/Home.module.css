@@ -1,16 +1,98 @@
 /*
- * Home sits on the same four-column rhythm as the stat cards: Today and Your places take two
- * columns each, Happening on campus three and Your clubs one, so every card edge lines up with the
- * cards above and below it. Cards are --space-5 apart; groups are --space-10 apart.
+ * Home sits on the same four-column rhythm as the stat cards: the paired lists take two columns
+ * each, the events stack three and Your clubs one, so every card edge lines up with the cards above
+ * and below it. Cards are --space-5 apart; groups are --space-10 apart.
  */
 .hero {
   padding-top: var(--space-8);
   text-align: center;
 }
 
+.date {
+  margin-bottom: var(--space-2);
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
 .headline {
   font-size: var(--text-3xl);
   font-weight: var(--weight-semibold);
+  text-wrap: balance;
+}
+
+.setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-5);
+  border: 1px dashed var(--color-hairline);
+  border-radius: var(--radius-card);
+  font-size: var(--text-sm);
+}
+
+.setupTitle {
+  font-weight: var(--weight-medium);
+}
+
+.setupTitle span {
+  margin-left: var(--space-2);
+  color: var(--color-ink-tertiary);
+  font-weight: var(--weight-regular);
+}
+
+.setup ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup li.done {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-ink-tertiary);
+  text-decoration: line-through;
+}
+
+.setup li.done svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-ok);
+}
+
+.glance {
+  margin-top: var(--space-6);
+}
+
+/* Gap and departure side by side; whichever shows alone takes the full width. */
+.now {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  align-items: start;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+
+.now > * {
+  margin-block: 0;
+}
+
+.chartBlock {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+
+.stack {
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
 }
 
 .searchControls {
@@ -37,11 +119,11 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-5);
-  margin-top: var(--space-5);
-  margin-bottom: var(--space-5);
+  margin-top: var(--space-10);
 }
 
 .bottom {
+  align-items: start;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-5);
