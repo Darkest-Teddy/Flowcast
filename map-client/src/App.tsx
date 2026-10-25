@@ -326,6 +326,8 @@ export default function App() {
   tagModeRef.current = tagMode;
   /** The buildings the open panel is listing: they keep a full pill in Focus. */
   const focusRef = useRef<ReadonlySet<string>>(new Set());
+  /* Which tab is open, for the handlers the map holds onto across renders. */
+  const viewRef = useRef<View | null>(null);
   /* Analytics: which of the three subjects, and how the places list is cut. */
   const [analyticsSub, setAnalyticsSub] = useState<'places' | 'transit' | 'bikes'>('places');
   const [category, setCategory] = useState<Category>('all');
@@ -349,7 +351,9 @@ export default function App() {
   /** "Hours & sources" on a building: where the old Data tab's content lives now. */
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const circleRef = useRef<WhatIfCircleHandle>(null);
-  const circleFrameRef = useRef<{ centre: [number, number] | null; radius: number; rgb: string }>({ centre: null, radius: 0, rgb: '245, 245, 247' });
+  const circleFrameRef = useRef<{ centre: [number, number] | null; radius: number; rgb: string; name: string | null }>(
+    { centre: null, radius: 0, rgb: '245, 245, 247', name: null },
+  );
   const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitTagsRef = useRef<TransitTagsHandle>(null);
   const placeTagsRef = useRef<PlaceTagsHandle>(null);
@@ -966,6 +970,7 @@ export default function App() {
           centre: circleFrameRef.current.centre,
           radiusMetres: circleFrameRef.current.radius,
           rgb: circleFrameRef.current.rgb,
+          centreName: circleFrameRef.current.name,
           project: basemap.project,
         });
         // Parking (toggle on only): the estimate is refreshed at most twice a second, then its tags
@@ -1236,6 +1241,13 @@ export default function App() {
   const selectBuilding = (id: string | null) => {
     selectedRef.current = id;
     setSelected(id);
+    /*
+     * While the Log tab is open, tapping a building is picking the what-if's
+     * centre: the form says "search above or tap the map", and this is the tap.
+     * Clearing the searched id is what makes the tap win, since a centre chosen
+     * by search otherwise outranks the selection for the rest of the session.
+     */
+    if (id && viewRef.current === 'log') setWhatIfCentreId(null);
   };
   const select = (o: Occupancy) => {
     selectedRef.current = o.location.building;
@@ -1571,6 +1583,7 @@ export default function App() {
     centre: view === 'log' && whatIfCentre ? whatIfCentre.position : null,
     radius: whatIfRadius,
     rgb: HUE_RGB[whatIfHue],
+    name: whatIfCentre?.name ?? null,
   };
 
   const pickScenario = (next: ScenarioKind) => {
@@ -1771,10 +1784,20 @@ export default function App() {
   const listedPlaces = view === 'analytics' && analyticsSub === 'places'
     ? orderPlaces(searchedPlaces, category, sort).slice(0, listExpanded ? 8 : 3)
     : [];
+  /*
+   * What keeps a full pill in Focus mode: whatever the open panel is talking
+   * about. For Analytics that is the rows on screen; for Log it is every
+   * building the circle catches, so the radius you are dragging and the
+   * buildings it will act on are the same thing on the map.
+   */
+  const focusIds = view === 'log'
+    ? whatIfZone.chips.map((b) => ranked.find((o) => o.location.id === b.id)?.location.building)
+    : listedPlaces.map((o) => o.location.building);
+  const focusKey = focusIds.join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   focusRef.current = useMemo(
-    () => new Set(listedPlaces.map((o) => o.location.building).filter((id): id is string => Boolean(id))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [listedPlaces.map((o) => o.location.building).join('|')],
+    () => new Set(focusIds.filter((id): id is string => Boolean(id))),
+    [focusKey],
   );
 
   const pickTagMode = (mode: TagMode) => {
@@ -1785,6 +1808,8 @@ export default function App() {
       // Private browsing refuses writes; the choice still holds for this session.
     }
   };
+
+  viewRef.current = view;
 
   /** Picking the open tab closes it, so the map uncovered needs no tab of its own. */
   const selectView = (next: View) => {
@@ -2243,7 +2268,18 @@ export default function App() {
             )}
 
             {analyticsSub === 'transit' && (
-              <TransitPanel stops={stopRows} shuttles={shuttleRows} note={live ? (feedError ?? 'live') : 'playback timetable'} />
+              <>
+                <TransitPanel stops={stopRows} shuttles={shuttleRows} note={live ? (feedError ?? 'live') : 'playback timetable'} />
+                {/*
+                  Pedestrian and street counts. They had a tab of their own, and
+                  the handoff's Analytics has only three subjects; they belong
+                  with Transit, because trains, shuttles and counted streets are
+                  all the same question about how people move.
+                */}
+                {!showCounts && hiddenNote('Count sites are', toggleCounts)}
+                <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday}
+                  selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
+              </>
             )}
 
             {analyticsSub === 'bikes' && (bikes
@@ -2254,20 +2290,6 @@ export default function App() {
                 being one, so it should not be what the panel opens on. */}
             {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
               info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
-          </section>
-        )}
-        {/* Sections of Analytics, not panels of their own. */}
-        {hud && view === 'analytics' && (
-          <section id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic">
-            {!showCounts && hiddenNote('Count sites are', toggleCounts)}
-            <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday} selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
-          </section>
-        )}
-        {hud && view === 'analytics' && (
-          <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
-            {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
-            {publicCrowdRef.current && <p>Public (non-students): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
-            {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
           </section>
         )}
         {/* Always there (hidden unless chosen): WeatherControls draws into it. */}

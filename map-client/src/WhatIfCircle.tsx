@@ -26,6 +26,8 @@ export interface WhatIfCircleFrame {
   radiusMetres: number;
   /** The scenario's hue, as "r, g, b". */
   rgb: string;
+  /** What is at the centre, named on the map beside the dot. */
+  centreName: string | null;
   project: Projector;
 }
 
@@ -122,6 +124,19 @@ export function WhatIfCircle({
           dot.setAttribute('cy', String(cy));
           dot.style.fill = `rgb(${next.rgb})`;
         }
+
+        /*
+         * The centre, named. The panel says what it is, but the panel is on the
+         * other side of the screen from the dot, and for a fixed centre like
+         * Fenway the name is the only thing that explains why the circle is
+         * where it is.
+         */
+        const name = svg.querySelector('.wi-centre-name') as SVGTextElement | null;
+        if (name) {
+          name.textContent = next.centreName ?? '';
+          name.setAttribute('x', String(cx));
+          name.setAttribute('y', String(cy - 14));
+        }
       },
     }),
     [],
@@ -187,6 +202,7 @@ export function WhatIfCircle({
     <svg ref={rootRef} className="wi-circle" style={{ display: 'none' }} aria-hidden="true">
       <polygon ref={polyRef} className="wi-ring" points="" />
       <circle className="wi-centre" r={6} />
+      <text className="wi-centre-name" textAnchor="middle" />
       <g ref={labelRef} className="wi-label">
         <rect x={-30} y={-11} width={60} height={22} rx={11} />
         <text textAnchor="middle" dominantBaseline="central" />

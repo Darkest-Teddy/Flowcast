@@ -1165,7 +1165,9 @@ select.tool { padding: 0 8px 0 12px; }
 
 /* Clean view (H): just the map, buildings, people and transit. The sheet, toolbar, dim, perf panel,
    tags and tooltips go; Mapbox's attribution stays. H again brings them back, as the hint says. */
-.app.is-clean :is(.sheet, .toolbar, .sheet-dim, .panel, .btags, .gtags),
+/* H clears everything drawn over the map. The what-if ring belongs here too: it
+   is an overlay on the scene, rendered outside .hud beside the tag layers. */
+.app.is-clean :is(.sheet, .toolbar, .sheet-dim, .panel, .btags, .gtags, .wi-circle),
 .app.is-clean .deck-tooltip { display: none !important; }
 .clean-hint {
   position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 3;
@@ -1245,4 +1247,17 @@ select.tool { padding: 0 8px 0 12px; }
   font-family: var(--font-label);
   font-size: 12px;
   font-weight: 700;
+}
+
+/* The centre's name, over the dot. Shadowed rather than boxed: it labels a point
+   on the map, and a plate here would read as another control. */
+.wi-centre-name {
+  fill: #f5f5f7;
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: rgb(10 12 18 / 0.85);
+  stroke-width: 3.5;
+  stroke-linejoin: round;
 }
