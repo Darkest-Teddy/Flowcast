@@ -37,6 +37,8 @@ class ShuttleScheduleTests(unittest.TestCase):
 
     def test_gtfs_baseline_expands_exact_frequencies_and_keeps_published_running_times(self):
         result = shuttle.build()
+        self.assertEqual(result['referenceWeekStart'], '2026-10-26')
+        self.assertEqual(result['dates'][-2:], ['2026-10-31', '2026-11-01'])
         saturday = self.departures(result, 'BU-1', 5)
         # Two Saturday 1BU blocks, each hourly, combine into 30-minute service in the afternoon.
         self.assertIn(17 * 3600, saturday)

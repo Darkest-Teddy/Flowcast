@@ -14,6 +14,16 @@ Reviewed October 25, 2026. Published snapshots, live observations, user records,
 | Source inventory | The deployed campus bundle's recorded input files and checksums. The inventory does not claim live feed health, retrieval times, or successful refresh jobs. |
 | Crowd and event-impact forecasts | Computed simulations using published inputs and behavioral assumptions. Synthetic people, projected occupancy, and estimated attendance remain model outputs, not measured people or confirmed attendance. |
 
+## Weekend hours coverage
+
+The October 26–November 1 scenario now includes all seven dates for the nine branch libraries. The refresh reads both Sunday-starting BU calendar pages; explicit closures and overnight hours retain their meaning. Existing law, medical, Fenway, and FitRec schedules already cover the weekend.
+
+Google Maps regular weekly listings now fill 15 previously missing public venue-days: Warren and Marciano Saturday/Sunday; West Sunday; Saxbys, Buick Street Market, Fuller's Pub, Chequers, and GSU Saturday/Sunday. GSU uses Panda Express's 11 a.m.–7 p.m. meal service only, not the building's hours or all vendors. Existing dated BU hours take precedence, including West's Saturday closing time where Maps differs. The private API overlay still takes precedence for its matching dining dates.
+
+These are explicitly labeled regular-hours fallbacks for October 31–November 1, not verified date-specific holiday schedules. Reviewed place names, addresses, observation times, and exact Maps URLs are saved in `data-pipeline/inputs/google_maps_hours.json`. Public and private bundles now cover 171 of 175 venue-days. Breadwinners has no matching Maps listing and Einstein Bros. at 725 Commonwealth has no Maps hours; their four weekend venue-days remain unresolved.
+
+The shuttle scenario dates now align with October 26–November 1; the older baseline and recorded source dates remain disclosed. The broader source audit still finds unavailable classroom capacities, unmapped course/event destinations, and unverified Warren Tower C capacity. These remain gaps rather than estimated facts.
+
 ## Data or services still missing
 
 | Unavailable capability | What is needed |
