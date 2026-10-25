@@ -162,7 +162,7 @@ export default function EventImpact() {
                 <ListRow
                   key={e.id}
                   title={e.sourceUrl ? <a href={e.sourceUrl} target="_blank" rel="noreferrer">{e.title}</a> : e.title}
-                  detail={`${formatTime(e.start)}${e.end && e.end.slice(0, 10) === date ? `–${formatTime(e.end)}` : ''} · ${eventVenue(e)}`}
+                  subtitle={`${formatTime(e.start)}${e.end && e.end.slice(0, 10) === date ? `–${formatTime(e.end)}` : ''} · ${eventVenue(e)}`}
                   trailing={g ? <Tag tone="accent">{g.attendees.toLocaleString()} attending of {g.capacity.toLocaleString()}</Tag> : <Tag>{e.mapStatus === 'simulated' ? 'On the map' : 'Not on map'}</Tag>}
                 />
               );
