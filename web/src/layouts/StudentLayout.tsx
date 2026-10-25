@@ -5,6 +5,7 @@ import {
   CalendarRange,
   CalendarSync,
   Gauge,
+  GraduationCap,
   Home,
   LayoutGrid,
   Map,
@@ -31,6 +32,7 @@ export function StudentLayout() {
   const home: NavItem = { to: '/', label: 'Home', icon: Home, end: true };
   const ask: NavItem = { to: '/ask', label: 'Ask Flowcast', icon: MessagesSquare };
   const schedule: NavItem = { to: '/schedule', label: 'Schedule', icon: CalendarDays };
+  const courses: NavItem = { to: '/courses', label: 'My classes', icon: GraduationCap };
   const study: NavItem = { to: '/study', label: 'Study spots', icon: BookOpen };
   const forecasts: NavItem = { to: '/forecasts', label: 'Forecasts', icon: Gauge };
   const events: NavItem = { to: '/events', label: 'Events', icon: Ticket };
@@ -57,7 +59,7 @@ export function StudentLayout() {
       }
     : null;
 
-  const sections: NavSection[] = [{ items: [home, ask, schedule, study, forecasts, events, eventImpact, clubs, map] }, account, { items: [welcome] }];
+  const sections: NavSection[] = [{ items: [home, ask, schedule, courses, study, forecasts, events, eventImpact, clubs, map] }, account, { items: [welcome] }];
   if (club) sections.push(club);
 
   const tabBar: TabBarConfig = {

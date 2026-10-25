@@ -10,7 +10,7 @@ export default function Schedule() {
   const schedule = useResource(api.getSchedule);
   const now = useDepartureClock();
   const header = <PageHeader title="Schedule" description="Imported classes · all times in Boston."
-    actions={<Button to="/calendars">Import or update .ics</Button>} />;
+    actions={<><Button to="/courses">Pick classes</Button><Button to="/calendars">Import .ics</Button></>} />;
   if (schedule.error) return <Page>{header}<EmptyState title="Your schedule didn't load" body={schedule.error.message}
     action={<Button onClick={schedule.reload}>Try again</Button>} /></Page>;
   if (!schedule.data) return <Page>{header}<Loading label="Loading your schedule" /></Page>;

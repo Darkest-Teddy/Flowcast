@@ -13,7 +13,7 @@ import type { PersonalSchedule } from '@map/personalSchedule';
 import type { ChatRequest } from '@map/chatContract';
 import type {
   AdminSettings, AdminUser, AgentBrain, ApplicationStatus, CalendarConnection, CalendarImport,
-  CampusEvent, CampusLocation, ClubApplication, ClubDetails, DataSource, EventImpactData,
+  CampusEvent, CampusLocation, ClubApplication, ClubDetails, CourseSearchResult, DataSource, EventImpactData,
   NotificationPrefs, Profile, ScheduleItem, ScheduleImportState, SchedulePreview, SimulationSettings, StatRange, Suggestion, WeekStat,
 } from './types';
 
@@ -84,6 +84,11 @@ export const api = {
   previewSchedule: (fileName: string, content: string) => dashboard.request<SchedulePreview>('/schedule/preview', 'POST', { fileName, content }),
   importSchedule: (fileName: string, items: ScheduleItem[]) => dashboard.mutate<ScheduleImportState>('/schedule', 'PUT', { fileName, items }),
   clearSchedule: () => dashboard.mutate<ScheduleImportState>('/schedule', 'DELETE'),
+  searchCourses: (query: string) => dashboard.request<CourseSearchResult>(`/courses?q=${encodeURIComponent(query)}`),
+  /** The named sections themselves, so the picker can show what is already saved. */
+  coursesByKey: (keys: string[]) => dashboard.request<CourseSearchResult>(`/courses?keys=${encodeURIComponent(keys.join(','))}`),
+  /** Replaces the catalog-chosen classes. Anything imported from an .ics file is kept. */
+  saveCourseSections: (sections: string[]) => dashboard.mutate<ScheduleImportState>('/schedule/courses', 'PUT', { sections }),
   getPlaceForecasts: () => dashboard.getPublic().then((data) => data.places),
   getHourlyForecasts: () => dashboard.getPublic().then((data) => data.hourly),
   getCampusGeo: () => dashboard.getPublic().then((data) => data.geo),

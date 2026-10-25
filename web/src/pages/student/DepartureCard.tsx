@@ -35,7 +35,7 @@ export function DepartureCard({ items, locations, geo, homeLocationId, now, load
   const target = plan.target;
   if (loading) return <section className={styles.card} aria-label="Next class">Loading your next class…</section>;
   if (!target) return <section className={styles.card} aria-label="Next class">
-    <h2>No upcoming classes</h2><p><Link to="/calendars">Import or update your .ics schedule</Link></p>
+    <h2>No upcoming classes</h2><p><Link to="/courses">Pick your classes</Link> or <Link to="/calendars">import an .ics file</Link></p>
   </section>;
   const destination = locations.find((location) => location.id === target.locationId);
   const points = [plan.fromLocationId ? geo.positions[plan.fromLocationId] : undefined, geo.positions[target.locationId]]

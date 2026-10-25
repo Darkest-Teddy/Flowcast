@@ -1,0 +1,50 @@
+/* The catalog picker: a search field, the current selection, then the results. */
+.searchRow { max-width: 42rem; }
+
+.muted { color: var(--color-ink-secondary); }
+.slot { color: var(--color-ink-secondary); font-size: var(--text-sm); display: block; }
+.error { color: var(--color-bad); }
+.saved { color: var(--color-ok); }
+
+.chosenRow {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-block: var(--space-4);
+  border-bottom: 1px solid var(--color-hairline);
+}
+.chosenRow:last-child { border-bottom: 0; }
+.chosenMain { min-width: 0; overflow-wrap: anywhere; }
+.chosenMain p { margin: 0; }
+
+.conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-warn);
+  border-radius: var(--radius-md);
+  background: var(--color-warn-soft);
+}
+.conflicts ul { margin: 0; padding-left: var(--space-5); }
+.conflicts p { margin: 0; }
+
+.saveRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+.saveRow p { margin: 0; font-size: var(--text-sm); }
+
+.course { padding-block: var(--space-4); border-bottom: 1px solid var(--color-hairline); }
+.course:last-child { border-bottom: 0; }
+.courseHead { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: baseline; }
+
+.sections { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.section { display: flex; gap: var(--space-3); align-items: flex-start; justify-content: space-between; }
+.sectionLabel { display: flex; gap: var(--space-3); align-items: flex-start; cursor: pointer; min-width: 0; }
+.sectionLabel input { margin-top: 0.2rem; flex-shrink: 0; }
+.sectionBody { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.source { flex-shrink: 0; font-size: var(--text-sm); }

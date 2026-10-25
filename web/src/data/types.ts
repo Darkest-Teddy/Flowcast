@@ -36,7 +36,7 @@ export interface CampusGeo {
   walkMeters: Record<string, number>;
 }
 
-export type EventSource = 'calendar' | 'club' | 'habit' | 'suggested';
+export type EventSource = 'calendar' | 'club' | 'habit' | 'suggested' | 'course';
 
 export interface ScheduleItem {
   id: string;
@@ -57,6 +57,41 @@ export interface ScheduleImportState {
   importedAt: string | null;
   windowStart: string | null;
   windowEnd: string | null;
+  /** Section keys chosen from the published catalog, so the picker can reopen what was selected. */
+  courseSections?: string[];
+  /** When the catalog selection was last saved. Separate from an .ics import's own timestamp. */
+  coursesSavedAt?: string | null;
+}
+
+/** One published meeting pattern of a section: a weekday and a time of day, in Boston. */
+export interface CourseMeetingSlot {
+  weekday: number; // 0 = Monday, matching the simulation's reference week
+  startSec: number; // seconds from local midnight
+  endSec: number;
+  locationId: string; // '' when the building has no mapped Flowcast place
+  buildingCode: string | null;
+  roomCode: string | null;
+  roomCapacity: number | null;
+}
+
+export interface CourseSection {
+  key: string; // "CAS CS 112|A1": the value the picker sends back
+  section: string;
+  slots: CourseMeetingSlot[];
+  sourceUrl: string;
+}
+
+export interface Course {
+  courseCode: string;
+  title: string;
+  sections: CourseSection[];
+}
+
+/** A page of catalog search results. `total` counts matches before `courses` was capped. */
+export interface CourseSearchResult {
+  term: string;
+  total: number;
+  courses: Course[];
 }
 
 export interface SchedulePreview {

@@ -52,7 +52,7 @@ export default function Home() {
   const calendarStatus = schedule.data?.length ? (
     <StatusBadge tone="ok">{schedule.data.length} imported {schedule.data.length === 1 ? 'class' : 'classes'} · <Link to="/calendars">Manage import</Link></StatusBadge>
   ) : (
-    <StatusBadge tone="off">{schedule.loading ? 'Loading your schedule. ' : 'No imported classes. '}<Link to="/calendars">Import .ics schedule</Link></StatusBadge>
+    <StatusBadge tone="off">{schedule.loading ? 'Loading your schedule. ' : 'No classes yet. '}<Link to="/courses">Pick your classes</Link> or <Link to="/calendars">import an .ics file</Link></StatusBadge>
   );
 
   return (

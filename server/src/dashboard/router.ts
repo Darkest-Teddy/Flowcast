@@ -6,7 +6,8 @@ import { bostonDate, clubsFromBundle, forecastsFromBundle, locationsFromBundle, 
 import type { Profile, NotificationPrefs } from '../../../web/src/data/types';
 import type { Snapshot } from './import';
 import { authConfig, createUserVerifier, DashboardAuthError, type AuthConfig, type VerifiedUser, type VerifyUser } from './auth';
-import { emptySchedule, previewSchedule, ScheduleError, scheduleState, validateSchedule } from './schedule';
+import { emptySchedule, MAX_SCHEDULE_ITEMS, previewSchedule, ScheduleError, scheduleState, validateSchedule } from './schedule';
+import { buildCourseIndex, courseSelectionRequest, coursesForKeys, expandSections, MAX_SECTIONS, searchCourses, type CourseIndex } from './courses';
 import type { ScheduleImportState } from '../../../web/src/data/types';
 
 const time = z.union([z.literal(''), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)]);
@@ -38,6 +39,14 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     const result = await pool!.query('SELECT payload FROM dashboard_snapshots JOIN dashboard_current ON hash=snapshot_hash WHERE singleton=true');
     if (!result.rows.length) throw new Error('Snapshot unavailable');
     return result.rows[0].payload;
+  }
+  // Grouping 5,904 published meetings into sections costs more than a request should. Keep the index
+  // until the snapshot is re-imported, which `collectedAt` marks.
+  let indexed: { collectedAt: string; index: CourseIndex } | null = null;
+  async function courseIndex(): Promise<CourseIndex> {
+    const { campus } = await snapshot();
+    if (indexed?.collectedAt !== campus.collectedAt) indexed = { collectedAt: campus.collectedAt, index: buildCourseIndex(campus) };
+    return indexed.index;
   }
   async function account(res: Response): Promise<Account> {
     const user = res.locals.dashboardUser as VerifiedUser;
@@ -84,6 +93,41 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     const g = await account(res);
     const result = await pool!.query('UPDATE dashboard_accounts SET schedule=$1::jsonb, schedule_import=$2::jsonb, updated_at=now() WHERE id=$3 RETURNING schedule,schedule_import',
       [JSON.stringify(items), JSON.stringify({ ...metadata, importedAt: new Date().toISOString() }), g.id]);
+    if (!result.rows[0]) { res.status(409).json({ error: 'Account profile was deleted.' }); return; }
+    res.json(scheduleState(result.rows[0]));
+  });
+  // The published catalog, searched by course code or title. The data is public, but the picker that
+  // uses it is part of a signed-in schedule, so this sits behind the same bearer token as the rest.
+  router.get('/courses', async (req, res) => {
+    const index = await courseIndex();
+    // `keys` looks up named sections (what this account already saved); `q` searches the catalog.
+    const keys = typeof req.query.keys === 'string' ? req.query.keys.split(',').filter(Boolean).slice(0, MAX_SECTIONS) : null;
+    if (keys) { res.json(coursesForKeys(index, keys)); return; }
+    const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+    res.json(searchCourses(index, q));
+  });
+  // Replace the catalog-chosen part of a schedule. Items imported from an .ics file are left alone,
+  // so a student can keep a calendar import and still pick classes.
+  router.put('/schedule/courses', async (req, res) => {
+    const parsed = courseSelectionRequest.safeParse(req.body);
+    if (!parsed.success) throw new ScheduleError('Send at most 30 published section keys.');
+    const index = await courseIndex();
+    const { items: courseItems, windowStart, windowEnd } = expandSections(index, parsed.data.sections);
+    const g = await account(res);
+    const kept = (g.schedule ?? []).filter((item) => item.source !== 'course');
+    const items = [...kept, ...courseItems].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+    if (items.length > MAX_SCHEDULE_ITEMS) throw new ScheduleError('That selection makes too many meetings to store. Choose fewer sections.');
+    const existing = g.schedule_import;
+    const metadata = {
+      ...(existing ?? {}),
+      // Keep the .ics import's own window while its items are still there; otherwise take ours.
+      windowStart: kept.length && existing?.windowStart ? existing.windowStart : windowStart,
+      windowEnd: kept.length && existing?.windowEnd ? existing.windowEnd : windowEnd,
+      courseSections: [...new Set(parsed.data.sections)],
+      coursesSavedAt: new Date().toISOString(),
+    };
+    const result = await pool!.query('UPDATE dashboard_accounts SET schedule=$1::jsonb, schedule_import=$2::jsonb, updated_at=now() WHERE id=$3 RETURNING schedule,schedule_import',
+      [JSON.stringify(items), JSON.stringify(metadata), g.id]);
     if (!result.rows[0]) { res.status(409).json({ error: 'Account profile was deleted.' }); return; }
     res.json(scheduleState(result.rows[0]));
   });

@@ -9,6 +9,7 @@ import SignIn from './pages/SignIn';
 import AuthCallback from './pages/AuthCallback';
 import Welcome from './pages/Welcome';
 import Schedule from './pages/Schedule';
+import Courses from './pages/Courses';
 import Forecasts from './pages/Forecasts';
 import Study from './pages/Study';
 import Events from './pages/Events';
@@ -59,6 +60,7 @@ const router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: 'ask', element: <Ask /> },
       { path: 'schedule', element: <Schedule /> },
+      { path: 'courses', element: <Courses /> },
       { path: 'forecasts', element: <Forecasts /> },
       { path: 'study', element: <Study /> },
       { path: 'events', element: <Events /> },

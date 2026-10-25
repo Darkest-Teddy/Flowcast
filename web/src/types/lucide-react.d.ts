@@ -44,6 +44,7 @@ declare module 'lucide-react' {
   export const Eraser: LucideIcon;
   export const ExternalLink: LucideIcon;
   export const Gauge: LucideIcon;
+  export const GraduationCap: LucideIcon;
   export const Home: LucideIcon;
   export const LayoutGrid: LucideIcon;
   export const Map: LucideIcon;
