@@ -148,8 +148,12 @@ export function clubToolRoutes(deps: ClubToolDeps) {
     if (!parsed.success) throw new OrgError(400, 'Send from and to (YYYY-MM-DD).');
     const cal = deps.venues?.() ?? null;
     const venues = new Map((cal?.venues ?? []).map((v) => [v.id, v]));
+    // Two listings can share a venue and start (the same show listed twice on Terrier Central); later ones get
+    // a suffix so ids stay unique while the first keeps the id RSVPs and links already use.
+    const seen = new Map<string, number>();
+    const uniqueId = (base: string) => { const n = (seen.get(base) ?? 0) + 1; seen.set(base, n); return n === 1 ? base : `${base}:${n}`; };
     const events = (cal?.events ?? []).filter((e) => { const d = bostonClock(new Date(e.start)).date; return d >= parsed.data.from && d <= parsed.data.to; })
-      .map((e) => ({ id: `venue:${e.venueId}:${e.start}`, title: e.name, kind: e.kind, venue: venues.get(e.venueId)?.name ?? e.venueId, locationId: venues.get(e.venueId)?.locationId ?? null, start: e.start, end: e.end }))
+      .map((e) => ({ id: uniqueId(`venue:${e.venueId}:${e.start}`), title: e.name, kind: e.kind, venue: venues.get(e.venueId)?.name ?? e.venueId, locationId: venues.get(e.venueId)?.locationId ?? null, start: e.start, end: e.end }))
       .sort((a, b) => a.start.localeCompare(b.start));
     res.json({ events, window: cal?.window ?? null, source: 'Published venue schedules (BU Athletics, Agganis Arena, Fenway Park, MGM Music Hall).' });
   });
