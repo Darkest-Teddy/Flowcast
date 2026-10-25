@@ -1106,6 +1106,12 @@
   font-size: 14px;
 }
 
+.wi-error {
+  margin: 0;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+}
+
 /* The long explanation that used to sit above the form, behind a link. */
 .wi-assumptions {
   align-self: flex-start;

@@ -14,6 +14,7 @@
  */
 
 import type { IncidentKind } from '../sim/incidents';
+import { DISASTER_ASSUMPTIONS } from '../sim/disasters';
 
 /** The Red Sox game is not an incident: it is a crowd, and the engine models it
  *  through the venue-event calendar rather than through sim/incidents.ts. */
@@ -93,9 +94,12 @@ export const DURATIONS = [30, 60, 120];
 
 /** Radius limits per scenario, in metres. */
 export function radiusLimits(kind: ScenarioKind): { min: number; max: number; step: number } {
-  // A ball game fills a district, not a corner; a drill is one block at most.
-  return kind === 'red-sox' ? { min: 100, max: 1500, step: 10 } : { min: 25, max: 600, step: 10 };
+  // A ball game fills a district, not a corner; an earthquake or meteor stops at the engine's limit.
+  return kind === 'red-sox' ? { min: 100, max: 1500, step: 10 } : { min: 25, max: DISASTER_ASSUMPTIONS.maxRadiusMetres, step: 10 };
 }
+
+/** Only these reach across an area. The engine runs the others on the centre's building alone. */
+export const hasArea = (kind: ScenarioKind) => kind === 'earthquake' || kind === 'meteor' || kind === 'red-sox';
 
 export const defaultRadius = (kind: ScenarioKind) => (kind === 'red-sox' ? 500 : 250);
 
@@ -117,6 +121,7 @@ export function WhatIfForm({
   startLabel,
   onStart,
   canStart,
+  error,
   onAssumptions,
 }: {
   kind: ScenarioKind;
@@ -137,6 +142,8 @@ export function WhatIfForm({
   startLabel: string;
   onStart: () => void;
   canStart: boolean;
+  /** Why the last start was refused (past midnight, say), or empty. */
+  error: string;
   onAssumptions: () => void;
 }) {
   const scenario = SCENARIOS.find((s) => s.id === kind)!;
@@ -168,24 +175,28 @@ export function WhatIfForm({
         <span className="wi-field-hint">{fixedCentre ? 'Fixed for this scenario' : 'Search above or tap the map'}</span>
       </div>
 
-      <p className="pn-label">Radius</p>
-      <div className="wi-field">
-        <span dangerouslySetInnerHTML={{ __html: RING }} />
-        <span className="wi-field-name">{radius >= 1000 ? `${(radius / 1000).toFixed(1)} km` : `${Math.round(radius)} m`}</span>
-        <span className="wi-field-hint">Drag the handle on the map</span>
-      </div>
-      {/* The map handle is the control; this is the same value as a keyboard
-          path, because a drag with no alternative is not reachable. */}
-      <input
-        className="wi-slider"
-        type="range"
-        min={limits.min}
-        max={limits.max}
-        step={limits.step}
-        value={Math.round(radius)}
-        onChange={(e) => onRadius(Number(e.currentTarget.value))}
-        aria-label="Radius in metres"
-      />
+      {hasArea(kind) && (
+        <>
+          <p className="pn-label">Radius</p>
+          <div className="wi-field">
+            <span dangerouslySetInnerHTML={{ __html: RING }} />
+            <span className="wi-field-name">{radius >= 1000 ? `${(radius / 1000).toFixed(1)} km` : `${Math.round(radius)} m`}</span>
+            <span className="wi-field-hint">Drag the handle on the map</span>
+          </div>
+          {/* The map handle is the control; this is the same value as a keyboard
+              path, because a drag with no alternative is not reachable. */}
+          <input
+            className="wi-slider"
+            type="range"
+            min={limits.min}
+            max={limits.max}
+            step={limits.step}
+            value={Math.round(radius)}
+            onChange={(e) => onRadius(Number(e.currentTarget.value))}
+            aria-label="Radius in metres"
+          />
+        </>
+      )}
 
       <p className="pn-label">
         {affectedCount > 0 ? `Affects ${affectedCount} ${affectedCount === 1 ? 'building' : 'buildings'}` : 'No campus buildings in range'}
@@ -228,6 +239,7 @@ export function WhatIfForm({
       <button type="button" className="pn-primary wi-start" onClick={onStart} disabled={!canStart}>
         {startLabel}
       </button>
+      {error && <p className="wi-error" role="alert">{error}</p>}
 
       <button type="button" className="wi-assumptions" onClick={onAssumptions}>
         Model assumptions

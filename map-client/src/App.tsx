@@ -12,7 +12,7 @@ import { orderPlaces, PlacesPanel, type Category } from './panel/Places';
 import { BuildingDetail, FIRST_HOUR, LAST_HOUR, type HourSample } from './panel/BuildingDetail';
 import { BikesPanel, TransitPanel, type DockRow, type ShuttleRow, type StopRow } from './panel/TransitBikes';
 import { EventDetail, EventsList, type EventWhen } from './panel/Events';
-import { defaultRadius, gathers, radiusLimits, SCENARIOS, WhatIfForm, type ScenarioKind } from './panel/WhatIf';
+import { defaultRadius, gathers, hasArea, radiusLimits, SCENARIOS, WhatIfForm, type ScenarioKind } from './panel/WhatIf';
 import { WhatIfCircle, type WhatIfCircleHandle } from './WhatIfCircle';
 import { DISASTER_LIMITATIONS, hazardZone } from './sim/disasters';
 import './panel/panel.css';
@@ -421,6 +421,7 @@ export default function App() {
   const [whatIfRadius, setWhatIfRadius] = useState(defaultRadius('fire-drill'));
   const [whatIfMinutes, setWhatIfMinutes] = useState(30);
   const [whatIfOutside, setWhatIfOutside] = useState(true);
+  const [whatIfError, setWhatIfError] = useState('');
   const [assumptionsOpen, setAssumptionsOpen] = useState(false);
   /** "Hours & sources" on a building: where the old Data tab's content lives now. */
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -1859,14 +1860,16 @@ export default function App() {
    * the chips go stale between recomputes, which is the right trade; the chips
    * answer "which buildings", and the list only changes when the circle does.
    */
-  const whatIfZoneKey = `${view}|${whatIfCentre?.id ?? ''}|${Math.round(whatIfRadius)}`;
+  // The radius the run will use: none for the scenarios that act on the centre's building alone.
+  const whatIfReach = hasArea(whatIfKind) ? whatIfRadius : 0;
+  const whatIfZoneKey = `${view}|${whatIfCentre?.id ?? ''}|${Math.round(whatIfReach)}`;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const whatIfZone = useMemo(() => {
     const day = baseDayRef.current;
     if (!day || !whatIfCentre || view !== 'log') return { chips: [], count: 0 };
     const target = day.locations.find((l) => l.id === whatIfCentre.id)
       ?? ({ ...whatIfCentre, kind: 'classroom', capacity: 0, building: '', short: whatIfCentre.name } as unknown as CampusLocation);
-    const zone = hazardZone(day, target, whatIfRadius);
+    const zone = hazardZone(day, target, whatIfReach);
     const found = zone.locationIds
       .map((id) => ranked.find((o) => o.location.id === id))
       .filter((o): o is NonNullable<typeof o> => Boolean(o));
@@ -1887,7 +1890,7 @@ export default function App() {
   // React has re-rendered.
   circleFrameRef.current = {
     centre: view === 'log' && whatIfCentre ? whatIfCentre.position : null,
-    radius: whatIfRadius,
+    radius: whatIfReach,
     rgb: HUE_RGB[whatIfHue],
     name: whatIfCentre?.name ?? null,
   };
@@ -1897,6 +1900,7 @@ export default function App() {
     setWhatIfRadius(defaultRadius(next));
     setWhatIfMinutes(next === 'fire-drill' || next === 'fire-alarm' ? 30 : 120);
     setWhatIfOutside(gathers(next));
+    setWhatIfError('');
   };
 
   /** Clamp a dragged radius to the scenario's own limits, in 10 m steps. */
@@ -1915,6 +1919,7 @@ export default function App() {
   const gameFirstPitch = Math.min(23 * 3600, Math.ceil(((hud?.time ?? timeRef.current) + 3600) / 300) * 300);
 
   const startWhatIf = () => {
+    setWhatIfError('');
     if (whatIfKind === 'red-sox') {
       if (!fenway) return;
       playSimulatedGame({ firstPitch: gameFirstPitch, opponent: OPPONENTS[0] });
@@ -1922,7 +1927,9 @@ export default function App() {
       return;
     }
     if (!whatIfCentre) return;
-    startIncident(whatIfKind, whatIfCentre.id, whatIfMinutes * 60, whatIfRadius, whatIfOutside);
+    // The engine refuses a run it can't model (one past midnight, say): say why rather than do nothing.
+    try { startIncident(whatIfKind, whatIfCentre.id, whatIfMinutes * 60, hasArea(whatIfKind) ? whatIfRadius : undefined, whatIfOutside); }
+    catch (cause) { setWhatIfError(cause instanceof Error ? cause.message : 'Could not start this what-if.'); }
   };
 
   /*
@@ -2446,6 +2453,7 @@ export default function App() {
                     : `Start at ${formatClock(hud.time)}`}
                   onStart={startWhatIf}
                   canStart={whatIfKind === 'red-sox' ? Boolean(fenway) : Boolean(whatIfCentre)}
+                  error={whatIfError}
                   onAssumptions={() => setAssumptionsOpen((v) => !v)}
                 />
 
