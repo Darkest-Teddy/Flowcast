@@ -10,8 +10,11 @@ export function AgendaRow({
   meta,
   note,
   aside,
+  timeLabel,
 }: {
   start: string;
+  /** Replaces the start time, e.g. "Since Sep 9" for a listing that began on an earlier day. */
+  timeLabel?: ReactNode;
   end?: string;
   title: ReactNode;
   meta?: ReactNode;
@@ -21,7 +24,7 @@ export function AgendaRow({
   return (
     <div className={styles.row}>
       <div className={styles.time}>
-        <time dateTime={start}>{formatTime(start)}</time>
+        <time dateTime={start}>{timeLabel ?? formatTime(start)}</time>
         {end && (
           <>
             <span className="visually-hidden"> to </span>

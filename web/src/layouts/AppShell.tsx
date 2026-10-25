@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { Menu, X, type LucideIcon } from 'lucide-react';
+import { Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X, type LucideIcon } from 'lucide-react';
 import styles from './AppShell.module.css';
 import { Logo } from '../ui/Logo';
+import { setTheme } from '../lib/theme';
 
 export interface NavItem {
   to: string;
@@ -25,6 +26,23 @@ export interface NavSection {
 export interface TabBarConfig {
   tabs: NavItem[];
   more: { label: string; icon: LucideIcon; header?: ReactNode; sections: NavSection[] };
+}
+
+/** localStorage: 'collapsed' when the desktop sidebar is folded down to its icon rail. */
+const COLLAPSE_KEY = 'flowcast.sidebar';
+
+function savedCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === 'collapsed';
+  } catch {
+    return false;
+  }
+}
+
+/** Whether the page is dark right now: chosen in Settings or the toggle, or by the device under System. */
+function isDark() {
+  const chosen = document.documentElement.dataset.theme;
+  return chosen ? chosen === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
 /** Same width as the `max-width: 860px` breakpoint in AppShell.module.css. */
@@ -63,7 +81,28 @@ export function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // Desktop only: the phone layouts have their own drawer and tab bar, and ignore it.
+  const [collapsed, setCollapsed] = useState(savedCollapsed);
+  const [dark, setDark] = useState(isDark);
   const { pathname } = useLocation();
+
+  // The quick toggle flips between explicit light and dark; Settings still offers System.
+  const toggleTheme = () => {
+    const next = !isDark();
+    setTheme(next ? 'dark' : 'light');
+    setDark(next);
+  };
+
+  const toggleCollapsed = () => {
+    setCollapsed((was) => {
+      try {
+        localStorage.setItem(COLLAPSE_KEY, was ? 'expanded' : 'collapsed');
+      } catch {
+        // storage blocked: the choice lasts for this page load only
+      }
+      return !was;
+    });
+  };
 
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -125,11 +164,14 @@ export function AppShell({
   const MoreIcon = tabBar?.more.icon;
 
   return (
-    <div className={`${styles.shell} ${tabBar ? styles.withTabBar : ''}`}>
+    <div className={`${styles.shell} ${tabBar ? styles.withTabBar : ''} ${collapsed ? styles.collapsed : ''}`}>
       <aside className={`${styles.sidebar} ${open ? styles.open : ''}`} aria-label="Main">
         <div className={styles.brand}>
-          <Logo className={styles.mark} />
-          <span>Flowcast</span>
+          {/* The logo goes to the landing page, which /landing shows to signed-in people too. */}
+          <NavLink to="/landing" className={styles.brandLink} aria-label="Flowcast home page" title={collapsed ? 'Flowcast' : undefined}>
+            <Logo className={styles.mark} />
+            <span className={styles.brandName}>Flowcast</span>
+          </NavLink>
           {brandTag && <span className={styles.brandTag}>{brandTag}</span>}
           <button ref={closeButton} className={styles.close} onClick={() => setOpen(false)} aria-label="Close menu">
             <X aria-hidden />
@@ -146,6 +188,7 @@ export function AppShell({
                   end={item.end}
                   reloadDocument={item.external}
                   onClick={() => setOpen(false)}
+                  title={collapsed ? item.label : undefined}
                   className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ''}`}
                 >
                   <item.icon aria-hidden className={styles.itemIcon} />
@@ -156,6 +199,16 @@ export function AppShell({
             </div>
           ))}
         </nav>
+        <div className={styles.tools}>
+          <button type="button" className={styles.tool} onClick={toggleTheme}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'}>
+            {dark ? <Sun aria-hidden /> : <Moon aria-hidden />}
+          </button>
+          <button type="button" className={styles.tool} onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-pressed={collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
+          </button>
+        </div>
         {sidebarFooter && <div className={styles.footer}>{sidebarFooter}</div>}
       </aside>
       {open && <div className={styles.scrim} onClick={() => setOpen(false)} aria-hidden />}

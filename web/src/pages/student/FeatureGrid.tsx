@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
   BadgeCheck,
@@ -39,14 +40,14 @@ const FEATURES: Feature[] = [
 ];
 
 /** Everything Flowcast does, one tile each, so nothing is only reachable from the sidebar. */
-export function FeatureGrid({ clubOfficer, admin }: { clubOfficer: boolean; admin: boolean }) {
+export function FeatureGrid({ clubOfficer, admin, style }: { clubOfficer: boolean; admin: boolean; style?: CSSProperties }) {
   const features = [
     ...FEATURES,
     ...(clubOfficer ? [{ to: '/club', label: 'Your club', blurb: 'Your club page and calendar upload.', icon: BadgeCheck }] : []),
     ...(admin ? [{ to: '/admin', label: 'Admin area', blurb: 'Data sources, simulation and club verification.', icon: LayoutGrid }] : []),
   ];
   return (
-    <section className={styles.section} aria-labelledby="all-features">
+    <section className={styles.section} style={style} aria-labelledby="all-features">
       <h2 id="all-features" className={styles.heading}>Everything in Flowcast</h2>
       <ul className={styles.grid}>
         {features.map(({ to, label, blurb, icon: Icon, external }) => {

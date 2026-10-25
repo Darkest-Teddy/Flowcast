@@ -13,7 +13,7 @@
   width: calc(100% + 96px);
   height: calc(100% + 96px);
   object-fit: cover;
-  filter: blur(10px) saturate(1.15);
+  filter: blur(14px) saturate(1.1);
 }
 
 /* The frost: the canvas over the picture, thick enough that body text on bare canvas still reads. */
@@ -21,7 +21,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--color-canvas) 58%, transparent);
+  background: color-mix(in srgb, var(--color-canvas) 66%, transparent);
 }
 
 .dark {

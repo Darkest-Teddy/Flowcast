@@ -4,6 +4,7 @@ import { Download } from 'lucide-react';
 import { useSession } from '../auth/session';
 import { api } from '../data/api';
 import { Button, ListRow, Page, PageHeader, SectionHeading, SectionList } from '../ui';
+import { Terms } from './account/Terms';
 import styles from './Privacy.module.css';
 
 const kept = [
@@ -61,7 +62,7 @@ export default function Privacy() {
 
   return (
     <Page>
-      <PageHeader title="Privacy & data" description="Manage data saved to your Flowcast account." />
+      <PageHeader title="Privacy & data" description={<>Manage data saved to your Flowcast account. <a href="#terms">Terms of service</a></>} />
 
       <div className={styles.columns}>
         <SectionList title="Flowcast account data">
@@ -125,6 +126,8 @@ export default function Privacy() {
           {message}
         </p>
       )}
+
+      <Terms />
     </Page>
   );
 }

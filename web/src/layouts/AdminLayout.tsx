@@ -40,9 +40,9 @@ export function AdminLayout() {
       sections={sections}
       brandTag="Admin"
       sidebarFooter={
-        <Link to="/" className={styles.back}>
+        <Link to="/" className={styles.back} title="Back to Flowcast">
           <ArrowLeft aria-hidden />
-          Back to Flowcast
+          <span data-rail="hide">Back to Flowcast</span>
         </Link>
       }
     />

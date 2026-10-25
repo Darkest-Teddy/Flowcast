@@ -26,7 +26,7 @@ export function StatCard({
         <div className={styles.chart}>
           <div className={styles.bars} aria-hidden>
             {series.map((v, i) => (
-              <i key={i} className={i === highlightIndex ? styles.on : undefined} style={{ height: `${Math.max(6, (v / max) * 100)}%` }} />
+              <i key={i} className={i === highlightIndex ? styles.on : undefined} style={{ height: `${Math.max(6, (v / max) * 100)}%`, ['--bar' as string]: i }} />
             ))}
           </div>
           {axis && (
