@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api, useResource } from '../data/api';
 import { findMeetings, meetingIcs, type MeetingItem } from '../lib/clubMeetings';
-import { officerMeetingEvents } from '../lib/orgs';
+import { officerMeetingEvents, perkSummary } from '../lib/orgs';
+import { WeatherNote } from './club/MeetingTools';
+import { FairTab } from './meetings/FairTab';
 import { answerMapLink } from '../lib/askMapLink';
 import { config } from '../config';
 import { Button, EmptyState, Loading, Page, PageHeader, Segmented, SelectField, Tag, TextField } from '../ui';
@@ -13,8 +15,8 @@ import { Updates } from './meetings/Updates';
 import { useOrgState, type OrgState } from './meetings/useOrgState';
 import styles from './Meetings.module.css';
 
-type Tab = 'find' | 'plan' | 'tabling' | 'updates';
-const TABS: Tab[] = ['find', 'plan', 'tabling', 'updates'];
+type Tab = 'find' | 'plan' | 'tabling' | 'fair' | 'updates';
+const TABS: Tab[] = ['find', 'plan', 'tabling', 'fair', 'updates'];
 const RANGES = [{ value: '7', label: 'Next 7 days' }, { value: '30', label: 'Next 30 days' }, { value: 'all', label: 'All upcoming' }];
 const emptyGeo = { positions: {}, walkMeters: {} };
 
@@ -59,19 +61,20 @@ export default function Meetings() {
     <PageHeader title="Club meetings" description="Find where student organizations meet, plan your own meeting, find a spot to table, and keep up with clubs you follow." />
     <div className={styles.tabs}>
       <Segmented label="Club meetings" value={tab} onChange={setTab} options={[
-        { value: 'find', label: 'Find meetings' }, { value: 'plan', label: 'Plan a meeting' }, { value: 'tabling', label: 'Tabling spots' },
+        { value: 'find', label: 'Find meetings' }, { value: 'plan', label: 'Plan a meeting' }, { value: 'tabling', label: 'Tabling spots' }, { value: 'fair', label: 'Activity fair' },
         { value: 'updates', label: unread ? `Updates (${unread})` : 'Updates' },
       ]} />
     </div>
     {org.error && <p role="alert" className={styles.error}>{org.error}</p>}
     {tab === 'find' && <FindMeetings org={org} />}
     {tab === 'plan' && <div className={styles.stack}>
-      <MemberFreeTime officerOf={org.me.data?.officerOf ?? []} onPick={(day, hour) => setParams({ tab: 'plan', day: String(day), from: `${String(hour).padStart(2, '0')}:00` }, { replace: true })} />
+      <MemberFreeTime officerOf={org.me.data?.officerOf ?? []} onUseHeadcount={(n) => setParams({ tab: 'plan', headcount: String(n) }, { replace: true })} onPick={(day, hour) => setParams({ tab: 'plan', day: String(day), from: `${String(hour).padStart(2, '0')}:00` }, { replace: true })} />
       <PlanEvent key={params.toString()} title="Find a room for your meeting" initial={initial} />
       <ConflictCheck />
       <TurnoutPreview />
     </div>}
     {tab === 'tabling' && <TablingSpots />}
+    {tab === 'fair' && <FairTab org={org} />}
     {tab === 'updates' && <Updates notes={notes} />}
   </Page>;
 }
@@ -85,6 +88,7 @@ function FindMeetings({ org }: { org: OrgState }) {
   const [query, setQuery] = useState('');
   const [range, setRange] = useState('30');
   const [onlyFollowing, setOnlyFollowing] = useState(false);
+  const [foodOnly, setFoodOnly] = useState(false);
   const [now] = useState(Date.now);
   const following = useMemo(() => (clubs.data ?? []).filter((c) => c.following).map((c) => c.id), [clubs.data]);
   const clubNames = useMemo(() => new Map((clubs.data ?? []).map((c) => [c.id, c.name])), [clubs.data]);
@@ -93,8 +97,9 @@ function FindMeetings({ org }: { org: OrgState }) {
   const items = useMemo(() => findMeetings(all, locations.data ?? [], geo.data ?? emptyGeo, {
     query, following, onlyFollowing, withinDays: range === 'all' ? null : Number(range), now, home,
   }), [all, locations.data, geo.data, query, following, onlyFollowing, range, now, home]);
-  const once = items.filter((i) => i.kind === 'once');
-  const series = items.filter((i) => i.kind === 'series');
+  const shown = foodOnly ? items.filter((i) => i.event.perks?.includes('food')) : items;
+  const once = shown.filter((i) => i.kind === 'once');
+  const series = shown.filter((i) => i.kind === 'series');
   const homeName = home ? locations.data?.find((l) => l.id === home)?.name : null;
 
   if (events.error) return <EmptyState title="Meetings didn’t load" body={events.error.message} action={<Button onClick={events.reload}>Try again</Button>} />;
@@ -113,14 +118,18 @@ function FindMeetings({ org }: { org: OrgState }) {
         <input type="checkbox" checked={onlyFollowing} onChange={(e) => setOnlyFollowing(e.target.checked)} disabled={!following.length} />
         Only clubs I follow{!following.length && ' (follow clubs on the Clubs page)'}
       </label>
+      <label className={styles.check}>
+        <input type="checkbox" checked={foodOnly} onChange={(e) => setFoodOnly(e.target.checked)} />
+        Free food
+      </label>
       <p className={styles.muted}>
         {homeName ? `Walks are from ${homeName}, your home building.` : 'Set your home building in Profile to see walking times.'}
         {' '}Meetings come from BU’s public Terrier Central listings and from verified club officers on Flowcast. Some listings only show their room to signed-in BU students on Terrier Central.
       </p>
     </section>
 
-    <p role="status" className={styles.count}>{items.length} {items.length === 1 ? 'listing' : 'listings'}</p>
-    {items.length === 0 ? <EmptyState title="No meetings match" body="Try another search, a longer time range, or all clubs." />
+    <p role="status" className={styles.count}>{shown.length} {shown.length === 1 ? 'listing' : 'listings'}</p>
+    {shown.length === 0 ? <EmptyState title="No meetings match" body={foodOnly ? 'No upcoming meeting lists free food yet. Club officers add it when they post a meeting.' : 'Try another search, a longer time range, or all clubs.'} />
       : <>
         {once.length > 0 && <ul className={styles.list} aria-label="Upcoming meetings">{once.map(card)}</ul>}
         {series.length > 0 && <>
@@ -141,7 +150,7 @@ export function MeetingCard({ item, geo, org }: { item: MeetingItem; geo: { posi
   const count = org.rsvpCount(event.id);
   const canRsvp = item.kind === 'once';
   return <li className={styles.card}>
-    <p className={styles.when}>{meetingWhen(item)}{event.source === 'manual' && <> · <Tag tone="accent">Posted by the club</Tag></>}</p>
+    <p className={styles.when}>{meetingWhen(item)}{event.source === 'manual' && <> · <Tag tone="accent">Posted by the club</Tag></>}{event.seriesId && <> · <Tag>Weekly</Tag></>}</p>
     <h3>{event.title}</h3>
     {event.organizer && (event.clubId
       ? <Link className={styles.organizer} to={`/clubs/${encodeURIComponent(event.clubId)}`}>{event.organizer.replace(/\s+-\s+\d+$/, '')}</Link>
@@ -150,7 +159,10 @@ export function MeetingCard({ item, geo, org }: { item: MeetingItem; geo: { posi
       {where ?? <span className={styles.muted}>Room shown to signed-in BU students on the listing</span>}
       {item.walk !== null && <Tag>{item.walk} min walk</Tag>}
       {canRsvp && count > 0 && <Tag tone="ok">{count} going</Tag>}
+      {perkSummary(event) && <Tag tone="accent">{perkSummary(event)}</Tag>}
+      {event.outdoor && <Tag>Outdoors</Tag>}
     </p>
+    {event.outdoor && Date.parse(event.start) - Date.now() < 7 * 86_400_000 && <WeatherNote start={event.start} end={event.end ?? event.start} />}
     <div className={styles.actions}>
       {canRsvp && <Button size="sm" variant={going ? 'secondary' : 'primary'} disabled={org.pending === event.id} aria-pressed={going}
         onClick={() => void org.setRsvp(event.id, !going)}>{going ? 'Going ✓' : 'Going?'}</Button>}

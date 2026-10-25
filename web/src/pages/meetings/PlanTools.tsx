@@ -14,19 +14,38 @@ const bostonToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/
  * Members' free time, for officers: how many of the members who chose to share are free each hour of
  * the next seven days. Counts only, and nothing until enough members share.
  */
-export function MemberFreeTime({ officerOf, onPick }: { officerOf: string[]; onPick: (weekday: number, hour: number) => void }) {
+export function MemberFreeTime({ officerOf, onPick, onUseHeadcount }: { officerOf: string[]; onPick: (weekday: number, hour: number) => void; onUseHeadcount: (n: number) => void }) {
   const clubs = useResource(api.getClubs);
   const [clubId, setClubId] = useState<string | null>(null);
+  const [withClub, setWithClub] = useState('');
   const id = clubId ?? officerOf[0] ?? null;
-  const availability = useResource(() => (id ? api.getMemberAvailability(id) : Promise.resolve(null)), [id]);
+  const availability = useResource(() => (id ? api.getMemberAvailabilityWith(id, withClub || null) : Promise.resolve(null)), [id, withClub]);
+  const attendance = useResource(() => (id ? api.getAttendance(id) : Promise.resolve(null)), [id]);
+  // Partners: other clubs this officer runs, and clubs that co-host with this one.
+  const invites = useResource(() => (id ? api.getCohostInvites(id) : Promise.resolve([])), [id]);
+  const partners = useMemo(() => {
+    const set = new Set(officerOf.filter((c) => c !== id));
+    for (const i of invites.data ?? []) if (i.status === 'accepted') for (const c of [i.meeting.clubId, ...i.meeting.cohosts]) if (c !== id) set.add(c);
+    return [...set];
+  }, [officerOf, id, invites.data]);
   if (!officerOf.length) return null;
   const name = (c: string) => clubs.data?.find((x) => x.id === c)?.name ?? c;
   return <section className={styles.panel} aria-labelledby="free-time">
     <SectionHeading><span id="free-time">When your members are free</span></SectionHeading>
     <p className={styles.muted}>Counts of members who chose to share their free time with your club, from their imported class schedules. You never see whose time is whose. Pick an hour to search rooms then.</p>
-    {officerOf.length > 1 && <SelectField label="Club" value={id ?? ''} onChange={(e) => setClubId(e.target.value)}>
-      {officerOf.map((c) => <option key={c} value={c}>{name(c)}</option>)}
-    </SelectField>}
+    <div className={styles.inline}>
+      {officerOf.length > 1 && <SelectField label="Club" value={id ?? ''} onChange={(e) => { setClubId(e.target.value); setWithClub(''); }}>
+        {officerOf.map((c) => <option key={c} value={c}>{name(c)}</option>)}
+      </SelectField>}
+      {partners.length > 0 && <SelectField label="Plan together with" value={withClub} onChange={(e) => setWithClub(e.target.value)}>
+        <option value="">Just this club</option>
+        {partners.map((c) => <option key={c} value={c}>{name(c)}</option>)}
+      </SelectField>}
+    </div>
+    {attendance.data?.recentAverage != null && <p className={styles.note}>
+      Last {attendance.data.basedOn} {attendance.data.basedOn === 1 ? 'meeting' : 'meetings'} with check-in averaged <strong>{attendance.data.recentAverage}</strong> people.
+      {' '}<Button size="sm" variant="ghost" onClick={() => onUseHeadcount(attendance.data!.recentAverage!)}>Find rooms for {attendance.data.recentAverage}</Button>
+    </p>}
     {availability.loading ? <Loading label="Loading members’ free time" />
       : availability.error ? <p role="alert">{errorText(availability.error)}</p>
       : availability.data && <FreeGrid data={availability.data} onPick={onPick} />}

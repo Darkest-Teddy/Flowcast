@@ -8,6 +8,7 @@
 // - Signed-in students RSVP, follow clubs, share their free time with a club, and read announcements
 //   from followed clubs when club updates are on in their notification settings.
 // Every personal row belongs to an account and is deleted with it (DELETE /me).
+import { randomUUID } from 'node:crypto';
 import { Router, type Response } from 'express';
 import type pg from 'pg';
 import { z } from 'zod';
@@ -59,6 +60,12 @@ export const ORG_TABLES = `
     club_id text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (account_id, club_id)
   );
   ALTER TABLE dashboard_accounts ADD COLUMN IF NOT EXISTS notifications_read_at timestamptz;
+  ALTER TABLE dashboard_club_meetings ADD COLUMN IF NOT EXISTS series_id uuid;
+  ALTER TABLE dashboard_club_meetings ADD COLUMN IF NOT EXISTS perks text[] NOT NULL DEFAULT '{}';
+  ALTER TABLE dashboard_club_meetings ADD COLUMN IF NOT EXISTS perks_note text NOT NULL DEFAULT '';
+  ALTER TABLE dashboard_club_meetings ADD COLUMN IF NOT EXISTS outdoor boolean NOT NULL DEFAULT false;
+  ALTER TABLE dashboard_club_meetings ADD COLUMN IF NOT EXISTS cohosts text[] NOT NULL DEFAULT '{}';
+  CREATE INDEX IF NOT EXISTS dashboard_club_meetings_series ON dashboard_club_meetings(series_id);
 `;
 export const ORG_TABLE_NAMES = ['dashboard_officer_requests', 'dashboard_officers', 'dashboard_club_meetings', 'dashboard_rsvps', 'dashboard_announcements', 'dashboard_availability_shares'];
 
@@ -87,24 +94,59 @@ export interface OrgDeps {
 
 const uuid = z.string().uuid();
 const iso = z.string().datetime({ offset: true });
-const meetingBody = z.object({
+/** What a meeting offers, so students can find free food and more. */
+export const PERKS = ['food', 'drinks', 'swag', 'prizes', 'free-entry'] as const;
+/** A weekly series covers at most this many meetings. */
+export const MAX_SERIES = 26;
+const meetingFields = {
   title: z.string().trim().min(1).max(120),
   locationId: z.string().min(1).max(160).nullable(),
   room: z.string().trim().max(40),
   start: iso, end: iso,
   notes: z.string().trim().max(500),
-}).strict();
-const meetingPatch = meetingBody.partial().extend({ cancelled: z.boolean() }).partial().strict();
+  perks: z.array(z.enum(PERKS)).max(PERKS.length).default([]),
+  perksNote: z.string().trim().max(120).default(''),
+  outdoor: z.boolean().default(false),
+};
+const meetingBody = z.object(meetingFields).strict();
+/** Posting: optionally repeat weekly on the same weekday and Boston time, through repeatUntil (a date). */
+const meetingPost = z.object({ ...meetingFields, repeatUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional() }).strict();
+/** Changing: one meeting, or this and the later meetings in its series (same dates, new times or details). */
+const meetingPatch = z.object({
+  title: meetingFields.title, locationId: meetingFields.locationId, room: meetingFields.room, start: iso, end: iso, notes: meetingFields.notes,
+  perks: z.array(z.enum(PERKS)).max(PERKS.length), perksNote: z.string().trim().max(120), outdoor: z.boolean(), cancelled: z.boolean(),
+  scope: z.enum(['one', 'series']),
+}).partial().strict();
 
 export interface OfficerMeeting {
   id: string; eventId: string; clubId: string; title: string; locationId: string | null; room: string;
   start: string; end: string; notes: string; cancelled: boolean; updatedAt: string;
+  seriesId: string | null; perks: string[]; perksNote: string; outdoor: boolean; cohosts: string[];
 }
-const meetingRow = (r: Record<string, any>): OfficerMeeting => ({
+export const meetingRow = (r: Record<string, any>): OfficerMeeting => ({
   id: r.id, eventId: `meeting:${r.id}`, clubId: r.club_id, title: r.title, locationId: r.location_id, room: r.room,
   start: new Date(r.starts_at).toISOString(), end: new Date(r.ends_at).toISOString(), notes: r.notes, cancelled: r.cancelled,
   updatedAt: new Date(r.updated_at).toISOString(),
+  seriesId: r.series_id ?? null, perks: r.perks ?? [], perksNote: r.perks_note ?? '', outdoor: r.outdoor ?? false, cohosts: r.cohosts ?? [],
 });
+
+/** A Boston date and HH:MM as an instant (EDT or EST, whichever reads back as that wall time), or null. */
+export function bostonInstant(date: string, hhmm: string): Date | null {
+  for (const offset of ['-04:00', '-05:00']) {
+    const d = new Date(`${date}T${hhmm}:00${offset}`);
+    if (!Number.isFinite(d.getTime())) continue;
+    const c = bostonClock(d);
+    if (c.date === date && c.seconds === Number(hhmm.slice(0, 2)) * 3600 + Number(hhmm.slice(3, 5)) * 60) return d;
+  }
+  return null;
+}
+const hhmm = (seconds: number) => `${String(Math.floor(seconds / 3600)).padStart(2, '0')}:${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')}`;
+/** Weekly dates from a start date through `until` (inclusive), at most MAX_SERIES. */
+export function weeklyDates(start: string, until: string): string[] {
+  const out: string[] = [];
+  for (let d = new Date(`${start}T12:00:00Z`); d.toISOString().slice(0, 10) <= until && out.length < MAX_SERIES; d.setUTCDate(d.getUTCDate() + 7)) out.push(d.toISOString().slice(0, 10));
+  return out;
+}
 
 const bostonParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', weekday: 'short' });
 const WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -114,6 +156,12 @@ export function bostonClock(at: Date) {
   return { date: `${p.year}-${p.month}-${p.day}`, weekday: WEEKDAY_SHORT.indexOf(p.weekday), seconds: Number(p.hour) * 3600 + Number(p.minute) * 60 };
 }
 const timeFormat = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const weekdayFormat = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'long' });
+const clockFormat = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+const shortDate = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
+const PERK_NAMES: Record<string, string> = { food: 'free food', drinks: 'drinks', swag: 'free swag', prizes: 'prizes', 'free-entry': 'free entry' };
+export const perkList = (m: Pick<OfficerMeeting, 'perks' | 'perksNote'>) => [m.perks.map((p) => PERK_NAMES[p] ?? p).join(', '), m.perksNote].filter(Boolean).join(': ');
+const perkText = (m: Pick<OfficerMeeting, 'perks' | 'perksNote'>) => (m.perks.length || m.perksNote ? `. ${perkList(m)[0].toUpperCase()}${perkList(m).slice(1)}` : '');
 
 /**
  * How many sharing members are free in each hour of the next seven Boston days. A member is busy in an
@@ -191,7 +239,7 @@ export function orgRoutes(deps: OrgDeps) {
     return g;
   }
   async function upcomingMeetings(clubId?: string) {
-    const r = await pool.query(`SELECT * FROM dashboard_club_meetings WHERE ends_at > $1::timestamptz - interval '7 days' ${clubId ? 'AND club_id=$2' : ''} ORDER BY starts_at`,
+    const r = await pool.query(`SELECT * FROM dashboard_club_meetings WHERE ends_at > $1::timestamptz - interval '7 days' ${clubId ? 'AND (club_id=$2 OR $2 = ANY(cohosts))' : ''} ORDER BY starts_at`,
       clubId ? [now(), clubId] : [now()]);
     return r.rows.map(meetingRow);
   }
@@ -201,6 +249,10 @@ export function orgRoutes(deps: OrgDeps) {
   }
   async function announce(clubId: string, body: string, createdBy: string | null, meetingId: string | null = null) {
     await pool.query('INSERT INTO dashboard_announcements(club_id, body, meeting_id, created_by) VALUES($1,$2,$3,$4)', [clubId, body, meetingId, createdBy]);
+  }
+  /** A meeting's news goes to the host club's followers and to each co-host's. */
+  async function announceMeeting(m: OfficerMeeting, body: string, createdBy: string | null) {
+    for (const c of [m.clubId, ...m.cohosts]) await announce(c, body, createdBy, m.id);
   }
 
   // ---------------------------------------------------------------- public reads
@@ -325,12 +377,32 @@ export function orgRoutes(deps: OrgDeps) {
   // ---------------------------------------------------------------- officers: meetings, announcements, free time
   router.post('/clubs/:id/meetings', async (req, res) => {
     const g = await requireOfficer(res, req.params.id);
-    const m = await validMeeting(meetingBody.safeParse(req.body));
-    const r = await pool.query(`INSERT INTO dashboard_club_meetings(club_id, title, location_id, room, starts_at, ends_at, notes, created_by)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`, [req.params.id, m.title, m.locationId, m.room, m.start, m.end, m.notes, g.id]);
-    const meeting = meetingRow(r.rows[0]);
-    await announce(req.params.id, `New meeting: ${meeting.title}, ${timeFormat.format(new Date(meeting.start))}${await whereText(meeting)}.`, g.id, meeting.id);
-    res.status(201).json(meeting);
+    const post = meetingPost.safeParse(req.body);
+    if (!post.success) throw new OrgError(400, 'Send title, locationId (or null), room, start, end (ISO times), notes, and optionally perks, perksNote, outdoor and repeatUntil (a date).');
+    const { repeatUntil, ...fields } = post.data;
+    const m = await validMeeting(meetingBody.safeParse(fields));
+    // A weekly series: the same weekday and Boston clock time each week, through repeatUntil.
+    const start = bostonClock(new Date(m.start)), end = bostonClock(new Date(m.end));
+    const dates = repeatUntil ? weeklyDates(start.date, repeatUntil) : [start.date];
+    if (repeatUntil && repeatUntil < start.date) throw new OrgError(400, 'Repeat until a date on or after the first meeting.');
+    const days = Math.round((Date.parse(`${end.date}T12:00:00Z`) - Date.parse(`${start.date}T12:00:00Z`)) / 86_400_000);
+    const seriesId = dates.length > 1 ? randomUUID() : null;
+    const rows: OfficerMeeting[] = [];
+    for (const date of dates) {
+      const s = bostonInstant(date, hhmm(start.seconds));
+      const endDate = new Date(`${date}T12:00:00Z`); endDate.setUTCDate(endDate.getUTCDate() + days);
+      const e = bostonInstant(endDate.toISOString().slice(0, 10), hhmm(end.seconds));
+      if (!s || !e) throw new OrgError(400, `That time doesn’t exist in Boston on ${date} (a clock change).`);
+      const r = await pool.query(`INSERT INTO dashboard_club_meetings(club_id, title, location_id, room, starts_at, ends_at, notes, perks, perks_note, outdoor, series_id, created_by)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`, [req.params.id, m.title, m.locationId, m.room, s, e, m.notes, m.perks, m.perksNote, m.outdoor, seriesId, g.id]);
+      rows.push(meetingRow(r.rows[0]));
+    }
+    const first = rows[0];
+    const perks = perkText(first);
+    await announceMeeting(first, rows.length > 1
+      ? `New weekly meeting: ${first.title}, ${weekdayFormat.format(new Date(first.start))}s at ${clockFormat.format(new Date(first.start))}, ${shortDate.format(new Date(first.start))} to ${shortDate.format(new Date(rows.at(-1)!.start))}${await whereText(first)}${perks}.`
+      : `New meeting: ${first.title}, ${timeFormat.format(new Date(first.start))}${await whereText(first)}${perks}.`, g.id);
+    res.status(201).json(rows.length > 1 ? { ...first, series: rows } : first);
   });
   router.patch('/clubs/:id/meetings/:meetingId', async (req, res) => {
     const g = await requireOfficer(res, req.params.id);
@@ -340,24 +412,47 @@ export function orgRoutes(deps: OrgDeps) {
     const before = await pool.query('SELECT * FROM dashboard_club_meetings WHERE id=$1 AND club_id=$2', [req.params.meetingId, req.params.id]);
     if (!before.rows[0]) throw new OrgError(404, 'No such meeting.');
     const old = meetingRow(before.rows[0]);
-    const next = await validMeeting(meetingBody.safeParse({
-      title: parsed.data.title ?? old.title, locationId: parsed.data.locationId !== undefined ? parsed.data.locationId : old.locationId,
-      room: parsed.data.room ?? old.room, start: parsed.data.start ?? old.start, end: parsed.data.end ?? old.end, notes: parsed.data.notes ?? old.notes,
-    }));
-    const cancelled = parsed.data.cancelled ?? old.cancelled;
-    const r = await pool.query(`UPDATE dashboard_club_meetings SET title=$1, location_id=$2, room=$3, starts_at=$4, ends_at=$5, notes=$6, cancelled=$7, updated_at=now()
-      WHERE id=$8 RETURNING *`, [next.title, next.locationId, next.room, next.start, next.end, next.notes, cancelled, old.id]);
-    const meeting = meetingRow(r.rows[0]);
-    // Followers hear about what changed for them: cancellation, a new time, or a new place.
-    const changes: string[] = [];
-    if (cancelled && !old.cancelled) changes.push('cancelled');
-    else if (!cancelled && old.cancelled) changes.push(`back on, ${timeFormat.format(new Date(meeting.start))}`);
-    else {
-      if (meeting.start !== old.start || meeting.end !== old.end) changes.push(`moved to ${timeFormat.format(new Date(meeting.start))}`);
-      if (meeting.locationId !== old.locationId || meeting.room !== old.room) changes.push(`now${await whereText(meeting)}`);
+    const { scope = 'one', cancelled: cancelledPatch, ...patch } = parsed.data;
+    // "This and later": the same series from this meeting on. Dates stay; a new time keeps each date.
+    const targets = scope === 'series' && old.seriesId
+      ? (await pool.query('SELECT * FROM dashboard_club_meetings WHERE series_id=$1 AND starts_at >= $2 ORDER BY starts_at', [old.seriesId, old.start])).rows.map(meetingRow)
+      : [old];
+    // A new time for "this and later": each later meeting keeps its own date, takes the new start
+    // clock time, and lasts as long as the edited one now does.
+    const newStart = patch.start ? bostonClock(new Date(patch.start)) : null;
+    const newLength = Date.parse(patch.end ?? old.end) - Date.parse(patch.start ?? old.start);
+    const updated: OfficerMeeting[] = [];
+    for (const t of targets) {
+      let start = patch.start ?? t.start, end = patch.end ?? t.end;
+      if (t !== old && (patch.start || patch.end)) {
+        const own = bostonClock(new Date(t.start));
+        const at = newStart ? bostonInstant(own.date, hhmm(newStart.seconds)) : new Date(t.start);
+        if (!at) throw new OrgError(400, `That time doesn’t exist in Boston on ${own.date} (a clock change).`);
+        start = at.toISOString();
+        end = new Date(at.getTime() + newLength).toISOString();
+      }
+      const next = await validMeeting(meetingBody.safeParse({
+        title: patch.title ?? t.title, locationId: patch.locationId !== undefined ? patch.locationId : t.locationId, room: patch.room ?? t.room,
+        start, end, notes: patch.notes ?? t.notes, perks: patch.perks ?? t.perks, perksNote: patch.perksNote ?? t.perksNote, outdoor: patch.outdoor ?? t.outdoor,
+      }));
+      const r = await pool.query(`UPDATE dashboard_club_meetings SET title=$1, location_id=$2, room=$3, starts_at=$4, ends_at=$5, notes=$6, cancelled=$7,
+        perks=$8, perks_note=$9, outdoor=$10, updated_at=now() WHERE id=$11 RETURNING *`,
+        [next.title, next.locationId, next.room, next.start, next.end, next.notes, cancelledPatch ?? t.cancelled, next.perks, next.perksNote, next.outdoor, t.id]);
+      updated.push(meetingRow(r.rows[0]));
     }
-    if (changes.length) await announce(req.params.id, `${meeting.title}: ${changes.join('; ')}.`, g.id, meeting.id);
-    res.json(meeting);
+    const meeting = updated[0];
+    // Followers hear about what changed for them: cancellation, a new time, a new place, or new perks.
+    const changes: string[] = [];
+    const which = updated.length > 1 ? ` (${updated.length} meetings from ${shortDate.format(new Date(meeting.start))})` : '';
+    if (meeting.cancelled && !old.cancelled) changes.push(`cancelled${which}`);
+    else if (!meeting.cancelled && old.cancelled) changes.push(`back on, ${timeFormat.format(new Date(meeting.start))}${which}`);
+    else {
+      if (meeting.start !== old.start || meeting.end !== old.end) changes.push(updated.length > 1 ? `now at ${clockFormat.format(new Date(meeting.start))}${which}` : `moved to ${timeFormat.format(new Date(meeting.start))}`);
+      if (meeting.locationId !== old.locationId || meeting.room !== old.room) changes.push(`now${await whereText(meeting)}${updated.length > 1 ? which : ''}`);
+      if (meeting.perks.join() !== old.perks.join() && meeting.perks.length) changes.push(`now with ${perkList(meeting)}`);
+    }
+    if (changes.length) await announceMeeting(meeting, `${meeting.title}: ${changes.join('; ')}.`, g.id);
+    res.json(updated.length > 1 ? { ...meeting, series: updated } : meeting);
   });
   router.post('/clubs/:id/announcements', async (req, res) => {
     const g = await requireOfficer(res, req.params.id);
@@ -372,8 +467,18 @@ export function orgRoutes(deps: OrgDeps) {
     res.json(r.rows.map((row) => ({ id: row.id, body: row.body, meetingEventId: row.meeting_id ? `meeting:${row.meeting_id}` : null, at: new Date(row.created_at).toISOString() })));
   });
   router.get('/clubs/:id/availability', async (req, res) => {
-    await requireOfficer(res, req.params.id);
-    const r = await pool.query(`SELECT a.schedule FROM dashboard_availability_shares s JOIN dashboard_accounts a ON a.id = s.account_id WHERE s.club_id=$1`, [req.params.id]);
+    const g = await requireOfficer(res, req.params.id);
+    // Planning together: add another club's sharing members when this officer runs it too, or it co-hosts with this club.
+    const withClub = typeof req.query.with === 'string' && req.query.with ? req.query.with : null;
+    if (withClub) {
+      await club(withClub);
+      const partner = (await officerOf(g.id)).includes(withClub) || (await pool.query(`SELECT 1 FROM dashboard_cohost_invites i JOIN dashboard_club_meetings m ON m.id = i.meeting_id
+        WHERE i.status='accepted' AND ((m.club_id=$1 AND i.club_id=$2) OR (m.club_id=$2 AND i.club_id=$1)) LIMIT 1`, [req.params.id, withClub])).rowCount;
+      if (!partner) throw new OrgError(403, 'Combine free time only with a club you also run, or one that co-hosts with yours.');
+    }
+    // Distinct members, so someone sharing with both clubs counts once.
+    const r = await pool.query(`SELECT a.schedule FROM dashboard_accounts a WHERE a.id IN (SELECT account_id FROM dashboard_availability_shares WHERE club_id = ANY($1))`,
+      [[req.params.id, ...(withClub ? [withClub] : [])]]);
     const members = r.rows.length;
     // Counts only, and none at all below the minimum: an officer never sees whose time is whose.
     res.json(members < MIN_SHARED_MEMBERS

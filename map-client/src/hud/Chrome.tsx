@@ -125,6 +125,22 @@ export const HudIcons = {
       <path d="M12 7.5V12l3.2 2" />
     </svg>
   ),
+  /* A map pin: which campus the camera is on. */
+  pin: () => (
+    <svg {...svg}>
+      <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z" />
+      <circle cx="12" cy="10" r="2.4" />
+    </svg>
+  ),
+  /* Four tiles: the dashboard's bento of cards. */
+  dashboard: () => (
+    <svg {...svg}>
+      <rect x="3.5" y="3.5" width="7" height="9" rx="2" />
+      <rect x="13.5" y="3.5" width="7" height="5" rx="2" />
+      <rect x="13.5" y="11.5" width="7" height="9" rx="2" />
+      <rect x="3.5" y="15.5" width="7" height="5" rx="2" />
+    </svg>
+  ),
   chevronDown: () => (
     <svg {...svg} width={14} height={14}>
       <path d="m6 9.5 6 5.5 6-5.5" />
@@ -218,38 +234,23 @@ function useDismiss(open: boolean, root: { current: HTMLElement | null }, close:
  * Brand
  * ------------------------------------------------------------------------- */
 /*
- * The wordmark, and the campus you are looking at.
- *
- * The campus used to be a segmented control inside the sheet, which put a
- * question about where next to the panels about what. It belongs to the title:
- * the label reads "{campus} · {weekday}", because those two together are the
- * answer to "what am I looking at".
+ * The wordmark, with the way back to the dashboard right beside it. The campus
+ * picker used to sit here too, but few people switch campus and rarely, so it
+ * lives at the foot of the rail with the other occasional map settings.
  */
 /** The landing page, served by the web app on the same origin as /map (web/src/App.tsx). */
 const LANDING_URL = '/landing';
 
 export function HudBrand({
   name,
-  campus,
-  weekday,
-  campuses,
-  onPickCampus,
+  dashboardHref,
 }: {
   name: string;
-  /** Omitted while the campus list is still loading; the brand then stands alone. */
-  campus?: string;
-  weekday?: string;
-  campuses?: readonly { id: string; name: string }[];
-  onPickCampus?: (id: string) => void;
+  /** Where "Dashboard" goes: the student dashboard, served by the same app. */
+  dashboardHref?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  useDismiss(open, root, () => setOpen(false));
-
-  const pickable = campuses && campuses.length > 1 && onPickCampus;
-
   return (
-    <div className="hud-brand" ref={root}>
+    <div className="hud-brand">
       {/* The mark and name go to the landing page, as the dashboard's logo does (web/src/layouts/AppShell.tsx). */}
       <a className="hud-brand-home" href={LANDING_URL} aria-label={`${name} home page`}>
         {/* Drawn inline, so it takes the app's theme (--brand-mark) rather than the system's, as the favicon would. */}
@@ -259,51 +260,12 @@ export function HudBrand({
         <span className="hud-brand-name">{name}</span>
       </a>
 
-      {campus &&
-        (pickable ? (
-          /* Its own positioning context, so the menu hangs under the button
-             rather than under the wordmark at the far left of the pill. */
-          <div className="hud-campus-wrap">
-            <button
-              type="button"
-              className="hud-campus"
-              aria-expanded={open}
-              aria-haspopup="menu"
-              onClick={() => setOpen((v) => !v)}
-            >
-              <span>
-                {campus}
-                {weekday && ` · ${weekday}`}
-              </span>
-              <HudIcons.chevronDown />
-            </button>
-
-            {open && (
-              <div className="hud-campus-menu" role="menu" aria-label="Campus">
-                {campuses.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={c.name.replace(' Campus', '') === campus}
-                    onClick={() => {
-                      onPickCampus(c.id);
-                      setOpen(false);
-                    }}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          /* One campus is a fact, not a choice: a menu of one is a dead end. */
-          <span className="hud-campus is-static">
-            {campus}
-            {weekday && ` · ${weekday}`}
-          </span>
-        ))}
+      {dashboardHref && (
+        <a className="hud-dashboard" href={dashboardHref} aria-label="Dashboard" title="Your dashboard">
+          <HudIcons.dashboard />
+          <span>Dashboard</span>
+        </a>
+      )}
     </div>
   );
 }
@@ -342,19 +304,77 @@ const TAG_MODES: { id: TagMode; label: string; detail: string }[] = [
  * not decoration: everything above it adds something to the map, while the
  * button below it changes how the map annotates what is already there.
  */
+/** A rail button that opens a small radio menu beside the rail: building tags, and campus. */
+function RailMenu<T extends string>({
+  label,
+  heading = label,
+  icon,
+  options,
+  value,
+  onPick,
+}: {
+  label: string;
+  /** The menu's title, when the button's label carries more (the current campus). */
+  heading?: string;
+  icon: ReactNode;
+  options: readonly { id: T; label: string; detail?: string }[];
+  value: T;
+  onPick: (id: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useDismiss(open, root, () => setOpen(false));
+  return (
+    <div className="hud-rail-tags" ref={root}>
+      <button
+        type="button"
+        className="hud-rail-button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={label}
+        title={label}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {icon}
+      </button>
+
+      {open && (
+        <div className="hud-tag-menu" role="menu" aria-label={heading}>
+          <p className="hud-tag-menu-head">{heading}</p>
+          {options.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value === m.id}
+              onClick={() => {
+                onPick(m.id);
+                setOpen(false);
+              }}
+            >
+              <span className="hud-tag-menu-label">{m.label}</span>
+              {m.detail && <span className="hud-tag-menu-detail">{m.detail}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function HudRail({
   items,
   tagMode,
   onTagMode,
+  campus,
 }: {
   items: RailItem[];
   tagMode?: TagMode;
   onTagMode?: (mode: TagMode) => void;
+  /** The campus picker, at the foot of the rail. Left out when there is only one campus. */
+  campus?: { current: string; options: readonly { id: string; name: string }[]; onPick: (id: string) => void };
 }) {
-  const [open, setOpen] = useState(false);
-  const tags = useRef<HTMLDivElement>(null);
-  useDismiss(open, tags, () => setOpen(false));
-
+  const pickCampus = campus && campus.options.length > 1;
   return (
     <nav className="hud-rail" aria-label="Map layers">
       {items.map((item) => (
@@ -373,45 +393,21 @@ export function HudRail({
         </button>
       ))}
 
+      {((tagMode && onTagMode) || pickCampus) && <span className="hud-rail-divider" aria-hidden="true" />}
+
       {tagMode && onTagMode && (
-        <>
-          <span className="hud-rail-divider" aria-hidden="true" />
+        <RailMenu label="Building tags" icon={<HudIcons.person2 />} options={TAG_MODES} value={tagMode} onPick={onTagMode} />
+      )}
 
-          <div className="hud-rail-tags" ref={tags}>
-            <button
-              type="button"
-              className="hud-rail-button"
-              aria-expanded={open}
-              aria-haspopup="menu"
-              aria-label="Building tags"
-              title="Building tags"
-              onClick={() => setOpen((v) => !v)}
-            >
-              <HudIcons.person2 />
-            </button>
-
-            {open && (
-              <div className="hud-tag-menu" role="menu" aria-label="Building tags">
-                <p className="hud-tag-menu-head">Building tags</p>
-                {TAG_MODES.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={tagMode === m.id}
-                    onClick={() => {
-                      onTagMode(m.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="hud-tag-menu-label">{m.label}</span>
-                    <span className="hud-tag-menu-detail">{m.detail}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
+      {pickCampus && (
+        <RailMenu
+          label={`Campus: ${campus.options.find((c) => c.id === campus.current)?.name ?? 'pick one'}`}
+          heading="Campus"
+          icon={<HudIcons.pin />}
+          options={campus.options.map((c) => ({ id: c.id, label: c.name }))}
+          value={campus.current}
+          onPick={campus.onPick}
+        />
       )}
     </nav>
   );

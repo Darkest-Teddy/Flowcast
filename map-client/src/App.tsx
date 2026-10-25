@@ -2148,20 +2148,19 @@ export default function App() {
       */}
       {hud && !clean && (
         <div className="hud">
-          <HudBrand
-            name="Flowcast"
-            campus={currentCampus?.name.replace(' Campus', '') ?? 'BU'}
-            weekday={WEEKDAYS[weekday]}
-            campuses={campuses}
-            onPickCampus={(id) => {
-              const next = campuses.find((c) => c.id === id);
-              if (next) goToCampus(next);
-            }}
-          />
+          <HudBrand name="Flowcast" dashboardHref="/" />
 
           {/* The views and the layers: two corners on a wide screen, one bottom sheet on a phone (hud.css). */}
           <div className="hud-dock">
-            <HudRail items={railItems} tagMode={tagMode} onTagMode={pickTagMode} />
+            <HudRail items={railItems} tagMode={tagMode} onTagMode={pickTagMode}
+              campus={currentCampus ? {
+                current: currentCampus.id,
+                options: campuses,
+                onPick: (id) => {
+                  const next = campuses.find((c) => c.id === id);
+                  if (next) goToCampus(next);
+                },
+              } : undefined} />
             <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
           </div>
 
