@@ -1,9 +1,12 @@
 /*
  * The join slot: the bottom-left corner of the map display.
  *
- * One fixed-height slot holding either the join invitation or a clicked student's details, never
- * both. Fixed height is the point: the performance readout stacks directly above it (see the
- * override in hud.css) and must not move when the contents swap.
+ * One slot holding either the join invitation or a clicked student's details, never both. Each card
+ * declares its own fixed height, and hud.css offsets the performance readout per card, so the
+ * readout never lands on whichever one is showing.
+ *
+ * The column above the map's bottom-left corner reads, bottom-up: the crowd legend, this slot, then
+ * the readout. The slot starts at 58px to clear the legend.
  *
  * Unlike the rest of the chrome these two cards are a solid surface rather than glass. The QR code
  * has to sit on white to scan reliably, and this card is aimed at the room rather than the operator,
@@ -13,10 +16,10 @@
 .join-slot {
   position: absolute;
   left: 12px;
-  bottom: 12px;
-  /* The QR card's natural height: 16 padding + 132 code + 16 padding. */
-  height: 164px;
-  width: 340px;
+  bottom: 58px;
+  /* Each card sets its own height; the slot is only the anchor. */
+  width: max-content;
+  max-width: 340px;
   display: flex;
   pointer-events: auto;
 }
@@ -29,26 +32,37 @@
 /* ---------------------------------------------------------------------------
  * The invitation
  * ------------------------------------------------------------------------- */
+/*
+ * The invitation, a third of its old height.
+ *
+ * It used to be a 340x164 block in the corner, which is a lot of the map to
+ * spend on a sign. A phone only needs enough modules to lock on, so the code
+ * came down to 68px and the card to one line of type beside it. It is dark like
+ * the rest of the chrome rather than following the theme: this sits on the map,
+ * and the tile behind the code supplies the white the scan needs.
+ */
 .join-card {
   display: flex;
-  gap: 14px;
-  align-items: stretch;
+  gap: 10px;
+  align-items: center;
   box-sizing: border-box;
-  padding: var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  height: 92px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 14px;
+  background: rgb(28 28 30 / 0.96);
+  border: 1px solid rgb(255 255 255 / 0.1);
   color: var(--color-ink);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.28);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 0.42);
 }
 
 /* Always white, in both themes: a dark QR tile does not scan. */
 .join-qr {
   flex: none;
   box-sizing: border-box;
-  width: 132px;
-  height: 132px;
-  padding: 6px;
-  border-radius: var(--radius-md);
+  width: 76px;
+  height: 76px;
+  padding: 4px;
+  border-radius: 8px;
   background: #ffffff;
   display: grid;
   place-items: center;
@@ -56,8 +70,8 @@
 
 .join-qr img {
   display: block;
-  width: 120px;
-  height: 120px;
+  width: 68px;
+  height: 68px;
   /* The code is a bitmap; smoothing it softens the modules and hurts scanning. */
   image-rendering: pixelated;
 }
@@ -73,7 +87,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 3px;
 }
 
 .join-card-mark {
@@ -85,28 +99,34 @@
 .join-card-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: var(--weight-bold);
+  font-size: 15px;
+  font-weight: 700;
   letter-spacing: var(--tracking-text);
   line-height: 1.2;
-  text-wrap: pretty;
+  white-space: nowrap;
 }
 
 .join-card-note {
   margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.35;
-  color: var(--color-ink-secondary);
-  text-wrap: pretty;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #b4b4b9;
+  white-space: nowrap;
 }
 
-/* Pinned to the bottom of the column. */
+/*
+ * The address, so someone can type it if the scan fails. Pinned to the bottom of
+ * the column and allowed to wrap nowhere: the card is as wide as its longest
+ * line, so a wrap here would stretch the whole card instead.
+ */
 .join-card-url {
   margin: auto 0 0;
   font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--color-ink-tertiary);
-  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: var(--crowd-quiet-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---------------------------------------------------------------------------
@@ -117,6 +137,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  /* Its own height, now that the slot sizes to whichever card is in it. A
+     student's details need the room the invitation no longer does. */
+  width: 340px;
+  height: 164px;
   padding: var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--color-surface);

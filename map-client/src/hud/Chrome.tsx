@@ -17,6 +17,9 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+/* Type only: the modes belong to the tag layer that implements them, and the
+   rail's menu must offer exactly those three. No runtime dependency. */
+import type { TagMode } from '../BuildingTags';
 
 /* ---------------------------------------------------------------------------
  * Icons. One stroke weight, one size, currentColor throughout, so a button's
@@ -106,6 +109,25 @@ export const HudIcons = {
       <path d="M7 18h9.5a3.5 3.5 0 0 0 .5-6.96A5.5 5.5 0 0 0 6.6 10 4 4 0 0 0 7 18z" />
     </svg>
   ),
+  /* The campus calendar: events, both as a layer and as a tab. */
+  calendar: () => (
+    <svg {...svg}>
+      <rect x="3.5" y="5" width="17" height="15.5" rx="3" />
+      <path d="M3.5 10h17M8.5 3.5V7M15.5 3.5V7" />
+    </svg>
+  ),
+  /* Beside the time, so the reading says what it is with no label. */
+  clock: () => (
+    <svg {...svg} strokeWidth={2}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3.2 2" />
+    </svg>
+  ),
+  chevronDown: () => (
+    <svg {...svg} width={14} height={14} strokeWidth={2}>
+      <path d="m6 9.5 6 5.5 6-5.5" />
+    </svg>
+  ),
   incidents: () => (
     <svg {...svg}>
       <path d="M12 4 2.8 19.5h18.4z" />
@@ -153,14 +175,116 @@ export const HudIcons = {
 };
 
 /* ---------------------------------------------------------------------------
+ * Popovers
+ * ------------------------------------------------------------------------- */
+/*
+ * Close on a click outside, or on Escape.
+ *
+ * Shared by the three things here that hang off a button: the campus menu, the
+ * building-tag flyout and the month. pointerdown rather than click, so a press
+ * that starts on the map dismisses before it pans.
+ */
+function useDismiss(open: boolean, root: { current: HTMLElement | null }, close: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+    // close is re-created each render by callers; the listeners only read it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+}
+
+/* ---------------------------------------------------------------------------
  * Brand
  * ------------------------------------------------------------------------- */
-export function HudBrand({ name, context }: { name: string; context?: string }) {
+/*
+ * The wordmark, and the campus you are looking at.
+ *
+ * The campus used to be a segmented control inside the sheet, which put a
+ * question about where next to the panels about what. It belongs to the title:
+ * the label reads "{campus} · {weekday}", because those two together are the
+ * answer to "what am I looking at".
+ */
+export function HudBrand({
+  name,
+  campus,
+  weekday,
+  campuses,
+  onPickCampus,
+}: {
+  name: string;
+  /** Omitted while the campus list is still loading; the brand then stands alone. */
+  campus?: string;
+  weekday?: string;
+  campuses?: readonly { id: string; name: string }[];
+  onPickCampus?: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useDismiss(open, root, () => setOpen(false));
+
+  const pickable = campuses && campuses.length > 1 && onPickCampus;
+
   return (
-    <div className="hud-brand">
+    <div className="hud-brand" ref={root}>
       <img src="/favicon.svg" alt="" width={22} height={22} />
       <span className="hud-brand-name">{name}</span>
-      {context && <span className="hud-brand-context">{context}</span>}
+
+      {campus &&
+        (pickable ? (
+          /* Its own positioning context, so the menu hangs under the button
+             rather than under the wordmark at the far left of the pill. */
+          <div className="hud-campus-wrap">
+            <button
+              type="button"
+              className="hud-campus"
+              aria-expanded={open}
+              aria-haspopup="menu"
+              onClick={() => setOpen((v) => !v)}
+            >
+              <span>
+                {campus}
+                {weekday && ` · ${weekday}`}
+              </span>
+              <HudIcons.chevronDown />
+            </button>
+
+            {open && (
+              <div className="hud-campus-menu" role="menu" aria-label="Campus">
+                {campuses.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={c.name.replace(' Campus', '') === campus}
+                    onClick={() => {
+                      onPickCampus(c.id);
+                      setOpen(false);
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* One campus is a fact, not a choice: a menu of one is a dead end. */
+          <span className="hud-campus is-static">
+            {campus}
+            {weekday && ` · ${weekday}`}
+          </span>
+        ))}
     </div>
   );
 }
@@ -178,10 +302,40 @@ export interface RailItem {
   /** Undefined for a button that opens something rather than toggling a layer. */
   on?: boolean;
   disabled?: boolean;
+  /**
+   * The layer's hue, as a `--hue-*` name from styles.css. An "on" toggle wears
+   * it, so six active layers stay tellable apart; off is always grey.
+   */
+  hue?: 'teal' | 'green' | 'violet' | 'orange' | 'pink' | 'neutral';
   onSelect: () => void;
 }
 
-export function HudRail({ items }: { items: RailItem[] }) {
+const TAG_MODES: { id: TagMode; label: string; detail: string }[] = [
+  { id: 'focus', label: 'Focus', detail: 'Tags for what the panel shows; the rest as symbols' },
+  { id: 'all', label: 'All buildings', detail: 'Every tag, full size' },
+  { id: 'off', label: 'Off', detail: 'No tags; glow only' },
+];
+
+/*
+ * The layers, and how the buildings are labelled.
+ *
+ * The toggles come first, then a divider, then the tag control. The divider is
+ * not decoration: everything above it adds something to the map, while the
+ * button below it changes how the map annotates what is already there.
+ */
+export function HudRail({
+  items,
+  tagMode,
+  onTagMode,
+}: {
+  items: RailItem[];
+  tagMode?: TagMode;
+  onTagMode?: (mode: TagMode) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const tags = useRef<HTMLDivElement>(null);
+  useDismiss(open, tags, () => setOpen(false));
+
   return (
     <nav className="hud-rail" aria-label="Map layers">
       {items.map((item) => (
@@ -189,6 +343,7 @@ export function HudRail({ items }: { items: RailItem[] }) {
           key={item.id}
           type="button"
           className="hud-rail-button"
+          data-hue={item.hue}
           aria-label={item.label}
           aria-pressed={item.on}
           disabled={item.disabled}
@@ -198,6 +353,47 @@ export function HudRail({ items }: { items: RailItem[] }) {
           {item.icon}
         </button>
       ))}
+
+      {tagMode && onTagMode && (
+        <>
+          <span className="hud-rail-divider" aria-hidden="true" />
+
+          <div className="hud-rail-tags" ref={tags}>
+            <button
+              type="button"
+              className="hud-rail-button"
+              aria-expanded={open}
+              aria-haspopup="menu"
+              aria-label="Building tags"
+              title="Building tags"
+              onClick={() => setOpen((v) => !v)}
+            >
+              <HudIcons.person2 />
+            </button>
+
+            {open && (
+              <div className="hud-tag-menu" role="menu" aria-label="Building tags">
+                <p className="hud-tag-menu-head">Building tags</p>
+                {TAG_MODES.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={tagMode === m.id}
+                    onClick={() => {
+                      onTagMode(m.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="hud-tag-menu-label">{m.label}</span>
+                    <span className="hud-tag-menu-detail">{m.detail}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </nav>
   );
 }
@@ -208,6 +404,9 @@ export function HudRail({ items }: { items: RailItem[] }) {
 export interface HudTab<T extends string> {
   id: T;
   label: string;
+  icon?: ReactNode;
+  /** The tab's hue, worn by its icon only; the selected fill stays neutral. */
+  hue?: 'teal' | 'green' | 'violet' | 'orange' | 'pink';
 }
 
 export function HudTabs<T extends string>({
@@ -232,8 +431,10 @@ export function HudTabs<T extends string>({
           aria-controls={`hud-panel-${t.id}`}
           // With nothing open, the first tab is the one Tab reaches.
           tabIndex={active === t.id || (active === null && t === tabs[0]) ? 0 : -1}
+          data-hue={t.hue}
           onClick={() => onSelect(t.id)}
         >
+          {t.icon}
           {t.label}
         </button>
       ))}
@@ -271,11 +472,20 @@ export function HudStatus({
 }) {
   return (
     <div className="hud-status" role="group" aria-label="Time and weather">
+      {/*
+        The reading has no panel behind it. The clock and the temperature are
+        readings of the world the map is showing, so they sit on the map the way
+        a label sits on a photograph; a shadow carries them over light and dark
+        ground instead of a backdrop. Everything that *changes* the time keeps
+        its glass, because a control needs an edge you can aim at.
+      */}
       <div className="hud-status-reading">
+        <HudIcons.clock />
         <output className="hud-clock" aria-live="off">
           {time}
         </output>
         {live && <span className="hud-live">Clock</span>}
+        <span className="hud-status-spacer" />
         {children}
       </div>
 
@@ -286,6 +496,36 @@ export function HudStatus({
           {controls}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Legend, bottom left.
+ * ------------------------------------------------------------------------- */
+/*
+ * What the colours mean, built from the scale itself.
+ *
+ * The ranges are derived from each level's `min` rather than written out, so a
+ * threshold can never be changed in theme/crowd.ts and left stale here. Each
+ * item carries its icon, its word and its range: the icon is what appears on the
+ * map, and the word is what makes the colour legible to anyone who cannot
+ * separate the three hues.
+ */
+export function HudLegend({
+  levels,
+}: {
+  levels: readonly { key: string; label: string; range: string; icon: ReactNode }[];
+}) {
+  return (
+    <div className="hud-legend" role="group" aria-label="Crowd scale">
+      {levels.map((l) => (
+        <span key={l.key} className="hud-legend-item" data-level={l.key}>
+          {l.icon}
+          <b>{l.label}</b>
+          <span>{l.range}</span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -407,21 +647,7 @@ export function HudDate({ value, onPick }: { value: string; onPick: (date: strin
     if (open) setMonth(fromIso(value));
   }, [open, value]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('pointerdown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  useDismiss(open, root, () => setOpen(false));
 
   const selected = fromIso(value);
   const today = iso(new Date());

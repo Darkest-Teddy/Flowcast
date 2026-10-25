@@ -30,6 +30,10 @@
   /* Tags on the map: dark pills in both themes, so they read on the map rather than the theme.
      Selection and focus take the dark theme's accent (6:1 on the pill). */
   --tag-accent: #2997ff;
+  /* Selection, and only selection. Was --tag-accent, but that blue is the Quiet
+     crowd colour now, so a selected tag read as a quiet one. White belongs to no
+     level, which is the whole reason the handoff picks it. */
+  --tag-selected: #f5f5f7;
   --tag-accent-rgb: 41, 151, 255;
   /* A venue event's visitors on a tag (violet, apart from every crowd level). */
   --tag-event: #ddd6fe;
@@ -48,6 +52,45 @@
 html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background: var(--color-canvas); }
 /* Set by the sheet (Sheet.tsx) once it has measured itself. */
 .app { --sheet-visible: 0px; --sheet-space: 0px; }
+
+/*
+ * The map's own faces and hues, declared on .app rather than :root.
+ *
+ * Raleway and Merriweather are the map's type, loaded in index.html. They are
+ * set here and not in theme/tokens.css because --font-text and --font-display
+ * are shared: overriding them at :root would also restyle the dashboard and the
+ * landing page, which this redesign does not touch. web/ never imports this
+ * file, so .app reaches every piece of map chrome and nothing else.
+ *
+ * The hues label the chrome's icons: one per tab, per layer and per building
+ * category, so a row of monochrome glyphs becomes scannable. They sit at
+ * oklch(0.80 0.12 h), deliberately clear of the crowd hues, because a crowd
+ * colour means a measured level and these mean nothing but identity. Icons take
+ * them; labels stay ink.
+ */
+.app {
+  --font-display: 'Raleway', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-text: 'Merriweather', Georgia, 'Times New Roman', serif;
+  /*
+   * What the map itself is labelled in, and deliberately not --font-text.
+   *
+   * Tags sit on the map beside the basemap's own street names, which are drawn
+   * in the tiles in a grid-like sans. A serif pill next to them reads as a
+   * different map. Labels also have to stay legible at 11px over moving
+   * geometry, which is not what a text face is shaped for. This is the stack the
+   * whole app used before Raleway and Merriweather arrived.
+   */
+  --font-label: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  --hue-teal: 95, 211, 195; /* Analytics, Places, Classes */
+  --hue-green: 134, 211, 154; /* Transit, Dining */
+  --hue-violet: 183, 174, 247; /* Events, Study */
+  --hue-orange: 244, 172, 131; /* Log, Bikes, Gym */
+  --hue-pink: 241, 167, 198; /* Housing */
+  --hue-neutral: 245, 245, 247; /* All, Traffic counts, selection */
+
+  font-family: var(--font-text);
+}
 /* Two classes so it beats .maplibregl-map / .mapboxgl-map (position: relative), whose CSS loads later. */
 .app .map { position: absolute; inset: 0; }
 [hidden] { display: none !important; }
@@ -385,7 +428,7 @@ select.tool { padding: 0 8px 0 12px; }
 .sim-badge { box-shadow: inset 0 0 0 1px var(--map-hairline); color: var(--color-ink); }
 
 .deck-tooltip {
-  font-family: inherit !important;
+  font-family: var(--font-label) !important;
   background: var(--map-sheet-fill) !important;
   color: var(--color-ink) !important;
   border-radius: var(--radius-lg);
@@ -565,6 +608,7 @@ select.tool { padding: 0 8px 0 12px; }
   padding: 10px 14px;
   min-width: 240px;
   max-width: min(340px, calc(100% - 24px));
+  font-family: var(--font-label);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -674,7 +718,7 @@ select.tool { padding: 0 8px 0 12px; }
 .btags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 /* Tags stay dark in the light theme too: their own scheme and ink, never the page's. Each layer is
    its own stacking context, so an open tag (z-index 5) stays under the sheet and toolbar. */
-.btags, .gtags { z-index: 0; color-scheme: dark; color: #fff; }
+.btags, .gtags { z-index: 0; color-scheme: dark; color: #fff; font-family: var(--font-label); }
 .btag {
   position: absolute;
   left: 0;
@@ -769,7 +813,7 @@ select.tool { padding: 0 8px 0 12px; }
 .btag-ppct:not([hidden]) + .btag-pevent::before { content: '·'; margin-right: 6px; color: rgba(255, 255, 255, 0.5); }
 .btag-event { font-size: 12px; line-height: 1.2; }
 .btag.has-event .btag-pill { border-color: rgba(var(--tag-event-rgb), 0.7); }
-.btag.is-selected .btag-pill { border-color: var(--tag-accent); }
+.btag.is-selected .btag-pill { border-color: var(--tag-selected); }
 .btags.is-compact .btag-pname { display: none; }
 .btag-card:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; }
 .btag[data-level='busy'] .btag-card { border-color: rgba(var(--lv), 0.38); }
@@ -827,6 +871,50 @@ select.tool { padding: 0 8px 0 12px; }
   to { transform: scale(3.2); opacity: 0; }
 }
 
+/*
+ * The compact marker: one building reduced to its level.
+ *
+ * In Focus mode every building the open panel is not talking about wears this
+ * instead of a pill, which is what keeps a campus of eighty buildings from
+ * reading as eighty pills. It is centred on the roof anchor and has no stem:
+ * there is no text to hold clear of the roofline. Its name and figure live in
+ * the tooltip and the accessible name, and clicking it selects the building
+ * exactly as a pill does.
+ *
+ * Hidden unless the tag is explicitly in marker form, so a tag that has not been
+ * given a form yet shows its pill rather than both at once.
+ */
+.btag-marker {
+  display: none;
+  position: absolute;
+  left: 0;
+  bottom: var(--stem);
+  translate: -50% 50%;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1.5px solid rgb(var(--lv));
+  border-radius: 50%;
+  background: rgba(13, 16, 23, 0.88);
+  color: rgb(var(--lv));
+  cursor: pointer;
+  transition: scale 0.16s ease, border-color 0.18s ease;
+}
+.btag[data-form='marker'] .btag-marker { display: grid; }
+.btag-marker svg { display: block; width: 12px; height: 12px; stroke-width: 2.2; }
+/* A place with no modelled level keeps the plain dot the pill falls back to. */
+.btag-marker-dot { width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--lv)); }
+@media (hover: hover) {
+  .btag-marker:hover { scale: 1.15; }
+}
+.btag-marker:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; }
+/* One form at a time: the marker stands in for the whole pill, stem and card. */
+.btag[data-form='marker'] .btag-pill,
+.btag[data-form='marker'] .btag-stem,
+.btag[data-form='marker'] .btag-dot,
+.btag[data-form='marker'] .btag-card { display: none; }
+
 /* Stem from the card down to the roof, ending in a glowing dot. */
 .btag-stem {
   position: absolute;
@@ -836,7 +924,7 @@ select.tool { padding: 0 8px 0 12px; }
   height: var(--stem);
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6), rgba(var(--lv), 0.95));
 }
-.btag.is-selected .btag-stem { background: var(--tag-accent); width: 2px; left: -1px; }
+.btag.is-selected .btag-stem { background: var(--tag-selected); width: 2px; left: -1px; }
 .btag-dot {
   position: absolute;
   left: -4px;
@@ -849,7 +937,7 @@ select.tool { padding: 0 8px 0 12px; }
   pointer-events: auto; /* hovering the roof dot opens the tag too */
 }
 .btag-dot::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
-.btag.is-selected .btag-dot { background: var(--tag-accent); box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.75), 0 0 12px 3px rgba(var(--tag-accent-rgb), 0.8); }
+.btag.is-selected .btag-dot { background: var(--tag-selected); box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.75), 0 0 12px 3px rgb(245 245 247 / 0.8); }
 
 /* The overview: tighter, so more tags fit. */
 .btags.is-compact .btag-card { gap: 6px; padding: 4px 10px 6px 4px; border-radius: 10px; }
@@ -860,7 +948,10 @@ select.tool { padding: 0 8px 0 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   .btag-pulse::after { animation: none; }
-  .btag-card, .btag-pill, .btag-fill, .btag { transition: none; }
+  .btag-card, .btag-pill, .btag-fill, .btag, .btag-marker { transition: none; }
+  /* The marker's hover growth is the only size change here; drop it rather than
+     snapping, so hover still reads through the border colour alone. */
+  .btag-marker:hover { scale: 1; }
 }
 
 /* Transit, shuttle and Bluebikes tags (TransitTags.tsx, tags/glassTags.ts): the building tags'

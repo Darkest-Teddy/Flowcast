@@ -66,7 +66,10 @@ export function JoinQrCard({ url = joinUrl() }: { url?: string }) {
         <p className="join-card-title" id="join-card-title">
           Put yourself on the map
         </p>
-        <p className="join-card-note">Scan to build your character. It walks around campus with everyone else.</p>
+        {/* One line: the card is now sized by its code, and a second sentence
+            overflowed it onto the map. What the character then does is the
+            thing the map itself shows. */}
+        <p className="join-card-note">Scan to build your character</p>
         <p className="join-card-url">{url.replace(/^https?:\/\//, '')}</p>
       </div>
     </section>

@@ -4,7 +4,7 @@
 
 export type Projector = (lngLat: [number, number]) => [number, number];
 
-interface Box {
+export interface Box {
   x0: number;
   x1: number;
   y0: number;
@@ -30,6 +30,20 @@ export interface PlaceOptions<T> {
 export function createPlacer(project: Projector) {
   const placed: Box[] = [];
   return {
+    /**
+     * Mark a rectangle as already taken, before any label is placed.
+     *
+     * Used for the chrome: the brand, tabs, clock, legend and panel are drawn in
+     * HTML over the same pixels, so a label that lands under one of them is
+     * unreadable. Seeding them here makes labels lift or drop out around the
+     * chrome, which is the same rule they already follow for each other. The
+     * clock in particular has no backdrop of its own, so nothing else would stop
+     * a building tag from sitting on top of it.
+     */
+    block(box: Box) {
+      placed.push(box);
+    },
+
     /**
      * Each item sits at its anchor, or is shifted up to maxLift label-heights to clear what's
      * already placed; if it still overlaps, it's left out. Returns item -> lift (in labels).

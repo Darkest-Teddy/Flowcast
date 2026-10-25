@@ -26,12 +26,18 @@
   pointer-events: auto;
 }
 
-/* The shared surface. One blur, one border, one radius, everywhere. */
+/*
+ * The shared surface. One blur, one border, one radius, everywhere.
+ *
+ * .hud-status is absent on purpose: it is two rows now, and only the lower one
+ * (.hud-status-controls) carries a surface. The reading above it floats on the
+ * map with a shadow instead.
+ */
 .hud-brand,
 .hud-rail,
 .hud-tabs,
-.hud-status,
-.hud-time,
+.hud-status-controls,
+.hud-legend,
 .hud-ask,
 .hud-panel {
   background: var(--glass-fill-strong, rgb(28 32 38 / 0.72));
@@ -50,23 +56,114 @@
   position: absolute;
   top: 12px;
   left: 12px;
+  /*
+   * Above the rail below it. Every piece of chrome sets backdrop-filter, which
+   * makes each one its own stacking context, so the campus menu's own z-index
+   * cannot lift it past a later sibling: the rail painted over the open menu
+   * until the brand itself was raised.
+   */
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 8px;
   height: 40px;
-  padding: 0 14px 0 10px;
+  padding: 0 6px 0 10px;
   border-radius: 999px;
   font-size: 14px;
 }
 
 .hud-brand-name {
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
-.hud-brand-context {
-  color: var(--map-ink-secondary, #a1a1a6);
+/* The campus, as a button when there is more than one and a label when there is not. */
+.hud-campus {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
   font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.hud-campus.is-static {
+  background: none;
+  padding: 0 4px;
+  color: var(--map-ink-secondary, #a1a1a6);
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .hud-campus:not(.is-static):hover {
+    background: rgb(255 255 255 / 0.14);
+  }
+}
+
+.hud-campus svg {
+  flex: none;
+  color: var(--map-ink-secondary, #a1a1a6);
+}
+
+.hud-campus-wrap {
+  position: relative;
+  display: flex;
+}
+
+/* Hangs below the campus button, aligned to its left edge. */
+.hud-campus-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 190px;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgb(28 28 30 / 0.96);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 0.42);
+}
+
+.hud-campus-menu button {
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+@media (hover: hover) {
+  .hud-campus-menu button:hover {
+    background: rgb(255 255 255 / 0.08);
+  }
+}
+
+.hud-campus-menu button[aria-checked='true'] {
+  background: rgb(255 255 255 / 0.12);
+  font-weight: 600;
 }
 
 /* ---------------------------------------------------------------------------
@@ -88,13 +185,21 @@
   width: 38px;
   height: 38px;
   padding: 0;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
   color: var(--map-ink-secondary, #a1a1a6);
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
 }
+
+/* The hue a lit toggle wears. Neutral unless the item names one. */
+.hud-rail-button { --hue: var(--hue-neutral); }
+.hud-rail-button[data-hue='teal'] { --hue: var(--hue-teal); }
+.hud-rail-button[data-hue='green'] { --hue: var(--hue-green); }
+.hud-rail-button[data-hue='violet'] { --hue: var(--hue-violet); }
+.hud-rail-button[data-hue='orange'] { --hue: var(--hue-orange); }
+.hud-rail-button[data-hue='pink'] { --hue: var(--hue-pink); }
 
 @media (hover: hover) {
   .hud-rail-button:hover:not(:disabled) {
@@ -103,10 +208,92 @@
   }
 }
 
-/* On is a fill and a colour, never colour alone. */
+/*
+ * On is a fill, a border and a colour, never colour alone.
+ *
+ * Each layer wears its own hue instead of one shared accent, so six lit toggles
+ * still say which is which at a glance. The old accent blue is gone from here on
+ * purpose: blue means Quiet on this map now, and a blue "on" state would read as
+ * a crowd level sitting in the layer rail.
+ */
 .hud-rail-button[aria-pressed='true'] {
-  background: var(--color-accent, #2997ff);
-  color: #fff;
+  background: rgb(var(--hue) / 0.18);
+  border-color: rgb(var(--hue) / 0.55);
+  color: rgb(var(--hue));
+}
+
+/* Above the divider: what is drawn. Below it: how buildings are labelled. */
+.hud-rail-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgb(255 255 255 / 0.12);
+}
+
+.hud-rail-tags {
+  position: relative;
+}
+
+/* Opens to the right of its button, clear of the rail. */
+.hud-tag-menu {
+  position: absolute;
+  top: 0;
+  left: 54px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 236px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgb(28 28 30 / 0.96);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 0.42);
+}
+
+.hud-tag-menu-head {
+  margin: 2px 0 4px 6px;
+  color: #b4b4b9;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hud-tag-menu button {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+@media (hover: hover) {
+  .hud-tag-menu button:hover {
+    background: rgb(255 255 255 / 0.06);
+  }
+}
+
+.hud-tag-menu button[aria-checked='true'] {
+  background: rgb(255 255 255 / 0.1);
+  border-color: rgb(255 255 255 / 0.35);
+}
+
+.hud-tag-menu-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hud-tag-menu-detail {
+  color: #b4b4b9;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
 .hud-rail-button:disabled {
@@ -138,7 +325,10 @@
 }
 
 .hud-tabs [role='tab'] {
-  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -163,57 +353,203 @@
   font-weight: 600;
 }
 
+/*
+ * The icon carries the hue; the label stays ink.
+ *
+ * The selected fill is neutral white for every tab, so "which tab am I on" is
+ * answered by one consistent cue and the hue only ever answers "which tab is
+ * this". Colouring the fill as well would make the two questions share a signal.
+ */
+.hud-tabs [role='tab'] svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: rgb(var(--hue, var(--hue-neutral)));
+}
+
+.hud-tabs [role='tab'][data-hue='teal'] { --hue: var(--hue-teal); }
+.hud-tabs [role='tab'][data-hue='green'] { --hue: var(--hue-green); }
+.hud-tabs [role='tab'][data-hue='violet'] { --hue: var(--hue-violet); }
+.hud-tabs [role='tab'][data-hue='orange'] { --hue: var(--hue-orange); }
+.hud-tabs [role='tab'][data-hue='pink'] { --hue: var(--hue-pink); }
+
+/* Dimmed while the tab is closed, so the hues do not shout over the map. */
+.hud-tabs [role='tab'][aria-selected='false'] svg {
+  opacity: 0.75;
+}
+
 /* ---------------------------------------------------------------------------
  * Status, top right
  * ------------------------------------------------------------------------- */
+/*
+ * Top right, 380px wide so its edges line up with the panel below it.
+ *
+ * Two rows that are deliberately not one block: the reading floats bare on the
+ * map, and only the controls under it sit on glass. See .hud-status-reading.
+ */
 .hud-status {
   position: absolute;
   top: 12px;
   right: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 12px 10px;
-  border-radius: 16px;
+  align-items: stretch;
+  gap: 8px;
+  width: min(380px, 34vw);
   font-size: 13px;
 }
 
-/* The reading: clock and temperature, the two things you glance at. */
+/*
+ * The reading: the clock and the temperature, with nothing behind them.
+ *
+ * These are readings of the world the map is drawing, not controls, so they sit
+ * directly on it the way a caption sits on a photograph. A text shadow and a
+ * drop shadow on the icons carry them over both the light and the dark basemap,
+ * which is what a panel would otherwise have had to do.
+ */
 .hud-status-reading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 26px;
+  gap: 8px;
+  height: 28px;
+  padding: 0 4px 0 12px;
+  text-shadow: 0 1px 6px rgb(0 0 0 / 0.9);
 }
 
-/* Under it, everything that changes the time. */
+.hud-status-reading svg {
+  flex: none;
+  filter: drop-shadow(0 1px 4px rgb(0 0 0 / 0.9));
+}
+
+.hud-status-reading > svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Pushes the weather chip to the far edge without a justify-content that would
+   also spread the clock away from its icon. */
+.hud-status-spacer {
+  flex: 1;
+}
+
+/* Under it, everything that changes the time. This row keeps its glass. */
 .hud-status-controls {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 8px 12px;
+  border-radius: 16px;
 }
 
 .hud-clock {
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
+/*
+ * Says the clock is following Boston, not that something is streaming. Neutral
+ * rather than the accent: on this map a coloured pill beside a crowd reading
+ * would be taken for a level.
+ */
 .hud-live {
   padding: 2px 7px;
   border-radius: 999px;
-  background: var(--color-accent, #2997ff);
-  color: #fff;
+  background: rgb(255 255 255 / 0.14);
+  color: var(--color-ink, #f5f5f7);
   font-size: 11px;
+  font-weight: 600;
+  text-shadow: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Legend, bottom left
+ * ------------------------------------------------------------------------- */
+/*
+ * Sits above the join card, which sits above nothing: the bottom-left column
+ * reads legend, card, map. The ranges come from theme/crowd.ts, so they cannot
+ * go stale against the thresholds they describe.
+ */
+.hud-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.hud-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.hud-legend-item svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.hud-legend-item[data-level='quiet'] svg { color: var(--crowd-quiet); }
+.hud-legend-item[data-level='busy'] svg { color: var(--crowd-busy); }
+.hud-legend-item[data-level='packed'] svg { color: var(--crowd-packed); }
+
+.hud-legend-item b {
   font-weight: 600;
 }
 
-/* The weather control is portalled in here; keep it on the same baseline. */
-.hud-status .weather-chip-slot,
-.hud-status > :last-child {
+.hud-legend-item > span {
+  color: #b4b4b9;
+}
+
+/* The weather control is portalled into this slot; keep it on the reading's baseline. */
+.hud-status-reading .weather-chip-slot {
   display: flex;
   align-items: center;
+  flex: none;
+}
+
+/*
+ * The temperature, dressed as a reading rather than a control.
+ *
+ * It is still a button (it opens the weather panel) but it loses its fill, so it
+ * reads as a pair with the clock at the other end of the row instead of as a
+ * widget parked beside it. The hover fill is what says it is pressable.
+ */
+.hud-status-reading .weather-chip {
+  gap: 6px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 6px;
+  background: none;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+@media (hover: hover) {
+  .hud-status-reading .weather-chip:hover {
+    background: rgb(255 255 255 / 0.1);
+  }
+}
+
+/*
+ * A clear sky is orange, not yellow.
+ *
+ * Yellow is the Busy crowd level on this map, and a yellow sun sitting a few
+ * pixels from yellow building tags is read as one. Only the sunny conditions
+ * take the hue: a rain or snow glyph in orange would be saying something false
+ * about the weather, so those stay ink.
+ */
+.hud-status-reading .weather-chip[data-condition='clear'] svg,
+.hud-status-reading .weather-chip[data-condition='partly-cloudy'] svg {
+  color: rgb(var(--hue-orange));
 }
 
 /* ---------------------------------------------------------------------------
@@ -545,12 +881,22 @@
  * column-reverse does the stacking without reordering the DOM: AskPanel renders
  * form, answer, examples, and this draws them bottom-up.
  */
+/*
+ * Anchored, not centred.
+ *
+ * Centring it on the viewport put it over the legend and the join card on the
+ * left and under the panel on the right. It now starts clear of that left
+ * column and stops clear of the panel, which on a 1440px display is the 420px
+ * left edge and 400px width the handoff specifies. --ask-clear is the panel's
+ * 380 plus both gutters.
+ */
 .hud-ask {
+  --ask-clear: 404px;
   position: absolute;
-  left: 50%;
+  left: 420px;
   bottom: 12px;
-  transform: translateX(-50%);
-  width: min(560px, calc(100vw - 420px));
+  transform: none;
+  width: min(400px, calc(100vw - 420px - var(--ask-clear)));
   min-width: 280px;
   background: none;
   border: 0;
@@ -740,8 +1086,9 @@
 
 .hud-panel-head h2 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -797,8 +1144,14 @@
   right: auto;
   /* Bottom left, which is empty now that the transport moved up into the time
      block. Bottom right is the panel's corner and the two overlapped there. */
+  /*
+   * Bottom left, stacked above the legend. That corner now holds three things
+   * in a column, bottom-up: the legend (36 high at 12), the join card (92 high
+   * at 58), and this. Each offset is the one below it plus its height plus the
+   * gutter, so the readout never lands on either.
+   */
   left: 12px;
-  bottom: 12px;
+  bottom: 58px;
   z-index: 4;
   min-width: 0;
   max-width: 280px;
@@ -807,20 +1160,34 @@
 }
 
 /*
- * The join slot claims this corner when the chrome is up.
+ * The join card sits between the legend and the readout.
  *
  * The QR invitation is the one piece of chrome addressed to the room rather than the operator, so it
- * takes the corner and the readout stacks on top of it. 188px is the slot's fixed height (164) plus
- * the 12px gutter and a hair: persona.css keeps that height constant whether the slot is showing the
- * invitation or a clicked student's details, so this offset is never wrong. The readout is still a
- * development instrument, dismissable with ?perf=0 and the P key.
+ * keeps a place in the corner column. 160px is the slot's own offset (58) plus its fixed height (92)
+ * plus the gutter: persona.css holds that height constant whether the slot is showing the invitation
+ * or a clicked student's details, so this offset is never wrong. The readout is still a development
+ * instrument, dismissable with ?perf=0 and the P key.
  */
-.app:has(.join-slot) .perf {
-  bottom: 188px;
+.app:has(.join-card) .perf {
+  bottom: 160px;
 }
 
-/* Narrow screens hide the slot (persona.css), so the readout keeps the corner. */
+/* A clicked student's card is taller than the invitation: 58 + 164 + 10. */
+.app:has(.persona-card) .perf {
+  bottom: 232px;
+}
+
+/*
+ * Narrow screens drop both the slot (persona.css) and the legend, which cannot
+ * share a phone's width with the rail once that becomes a bottom row. The
+ * readout takes the corner back.
+ */
 @media (max-width: 860px) {
+  .hud-legend {
+    display: none;
+  }
+
+  .app .perf,
   .app:has(.join-slot) .perf {
     bottom: 12px;
   }
@@ -852,6 +1219,11 @@
 
 /* The simulation day moved into the time block, beside the clock it changes. */
 .app .sheet .day-picker {
+  display: none;
+}
+
+/* The campus moved into the brand, which is where "what am I looking at" belongs. */
+.app .sheet .campuses {
   display: none;
 }
 

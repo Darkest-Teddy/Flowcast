@@ -2,13 +2,14 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardE
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
-import { HudAsk, HudBrand, HudDate, HudIcons, HudRail, HudStatus, HudTabs, HudTime, type RailItem } from './hud/Chrome';
+import { HudAsk, HudBrand, HudDate, HudIcons, HudLegend, HudRail, HudStatus, HudTabs, HudTime, type HudTab, type RailItem } from './hud/Chrome';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
-import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
+import { CROWD_LEVELS } from './layers/crowdLevels';
+import { activityDisplay, BuildingTags, type BuildingTagsHandle, type TagMode } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
-import { createPlacer } from './layers/placement';
+import { createPlacer, type Box } from './layers/placement';
 import { cullLayers } from './layers/culling';
 import { buildingModelLayers, campusBounds, DEFERRED_CAMPUSES, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
@@ -150,11 +151,52 @@ const PARKING_KEY = 'flowcast.parking';
 function storedParking(): boolean {
   try { return localStorage.getItem(PARKING_KEY) === '1'; } catch { return false; }
 }
+/*
+ * How much of the campus is labelled, remembered between visits.
+ *
+ * Focus is the default: a full pill for what the open panel is talking about and
+ * a level marker for everything else. The campus has enough buildings that
+ * labelling all of them at once is the thing that made the old map unreadable.
+ */
+const TAG_MODE_KEY = 'flowcast.tagMode';
+function storedTagMode(): TagMode {
+  try {
+    const saved = localStorage.getItem(TAG_MODE_KEY);
+    if (saved === 'focus' || saved === 'all' || saved === 'off') return saved;
+  } catch {
+    // Private browsing refuses reads; the default is right anyway.
+  }
+  return 'focus';
+}
 /** The map's weather look for a scenario's weather (live weather otherwise). */
 const SCENARIO_LOOK: Record<string, WeatherMode> = { clear: 'clear', rain: 'rain', 'heavy-rain': 'rain', drizzle: 'rain', snow: 'snow', thunderstorm: 'thunderstorm', heatwave: 'heatwave', fog: 'fog' };
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
 const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
+/* How often the chrome's footprint is re-measured for the label placer. */
+const CHROME_REFRESH_MS = 400;
+
+/*
+ * Where the chrome is, in map pixels, so labels never land underneath it.
+ *
+ * The chrome is HTML drawn over the same pixels the tags are placed in, and the
+ * clock has no backdrop of its own, so without this a building tag sits on top
+ * of the time and neither can be read. Everything in `.hud`, plus the join card
+ * and the performance readout, reserves its rectangle.
+ *
+ * Measured from the DOM rather than from the CSS constants because several of
+ * these size to their content: the brand grows with the campus name and the
+ * legend with its thresholds. `.app` fills the viewport and the map canvas fills
+ * `.app`, so a viewport rect is already a map-pixel rect.
+ */
+function measureChrome(): Box[] {
+  const boxes: Box[] = [];
+  for (const el of document.querySelectorAll('.hud > *, .join-slot, .perf')) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) boxes.push({ x0: r.left, x1: r.right, y0: r.top, y1: r.bottom });
+  }
+  return boxes;
+}
 /** ?ask=least+crowded+library opens the Ask tab with that question answered. */
 const START_QUESTION = params.get('ask');
 
@@ -172,10 +214,16 @@ const START_QUESTION = params.get('ask');
  */
 type View = 'log' | 'events' | 'analytics';
 
-const VIEW_TABS: { id: View; label: string }[] = [
-  { id: 'log', label: 'Log' },
-  { id: 'events', label: 'Events' },
-  { id: 'analytics', label: 'Analytics' },
+/*
+ * Analytics first, then Events, then Log: the order runs from what the map is
+ * showing right now, through what is scheduled, to what you have asked it to
+ * imagine. Each icon carries the tab's hue so the three are tellable apart
+ * before the labels are read.
+ */
+const VIEW_TABS: HudTab<View>[] = [
+  { id: 'analytics', label: 'Analytics', icon: <HudIcons.counts />, hue: 'teal' },
+  { id: 'events', label: 'Events', icon: <HudIcons.calendar />, hue: 'violet' },
+  { id: 'log', label: 'Log', icon: <HudIcons.incidents />, hue: 'orange' },
 ];
 
 const VIEW_TITLES: Record<View, string> = {
@@ -237,6 +285,16 @@ export default function App() {
   const playingRef = useRef(true);
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
+  /*
+   * How much of the campus is labelled. A preference about how the map reads
+   * rather than something you re-pick each visit, so it is persisted; the frame
+   * loop reads it through a ref because it never re-creates the map.
+   */
+  const [tagMode, setTagMode] = useState<TagMode>(storedTagMode);
+  const tagModeRef = useRef(tagMode);
+  tagModeRef.current = tagMode;
+  /** The buildings the open panel is listing: they keep a full pill in Focus. */
+  const focusRef = useRef<ReadonlySet<string>>(new Set());
   const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitTagsRef = useRef<TransitTagsHandle>(null);
   const placeTagsRef = useRef<PlaceTagsHandle>(null);
@@ -723,6 +781,8 @@ export default function App() {
       const damageFootprints = day.buildings.map(footprint => ({ ...footprint, height: roofHeights.get(footprint.id) ?? footprint.height }));
       let last = performance.now();
       let lastOccupancy = 0;
+      let lastChrome = 0;
+      let chromeBoxes: Box[] = [];
       let occupancy = playback.occupancyAt(timeRef.current);
       let mobilityKey = '';
       let currentMobility: MobilityView | null = null;
@@ -805,8 +865,13 @@ export default function App() {
           setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length,
             outdoors: outdoor.index ? outdoorCount(outdoor.index, t) : undefined, public: publicWalking.length });
         }
-        // Reserve the active assembly label before placing building and transit tags.
+        // Reserve the chrome, then the active assembly label, before placing building and transit tags.
         const placer = createPlacer(basemap.project);
+        if (now - lastChrome > CHROME_REFRESH_MS) {
+          chromeBoxes = measureChrome();
+          lastChrome = now;
+        }
+        for (const box of chromeBoxes) placer.block(box);
         const damage = damageAt(incidentRunRef.current, t, damageFootprints);
         const damagedIds = new Set(damage.map(building => building.id));
         const damageKey = damage.map(building => building.id).join(',');
@@ -836,6 +901,8 @@ export default function App() {
           project: basemap.project,
           camera: basemap.getCamera(),
           roofHeights,
+          tagMode: tagModeRef.current,
+          focusIds: focusRef.current,
         });
         // Parking (toggle on only): the estimate is refreshed at most twice a second, then its tags
         // (with the toggle on, lots are what the user asked to see: placed before the transit tags).
@@ -1373,6 +1440,28 @@ export default function App() {
     return ranked.filter((o) => o.location.name.toLowerCase().includes(q)).slice(0, 3);
   })();
 
+  /*
+   * What Focus mode keeps a pill on: the rows the panel is showing.
+   *
+   * Tag ids are `location.building`, the same key the rows compare against
+   * `selected`, so a row and its tag always mean the same building. With no
+   * panel open this is empty and BuildingTags falls back to the busiest few.
+   */
+  focusRef.current = useMemo(
+    () => new Set(view ? shownBuildings.map((o) => o.location.building).filter((id): id is string => Boolean(id)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [view, shownBuildings.map((o) => o.location.building).join('|')],
+  );
+
+  const pickTagMode = (mode: TagMode) => {
+    setTagMode(mode);
+    try {
+      localStorage.setItem(TAG_MODE_KEY, mode);
+    } catch {
+      // Private browsing refuses writes; the choice still holds for this session.
+    }
+  };
+
   /** Picking the open tab closes it, so the map uncovered needs no tab of its own. */
   const selectView = (next: View) => {
     const closing = view === next;
@@ -1381,18 +1470,41 @@ export default function App() {
   };
 
   /* What the left rail shows: the layers drawn on the map, each a toggle. */
+  /*
+   * Each layer carries its own hue so that six lit toggles still read as six
+   * different things. The hues are deliberately not the crowd colours: a layer
+   * being on is not a measurement. Campus events take the calendar rather than
+   * the people glyph, which now belongs to the crowd scale alone.
+   */
   const railItems: RailItem[] = [
-    { id: 'transit', label: showTransit ? 'Hide MBTA' : 'Show MBTA', icon: <HudIcons.transit />, on: showTransit, onSelect: toggleTransit },
-    ...(bikes ? [{ id: 'bikes', label: showBikes ? 'Hide Bluebikes' : 'Show Bluebikes', icon: <HudIcons.bikes />, on: showBikes, onSelect: toggleBikes }] : []),
+    { id: 'transit', label: showTransit ? 'Hide MBTA' : 'Show MBTA', icon: <HudIcons.transit />, on: showTransit, hue: 'green', onSelect: toggleTransit },
+    ...(bikes ? [{ id: 'bikes', label: showBikes ? 'Hide Bluebikes' : 'Show Bluebikes', icon: <HudIcons.bikes />, on: showBikes, hue: 'orange' as const, onSelect: toggleBikes }] : []),
     ...(mapKind === 'mapbox'
-      ? [{ id: 'traffic', label: showTraffic ? 'Hide traffic' : 'Show traffic', icon: <HudIcons.traffic />, on: showTraffic, onSelect: () => setShowTraffic((v) => !v) }]
+      ? [{ id: 'traffic', label: showTraffic ? 'Hide traffic' : 'Show traffic', icon: <HudIcons.traffic />, on: showTraffic, hue: 'pink' as const, onSelect: () => setShowTraffic((v) => !v) }]
       : []),
-    { id: 'parking', label: showParking ? 'Hide parking' : 'Show parking', icon: <HudIcons.parking />, on: showParking, onSelect: toggleParking },
-    { id: 'counts', label: showCounts ? 'Hide traffic counts' : 'Show traffic counts', icon: <HudIcons.counts />, on: showCounts, onSelect: toggleCounts },
+    { id: 'parking', label: showParking ? 'Hide parking' : 'Show parking', icon: <HudIcons.parking />, on: showParking, hue: 'teal', onSelect: toggleParking },
+    { id: 'counts', label: showCounts ? 'Hide traffic counts' : 'Show traffic counts', icon: <HudIcons.counts />, on: showCounts, hue: 'neutral', onSelect: toggleCounts },
     ...(sourceData
-      ? [{ id: 'events', label: eventsOn ? 'Hide campus events' : 'Show campus events', icon: <HudIcons.crowds />, on: eventsOn, onSelect: () => toggleEvents(!eventsOn) }]
+      ? [{ id: 'events', label: eventsOn ? 'Hide campus events' : 'Show campus events', icon: <HudIcons.calendar />, on: eventsOn, hue: 'violet' as const, onSelect: () => toggleEvents(!eventsOn) }]
       : []),
   ];
+
+  /*
+   * The legend, built from the scale rather than written out: the ranges come
+   * from each level's own `min`, so a threshold changed in theme/crowd.ts can
+   * never leave a stale number on the map.
+   */
+  const legendLevels = CROWD_LEVELS.map((level, i) => {
+    const next = CROWD_LEVELS[i + 1];
+    const from = Math.round(level.min * 100);
+    const Icon = HudIcons[level.icon];
+    return {
+      key: level.key,
+      label: level.label,
+      range: next ? (i === 0 ? `<${Math.round(next.min * 100)}%` : `${from}–${Math.round(next.min * 100) - 1}%`) : `${from}%+`,
+      icon: <Icon />,
+    };
+  });
 
   /*
    * Sub-tabs inside the panel. 'ask' is not among them: Ask is the bar at the
@@ -1433,11 +1545,23 @@ export default function App() {
       */}
       {hud && !clean && (
         <div className="hud">
-          <HudBrand name="Flowcast" context={`${currentCampus?.name.replace(' Campus', '') ?? 'BU'} · ${WEEKDAYS[weekday]}`} />
+          <HudBrand
+            name="Flowcast"
+            campus={currentCampus?.name.replace(' Campus', '') ?? 'BU'}
+            weekday={WEEKDAYS[weekday]}
+            campuses={campuses}
+            onPickCampus={(id) => {
+              const next = campuses.find((c) => c.id === id);
+              if (next) goToCampus(next);
+            }}
+          />
 
-          <HudRail items={railItems} />
+          <HudRail items={railItems} tagMode={tagMode} onTagMode={pickTagMode} />
 
           <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
+
+          {/* Bottom left, under the join card: what the three colours mean. */}
+          <HudLegend levels={legendLevels} />
 
           {/*
             Everything about when, in one block: the clock and the temperature to

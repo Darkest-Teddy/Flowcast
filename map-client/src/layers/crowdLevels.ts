@@ -5,6 +5,9 @@ import { CROWD_LEVELS, crowdLevel, type CrowdKey, type CrowdLevelInfo } from '..
 
 export { crowdLevel, type CrowdKey, type CrowdLevelInfo };
 
+/** Lowest level first, the order the legend and the scale itself are written in. */
+export { CROWD_LEVELS };
+
 // One scale for the whole UI: the map glow, the tags and the dashboard bars always agree.
 // `glow` is the light colour; `text` is its pale twin, which keeps 4.5:1 or better on the dark
 // glass of the tags and panel (5.1:1 worst case, over a white map; checked by the crowd tests).
