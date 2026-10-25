@@ -1,5 +1,5 @@
 // The only data door for dashboard pages; dashboard state comes from the server.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { sourcesFromCampusBundle } from './sourceCatalog';
 import { studySpots } from './studySpots';
 import type { StudyHoursByLocation } from '../lib/studyFinder';
@@ -299,16 +299,21 @@ export function useResource<T>(load: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(true);
+  // Only the latest load may settle: with deps (a club id), a slow answer for the previous club
+  // could otherwise land after the current one and replace it.
+  const latest = useRef(0);
 
   const reload = useCallback(() => {
+    const request = ++latest.current;
     setLoading(true);
     load()
       .then((d) => {
+        if (request !== latest.current) return;
         setData(d);
         setError(null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e : new Error(String(e))))
-      .finally(() => setLoading(false));
+      .catch((e: unknown) => { if (request === latest.current) setError(e instanceof Error ? e : new Error(String(e))); })
+      .finally(() => { if (request === latest.current) setLoading(false); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
