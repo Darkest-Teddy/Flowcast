@@ -16,6 +16,8 @@ npm start            # or npm run dev to restart on changes
 npm run typecheck && npm test   # offline; no key needed
 ```
 
+With the web app, run `npm --prefix server start` and `npm --prefix web run dev` in two terminals from the repo root. The web and map-client Vite servers (dev and preview) forward only `/api/ask` and `/api/health` here, to `FLOWCAST_API_URL` (default `http://127.0.0.1:8787`); the browser client is `map-client/src/askClient.ts`. When this server is down or has no key, the map and dashboard answer on the device and label the answer. The dashboard never sends questions about the person's own schedule (`web/src/lib/askRouting.ts`).
+
 ## Endpoints
 
 - `GET /api/health` → `{ ok, model, keyConfigured, privateBundle }`

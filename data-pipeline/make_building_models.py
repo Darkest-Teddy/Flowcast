@@ -1706,7 +1706,7 @@ STYLE_BY_ID = {
     # Glass and steel
     "way/277434241": "cds", "way/29927783": "glass", "way/155291470": "glass", "way/337489367": "glass",
     "way/697017104": "glass", "way/697017102": "glass", "way/697017103": "glass", "way/825285416": "glass",
-    "way/102385045": "glass", "way/29513001": "glass", "way/1188211556": "glass", "way/212124942": "glass",
+    "way/102385045": "glass", "way/29513001": "glass", "way/1188211556": "brick", "way/212124942": "glass",
     "way/29888004": "glass",
     # Concrete (brutalism and its neighbours)
     "relation/20512578": "concrete", "way/485223499": "concrete", "way/316156067": "concrete",
@@ -1726,6 +1726,7 @@ LANDMARKS = {
     "way/256604722": "questrom", "way/1026274040": "garage", "way/29887049": "castle", "way/1007090933": "theology",
     "way/1007090939": "cas", "way/130209089": "mugar", "way/130209090": "gsu", "way/485223499": "lawtower",
     "relation/18354422": "ballpark",  # Fenway Park (a context building: scenery)
+    "way/1188211556": "whoop",  # One Kenmore Square, WHOOP HQ (scenery; its rooftop sign is in the app)
 }
 ROWHOUSE_STREETS = ("Bay State Road", "Buswell Street", "Park Drive", "Mountfort Street", "Beacon Street",
                     "Euston Street", "Ivy Street", "Saint Mary's Street", "Raleigh Street", "Deerfield Street",
@@ -1842,6 +1843,9 @@ class Ctx:
         # A landmark with floodlights (Fenway Park) sets their glow points, schedule and the lit
         # field's outline (written to the manifest as `floodlights`, for the fields layer).
         self.floodlights = None
+        # The building's shopfront, if it has one: top of the shop storey (m) and the edge carrying
+        # its canopy, if any (written to the manifest as `storefront`, for make_signs.py).
+        self.storefront = None
 
     def record(self, ring, base, top):
         self.massing.append((ring, max(0.0, base), top))
@@ -2517,6 +2521,10 @@ def build_volume(mesh, v, ctx, exclude, rng):
     if v.base > 0.5:
         mesh.flat("trim_white" if v.style == "cds" else "wall_" + family, rings_o, y0, False)
     fronts = street_edges(v, info, ctx, v.tags) if (v.door or v.bays or v.canopy or v.arcade) and v.ground else []
+    if v.ground and v.bands and v.bands[1] == B_SHOP and ctx.storefront is None:
+        # The shop storey's sign band is its top 12/64 (see the B_SHOP band); a canopy sits
+        # 0.3-0.6 m under the storey line, 1.8 m deep, along fronts[0].
+        ctx.storefront = {"top": ys[1], "canopy": (fronts[0]["a"], fronts[0]["b"]) if v.canopy and fronts else None}
     if v.fascia:
         trim = CORNICE_MAT[cornice]
         for e in info:
@@ -3974,7 +3982,48 @@ def landmark_ballpark(mesh, b, ctx, rng, vols):
     return top
 
 
-LANDMARK_FN = {"castle": landmark_castle, "theology": landmark_theology, "questrom": landmark_questrom, "garage": landmark_garage, "chapel": landmark_chapel, "cas": landmark_cas, "warren": landmark_warren, "stuvi": landmark_stuvi,
+WHOOP_BRICK_TOP = 26.0   # six brick storeys (a tall shopfront floor and five office floors)
+WHOOP_TOP = 33.5         # two glass storeys set back on top
+
+
+def landmark_whoop(mesh, b, ctx, rng, vols):
+    """One Kenmore Square (545 Commonwealth Ave, WHOOP's headquarters since July 2023; Related
+    Beal's "Commonwealth Building", eight storeys, Boston Globe 14 Jul 2023). From Wikimedia
+    Commons photos (File:Whoop (54924676654).jpg, Nov 2025; File:Whoop headquarters and new Citgo
+    sign frame September 2026.jpg): six storeys of red brick with big square office windows over a
+    glazed shopfront floor, then two storeys of curtain-wall glass set back behind a glass terrace
+    railing. The rooftop WHOOP letters are drawn by the app (map-client/src/layers/signs.ts) on
+    this model's roof, so they follow its height."""
+    v0 = vols[0]
+    raw = v0.rings[0]
+    tiers = [(raw, 0.0, WHOOP_BRICK_TOP, 6, "brick")]
+    r1 = offset_ring(raw, -2.5)
+    if inset_ok(raw, r1):
+        tiers.append((r1, WHOOP_BRICK_TOP, WHOOP_TOP, 2, "glass"))
+    top = 0
+    for k, (ring, base, height, levels, style) in enumerate(tiers):
+        v = Volume(v0.key if k == 0 else f"{v0.key}#t{k}", [ring], base, height, levels, style)
+        v.tags = v0.tags
+        v.use = "office"
+        v.lit_share = 0.45
+        v.party = False
+        if k == 0:
+            v.bands = (B_BRICK, B_SHOP, 3.4)
+            v.door = True
+            v.mech = False
+            v.cornice = False
+            v.parapet = 1.1
+            v.rail = True  # glass terrace railing round the setback
+        else:
+            v.ground = False
+            v.door = False
+            v.cornice = False
+            v.parapet = 0.6
+        top = max(top, build_volume(mesh, v, ctx, {b.ref}, rng))
+    return top
+
+
+LANDMARK_FN = {"whoop": landmark_whoop, "castle": landmark_castle, "theology": landmark_theology, "questrom": landmark_questrom, "garage": landmark_garage, "chapel": landmark_chapel, "cas": landmark_cas, "warren": landmark_warren, "stuvi": landmark_stuvi,
                "arena": landmark_arena, "mugar": landmark_modern, "gsu": landmark_modern, "lawtower": landmark_lawtower,
                "cds": landmark_cds, "ballpark": landmark_ballpark}
 
@@ -4211,6 +4260,8 @@ def manifest_json(manifest):
             e = {**e, "volumes": [stub(v) for v in e["volumes"]]}
         if "floodlights" in e:  # Fenway's lamps and field, one line too
             e = {**e, "floodlights": stub(e["floodlights"])}
+        if "storefront" in e:
+            e = {**e, "storefront": stub(e["storefront"])}
         return e
     stubbed = {**manifest, "campuses": [{**c, "buildings": [entry(e) for e in c["buildings"]]} for c in manifest["campuses"]]}
     text = json.dumps(stubbed, indent=1)
@@ -4384,6 +4435,7 @@ def main():
                 configure(b, v, abs(signed_area(v.rings[0])))
             kind = LANDMARKS.get(b.ref)
             ctx.massing = []
+            ctx.storefront = None
             if kind:
                 top = LANDMARK_FN[kind](mesh, b, ctx, rng, vols)
             else:
@@ -4406,6 +4458,11 @@ def main():
             vols_out = massing_entries(ctx.massing, frame, top)
             if vols_out:
                 entries[-1]["volumes"] = vols_out
+            if ctx.storefront:
+                sf = {"top": round(ctx.storefront["top"], 2)}
+                if ctx.storefront["canopy"]:
+                    sf["canopy"] = [[round(lng, 7), round(lat, 7)] for lng, lat in (frame.to_lnglat(x, y) for x, y in ctx.storefront["canopy"])]
+                entries[-1]["storefront"] = sf
             if kind == "garage":
                 entries[-1]["deck"] = 3.5  # roof deck under New Balance Field; "height" includes the parapet
             if b.context:

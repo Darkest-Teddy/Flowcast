@@ -12,6 +12,7 @@ import type {
 } from '../../data/types';
 import { formatDayTime, formatHour, formatMeters, formatPercent, formatRelative, formatTime, isToday } from '../../lib/format';
 import { interpret, type InsightData, type Walk } from '../../lib/insights';
+import type { AgentAnswer } from '@map/askClient';
 
 export interface CampusData {
   locations: CampusLocation[];
@@ -85,6 +86,33 @@ export interface Answer {
   focus: string[];
   /** The same question in the map's terms, asked in its Ask tab. Holds place ids and kinds, never class titles. */
   mapQuestion?: string;
+  /** Set when the answer was worked out on this device, saying why in plain words. */
+  device?: string;
+}
+
+const AGENT_NOTE = 'Simulated students over each place’s stated capacity, on the modeled schedule for this weekday. Not a live count.';
+
+/**
+ * The Ask server's answer in Ask Flowcast's layout. Row ids are the map's place ids, so "Show on map"
+ * asks the map the same question rather than focusing ids. Only campus questions get here.
+ */
+export function agentAnswer(result: AgentAnswer, question: string): Answer {
+  const rows: AnswerRow[] = result.rows.map((r) => {
+    const share = r.open === false || r.percent === null ? null : r.percent / 100;
+    const state = !r.modeled ? 'Not modeled'
+      : r.open === false ? 'Closed'
+      : share === null ? `${r.students.toLocaleString()} simulated students`
+      : `${formatPercent(share)} ${(r.level ?? crowdFor(share).label).toLowerCase()}`;
+    const detail = [state, r.modeled && r.open === null ? 'hours not published' : '', r.walkMinutes === null ? '' : r.walkMinutes === 0 ? 'you are here' : `${r.walkMinutes} min walk`];
+    return { id: r.id, title: r.name, detail: detail.filter(Boolean).join(' · '), share };
+  });
+  return {
+    text: result.answer,
+    rows,
+    note: rows.some((r) => r.share !== null) ? AGENT_NOTE : undefined,
+    focus: [],
+    mapQuestion: question,
+  };
 }
 
 export const EXAMPLE_QUESTIONS = [

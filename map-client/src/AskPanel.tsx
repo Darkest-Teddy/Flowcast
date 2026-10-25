@@ -4,6 +4,7 @@ import { crowdLevel, crowdLevelStyle } from './layers/crowd';
 import type { AskRoute } from './layers/askRoute';
 import { formatClock, type CampusLocation, type LocationKind } from './sim/playback';
 import { WEEKDAYS } from './data/campusData';
+import { agentConfigured, askAgentWithRetry, type AgentAnswer, type AgentError, type AskCampus } from './askClient';
 
 export const EXAMPLE_QUESTIONS = [
   'Least crowded library right now',
@@ -33,6 +34,8 @@ interface Answer {
   rows: Row[];
   note?: string;
   show: AskShow | null;
+  /** Set when the answer came from this device's own rules instead of the Ask server, with why. */
+  device?: string;
 }
 
 const PLURAL: Record<LocationKind, string> = {
@@ -160,6 +163,36 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
   }
 }
 
+const ASK_CAMPUSES: readonly string[] = ['charles-river', 'fenway', 'medical'];
+
+/** The Ask server's answer in the panel's terms; row and selection ids become this map's locations. */
+function fromAgent(result: AgentAnswer, byId: Map<string, CampusLocation>): Answer {
+  const rows: Row[] = result.rows.flatMap((r) => {
+    const location = byId.get(r.id);
+    if (!location) return [];
+    const share = r.open === false || r.percent === null ? null : r.percent / 100;
+    return [{
+      location,
+      primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.percent === null ? `${r.students.toLocaleString()} students` : `${r.percent}% ${r.level ?? crowdLevel(r.percent / 100).label}`,
+      secondary: [r.modeled && r.open === null ? 'Hours not published' : '', r.walkMinutes === null ? '' : r.walkMinutes === 0 ? 'here' : `${r.walkMinutes} min walk`].filter(Boolean).join(' · '),
+      share,
+    }];
+  });
+  const show: AskShow | null = result.show
+    ? { route: result.show.route, select: result.show.select ? byId.get(result.show.select) ?? null : null, points: result.show.points }
+    : null;
+  return { text: result.answer, rows, note: rows.some((r) => r.share !== null) ? MODEL_NOTE : undefined, show };
+}
+
+/** Why the answer below came from this device, in plain words. */
+function deviceReason(error: AgentError | null): string {
+  if (!error || error.kind === 'notConfigured') return 'Answered on this device: the Ask server isn’t set up.';
+  if (error.kind === 'rateLimited') return 'Answered on this device: too many questions to the Ask server just now.';
+  if (error.kind === 'timeout') return 'Answered on this device: the Ask server took too long.';
+  if (error.kind === 'warming') return 'Answered on this device: the Ask server is still simulating that day.';
+  return 'Answered on this device: the Ask server isn’t reachable.';
+}
+
 /** The Ask tab: a question box, example questions, and an answer that the map draws. */
 export function AskPanel({
   context,
@@ -177,32 +210,82 @@ export function AskPanel({
   const contextRef = useRef(context);
   contextRef.current = context;
 
-  const run = (q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed) return;
+  const [busy, setBusy] = useState<string | null>(null); // what the panel is waiting for, or null
+  const answerRef = useRef(answer);
+  answerRef.current = answer;
+  const inFlight = useRef<AbortController | null>(null);
+
+  const answerLocally = (q: string, reason: string) => {
     const ctx = contextRef.current;
     const byId = new Map(ctx.locations.map((l) => [l.id, l]));
-    const result = describe(ask(trimmed, ctx), ctx, byId);
-    setQuestion(trimmed);
-    setAnswer({ question: trimmed, answer: result });
+    const result = { ...describe(ask(q, ctx), ctx, byId), device: reason };
+    setAnswer({ question: q, answer: result });
     onShow(result.show);
   };
 
-  // A question passed in the URL (?ask=...) is asked once, as soon as the simulation is ready.
+  // Each question goes to the Ask server for the map's shown day, time and campus. A newer question
+  // cancels the one in flight; any failure falls back to this device's own answer, labelled as such.
+  const run = async (q: string) => {
+    const trimmed = q.trim().slice(0, 300);
+    if (!trimmed) return;
+    inFlight.current?.abort();
+    const controller = new AbortController();
+    inFlight.current = controller;
+    setQuestion(trimmed);
+    const ctx = contextRef.current;
+    const campus = ASK_CAMPUSES.includes(ctx.campus) ? (ctx.campus as AskCampus) : 'charles-river';
+    setBusy('Asking…');
+    try {
+      if (!(await agentConfigured())) {
+        if (!controller.signal.aborted) answerLocally(trimmed, deviceReason(null));
+        return;
+      }
+      const result = await askAgentWithRetry(
+        { question: trimmed, weekday: ctx.weekday, time: ctx.time, campus },
+        controller.signal,
+        { onWarming: () => { if (!controller.signal.aborted) setBusy(`Simulating ${WEEKDAYS[ctx.weekday]}…`); } },
+      );
+      if (controller.signal.aborted) return;
+      if (result.ok) {
+        const now = contextRef.current;
+        const answered = fromAgent(result.value, new Map(now.locations.map((l) => [l.id, l])));
+        setAnswer({ question: trimmed, answer: answered });
+        onShow(answered.show);
+      } else if (result.error.kind !== 'aborted') {
+        answerLocally(trimmed, deviceReason(result.error));
+      }
+    } finally {
+      if (inFlight.current === controller) {
+        inFlight.current = null;
+        setBusy(null);
+      }
+    }
+  };
+
+  // A question passed in the URL (?ask=...) is asked once, as soon as the simulation is ready. It
+  // starts a tick later, so a mount that is immediately undone (React dev mode) sends nothing; if
+  // the panel closes before it's answered, it is asked again when the panel comes back.
   const askedInitial = useRef(false);
   useEffect(() => {
+    let start: ReturnType<typeof setTimeout> | undefined;
     if (initialQuestion && !askedInitial.current) {
       askedInitial.current = true;
-      run(initialQuestion);
+      start = setTimeout(() => void run(initialQuestion), 0);
     }
+    return () => {
+      clearTimeout(start);
+      if (askedInitial.current && !answerRef.current) askedInitial.current = false;
+      inFlight.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuestion]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    run(question);
+    void run(question);
   };
   const clear = () => {
+    inFlight.current?.abort();
     setAnswer(null);
     setQuestion('');
     onShow(null);
@@ -217,31 +300,35 @@ export function AskPanel({
           placeholder="Least crowded library, how far is CAS from Mugar…"
           aria-label="Ask about campus"
         />
-        <button type="submit">Ask</button>
+        <button type="submit" disabled={busy !== null}>{busy ? 'Asking…' : 'Ask'}</button>
       </form>
-      {answer ? (
-        <div className="ask-answer" aria-live="polite">
-          <p className="ask-text">{answer.answer.text}</p>
-          {answer.answer.rows.length > 0 && (
-            <ol className="rows">
-              {answer.answer.rows.map((r) => (
-                <li key={r.location.id}>
-                  <button className="row" onClick={() => onSelect(r.location)} style={r.share === null ? undefined : crowdLevelStyle(r.share)}>
-                    <span className="name">{r.location.name}</span>
-                    {r.share !== null && <span className="bar" aria-hidden="true"><span style={{ width: `${Math.min(100, r.share * 100)}%` }} /></span>}
-                    <span className="value"><b>{r.primary}</b>{r.secondary && ` · ${r.secondary}`}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-          )}
-          {answer.answer.note && <p className="muted ask-note">{answer.answer.note}</p>}
-          <button type="button" className="ask-clear" onClick={clear}>Clear</button>
-        </div>
-      ) : null}
+      <div className="ask-answer" aria-live="polite" aria-busy={busy !== null}>
+        {busy && <p className="muted ask-status">{busy}</p>}
+        {answer && !busy ? (
+          <>
+            <p className="ask-text">{answer.answer.text}</p>
+            {answer.answer.rows.length > 0 && (
+              <ol className="rows">
+                {answer.answer.rows.map((r) => (
+                  <li key={r.location.id}>
+                    <button className="row" onClick={() => onSelect(r.location)} style={r.share === null ? undefined : crowdLevelStyle(r.share)}>
+                      <span className="name">{r.location.name}</span>
+                      {r.share !== null && <span className="bar" aria-hidden="true"><span style={{ width: `${Math.min(100, r.share * 100)}%` }} /></span>}
+                      <span className="value"><b>{r.primary}</b>{r.secondary && ` · ${r.secondary}`}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {answer.answer.note && <p className="muted ask-note">{answer.answer.note}</p>}
+            {answer.answer.device && <p className="muted ask-note">{answer.answer.device}</p>}
+            <button type="button" className="ask-clear" onClick={clear}>Clear</button>
+          </>
+        ) : null}
+      </div>
       <div className="ask-examples" aria-label="Example questions">
         {EXAMPLE_QUESTIONS.map((q) => (
-          <button key={q} type="button" onClick={() => run(q)}>{q}</button>
+          <button key={q} type="button" onClick={() => void run(q)}>{q}</button>
         ))}
       </div>
     </div>

@@ -1,0 +1,716 @@
+{
+ "source": "OpenStreetMap contributors (ODbL) for places, names, cuisines and hours; positions on the modelled facades by data-pipeline/make_signs.py; open as of October 2026 (each sign's source.open).",
+ "signs": [
+  {
+   "id": "whoop",
+   "kind": "rooftop",
+   "name": "WHOOP",
+   "text": "WHOOP",
+   "osm": "way/1188211556",
+   "building": "way/1188211556",
+   "position": [
+    -71.0968149,
+    42.3491487
+   ],
+   "altitude": 36.6,
+   "bearing": 181.1,
+   "width": 22.0,
+   "height": 4.0,
+   "style": {
+    "frame": "letters",
+    "fg": "#e4e7ea",
+    "font": "whoop",
+    "weight": 300
+   },
+   "info": {
+    "subtitle": "One Kenmore Square · WHOOP headquarters",
+    "address": "1 Kenmore Square (545 Commonwealth Avenue)"
+   },
+   "source": {
+    "position": "Wikimedia Commons, File:Whoop (54924676654).jpg (Nov 2025) and File:Whoop headquarters and new Citgo sign frame September 2026.jpg (Sep 2026), registered to OSM way/1188211556 (One Kenmore Square, tagged Whoop)",
+    "details": "Boston Globe, 14 Jul 2023 ('You've seen the sign over Kenmore Square, now see inside Whoop's new HQ'): eight storeys at One Kenmore Square; Boston Globe, 27 May 2026: 'the tall white all-caps logo on Whoop's sign' overtakes the Citgo sign from several vantage points; BU Today (2025): 'a large grey WHOOP sign' atop the brick building.",
+    "unverified": "Exact letter height and length (measured from photos, about 4 m by 22 m) and the lighting (the brief and photos suggest white letters lit after dark; drawn steady, not animated)."
+   }
+  },
+  {
+   "id": "india-quality",
+   "kind": "storefront",
+   "name": "India Quality",
+   "text": "INDIA QUALITY",
+   "osm": "node/7775144117",
+   "building": "way/825276180",
+   "position": [
+    -71.0942332,
+    42.3486395
+   ],
+   "altitude": 3.78,
+   "bearing": 359.2,
+   "width": 5.2,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#7d1418",
+    "fg": "#f4d58d",
+    "font": "serif",
+    "weight": 700
+   },
+   "info": {
+    "amenity": "Restaurant",
+    "cuisine": "indian",
+    "address": "484 Commonwealth Avenue",
+    "hours": "Mo-Fr 11:30-15:00,17:00-22:30; Sa,Su 11:30-22:30",
+    "website": "https://indiaquality.com/"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/7775144117 on the Commonwealth Avenue wall of way/825276180 (on its canopy)",
+    "open": "BU Today, 'Getting to know your neighborhood: Kenmore Square' (8 Oct 2026)"
+   }
+  },
+  {
+   "id": "the-kenmore",
+   "kind": "storefront",
+   "name": "The Kenmore",
+   "text": "THE KENMORE",
+   "osm": "node/7776200191",
+   "building": "way/825276176",
+   "position": [
+    -71.0938632,
+    42.3486451
+   ],
+   "altitude": 3.27,
+   "bearing": 358.4,
+   "width": 4.6,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#141414",
+    "fg": "#f1e6cf",
+    "font": "serif",
+    "weight": 700,
+    "spacing": 0.12
+   },
+   "info": {
+    "amenity": "Bar",
+    "address": "476 Commonwealth Avenue",
+    "hours": "Mo-We 11:00-01:00, Su 10:00-01:00, Th-Sa 11:00-02:00",
+    "website": "https://www.thekenmorebar.com/"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/7776200191 on the Commonwealth Avenue wall of way/825276176",
+    "open": "BU Today, Kenmore Square guide (8 Oct 2026); Yelp listing (Jun 2026)"
+   }
+  },
+  {
+   "id": "mcdonalds-kenmore",
+   "kind": "storefront",
+   "name": "McDonald's",
+   "text": "McDonald's",
+   "osm": "node/2367929358",
+   "building": "way/485214630",
+   "position": [
+    -71.0966928,
+    42.3485918
+   ],
+   "altitude": 4.33,
+   "bearing": 2.5,
+   "width": 4.2,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#da291c",
+    "fg": "#ffc72c",
+    "font": "rounded",
+    "weight": 800
+   },
+   "info": {
+    "amenity": "Fast food",
+    "cuisine": "burger",
+    "address": "540 Commonwealth Avenue",
+    "hours": "Mo-Sa 06:00-24:00; Su 07:00-24:00",
+    "website": "https://www.mcdonalds.com/us/en-us/location/17677.html"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/2367929358 on the Commonwealth Avenue wall of way/485214630",
+    "open": "Yelp listing (Oct 2026), mcdonalds.com location 17677"
+   }
+  },
+  {
+   "id": "dunkin-kenmore",
+   "kind": "storefront",
+   "name": "Dunkin'",
+   "text": "DUNKIN'",
+   "osm": "node/2350393263",
+   "building": "way/29745294",
+   "position": [
+    -71.0963165,
+    42.3486009
+   ],
+   "altitude": 3.62,
+   "bearing": 358.1,
+   "width": 3.4,
+   "height": 0.8,
+   "style": {
+    "frame": "letters",
+    "fg": "#ff671f",
+    "fg2": "#da1884",
+    "split": 4,
+    "font": "rounded",
+    "weight": 900
+   },
+   "info": {
+    "amenity": "Fast food",
+    "cuisine": "donut, coffee shop",
+    "address": "530 Commonwealth Avenue",
+    "hours": "Mo-Th 04:30-21:00; Fr-Sa 04:30-20:00; Su 05:00-21:00",
+    "website": "https://locations.dunkindonuts.com/en/ma/boston/530-commonwealth-ave/339667"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/2350393263 on the Commonwealth Avenue wall of way/29745294",
+    "open": "Dunkin' store locator, 530 Commonwealth Ave (store 339667)"
+   }
+  },
+  {
+   "id": "cornwalls",
+   "kind": "storefront",
+   "name": "Cornwall's",
+   "text": "Cornwall's",
+   "osm": "node/12045953853",
+   "building": "way/485216314",
+   "position": [
+    -71.09551,
+    42.3493342
+   ],
+   "altitude": 3.97,
+   "bearing": 161.0,
+   "width": 4.4,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#123b2a",
+    "fg": "#e8c66a",
+    "font": "serif",
+    "weight": 700,
+    "italic": true
+   },
+   "info": {
+    "amenity": "Bar",
+    "address": "644 Beacon Street",
+    "hours": "Mo-Sa 11:30-26:00",
+    "website": "https://www.cornwalls.com"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/12045953853 on the Beacon Street wall of way/485216314",
+    "open": "BU Today, Kenmore Square guide (8 Oct 2026); Yelp listing (Jul 2026)"
+   }
+  },
+  {
+   "id": "bbq-chicken",
+   "kind": "storefront",
+   "name": "bb.q Chicken",
+   "text": "bb.q CHICKEN",
+   "osm": "node/1975218212",
+   "building": "way/29716750",
+   "position": [
+    -71.0951089,
+    42.3494524
+   ],
+   "altitude": 3.97,
+   "bearing": 161.0,
+   "width": 4.0,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#e2231a",
+    "fg": "#ffffff",
+    "font": "sans",
+    "weight": 800
+   },
+   "info": {
+    "amenity": "Restaurant",
+    "cuisine": "korean, chicken",
+    "address": "636 Beacon Street",
+    "hours": "Mo-Su 11:00-22:00",
+    "website": "https://bbqchicken.com/"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/1975218212 on the Beacon Street wall of way/29716750",
+    "open": "Yelp listing (Aug 2026); Daily Free Press (Mar 2026)"
+   }
+  },
+  {
+   "id": "el-jefes-kenmore",
+   "kind": "storefront",
+   "name": "El Jefe's Taqueria",
+   "text": "EL JEFE'S TAQUERIA",
+   "osm": null,
+   "building": "way/1188211556",
+   "position": [
+    -71.0964776,
+    42.349115
+   ],
+   "altitude": 4.33,
+   "bearing": 181.2,
+   "width": 5.2,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#111111",
+    "fg": "#ffd200",
+    "font": "condensed",
+    "weight": 800
+   },
+   "info": {
+    "amenity": "Fast food",
+    "cuisine": "mexican",
+    "address": "533 Commonwealth Avenue",
+    "hours": "Mo-Su 08:00-03:00",
+    "website": "https://www.eljefestaqueria.com/"
+   },
+   "source": {
+    "position": "Photo (see make_signs.py) on the Commonwealth Avenue wall of way/1188211556",
+    "open": "eljefestaqueria.com/locations: 533 Commonwealth Ave, 8 am - 3 am"
+   }
+  },
+  {
+   "id": "noodle-street",
+   "kind": "storefront",
+   "name": "Noodle Street",
+   "text": "NOODLE STREET",
+   "osm": "relation/9686032",
+   "building": "relation/9686032",
+   "position": [
+    -71.1016313,
+    42.3496839
+   ],
+   "altitude": 3.97,
+   "bearing": 188.4,
+   "width": 4.6,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#1f7a3a",
+    "fg": "#ffffff",
+    "font": "sans",
+    "weight": 800
+   },
+   "info": {
+    "amenity": "Restaurant",
+    "cuisine": "thai",
+    "address": "627 Commonwealth Avenue",
+    "website": "https://noodlestreet.com/"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/relation/9686032 on the Commonwealth Avenue wall of relation/9686032",
+    "open": "noodlestreet.com; Tripadvisor (2026)"
+   }
+  },
+  {
+   "id": "insomnia-cookies",
+   "kind": "storefront",
+   "name": "Insomnia Cookies",
+   "text": "Insomnia Cookies",
+   "osm": "node/4738685923",
+   "building": "way/1189253165",
+   "position": [
+    -71.1054226,
+    42.349603
+   ],
+   "altitude": 3.97,
+   "bearing": 9.3,
+   "width": 2.35,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#0f2a5f",
+    "fg": "#ffffff",
+    "font": "script",
+    "weight": 700
+   },
+   "info": {
+    "amenity": "Restaurant",
+    "cuisine": "snack",
+    "address": "708 Commonwealth Avenue",
+    "hours": "Mo-We 11:00-03:00; Sa 12:00-03:00; Su 12:00-01:00",
+    "website": "https://insomniacookies.com/goto/store/1072"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/4738685923 on the Commonwealth Avenue wall of way/1189253165",
+    "open": "Yelp listing (Oct 2026); insomniacookies.com store 1072"
+   }
+  },
+  {
+   "id": "university-grill",
+   "kind": "storefront",
+   "name": "University Grill and Pizza",
+   "text": "UNIVERSITY GRILL",
+   "osm": "node/4738685924",
+   "building": "way/1189253163",
+   "position": [
+    -71.1055921,
+    42.349624
+   ],
+   "altitude": 3.97,
+   "bearing": 9.5,
+   "width": 2.27,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#b3141b",
+    "fg": "#ffffff",
+    "font": "condensed",
+    "weight": 800
+   },
+   "info": {
+    "amenity": "Restaurant",
+    "cuisine": "greek, pizza",
+    "address": "712 Commonwealth Avenue",
+    "hours": "10:00-22:00",
+    "website": "https://ugrillboston.com/"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/4738685924 on the Commonwealth Avenue wall of way/1189253163",
+    "open": "Yelp listing (Oct 2026); ugrillboston.com"
+   }
+  },
+  {
+   "id": "pavement",
+   "kind": "storefront",
+   "name": "Pavement Coffee House",
+   "text": "PAVEMENT",
+   "osm": "node/1977416124",
+   "building": "way/468538536",
+   "position": [
+    -71.1072025,
+    42.3498784
+   ],
+   "altitude": 3.97,
+   "bearing": 8.3,
+   "width": 3.6,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#151515",
+    "fg": "#ffffff",
+    "font": "sans",
+    "weight": 700,
+    "spacing": 0.22
+   },
+   "info": {
+    "amenity": "Café",
+    "cuisine": "coffee shop",
+    "address": "736 Commonwealth Avenue",
+    "hours": "Mo-Su 07:00-19:00",
+    "website": "http://www.espressoroyaleboston.com"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/1977416124 on the Commonwealth Avenue wall of way/468538536",
+    "open": "Yelp listing (Oct 2026)"
+   }
+  },
+  {
+   "id": "nud-pob",
+   "kind": "storefront",
+   "name": "Nud Pob",
+   "text": "NUD POB",
+   "osm": "node/1456474145",
+   "building": "way/468538536",
+   "position": [
+    -71.1073042,
+    42.3498895
+   ],
+   "altitude": 3.97,
+   "bearing": 8.3,
+   "width": 3.4,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#e8a317",
+    "fg": "#3a1c08",
+    "font": "serif",
+    "weight": 700
+   },
+   "info": {
+    "amenity": "Restaurant",
+    "cuisine": "thai",
+    "address": "738 Commonwealth Avenue",
+    "hours": "Mo-Fr 11:00-15:00,16:00-22:00; Sa,Su 00:00-15:00,16:00-22:00"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/1456474145 on the Commonwealth Avenue wall of way/468538536",
+    "open": "Yelp listing (Oct 2026)"
+   }
+  },
+  {
+   "id": "taco-bell-cantina",
+   "kind": "storefront",
+   "name": "Taco Bell Cantina",
+   "text": "TACO BELL CANTINA",
+   "osm": "node/9342177337",
+   "building": "way/212272917",
+   "position": [
+    -71.1143493,
+    42.3507062
+   ],
+   "altitude": 3.7,
+   "bearing": 8.7,
+   "width": 5.0,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#5b2a86",
+    "fg": "#ffffff",
+    "font": "sans",
+    "weight": 800
+   },
+   "info": {
+    "amenity": "Fast food",
+    "cuisine": "tex-mex",
+    "address": "872 Commonwealth Avenue",
+    "hours": "Su-Th 09:00-23:00; Fr-Sa 09:00-24:00",
+    "website": "https://locations.tacobell.com/ma/brookline/872-commonwealth-avenue.html"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/9342177337 on the Commonwealth Avenue wall of way/212272917",
+    "open": "Yelp listing (Jun 2026); Daily Free Press (21 Sep 2026)"
+   }
+  },
+  {
+   "id": "chipotle",
+   "kind": "storefront",
+   "name": "Chipotle",
+   "text": "CHIPOTLE",
+   "osm": "node/14287602379",
+   "building": "way/1189678818",
+   "position": [
+    -71.1146216,
+    42.350738
+   ],
+   "altitude": 4.28,
+   "bearing": 9.1,
+   "width": 4.0,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#7a1712",
+    "fg": "#fbf3e6",
+    "font": "sans",
+    "weight": 800,
+    "spacing": 0.1
+   },
+   "info": {
+    "amenity": "Fast food",
+    "cuisine": "mexican",
+    "address": "876 Commonwealth Avenue",
+    "hours": "Mo-Su 10:45-23:00"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/14287602379 on the Commonwealth Avenue wall of way/1189678818",
+    "open": "Chipotle locator, 876 Commonwealth Ave; Daily Free Press (21 Sep 2026)"
+   }
+  },
+  {
+   "id": "otto",
+   "kind": "storefront",
+   "name": "OTTO Pizza",
+   "text": "OTTO PIZZA",
+   "osm": "node/1972927835",
+   "building": "way/1189678820",
+   "position": [
+    -71.115229,
+    42.3508201
+   ],
+   "altitude": 3.97,
+   "bearing": 8.5,
+   "width": 3.8,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#f4efe4",
+    "fg": "#111111",
+    "fg2": "#c8102e",
+    "split": 4,
+    "font": "sans",
+    "weight": 900
+   },
+   "info": {
+    "amenity": "Restaurant",
+    "cuisine": "pizza",
+    "address": "888 Commonwealth Avenue",
+    "hours": "Su-We 11:00-22:00; Th-Sa 11:00-24:00"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/1972927835 on the Commonwealth Avenue wall of way/1189678820",
+    "open": "Yelp listing (Oct 2026), 888 Commonwealth Ave"
+   }
+  },
+  {
+   "id": "life-alive",
+   "kind": "storefront",
+   "name": "Life Alive",
+   "text": "LIFE ALIVE",
+   "osm": "node/1978317372",
+   "building": "way/1189678819",
+   "position": [
+    -71.1155907,
+    42.3508619
+   ],
+   "altitude": 3.97,
+   "bearing": 9.0,
+   "width": 3.8,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#4f7f2a",
+    "fg": "#fdf6e3",
+    "font": "rounded",
+    "weight": 800
+   },
+   "info": {
+    "amenity": "Restaurant",
+    "cuisine": "organic",
+    "address": "888 Commonwealth Avenue",
+    "hours": "Mo-Su 07:30-21:00"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/1978317372 on the Commonwealth Avenue wall of way/1189678819",
+    "open": "lifealive.com/location/brookline (7:30 am - 9 pm)"
+   }
+  },
+  {
+   "id": "sunset-cantina",
+   "kind": "storefront",
+   "name": "Sunset Cantina",
+   "text": "SUNSET CANTINA",
+   "osm": "node/3445717462",
+   "building": "way/29823830",
+   "position": [
+    -71.1167894,
+    42.3510123
+   ],
+   "altitude": 4.89,
+   "bearing": 8.9,
+   "width": 4.8,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#9b1b1e",
+    "fg": "#ffb347",
+    "font": "serif",
+    "weight": 700
+   },
+   "info": {
+    "amenity": "Restaurant",
+    "cuisine": "mexican",
+    "address": "916 Commonwealth Avenue",
+    "hours": "11:00-01:00",
+    "website": "https://www.sunsetboston.com/"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/3445717462 on the Commonwealth Avenue wall of way/29823830 (on its canopy)",
+    "open": "Yelp listing (Aug 2026), 916 Commonwealth Ave"
+   }
+  },
+  {
+   "id": "raising-canes",
+   "kind": "storefront",
+   "name": "Raising Cane's",
+   "text": "Raising Cane's",
+   "osm": "node/815754376",
+   "building": "way/408045401",
+   "position": [
+    -71.1187392,
+    42.3517024
+   ],
+   "altitude": 3.97,
+   "bearing": 189.2,
+   "width": 4.6,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#c8102e",
+    "fg": "#ffffff",
+    "font": "script",
+    "weight": 700
+   },
+   "info": {
+    "amenity": "Fast food",
+    "cuisine": "chicken",
+    "address": "949 Commonwealth Avenue",
+    "website": "https://raisingcanes.com/"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/815754376 on the Commonwealth Avenue wall of way/408045401",
+    "open": "Raising Cane's locator, 949 Commonwealth Ave"
+   }
+  },
+  {
+   "id": "el-jefes-bu",
+   "kind": "storefront",
+   "name": "El Jefe's Taqueria",
+   "text": "EL JEFE'S TAQUERIA",
+   "osm": "node/11165170305",
+   "building": "way/29630322",
+   "position": [
+    -71.1189215,
+    42.351724
+   ],
+   "altitude": 4.28,
+   "bearing": 189.2,
+   "width": 5.2,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#111111",
+    "fg": "#ffd200",
+    "font": "condensed",
+    "weight": 800
+   },
+   "info": {
+    "amenity": "Fast food",
+    "cuisine": "american, mexican",
+    "address": "957 Commonwealth Avenue",
+    "hours": "Mo-Su 08:00-01:00",
+    "website": "https://www.eljefestaqueria.com/bu"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/11165170305 on the Commonwealth Avenue wall of way/29630322",
+    "open": "eljefestaqueria.com; Yelp listing (Jul 2026), 957 Commonwealth Ave"
+   }
+  },
+  {
+   "id": "t-anthonys",
+   "kind": "storefront",
+   "name": "T. Anthony's",
+   "text": "T. ANTHONY'S PIZZERIA",
+   "osm": "node/1978954424",
+   "building": "way/1119478979",
+   "position": [
+    -71.121489,
+    42.3515389
+   ],
+   "altitude": 3.97,
+   "bearing": 8.5,
+   "width": 5.4,
+   "height": 0.8,
+   "style": {
+    "frame": "panel",
+    "bg": "#0b5e34",
+    "fg": "#ffffff",
+    "fg2": "#ffffff",
+    "font": "serif",
+    "weight": 700
+   },
+   "info": {
+    "amenity": "Fast food",
+    "cuisine": "pizza",
+    "address": "1016 Commonwealth Avenue",
+    "hours": "11:00-01:00,11:00-02:00",
+    "website": "https://www.tanthonypizzeria.com/"
+   },
+   "source": {
+    "position": "https://www.openstreetmap.org/node/1978954424 on the Commonwealth Avenue wall of way/1119478979",
+    "open": "BU Today, 'National Pizza Day' (2025); tanthonypizzeria.com"
+   }
+  }
+ ]
+}

@@ -40,6 +40,8 @@ export const radius = {
   md: 'var(--radius-md)',
   lg: 'var(--radius-lg)',
   full: 'var(--radius-full)',
+  tile: 'var(--radius-tile)',
+  panel: 'var(--radius-panel)',
   card: 'var(--radius-card)',
   sheet: 'var(--radius-sheet)',
   capsule: 'var(--radius-capsule)',

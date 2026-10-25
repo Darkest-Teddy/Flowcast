@@ -1,6 +1,6 @@
 # web (React + TypeScript)
 
-The Flowcast platform around the map, served as one site: Google sign-in, the "Get started" tour, the student dashboard (Home, Schedule, Forecasts, Events, Clubs, account pages), club registration and `.ics` uploads, and a separate admin area at `/admin` (data sources, simulation, live demo controls, club verification, users, agent brain, settings). The 3D map's code stays in `/map-client`, but this app serves it at `/map` (`map.html` runs map-client's own entry point), along with its data and models, so everyone uses one server and one address.
+The Flowcast platform around the map, served as one site: the public landing page (at `/` for signed-out visitors and at `/landing` for everyone), Google sign-in, the "Get started" tour, the student dashboard (Home, Schedule, Forecasts, Events, Clubs, account pages), club registration and `.ics` uploads, and a separate admin area at `/admin` (data sources, simulation, live demo controls, club verification, users, agent brain, settings). The 3D map's code stays in `/map-client`, but this app serves it at `/map` (`map.html` runs map-client's own entry point), along with its data and models, so everyone uses one server and one address.
 
 ## Run it
 
@@ -22,6 +22,7 @@ Sign-in is mocked: "Continue with Google" signs you in as a sample user with stu
 - **Reuse `src/ui`** (buttons, lists, tables, fields, status badges, page headers) and `src/lib/format.ts` for dates and percentages.
 - Each page keeps its CSS in a sibling `*.module.css`.
 - **Glass, not opaque boxes.** Pages sit on the canvas gradient. A card or bar that needs a surface writes `composes: glass from global;` (or `glass-strong` for big panels and anything content scrolls under) and `border-radius: var(--radius-card)`. Don't paint `--color-surface` or `--color-canvas` over the page. Reduce transparency (Settings, or the device setting) turns all glass solid by itself.
+- **Dark parts of a light page.** Put `data-theme="dark"` on any element and `tokens.css` gives it and everything inside the dark values (the landing page's nav, hero and closing). Give that element `color: var(--color-ink)` and its own background, since the inherited text colour was computed outside it.
 
 ## Layout
 

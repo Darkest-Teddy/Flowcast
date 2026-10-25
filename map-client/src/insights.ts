@@ -184,6 +184,9 @@ export function comparable(location: CampusLocation, modeled: boolean | undefine
  * Ranking tier: 0 open with a comparable percentage, 1 open with a headcount only, 2 hours not
  * published, 3 closed, 4 not modeled. Without campus data every modeled place counts as open.
  */
+/** Kinds the simulation visits only during published hours (sim/sourceDay.ts venueWindows). */
+const VISIT_KINDS = new Set<LocationKind>(['dining', 'library', 'gym']);
+
 export function rankTier(r: RankedPlace): number {
   if (!r.modeled) return 4;
   if (r.open === false) return 3;
@@ -195,14 +198,20 @@ export function rankByCrowd(ctx: AskContext, placeKind: LocationKind | null, tim
   const occupancy = ctx.occupancyAt(time).filter((o) => (placeKind === null ? o.location.kind !== 'off-campus' : o.location.kind === placeKind) && (o.location.campus ?? 'charles-river') === ctx.campus);
   const data = ctx.data;
   return occupancy
-    .map((o): RankedPlace => ({
-      location: o.location,
-      count: o.count,
-      share: comparable(o.location, o.modeled) ? o.count / o.location.capacity : null,
-      modeled: o.modeled !== false && o.location.activityModeled !== false,
-      walk: from ? walkBetween(from, o.location, ctx.walkRoutes) : null,
-      ...(data ? { open: openAt(o.location.id, ctx.weekday, time, data).open } : {}),
-    }))
+    .map((o): RankedPlace => {
+      const open = data ? openAt(o.location.id, ctx.weekday, time, data).open : undefined;
+      // The simulation only sends visitors to venues with published hours, so an empty venue
+      // whose hours aren't published says nothing about how busy it is: no percent for it.
+      const unsampled = open === null && o.count === 0 && VISIT_KINDS.has(o.location.kind);
+      return {
+        location: o.location,
+        count: o.count,
+        share: comparable(o.location, o.modeled) && !unsampled ? o.count / o.location.capacity : null,
+        modeled: o.modeled !== false && o.location.activityModeled !== false,
+        walk: from ? walkBetween(from, o.location, ctx.walkRoutes) : null,
+        ...(data ? { open } : {}),
+      };
+    })
     // Open places with percentages first, then open headcounts, places with unpublished hours
     // (percentages before headcounts), closed places, and last the ones the simulation doesn't model.
     .sort((x, y) => rankTier(x) - rankTier(y) || Number(x.share === null) - Number(y.share === null)
