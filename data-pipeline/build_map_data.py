@@ -365,7 +365,7 @@ def build_bundle(datasets, day, input_files=None):
         events.append({"id": record["id"], "name": record["name"], "start": record["start"], "end": record.get("end"),
                "locationId": location_id, "locationName": record.get("locationName"),
                "roomCode": room, "roomCapacity": seats,
-               "organizer": record.get("organizer"),
+               "organizer": record.get("organizer"), "imageUrl": record.get("imageUrl"),
                "registrationCount": record.get("registrationCount"), "sourceUrl": source_url(record)})
     for record in datasets["signals"]["pedestrianCounts"]:
         item = evidence(record, f"{record['intersection']}, {record['startLocal']}-{record['endLocal']}")

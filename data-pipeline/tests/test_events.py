@@ -30,6 +30,19 @@ class EventTests(unittest.TestCase):
         self.assertTrue(row["registrationOptional"])
         self.assertEqual(row["start"], "2026-09-08T18:30:00-04:00")
 
+    def test_image_shapes_yield_the_first_https_url(self):
+        photo = "https://se-images.campuslabs.com/clink/images/abc.jpg"
+        for image in (photo, [photo], {"@type": "ImageObject", "url": photo},
+                      ["http://insecure.example/a.jpg", photo], [{"url": photo}],
+                      {"@type": "ImageObject", "contentUrl": photo}):
+            self.assertEqual(parse_event(self.event(image=image))["imageUrl"], photo, image)
+
+    def test_missing_or_malformed_image_is_none(self):
+        for image in (None, "", [], {}, "/relative/a.jpg", "//cdn.example/a.jpg", "not a url",
+                      {"url": 7}, [["https://x/a.jpg"]], 42, "https:///a.jpg", "https://[oops"):
+            self.assertIsNone(parse_event(self.event(image=image))["imageUrl"], image)
+        self.assertIsNone(parse_event(self.event())["imageUrl"])
+
     def test_hidden_location_stays_unresolved(self):
         row = parse_event(self.event(location={"name": "Private Location (sign in to display)"}))
         self.assertIsNone(row["locationName"])
