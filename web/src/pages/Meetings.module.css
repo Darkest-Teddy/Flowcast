@@ -56,6 +56,9 @@ a.organizer { color: var(--color-accent); text-decoration: none; }
 a.organizer:hover { text-decoration: underline; }
 @media (max-width: 600px) { .turnout li { grid-template-columns: 1fr; } .panel { padding: var(--space-4); } }
 .meetingForm { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); align-items: end; }
-.meetingForm > div:first-child, .meetingForm > :nth-last-child(-n + 3) { grid-column: 1 / -1; }
+/* Title, then building, room and date; start and end; notes, actions and the conflict check full width. */
+.meetingForm > :nth-child(1), .meetingForm > :nth-child(n + 7) { grid-column: 1 / -1; }
+.stackForm { display: grid; gap: var(--space-2); justify-items: start; }
+.stackForm > div { width: 100%; }
 .meetingForm details { font-size: var(--text-sm); }
 @media (max-width: 700px) { .meetingForm { grid-template-columns: 1fr 1fr; } }

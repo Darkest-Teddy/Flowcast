@@ -30,7 +30,8 @@ function bostonIso(date: string, time: string): string | null {
 
 /** One club: its meetings (published and posted here), announcements, following and free-time sharing; officers manage it. */
 export default function ClubDetail() {
-  const clubId = decodeURIComponent(useParams().clubId ?? '');
+  // The router already decodes the path; club ids themselves contain %-escapes, so never decode twice.
+  const clubId = useParams().clubId ?? '';
   const clubs = useResource(api.getClubs);
   const events = useResource(api.getCampusEvents);
   const locations = useResource(api.getLocations);
@@ -114,7 +115,7 @@ function OfficerPanel({ clubId, org, locations, onPosted }: { clubId: string; or
         onSave={(patch) => act(() => api.updateClubMeeting(clubId, m.id, patch), 'Meeting updated.')} />)}</ul>
     </>}
     <h3>Announce to followers</h3>
-    <form className={styles.inline} onSubmit={(e) => { e.preventDefault(); void act(async () => { await api.postClubAnnouncement(clubId, announcement.trim()); setAnnouncement(''); }, 'Announcement sent.'); }}>
+    <form className={styles.stackForm} onSubmit={(e) => { e.preventDefault(); void act(async () => { await api.postClubAnnouncement(clubId, announcement.trim()); setAnnouncement(''); }, 'Announcement sent.'); }}>
       <TextArea label="Announcement" maxLength={500} rows={2} value={announcement} onChange={(e) => setAnnouncement(e.target.value)} />
       <Button type="submit" variant="secondary" disabled={!announcement.trim()}>Send</Button>
     </form>

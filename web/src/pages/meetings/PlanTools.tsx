@@ -34,7 +34,7 @@ export function MemberFreeTime({ officerOf, onPick }: { officerOf: string[]; onP
 }
 
 function FreeGrid({ data, onPick }: { data: MemberAvailability; onPick: (weekday: number, hour: number) => void }) {
-  if (!data.days) return <p className={styles.note}>{data.members} of the {data.minimum} members needed have shared their free time. Ask members to open your club’s page and turn on “Share my free time”.</p>;
+  if (!data.days) return <p className={styles.note}>{data.members} of the {data.minimum} members needed {data.members === 1 ? 'has' : 'have'} shared their free time. Ask members to open your club’s page and turn on “Share my free time”.</p>;
   const hours = data.days[0]?.hours.map((h) => h.hour) ?? [];
   return <div className={styles.gridWrap}>
     <table className={styles.freeGrid}>
