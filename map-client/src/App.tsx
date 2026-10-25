@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardE
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
+import { HudAsk, HudBrand, HudIcons, HudRail, HudStatus, HudTabs, HudTime, type RailItem } from './hud/Chrome';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
@@ -150,6 +151,28 @@ const OCCUPANCY_REFRESH_MS = 500;
 /** ?ask=least+crowded+library opens the Ask tab with that question answered. */
 const START_QUESTION = params.get('ask');
 
+/*
+ * The top tabs: what you are reading, as opposed to what is drawn on the map.
+ * Each one opens the panel of the same name; Live closes it and leaves the map
+ * uncovered. The detailed panels below are reached from the sub-tabs inside
+ * Analytics, and the layers themselves are toggled from the left rail.
+ */
+type View = 'live' | 'log' | 'events' | 'analytics';
+
+const VIEW_TABS: { id: View; label: string }[] = [
+  { id: 'live', label: 'Live' },
+  { id: 'log', label: 'Log' },
+  { id: 'events', label: 'Events' },
+  { id: 'analytics', label: 'Analytics' },
+];
+
+/** The panel each view opens. */
+const VIEW_TAB: Record<Exclude<View, 'live'>, Tab> = {
+  log: 'incidents',
+  events: 'crowds',
+  analytics: 'data',
+};
+
 type Tab = 'ask' | 'crowds' | 'data' | 'transit' | 'traffic' | 'bikes' | 'weather' | 'incidents';
 const TAB_LABELS: Record<Tab, string> = {
   ask: 'Ask', crowds: 'Crowds', data: 'Data', transit: 'Transit', traffic: 'Traffic', bikes: 'Bikes', weather: 'Weather', incidents: 'Incidents',
@@ -231,11 +254,14 @@ export default function App() {
   const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(START_QUESTION ? 'ask' : 'crowds');
+  // Which top tab is lit. Opens on the map itself, with nothing covering it.
+  const [view, setView] = useState<View>('live');
   // The sheet: open on wide screens, a peek on phones (half height when ?ask= has an answer to show).
   const phone = usePhone();
   const phoneRef = useRef(phone);
   phoneRef.current = phone; // read by the sheet's layout callbacks, which run before this render's effects
-  const [detent, setDetent] = useState<Detent>(() => (window.matchMedia(PHONE_QUERY).matches ? (START_QUESTION ? 'half' : 'peek') : 'full'));
+  // Opens on Live, so the panel starts out of the way and the map is uncovered.
+  const [detent, setDetent] = useState<Detent>(() => (window.matchMedia(PHONE_QUERY).matches && START_QUESTION ? 'half' : 'peek'));
   // Crossing the breakpoint (a rotated tablet, a resized window): each layout's own default.
   const wasPhone = useRef(phone);
   useEffect(() => {
@@ -1259,6 +1285,36 @@ export default function App() {
   const docks = bikes?.data.stations.filter((s) => s.campus === campus) ?? [];
   const ridingHere = hud?.riding.get(campus) ?? 0;
 
+  /*
+   * The top tabs drive the panel. Picking one selects the tab it owns and opens
+   * the sheet; Live closes it, so the map is never covered unless you asked for
+   * something to read.
+   */
+  const selectView = (next: View) => {
+    setView(next);
+    // 'peek' is the sheet's closed-looking state; 'full' shows the panel.
+    if (next === 'live') {
+      setDetent('peek');
+      return;
+    }
+    setTab(VIEW_TAB[next]);
+    setDetent('full');
+  };
+
+  /* What the left rail shows: the layers drawn on the map, each a toggle. */
+  const railItems: RailItem[] = [
+    { id: 'transit', label: showTransit ? 'Hide MBTA' : 'Show MBTA', icon: <HudIcons.transit />, on: showTransit, onSelect: toggleTransit },
+    ...(bikes ? [{ id: 'bikes', label: showBikes ? 'Hide Bluebikes' : 'Show Bluebikes', icon: <HudIcons.bikes />, on: showBikes, onSelect: toggleBikes }] : []),
+    ...(mapKind === 'mapbox'
+      ? [{ id: 'traffic', label: showTraffic ? 'Hide traffic' : 'Show traffic', icon: <HudIcons.traffic />, on: showTraffic, onSelect: () => setShowTraffic((v) => !v) }]
+      : []),
+    { id: 'parking', label: showParking ? 'Hide parking' : 'Show parking', icon: <HudIcons.parking />, on: showParking, onSelect: toggleParking },
+    { id: 'counts', label: showCounts ? 'Hide traffic counts' : 'Show traffic counts', icon: <HudIcons.counts />, on: showCounts, onSelect: toggleCounts },
+    ...(sourceData
+      ? [{ id: 'events', label: eventsOn ? 'Hide campus events' : 'Show campus events', icon: <HudIcons.crowds />, on: eventsOn, onSelect: () => toggleEvents(!eventsOn) }]
+      : []),
+  ];
+
   // Tabs in the order shown (Bikes only with the Bluebikes data).
   const tabs: Tab[] = ['ask', 'crowds', 'data', 'transit', 'traffic', ...(bikes ? ['bikes' as const] : []), 'weather', 'incidents'];
   const onTabKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -1282,7 +1338,7 @@ export default function App() {
   );
 
   return (
-    <div className={clean ? 'app is-clean' : 'app'}>
+    <div className={clean ? 'app is-clean' : 'app'} data-view={view}>
       {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
@@ -1295,6 +1351,54 @@ export default function App() {
       {showParking && <ParkingTags ref={parkingTagsRef} />}
 
       <LoadingScreen progress={loadProgress} />
+
+      {/*
+        The chrome. Each piece owns a corner so the map stays one uninterrupted
+        surface: brand top left, layers down the left edge, views across the top,
+        clock and weather top right, time bottom left, ask bottom centre.
+      */}
+      {hud && !clean && (
+        <div className="hud">
+          <HudBrand name="Flowcast" context={`${currentCampus?.name.replace(' Campus', '') ?? 'BU'} · ${WEEKDAYS[weekday]}`} />
+
+          <HudRail items={railItems} />
+
+          <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
+
+          <HudStatus time={formatClock(hud.time)} live={live}>
+            <span className="weather-chip-slot" ref={setWeatherChip} />
+          </HudStatus>
+
+          <HudTime
+            playing={playing}
+            onPlay={togglePlaying}
+            speed={speed}
+            speeds={SPEEDS}
+            onSpeed={changeSpeed}
+            live={live}
+            onLive={goLive}
+            scrubber={
+              <input
+                type="range"
+                className="scrubber"
+                min={range[0]}
+                max={range[1]}
+                step={60}
+                value={hud.time}
+                onInput={(e) => scrub(Number(e.currentTarget.value))}
+                aria-label="Time of day"
+                aria-valuetext={formatClock(hud.time)}
+              />
+            }
+          />
+
+          {askContext && (
+            <HudAsk>
+              <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
+            </HudAsk>
+          )}
+        </div>
+      )}
 
       <MemoPerfMonitor counts={getPerfCounts} />
       {mapKind && (

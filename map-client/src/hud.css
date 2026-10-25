@@ -1,0 +1,467 @@
+/*
+ * Map chrome layout.
+ *
+ * Everything floats over the scene at an edge, so the map is the page and the
+ * controls frame it. Kept in its own file rather than appended to styles.css:
+ * that file is the most-edited in the app, and this is a self-contained layer.
+ *
+ * Positions are fixed to corners rather than flowed, because the map underneath
+ * must stay a single uninterrupted surface.
+ */
+
+.hud {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  /* The chrome is a frame around the map: only its own controls take clicks. */
+  pointer-events: none;
+}
+
+.hud > * {
+  pointer-events: auto;
+}
+
+/* The shared surface. One blur, one border, one radius, everywhere. */
+.hud-brand,
+.hud-rail,
+.hud-tabs,
+.hud-status,
+.hud-time,
+.hud-ask,
+.hud-panel {
+  background: var(--glass-fill-strong, rgb(28 32 38 / 0.72));
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.34);
+  color: var(--color-ink, #f5f5f7);
+}
+
+/* ---------------------------------------------------------------------------
+ * Brand, top left
+ * ------------------------------------------------------------------------- */
+.hud-brand {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px 0 10px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+.hud-brand-name {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.hud-brand-context {
+  color: var(--map-ink-secondary, #a1a1a6);
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Left rail
+ * ------------------------------------------------------------------------- */
+.hud-rail {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+}
+
+.hud-rail-button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--map-ink-secondary, #a1a1a6);
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+@media (hover: hover) {
+  .hud-rail-button:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.08);
+    color: var(--color-ink, #f5f5f7);
+  }
+}
+
+/* On is a fill and a colour, never colour alone. */
+.hud-rail-button[aria-pressed='true'] {
+  background: var(--color-accent, #2997ff);
+  color: #fff;
+}
+
+.hud-rail-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.hud-rail-button:focus-visible,
+.hud-tabs [role='tab']:focus-visible,
+.hud-time button:focus-visible,
+.hud-panel-close:focus-visible {
+  outline: 2px solid var(--color-accent, #2997ff);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Top tabs, centred
+ * ------------------------------------------------------------------------- */
+.hud-tabs {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  height: 40px;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.hud-tabs [role='tab'] {
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--map-ink-secondary, #a1a1a6);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+@media (hover: hover) {
+  .hud-tabs [role='tab']:hover[aria-selected='false'] {
+    color: var(--color-ink, #f5f5f7);
+  }
+}
+
+.hud-tabs [role='tab'][aria-selected='true'] {
+  background: rgb(255 255 255 / 0.14);
+  color: var(--color-ink, #f5f5f7);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+ * Status, top right
+ * ------------------------------------------------------------------------- */
+.hud-status {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.hud-clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.hud-live {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--color-accent, #2997ff);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* The weather control is portalled in here; keep it on the same baseline. */
+.hud-status .weather-chip-slot,
+.hud-status > :last-child {
+  display: flex;
+  align-items: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * Time, bottom left
+ * ------------------------------------------------------------------------- */
+.hud-time {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 10px 0 6px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.hud-time-play {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.12);
+  color: var(--color-ink, #f5f5f7);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .hud-time-play:hover {
+    background: rgb(255 255 255 / 0.2);
+  }
+}
+
+.hud-speeds {
+  display: flex;
+  gap: 2px;
+}
+
+.hud-speeds button,
+.hud-live-toggle {
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--map-ink-secondary, #a1a1a6);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+@media (hover: hover) {
+  .hud-speeds button:hover,
+  .hud-live-toggle:hover {
+    color: var(--color-ink, #f5f5f7);
+  }
+}
+
+.hud-speeds button[aria-pressed='true'] {
+  background: rgb(255 255 255 / 0.16);
+  color: var(--color-ink, #f5f5f7);
+  font-weight: 600;
+}
+
+.hud-live-toggle[aria-pressed='true'] {
+  color: var(--color-ink, #f5f5f7);
+  font-weight: 600;
+}
+
+.hud-scrubber {
+  display: flex;
+  align-items: center;
+  width: 120px;
+}
+
+.hud-scrubber input[type='range'] {
+  width: 100%;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Ask, bottom centre
+ * ------------------------------------------------------------------------- */
+.hud-ask {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 420px));
+  min-width: 280px;
+  padding: 6px;
+  border-radius: 999px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Right panel
+ * ------------------------------------------------------------------------- */
+.hud-panel {
+  position: absolute;
+  top: 64px;
+  right: 12px;
+  bottom: 12px;
+  width: min(380px, 34vw);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.hud-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+  padding: 14px 10px 10px 16px;
+}
+
+.hud-panel-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.hud-panel-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--map-ink-secondary, #a1a1a6);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .hud-panel-close:hover {
+    background: rgb(255 255 255 / 0.1);
+    color: var(--color-ink, #f5f5f7);
+  }
+}
+
+.hud-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Scrolling the panel must never scroll anything behind it. */
+  overscroll-behavior: contain;
+  padding: 0 16px 16px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Retiring the previous chrome.
+ *
+ * The old bottom toolbar ran the full width for a play button, a clock and five
+ * speeds; the clock and weather now sit top right and the rest is the compact
+ * bar bottom left. The sheet keeps its content but moves below the top row and
+ * loses its own header, since the brand is top left now.
+ * ------------------------------------------------------------------------- */
+.app .toolbar {
+  display: none;
+}
+
+/*
+ * The performance monitor is a development readout and it sat exactly where the
+ * brand and the layer rail now live, covering both. Moved to the bottom right,
+ * clear of every control, where the reference puts its debug chips. Still
+ * dismissable with ?perf=0 and the P key.
+ */
+.app .perf {
+  top: auto;
+  left: auto;
+  right: 12px;
+  bottom: 12px;
+  z-index: 4;
+  min-width: 0;
+  max-width: 300px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.app .sheet {
+  top: 64px;
+}
+
+/* Live means the map, uncovered. No panel, not even a collapsed stub. */
+.app[data-view='live'] .sheet,
+.app[data-view='live'] .sheet-dim {
+  display: none;
+}
+
+/*
+ * The sheet's own tab row stays, demoted to sub-navigation inside whichever view
+ * is open: the top tabs choose the subject, these choose the detail within it.
+ */
+.app .sheet .tabs {
+  font-size: 12px;
+}
+
+/* The brand, campus and day moved into .hud-brand; the sheet keeps the content. */
+.app .sheet .sheet-head {
+  padding-top: 12px;
+}
+
+.app .sheet .sheet-head h1,
+.app .sheet .sheet-summary {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Narrow screens.
+ *
+ * The rail and the panel cannot share a phone's width, so the panel becomes a
+ * bottom sheet and the ask bar moves above the time bar rather than beside it.
+ * ------------------------------------------------------------------------- */
+@media (max-width: 860px) {
+  .hud-panel {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 120px;
+    width: auto;
+    max-height: 46vh;
+  }
+
+  .hud-ask {
+    width: calc(100vw - 24px);
+    bottom: 68px;
+  }
+
+  .hud-brand-context {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .hud-rail {
+    top: auto;
+    bottom: 68px;
+    left: 12px;
+    right: 12px;
+    flex-direction: row;
+    justify-content: space-between;
+    overflow-x: auto;
+  }
+
+  .hud-panel {
+    bottom: 170px;
+  }
+
+  .hud-ask {
+    bottom: 118px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-rail-button,
+  .hud-tabs [role='tab'],
+  .hud-speeds button,
+  .hud-live-toggle {
+    transition: none;
+  }
+}

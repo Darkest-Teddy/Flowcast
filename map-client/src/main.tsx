@@ -7,6 +7,8 @@ import { cacheUniformBlockBindings, preferHighPerformanceGpu } from './gpu';
 import { installMapboxVaoCache } from './map/vaoCache';
 import { syncTheme } from './theme';
 import './styles.css';
+// After styles.css: the chrome layer positions itself over everything that file lays out.
+import './hud.css';
 
 syncTheme();
 preferHighPerformanceGpu();
