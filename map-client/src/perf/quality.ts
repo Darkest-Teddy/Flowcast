@@ -45,9 +45,22 @@ const nativeDpr = (() => {
   return () => (getter ? (getter.call(window) as number) : 1) || 1;
 })();
 
+/*
+ * Phones and tablets run out of graphics memory before they run out of frame rate: iOS Safari drops
+ * the whole WebGL context when a page asks for too much, and the map goes blank under its panels.
+ * A full-screen canvas at an iPhone's 3x, with shadows, 3D trees and the campus models, did exactly
+ * that. So a touch-first device draws the map at 1.5x (2x on a tablet), CSS and the panels unaffected,
+ * and Auto starts at, and never climbs above, the lightest level: frame times can't warn of memory.
+ */
+const TOUCH = window.matchMedia?.('(hover: none) and (pointer: coarse)').matches ?? false;
+const PHONE = TOUCH && Math.min(window.screen.width, window.screen.height) < 600;
+const TOUCH_PIXEL_RATIO = PHONE ? 1.5 : 2;
+/** A touch-first device: the map keeps to one campus there (App.tsx, layers/buildings.ts). */
+export const LOW_MEMORY = TOUCH;
+
 function levelSettings(level: number, speedMode = mode === 'speed'): QualitySettings {
   // Only Speed mode lowers the resolution (and only from the next load); Auto keeps it.
-  const pixelRatio = speedMode ? 1 : nativeDpr();
+  const pixelRatio = speedMode ? 1 : TOUCH ? Math.min(nativeDpr(), TOUCH_PIXEL_RATIO) : nativeDpr();
   switch (speedMode ? SPEED_LEVEL : level) {
     case 0:
       return { level: 0, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: true, map3dObjects: true, mapPedestrianRoads: true, mapBuildingAO: true };
@@ -56,11 +69,15 @@ function levelSettings(level: number, speedMode = mode === 'speed'): QualitySett
     case 2:
       return { level: 2, pixelRatio, particles: 0.6, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: false, mapBuildingAO: false };
     default:
-      // Lit windows stay: they're two draws, and most of the night view.
-      return { level: SPEED_LEVEL, pixelRatio, particles: 0.35, litWindows: !speedMode, walkerRadius: 1200, mapShadows: false, map3dObjects: false, mapPedestrianRoads: false, mapBuildingAO: false };
+      // Lit windows stay on a computer: they're two draws, and most of the night view. A touch
+      // device leaves them out: they're a second set of campus models, and the map kept its WebGL
+      // context without them where it lost it with them.
+      return { level: SPEED_LEVEL, pixelRatio, particles: 0.35, litWindows: !speedMode && !TOUCH, walkerRadius: 1200, mapShadows: false, map3dObjects: false, mapPedestrianRoads: false, mapBuildingAO: false };
   }
 }
 export const SPEED_LEVEL = 3;
+/** The richest level Auto may use: everything on a computer, the lightest on a touch device. */
+const AUTO_FLOOR = TOUCH ? SPEED_LEVEL : 0;
 
 const STORAGE_KEY = 'flowcast.quality';
 // Where Auto last settled on this machine, so the next load starts there instead of at the top.
@@ -69,9 +86,9 @@ const AUTO_LEVEL_KEY = 'flowcast.autoLevel';
 function storedAutoLevel(): number {
   try {
     const level = Number(localStorage.getItem(AUTO_LEVEL_KEY));
-    return Number.isInteger(level) && level >= 0 && level <= 3 ? level : 0;
+    return Number.isInteger(level) && level >= 0 && level <= 3 ? Math.max(level, AUTO_FLOOR) : AUTO_FLOOR;
   } catch {
-    return 0;
+    return AUTO_FLOOR;
   }
 }
 const MODES: QualityMode[] = ['auto', 'quality', 'speed'];
@@ -132,7 +149,9 @@ export const quality = {
   /** 4x MSAA on the map's canvas (only settable when the map is created). */
   get msaa() {
     const q = new URLSearchParams(window.location.search).get('msaa');
-    return q === null ? mode !== 'speed' && dprCap < 1.75 : q !== '0';
+    // Never by default on a touch device: four samples a pixel is the graphics memory a phone
+    // doesn't have, and it would come back on with the 1.5x cap above (it's tied to low ratios).
+    return q === null ? mode !== 'speed' && !TOUCH && dprCap < 1.75 : q !== '0';
   },
   /** The pixel ratio actually in use (fixed at load; settings.pixelRatio is the wanted one). */
   get pixelRatio() {
@@ -229,7 +248,7 @@ function createAuto() {
         apply(levelSettings(level + 1));
         return;
       }
-      if (low >= HEADROOM_LOW && avg >= HEADROOM_AVG && level > 0 && now >= raiseBlockedUntil) {
+      if (low >= HEADROOM_LOW && avg >= HEADROOM_AVG && level > AUTO_FLOOR && now >= raiseBlockedUntil) {
         headroomSince ||= now;
         if (now - headroomSince >= RAISE_AFTER_MS) {
           headroomSince = 0;

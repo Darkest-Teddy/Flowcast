@@ -12,6 +12,7 @@
 // Model frame: metres, +x east, +y up, +z south (glTF convention), relative to the campus origin.
 // Every OSM id in the manifest (buildings, their building:part pieces and relation members) is
 // left out of the app's city-buildings layer, so nothing is drawn underneath the models.
+import { PolygonLayer } from '@deck.gl/layers';
 import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
@@ -24,6 +25,7 @@ import {
   type DamageUniforms, type TaggedModel,
 } from './buildingDamage';
 import type { BuildingDamageFrame, DamageFootprint } from '../sim/disasterDamage';
+import { LOW_MEMORY } from '../perf/quality';
 
 export interface BuildingModelEntry {
   osm: string; // e.g. "way/277434241", the same ids as demo-day.json's buildings
@@ -104,13 +106,16 @@ export async function loadBuildingManifest(url = '/data/building-models.json'): 
   return res.json();
 }
 
-/** Fetch and parse campus GLBs (all, or just `only`), plus their lit-window meshes. */
-export async function loadBuildingModels(manifest: BuildingModelManifest, only?: string[]): Promise<BuildingModels> {
+/**
+ * Fetch and parse campus GLBs (all, or just `only`), plus their lit-window meshes unless `lights`
+ * is false: a touch device never draws those (perf/quality.ts), so it doesn't hold them either.
+ */
+export async function loadBuildingModels(manifest: BuildingModelManifest, only?: string[], lights = !LOW_MEMORY): Promise<BuildingModels> {
   const jobs: [string, string][] = [];
   for (const c of manifest.campuses) {
     if (only && !only.includes(c.id)) continue;
     jobs.push([c.id, c.model]);
-    for (const [when, url] of Object.entries(c.lights ?? {})) if (url) jobs.push([`${c.id}:${when}`, url]);
+    if (lights) for (const [when, url] of Object.entries(c.lights ?? {})) if (url) jobs.push([`${c.id}:${when}`, url]);
   }
   const entries = await Promise.all(jobs.map(async ([key, url]) => [key, mergeMaterialPrimitives(await load(url, GLTFLoader), { materialAttributes: true })] as const));
   return Object.fromEntries(entries);
@@ -121,11 +126,66 @@ export async function loadBuildingModels(manifest: BuildingModelManifest, only?:
 // campus button is pressed), well before it's on screen.
 export const DEFERRED_CAMPUSES = ['medical'];
 
-/** Convenience: manifest + the models of every campus that isn't deferred, in one call. */
-export async function loadBuildings(url?: string) {
+/**
+ * Convenience: manifest + the models of every campus that isn't deferred, in one call; or of
+ * `only` those campuses (a phone loads just the one it shows).
+ */
+export async function loadBuildings(url?: string, only?: string[]) {
   const manifest = await loadBuildingManifest(url);
-  const models = await loadBuildingModels(manifest, manifest.campuses.map((c) => c.id).filter((id) => !DEFERRED_CAMPUSES.includes(id)));
+  const models = await loadBuildingModels(manifest, only ?? manifest.campuses.map((c) => c.id).filter((id) => !DEFERRED_CAMPUSES.includes(id)));
   return { manifest, models };
+}
+
+/** The detailed models' stand-in below the level-of-detail zoom: a campus's footprints, extruded. */
+const FOOTPRINT_COLOR: [number, number, number] = [186, 174, 162];
+const footprintsByCampus = new WeakMap<object, Map<string, { polygon: [number, number][]; height: number }[]>>();
+
+/**
+ * Level of detail on a phone (App.tsx LOD_ZOOM): zoomed out, a campus is one cheap extruded
+ * polygon per building in place of its detailed models, at the models' roof heights and in the same
+ * light, so the switch reads as the detail coming in rather than the campus changing.
+ */
+export function campusFootprintLayer(
+  manifest: BuildingModelManifest,
+  campus: string,
+  footprints: readonly { id: string; polygon: [number, number][]; height: number }[],
+  lightPreset: BuildingLight = 'day',
+) {
+  let byCampus = footprintsByCampus.get(footprints);
+  if (!byCampus) footprintsByCampus.set(footprints, (byCampus = new Map()));
+  let data = byCampus.get(campus);
+  if (!data) {
+    const ids = new Set(manifest.campuses.find((c) => c.id === campus)?.buildings.map((b) => b.osm) ?? []);
+    data = footprints.filter((f) => ids.has(f.id)).map((f) => ({ polygon: f.polygon, height: f.height }));
+    byCampus.set(campus, data);
+  }
+  const tint = LIGHT_TINT[lightPreset];
+  const color: [number, number, number, number] = [
+    Math.round((FOOTPRINT_COLOR[0] * tint[0]) / 255),
+    Math.round((FOOTPRINT_COLOR[1] * tint[1]) / 255),
+    Math.round((FOOTPRINT_COLOR[2] * tint[2]) / 255),
+    255,
+  ];
+  return new PolygonLayer({
+    id: `campus-footprints-${campus}`,
+    data,
+    getPolygon: (d) => d.polygon,
+    extruded: true,
+    getElevation: (d) => Math.max(3, d.height),
+    getFillColor: color,
+    stroked: false,
+    pickable: false,
+    slot: 'middle',
+    updateTriggers: { getFillColor: lightPreset },
+  });
+}
+
+/**
+ * Keep only `campus`'s models (and its lit windows) in `models`, so the layers for the others are
+ * dropped and their GPU buffers freed with them. A phone holds one campus at a time.
+ */
+export function keepOnlyCampus(models: BuildingModels, campus: string) {
+  for (const key of Object.keys(models)) if (key !== campus && !key.startsWith(`${campus}:`)) delete models[key];
 }
 
 const loading = new Set<string>();

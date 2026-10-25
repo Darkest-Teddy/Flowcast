@@ -9,6 +9,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import type { MapWeather } from '../weather/weather';
 import { quality, type QualitySettings } from '../perf/quality';
 import { paceMapRendering } from '../perf/pacer';
+import { watchContextLoss } from '../perf/contextLoss';
 import { buildFootprintIndex, coveredByModels, type FootprintIndex, type Ring } from './footprintCover';
 
 export type LightPreset = 'dawn' | 'day' | 'dusk' | 'night';
@@ -50,6 +51,11 @@ export interface Basemap {
   jumpTo(camera: Partial<CameraState> & { padding?: ViewPadding }): void;
   /** Lift (false) or restore (true) the camera's limits to central Boston: the intro rises above them. */
   setLimits(on: boolean): void;
+  /**
+   * Hold the camera to [west, south, east, north] at no less than `minZoom` (null: back to central
+   * Boston). Waits for a running camera move to land, so a fly-to between campuses isn't clipped.
+   */
+  limitTo(bounds: [number, number, number, number] | null, minZoom?: number): void;
   /** True while an animated camera move (ours or the app's flyTo) is running. */
   isEasing(): boolean;
   /** Steepest pitch the map allows. */
@@ -121,6 +127,18 @@ const PADDING_MS = 320;
 
 function cameraApi(map: CameraMap, maxPitch: number) {
   let wanted: ViewPadding | null = null; // waiting for the running camera move to end
+  let wantedLimits: { bounds: [number, number, number, number] | null; minZoom: number } | null = null;
+  let limitsPending = false;
+  const applyLimits = () => {
+    if (limitsPending) {
+      limitsPending = false;
+      map.off('moveend', applyLimits);
+    }
+    if (!wantedLimits) return;
+    const { bounds, minZoom } = wantedLimits;
+    map.setMaxBounds(bounds ? [[bounds[0], bounds[1]], [bounds[2], bounds[3]]] : BOSTON_LIMITS.maxBounds);
+    map.setMinZoom(bounds ? minZoom : BOSTON_LIMITS.minZoom);
+  };
   const applyPadding = (padding: ViewPadding, animate: boolean) => {
     const still = !animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (still) map.jumpTo({ padding });
@@ -157,6 +175,17 @@ function cameraApi(map: CameraMap, maxPitch: number) {
     setLimits: (on: boolean) => {
       map.setMinZoom(on ? BOSTON_LIMITS.minZoom : null);
       map.setMaxBounds(on ? BOSTON_LIMITS.maxBounds : null);
+    },
+    limitTo: (bounds: [number, number, number, number] | null, minZoom = BOSTON_LIMITS.minZoom) => {
+      wantedLimits = { bounds, minZoom };
+      if (map.isEasing()) {
+        if (!limitsPending) {
+          limitsPending = true;
+          map.on('moveend', applyLimits);
+        }
+        return;
+      }
+      applyLimits();
     },
     isEasing: () => map.isEasing(),
     maxPitch,
@@ -385,6 +414,7 @@ export async function createBasemap(
     });
     tameInteractions(map);
     paceMapRendering(map);
+    watchContextLoss(map.getCanvas(), container);
     skipSlotGroupMoves(map);
     await new Promise<void>((resolve) => map.once('style.load', () => resolve()));
     addTrafficLayer(map);
@@ -611,6 +641,7 @@ export async function createBasemap(
   });
   tameInteractions(map);
   paceMapRendering(map);
+  watchContextLoss(map.getCanvas(), container);
   await new Promise<void>((resolve) => map.once('load', () => resolve()));
   let excludedIds: number[] = [];
   let exclusionBounds: number[][] = [];

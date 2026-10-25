@@ -20,7 +20,7 @@ import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTa
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer, type Box } from './layers/placement';
 import { cullLayers } from './layers/culling';
-import { buildingModelLayers, campusBounds, DEFERRED_CAMPUSES, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
+import { buildingModelLayers, campusBounds, campusFootprintLayer, DEFERRED_CAMPUSES, keepOnlyCampus, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
 import { followLight } from './theme';
 import { loadMonuments, monumentLayers } from './layers/monuments';
@@ -59,7 +59,7 @@ import { atmosphereLayers } from './weather/atmosphere';
 import { ragdollLayers, ragdollsAt } from './layers/ragdolls';
 import { LANDMARK_TARGETS, withLandmarkTarget } from './sim/landmarks';
 import { fanCasualties } from './sim/fanCasualties';
-import { quality } from './perf/quality';
+import { LOW_MEMORY, quality } from './perf/quality';
 import { pacer } from './perf/pacer';
 import {
   BikeReplay,
@@ -180,6 +180,14 @@ const START_SPEED = START_LIVE ? 1 : playbackLink.speed ?? SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
 /** The map opens on the intro still (IntroScreen) and flies in from its camera, unless the URL sets the view. */
 const FROM_INTRO = !VIEW_IN_URL;
+/*
+ * A phone's one-campus view (perf/quality.ts LOW_MEMORY): the camera stays within this many metres
+ * of the campus's buildings, no further out than this zoom, and below LOD_ZOOM the campus is drawn
+ * as plain extruded footprints instead of its detailed models.
+ */
+const CAMPUS_MARGIN_M = 500;
+const CAMPUS_MIN_ZOOM = 14.5;
+const LOD_ZOOM = 15;
 const NO_PADDING = { top: 0, left: 0, right: 0, bottom: 0 };
 /** Each person's character model, looked up by id; built once per day. */
 const agentModels = new WeakMap<DayData, (id: string) => number>();
@@ -528,6 +536,7 @@ export default function App() {
   // Published MBTA service the students ride (null: timetable unavailable, gateways are walk-only).
   const transitServiceRef = useRef<TransitService | undefined>(undefined);
   const loadDeferredRef = useRef<((campus: string) => void) | null>(null);
+  const focusCampusRef = useRef<((campus: string) => void) | null>(null);
   // First names for hover text (sim/names.ts), one per student, matching the character's gender.
   const namesRef = useRef<Map<string, string> | null>(null);
   // Clean view (H): no panels, tags or data overlays, just the map, buildings, people and transit.
@@ -675,7 +684,8 @@ export default function App() {
         track('Mapping MBTA routes', loadTransit('/data/transit.json')).catch(() => null),
         track('Rolling out trains and buses', loadVehicleModels()).catch(() => ({})),
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
-        track('Raising campus buildings', loadBuildings()).catch(() => null),
+        // A phone holds one campus's models at a time (perf/quality.ts LOW_MEMORY): the one it opens on.
+        track('Raising campus buildings', LOW_MEMORY ? loadBuildings(undefined, [campusRef.current]) : loadBuildings()).catch(() => null),
         track('Lining the streets', loadStreet()).catch(() => null),
         track('Reading campus data', loadCampusData()),
         track('Placing landmarks', loadMonuments()).catch(() => null),
@@ -951,6 +961,7 @@ export default function App() {
         if (cancelled) return;
         introRef.current = false;
         basemap.setLimits(true);
+        focusCampusRef.current?.(campusRef.current);
         if (introStopped) basemap.setViewPadding(paddingRef.current);
         setIntroPhase('done');
       };
@@ -968,10 +979,25 @@ export default function App() {
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
       // Deferred campuses (buildings.ts): load their models once the view comes near them.
-      const deferred = detailedBuildings
+      const deferred = detailedBuildings && !LOW_MEMORY
         ? DEFERRED_CAMPUSES.flatMap((id) => { const b = campusBounds(detailedBuildings.manifest, id, 0); return b ? [{ id, bounds: b }] : []; })
         : [];
       loadDeferredRef.current = (id: string) => { if (detailedBuildings) void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id); };
+      /*
+       * A phone shows one campus: its models only (the others' are dropped, and their GPU buffers
+       * with them), and a camera held to it, so the base map never loads tiles for the rest of
+       * Boston. Called once the intro lands and on every campus switch.
+       */
+      focusCampusRef.current = (id: string) => {
+        if (!LOW_MEMORY) return;
+        if (detailedBuildings) {
+          keepOnlyCampus(detailedBuildings.models, id);
+          void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id);
+        }
+        const bounds = detailedBuildings ? campusBounds(detailedBuildings.manifest, id, CAMPUS_MARGIN_M) : null;
+        basemap.limitTo(bounds, CAMPUS_MIN_ZOOM);
+      };
+      if (!FROM_INTRO) focusCampusRef.current(campusRef.current);
       const roofHeights = modelRoofHeights(detailedBuildings?.manifest);
       const volumes = modelVolumes(detailedBuildings?.manifest);
       const damageFootprints = day.buildings.map(footprint => ({ ...footprint, height: roofHeights.get(footprint.id) ?? footprint.height }));
@@ -1220,7 +1246,12 @@ export default function App() {
             .flatMap(campus => campus.buildings.map(building => building.osm)) ?? [])),
           ...fireResponseLayers(fireTrucks, t, basemap.getZoom()),
           ...(detailedBuildings
-            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows, damage, footprints: damageFootprints })
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows, damage, footprints: damageFootprints,
+              // Level of detail on a phone: zoomed out, the campus is plain footprints (below).
+              ...(LOW_MEMORY ? { campuses: [campusRef.current], visible: basemap.getZoom() >= LOD_ZOOM } : {}) })
+            : []),
+          ...(detailedBuildings && LOW_MEMORY && basemap.getZoom() < LOD_ZOOM
+            ? [campusFootprintLayer(detailedBuildings.manifest, campusRef.current, damageFootprints, lightRef.current)]
             : []),
           ...(cleanRef.current ? [] : crowdLayers({
             footprints: day.buildings,
@@ -1357,10 +1388,14 @@ export default function App() {
 
   const goToCampus = (c: Campus) => {
     setCampus(c.id);
+    campusRef.current = c.id;
     loadDeferredRef.current?.(c.id);
+    // A phone's camera is held to one campus: let go for the flight, then hold the next one.
+    if (LOW_MEMORY) basemapRef.current?.limitTo(null);
     // The Charles River Campus is long and thin and needs the wide default shot; the others fit closer in.
     if (c.id === 'charles-river') basemapRef.current?.flyTo(INITIAL_VIEW.center, INITIAL_VIEW.zoom);
     else basemapRef.current?.flyTo(c.center, 16.4);
+    focusCampusRef.current?.(c.id);
   };
 
   const getPerfCounts = useCallback(() => perfRef.current, []);
