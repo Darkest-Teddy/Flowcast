@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
-import { Menu, Pause, Play, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { motion, MotionConfig, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { crowdFor, crowdScale } from '@theme/tokens';
@@ -14,14 +14,12 @@ import type { EventImpactData, ImpactPlace } from '../data/types';
 import { openMap, prepareMap, STILL_ATTR } from './landing/openMap';
 import { entrance, grow, item, reveal, rise, rule, stagger } from './landing/motion';
 import { scrollToElement, useSmoothScroll } from './landing/smoothScroll';
-import { fireDrill, gameNight, loadLandingScenarios, lunchRush, type ScenarioResult } from './landing/scenarios';
 import { bostonStamp, loadStudentCount } from './landing/status';
 import {
   HOURS,
   FIRST_HOUR,
   LAST_HOUR,
   dayForecast,
-  eventExample,
   hourLabel,
   longDate,
   peaks,
@@ -33,12 +31,11 @@ import styles from './Landing.module.css';
 
 /**
  * The public front page: signed-out visitors see it at /, and anyone at /landing. Always dark: near
- * black and flat. Every number comes from the model's data (forecast.ts, scenarios.ts, status.ts).
+ * black and flat. Every number comes from the model's data (forecast.ts, status.ts).
  */
 
 const SECTIONS = [
   { id: 'map', label: 'The map' },
-  { id: 'scenarios', label: 'Scenarios' },
   { id: 'how', label: 'How it works' },
   { id: 'faq', label: 'FAQ' },
 ] as const;
@@ -63,9 +60,6 @@ const KIND_LABEL: Record<string, string> = { library: 'Library', dining: 'Dining
  * Until then the frame shows the poster (the hero's still).
  */
 const MAP_VIDEO: { mp4: string; webm?: string } | null = null;
-
-/** A scenario tab's turn before the next one, matching --landing-scenario-ms (tokens.css). */
-const SCENARIO_MS = 7000;
 
 /**
  * The forecast: the dashboard API's, or, when the API isn't up (local development without the
@@ -110,9 +104,7 @@ export default function Landing() {
   const impact = useResource(loadImpact);
   const sources = useResource(loadCampusData);
   const students = useResource(loadStudentCount);
-  const scenarioFile = useResource(loadLandingScenarios);
   const day = useMemo(() => (impact.data ? dayForecast(impact.data) : null), [impact.data]);
-  const event = useMemo(() => (impact.data ? eventExample(impact.data) : null), [impact.data]);
   // The view from the sky in the light the map opens in now: the same picture, haze and clouds the
   // map's loading screen starts from (map-client/src/intro.ts).
   const [preset] = useState(presetNow);
@@ -145,11 +137,6 @@ export default function Landing() {
         <main id="main" tabIndex={-1} className={styles.main}>
           <Hero preset={preset} still={still} />
           <MapVideo still={still} />
-          <Scenarios
-            results={[lunchRush(day), gameNight(event), fireDrill(scenarioFile.data, impact.data?.referenceWeekStart)]}
-            loading={impact.loading || scenarioFile.loading}
-            still={still}
-          />
           <Preview day={day} error={impact.error} reload={impact.reload} />
           <HowItWorks sources={sources.data} />
           <Faq />
@@ -417,153 +404,7 @@ function MapVideo({ still }: { still: ReturnType<typeof introSources> }) {
   );
 }
 
-/* ---------- 03 Scenarios ---------- */
-
-const SCENARIOS = [
-  { id: 'lunch', label: 'Lunch rush' },
-  { id: 'game', label: 'Game night' },
-  { id: 'fire', label: 'Fire drill' },
-] as const;
-
-/**
- * Three what-ifs as a vertical ARIA tablist beside a map panel, after felt.com's scenario tabs:
- * each turns over on its own (an underline fills while it's up) until someone picks one, with a
- * pause button; hovering or focusing the panel holds it, and reduced motion keeps it still. A
- * scenario whose data hasn't loaded says so in its card.
- */
-function Scenarios({ results, loading, still }: { results: (ScenarioResult | null)[]; loading: boolean; still: ReturnType<typeof introSources> }) {
-  const [active, setActive] = useState(0);
-  const [auto, setAuto] = useState(true);
-  const [held, setHeld] = useState(false);
-  const reduce = useReducedMotion();
-  const running = auto && !held && !reduce;
-  const base = useId();
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setTimeout(() => setActive((a) => (a + 1) % SCENARIOS.length), SCENARIO_MS);
-    return () => window.clearTimeout(timer);
-  }, [running, active]);
-
-  function choose(i: number, focus = false) {
-    setAuto(false);
-    setActive(i);
-    if (focus) tabRefs.current[i]?.focus();
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const last = SCENARIOS.length - 1;
-    const forward = e.key === 'ArrowDown' || e.key === 'ArrowRight';
-    const back = e.key === 'ArrowUp' || e.key === 'ArrowLeft';
-    const next = forward ? (active + 1) % SCENARIOS.length : back ? (active + last) % SCENARIOS.length : e.key === 'Home' ? 0 : e.key === 'End' ? last : null;
-    if (next == null) return;
-    e.preventDefault();
-    choose(next, true);
-  }
-
-  const scenario = SCENARIOS[active];
-  const result = results[active];
-
-  return (
-    <section id="scenarios" tabIndex={-1} className={styles.section} aria-labelledby="scenarios-title">
-      <div className={`${styles.container} ${styles.scenarioGrid}`}>
-        <div className={styles.scenarioSide}>
-          <SectionHead id="scenarios-title" eyebrow="Scenarios" title="See what changes the crowd." sub="Run through the same model as the map." />
-          <motion.div {...rise} role="tablist" aria-label="Scenarios" aria-orientation="vertical" className={styles.scenarioTabs} onKeyDown={onKeyDown}>
-            {SCENARIOS.map((s, i) => (
-              <button
-                key={s.id}
-                ref={(el) => {
-                  tabRefs.current[i] = el;
-                }}
-                type="button"
-                role="tab"
-                id={`${base}-tab-${s.id}`}
-                aria-selected={i === active}
-                aria-controls={`${base}-panel`}
-                tabIndex={i === active ? 0 : -1}
-                className={styles.scenarioTab}
-                onClick={() => choose(i)}
-              >
-                <span className={styles.tabIndex} aria-hidden>
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <span className={styles.tabText}>
-                  <span className={styles.tabLabel}>{s.label}</span>
-                  <span className={styles.tabSub}>{headline(results[i]) ?? (loading ? 'Loading' : 'No data')}</span>
-                  <span className={styles.tabTrack} aria-hidden>
-                    <span key={`${active}-${running}`} className={`${styles.tabFill} ${i === active && running ? styles.tabFillRunning : ''}`} />
-                  </span>
-                </span>
-              </button>
-            ))}
-          </motion.div>
-          {!reduce && (
-            <button
-              type="button"
-              className={styles.pauseButton}
-              aria-label={auto ? 'Pause the scenarios turning over' : 'Turn the scenarios over again'}
-              aria-pressed={!auto}
-              onClick={() => setAuto((a) => !a)}
-            >
-              {auto ? <Pause aria-hidden /> : <Play aria-hidden />}
-              <span>{auto ? 'Pause' : 'Play'}</span>
-            </button>
-          )}
-        </div>
-
-        {/* The map, uncovered: the result is in the tabs. */}
-        <div
-          id={`${base}-panel`}
-          role="tabpanel"
-          aria-labelledby={`${base}-tab-${scenario.id}`}
-          tabIndex={0}
-          className={styles.scenarioPanel}
-          onMouseEnter={() => setHeld(true)}
-          onMouseLeave={() => setHeld(false)}
-          onFocus={() => setHeld(true)}
-          onBlur={() => setHeld(false)}
-        >
-          <div className={`${styles.scenarioMap} ${styles[`scenarioMap-${scenario.id}`]}`} aria-hidden>
-            <img {...still} sizes="(min-width: 1120px) 760px, 100vw" alt="" loading="lazy" />
-          </div>
-          {/* The full result for screen readers; on screen the map stays clear and each tab carries its headline change. */}
-          <div className="visually-hidden" aria-live="polite">
-            {result ? (
-              <>
-                <p>
-                  {scenario.label}, {result.when}. {result.beforeLabel} and {result.afterLabel}:
-                </p>
-                <ul>
-                  {result.rows.map((row) => (
-                    <li key={row.id}>
-                      {row.name}
-                      {row.at ? ` at ${row.at}` : ''}: {row.before != null ? reading(row.before) : 'unavailable'} to {row.after != null ? reading(row.after) : 'unavailable'}.
-                    </li>
-                  ))}
-                </ul>
-                {result.note && <p>{result.note}</p>}
-                <p>Simulated, not measured.</p>
-              </>
-            ) : (
-              <p>{loading ? 'Loading the simulation.' : 'No simulation data for this scenario yet.'}</p>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/** A scenario's biggest change in one line, for its tab: "Warren Dining · Quiet 7% → Busy 43%". */
-function headline(result: ScenarioResult | null): string | null {
-  const row = result?.rows[0];
-  if (!row || row.before == null || row.after == null) return result?.tag ?? null;
-  return `${row.name} · ${reading(row.before)} → ${reading(row.after)}`;
-}
-
-/* ---------- 04 Hourly preview ---------- */
+/* ---------- 03 Hourly preview ---------- */
 
 function Preview({ day, error, reload }: { day: DayForecast | null; error: Error | null; reload: () => void }) {
   const [category, setCategory] = useState(0);
@@ -761,7 +602,7 @@ function PreviewBody({
   );
 }
 
-/* ---------- 05 How it works ---------- */
+/* ---------- 04 How it works ---------- */
 
 function HowItWorks({ sources }: { sources: CampusData | null }) {
   const meetings = sources ? `${sources.coverage.mappedMeetings.toLocaleString('en-US')} class meetings` : 'Class meetings';
@@ -793,7 +634,7 @@ function HowItWorks({ sources }: { sources: CampusData | null }) {
   );
 }
 
-/* ---------- 06 FAQ ---------- */
+/* ---------- 05 FAQ ---------- */
 
 /** The page's transparency and privacy statements, as questions. Every claim the old sections made is here. */
 const FAQ = [
@@ -845,7 +686,7 @@ function Faq() {
   );
 }
 
-/* ---------- 07 Closing ---------- */
+/* ---------- 06 Closing ---------- */
 
 function Closing({ still }: { still: ReturnType<typeof introSources> }) {
   return (

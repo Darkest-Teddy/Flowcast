@@ -12,8 +12,7 @@
     "prebuild": "npm run prepare:data",
     "test": "node --test tests/*.test.mjs",
     "validate:behavior": "node scripts/validate-behavior.mjs",
-    "calibrate": "node scripts/calibrate-behavior.mjs",
-    "build:landing-scenarios": "node scripts/build-landing-scenarios.mjs"
+    "calibrate": "node scripts/calibrate-behavior.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.4.0",
