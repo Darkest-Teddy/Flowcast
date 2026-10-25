@@ -50,6 +50,7 @@ import { displayName, displayShort, sharedTagParts } from './tags/names';
 import { assignNames, type NameLists } from './sim/names';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
+import { MapHotkeys } from './MapHotkeys';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
@@ -2107,6 +2108,18 @@ export default function App() {
       {/* The intro's haze and clouds, over the still and then the live map until the camera has dropped in. */}
       {(introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land') && <IntroSky phase={introPhase} light={shownLight} />}
       <IntroScreen progress={loadProgress} preset={shownLight} />
+
+      {/* Keyboard flying (arrows, + -, Shift to look around) and the shortcuts sheet, hidden until ?. */}
+      <MapHotkeys
+        basemap={mapKind ? basemapRef.current : null}
+        camera={camera}
+        onHome={() => { if (currentCampus) goToCampus(currentCampus); }}
+        onNextCampus={() => {
+          if (!campuses.length) return;
+          const at = campuses.findIndex((c) => c.id === campus);
+          goToCampus(campuses[(at + 1) % campuses.length]);
+        }}
+      />
 
       {/*
         The chrome. Each piece owns a corner so the map stays one uninterrupted
