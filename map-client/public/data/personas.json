@@ -229,11 +229,12 @@
       "undergraduate-resident": 10048,
       "undergraduate-commuter": 8241,
       "graduate-full-time": 10531,
-      "graduate-part-time": 8157
+      "graduate-part-time": 8157,
+      "other": 11140
     },
     "assigned": {
       "gym-regular": 2988,
-      "typical": 14076,
+      "typical": 25216,
       "athlete": 761,
       "library-heavy": 5333,
       "night-owl": 3899,

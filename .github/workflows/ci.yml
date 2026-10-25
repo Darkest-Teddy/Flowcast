@@ -1,9 +1,8 @@
 name: CI
 
+# Manual only: start a run from the Actions tab ("Run workflow"). Pushes and pull requests no
+# longer run it automatically; to turn that back on, add `push: { branches: [main] }` and `pull_request:`.
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
