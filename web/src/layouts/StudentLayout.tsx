@@ -60,7 +60,7 @@ export function StudentLayout() {
     : null;
 
   const sections: NavSection[] = [
-    { items: [home, ask, map] },
+    { items: [home, ask] },
     { label: 'Plan', items: [schedule, study, forecasts] },
     { label: 'Campus life', items: [events, eventImpact, clubs, meetings] },
     ...(club ? [club] : []),
