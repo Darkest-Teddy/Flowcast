@@ -172,14 +172,13 @@
   --nav-capsule-max: 880px; /* landing page floating nav */
   /* The landing page: always dark (it sets data-theme="dark"), near-black and flat. */
   --landing-canvas: #0b0c0e;
-  --landing-raised: #141518; /* flat panels: the video frame, the scenario map */
+  --landing-raised: #141518; /* flat panels: the video frame, the preview window */
   --landing-raised-2: #24262b; /* the chosen segment of a segmented control */
   --landing-hairline: rgba(255, 255, 255, 0.1);
   --landing-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --landing-frame-glow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 40px 120px -48px rgba(41, 151, 255, 0.45);
   --landing-section-gap: clamp(112px, 14vw, 208px);
   --landing-strip-height: 28px;
-  --landing-scenario-ms: 7000ms; /* a scenario tab's turn before the next one (Landing.tsx SCENARIO_MS) */
   --tracking-mono: 0.1em;
   --tracking-display-tight: -0.035em;
 
