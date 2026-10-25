@@ -23,6 +23,9 @@ const service = T.createTransitService(schedule);
 const WEDNESDAY = 2;
 const day = buildSourceDay(base, source, WEDNESDAY, service);
 const agents = new Map(base.agents.map((agent) => [agent.id, agent]));
+// Rides between two campus stops (sim/campusRides.ts) carry the other end's time; commute rides don't.
+const campusRide = (ride) => ride.alightsAt !== undefined || ride.boardedAt !== undefined;
+const commuteRides = day.transitRides.filter((ride) => !campusRide(ride));
 const near = (a, b) => Math.hypot((a[0] - b[0]) * 111320 * Math.cos(a[1] * Math.PI / 180), (a[1] - b[1]) * 110540) <= 1;
 
 test('every ride is a published trip calling at that stop at its published time', () => {
@@ -44,7 +47,9 @@ test('every ride is a published trip calling at that stop at its published time'
     assert.equal(hits[0].trip.direction, ride.direction);
     assert.ok(hits.some((hit) => ride.kind === 'alight' ? !hit.first && hit.call.arrival === ride.time : !hit.last && hit.call.departure === ride.time),
       'riders step off after a trip starts and get on before it ends, at published times');
-    assert.equal(agents.get(ride.agent).residency, 'commuter');
+    // Commutes are commuters'; any student may ride between campus stops, employees walk.
+    if (!campusRide(ride)) assert.equal(agents.get(ride.agent).residency, 'commuter');
+    else assert.notEqual(agents.get(ride.agent).role, 'staff');
   }
 });
 
@@ -67,7 +72,7 @@ test('riders walk on only after stepping off and wait at most 30 minutes to leav
 
 test('ridership follows the cited commuter share and never overfills a vehicle', () => {
   const visiting = new Set(day.trips.filter((trip) => trip.from === 'off-campus' && agents.get(trip.agent).residency === 'commuter').map((trip) => trip.agent));
-  const riders = new Set(day.transitRides.map((ride) => ride.agent));
+  const riders = new Set(commuteRides.map((ride) => ride.agent));
   assert.equal(day.sourceStats.transitCommuters, riders.size);
   const share = riders.size / visiting.size;
   assert.ok(Math.abs(share - T.TRANSIT_COMMUTER_SHARE) < 0.03, `rider share ${share}`);
@@ -79,7 +84,8 @@ test('ridership follows the cited commuter share and never overfills a vehicle',
   const busiest = [...load].sort((a, b) => b[1] - a[1])[0][0];
   const rides = day.transitRides.filter((ride) => ride.trip === busiest);
   const first = Math.min(...rides.map((ride) => ride.time)) - 1;
-  assert.equal(playback.studentsAboard(busiest, first), rides.filter((ride) => ride.kind === 'alight').length);
+  // Before its first campus stop, a trip carries the commuters yet to step off; campus riders are not aboard yet.
+  assert.equal(playback.studentsAboard(busiest, first), rides.filter((ride) => ride.kind === 'alight' && !campusRide(ride)).length);
 });
 
 test('people reach Green Line platforms only by train, and every timeline stays continuous', () => {
@@ -109,7 +115,7 @@ test('without a timetable the planner is unchanged and nobody rides', () => {
 });
 
 test('BU Shuttle riders use timetabled loop trips, go home onward round the same line, and fit the vehicle', () => {
-  const shuttleRides = day.transitRides.filter((ride) => ride.route.startsWith('BU-'));
+  const shuttleRides = commuteRides.filter((ride) => ride.route.startsWith('BU-'));
   assert.ok(shuttleRides.length > 200, `${shuttleRides.length} shuttle rides`);
   const tripIds = new Set(shuttleSchedule.trips.map((trip) => trip.id));
   const byAgent = new Map();

@@ -11,6 +11,7 @@ import type { OutdoorFile } from './outdoor';
 import { conditionsFor } from './conditions';
 import { emptyStaffStats, isStaff, planStaffDay, STAFF_ASSUMPTION_TEXT, type StaffDayStats, type StaffStop } from './staff';
 import type { Agent, CampusLocation, DayData, EstimatedActivityProfile, StayPurpose, TransitRide, Trip } from './playback';
+import { CAMPUS_RIDE_ASSUMPTION, createCampusRides, isCampusRide } from './campusRides';
 import { ALIGHT_SECONDS, lastAtOrBefore, MAX_EARLY_ARRIVAL_SECONDS, MAX_STOP_PAIR_METRES, MAX_STOP_WAIT_SECONDS, MIN_WEEKLY_TRIPS,
   routeKind, TRANSIT_COMMUTER_SHARE, VEHICLE_PEAK_MAX_LOAD, type TransitService } from './transitService';
 
@@ -132,6 +133,7 @@ export const LEGACY_BEHAVIOR: LegacyBehavior = Object.freeze({
     gapPlacement: 0, commuterMinClasses: 2, commuterActivityWindowMinutes: 0, unmappedAcademicMinutes: UNMAPPED_ACADEMIC_MINUTES,
     offMapAcademicShare: OFF_MAP_ACADEMIC_SHARE, habitualTimeShare: HABITUAL_TIME_SHARE, favoriteVenueWeight: FAVORITE_VENUE_WEIGHT,
     awayShareResidents: 0, awayShareCommuters: 0, eventAttendanceFactor: 1, commuterOutdoorFactor: 1,
+    campusRideFactor: 1,
   },
   menus: FREE_TIME_ACTIVITIES.map((menu, day) => menu.map((activity, index): ActivitySpec => ({ id: LEGACY_ACTIVITY_IDS[day][index], ...activity }))),
   habits: Object.fromEntries(Object.entries(HABIT_TRAITS).map(([slot, trait]) => [slot, { ...trait }])),
@@ -208,6 +210,8 @@ interface Stop {
   unmappedAcademic?: true;
   /** Friends' meals (sim/groups.ts): a joiner's walks to and from the meal go at this pace (m/s). */
   groupPace?: number;
+  /** The friends' meal this student opened (the others walk at their pace): they walk to and from it too. */
+  groupHost?: true;
 }
 
 export interface SourceAssignment {
@@ -267,6 +271,9 @@ export interface SourceDayStats {
   /** Rider legs at their own stop with no published trip fitting the itinerary (walked from the stop). Legs
    * whose destination needs a different stop within the 2 km access limit are walked from that stop. */
   transitUnmatchedLegs: number;
+  /** Rides between two campus stops (sim/campusRides.ts) and the students taking them. Not in the counts above. */
+  campusRides: number;
+  campusRiders: number;
   /** BU employees (sim/staff.ts): planned after every student. Zeros when the roster has none. */
   staff: StaffDayStats;
   assumptions: string[];
@@ -431,7 +438,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     composedRoutes: 0, composedTrips: 0, capacityLimitedCandidates: 0, roomCapacityLimitedCandidates: 0, excludedNonDegreeSections: 0, affinityCourseEnrollments: 0, excludedIncompleteComponentCourses: 0, componentBundleRejectedCandidates: 0, linkedCourseEnrollments: 0, modeledDegreeCourseSlots: 0, mappedCourseSlotTargets: 0, unmappedCourseSlotTargets: 0,
     mappedCourseCoverage: { undergraduate: { mappedOfferings: 0, totalOfferings: 0, fraction: 1 }, graduate: { mappedOfferings: 0, totalOfferings: 0, fraction: 1 } },
     weeklyEnrolledStudents: 0, weeklyEnrollments: 0, unassignedStudents: 0, eligibleWeeklySections: 0, campusAccessTrips: 0, modeledActivities: 0, modeledOffCampusMeals: 0, modeledOffCampusOutings: 0, unavailableActivities: 0, optionalCapacityRejected: 0, classroomWaitsShortened: 0, estimatedActivities: 0, unmappedAcademicBlocks: 0, behaviorRejectedCandidates: 0, optionalTravelRejectedCandidates: 0, estimatedLocationCounts: {},
-    transitCommuters: 0, transitAlightings: 0, transitBoardings: 0, transitUnmatchedLegs: 0, staff: emptyStaffStats(),
+    transitCommuters: 0, transitAlightings: 0, transitBoardings: 0, transitUnmatchedLegs: 0, campusRides: 0, campusRiders: 0, staff: emptyStaffStats(),
     assumptions: [
       'Enrollment is synthetic and fixed for the whole reference week; published classes supply places, times, and seat upper bounds, not actual enrollment.',
       'Default course eligibility follows BU’s published numeric guide: 100–399 undergraduate, 400–599 undergraduate/graduate, 600–999 graduate; MED MD and graduate-school prefixes use graduate defaults. This is not a prerequisite or individual-permission checker.',
@@ -475,6 +482,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     `With the published MBTA timetable loaded, a stable ${Math.round(TRANSIT_COMMUTER_SHARE * 1000) / 10}% of commuting students ride transit: the public-transportation share of all Charles River Campus commuters (employees and students) in BU's 2013–2023 Institutional Master Plan, Section 8.4 (December 2010 data). It is not a student-only or per-campus measurement.`,
     `Riders use one gateway stop for the week, chosen in proportion to published weekly trips of each route direction stopping there (at least ${MIN_WEEKLY_TRIPS}), and return from the nearest stop within ${MAX_STOP_PAIR_METRES} m served the other way. Each walk onto campus starts ${ALIGHT_SECONDS} s after a published arrival (at most ${MAX_EARLY_ARRIVAL_SECONDS / 60} min early); each walk off campus ends with a wait of at most ${MAX_STOP_WAIT_SECONDS / 60} min for a published departure. Legs no published trip fits are walked from the stop and counted as unmatched.`,
     `MBTA times are the saved GTFS reference week of ${transit.referenceWeekStart}, aligned to the scenario by weekday. BU Shuttle times are TransLoc's recorded current schedules inside captured windows and BU's 2024–25 TransLoc GTFS baseline elsewhere; shuttle lines are loops, so riders go home onward round the same line. Origins, transfers and the off-map part of each journey are unknown. Non-riders do not walk in from Green Line platforms.`,
+    CAMPUS_RIDE_ASSUMPTION,
   );
   const routes = new Map<string, Route>();
   const adjacent = new Map<string, { to: string; route: Route }[]>();
@@ -798,6 +806,9 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     accessCache.set(key, route); return route;
   };
   const accessDuration = (agent: Agent, location: string, leg: Leg) => (accessRoute(agent, location, leg)?.cumulative.at(-1) ?? Infinity) / speed(agent);
+  // Rides between campus stops (sim/campusRides.ts): any stop with saved walks, on published trips only.
+  const campusRides = transit ? createCampusRides(transit, { stops: [...gateways.keys()], stopPoint: gatePoint,
+    point: (location) => endpoints.get(location) ?? locations.get(location)?.position, fromStop: routeFromGate }) : undefined;
   type WeeklyStop = Stop & { weekday: number; pool: string; room?: string; roomSlots?: number[] };
   type Section = { id: string; course: string; campus: string; stops: WeeklyStop[]; aliases: Section[] };
   const sections = new Map<string, Section>();
@@ -1096,7 +1107,8 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     purposeCache.set(stop, purpose); return purpose;
   };
   const waitFor = (stop: WeeklyStop): StayPurpose => stop.meeting ? WAIT_FOR_CLASS : WAIT_FOR_ACTIVITY;
-  type PlannedMove = { from: string; to: string; route: Route; depart: number; arrive: number; pace: number };
+  /** `campusRide`: a walk to or from a stop for a ride between campus stops (sim/campusRides.ts), not a gateway walk. */
+  type PlannedMove = { from: string; to: string; route: Route; depart: number; arrive: number; pace: number; campusRide?: true };
   type DayPlan = { stays: PlannedStay[]; moves: PlannedMove[]; walkingSeconds: number; rides: Omit<TransitRide, 'agent'>[]; unmatchedLegs: number };
   const reversed = new WeakMap<Route, Route>();
   const movementRoute = (agent: Agent, from: string, to: string): Route | undefined => {
@@ -1196,6 +1208,36 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       from = destination; freeAt = arrive; currentBasis = undefined; notBeforeDeparture = arrive; lingerUntil = 0;
       return true;
     };
+    /** A long walk between two mapped places as a published ride between campus stops instead (sim/campusRides.ts):
+     * walk to the stop, wait, ride, walk on, arriving no later than the walk `route` leaving at `depart` would.
+     * Students only; groups keep walking together. False (nothing planned) to walk. */
+    const rideInstead = (destination: string, earliest: number, depart: number, route: Route | undefined, target?: WeeklyStop): boolean => {
+      if (!campusRides || !route || isStaff(agent) || from === destination || from === 'off-campus' || destination === 'off-campus'
+        || outdoorIds.has(from) || outdoorIds.has(destination) || groupPace(destination, target) !== undefined
+        || target?.groupHost || currentBasis?.groupHost) return false;
+      const pace = speed(agent), origin = from, basis = currentBasis;
+      // Conditions engine hook: the day's ride factor (rain, snow, storms and cold raise it in behavior.json).
+      const ride = campusRides.plan({ from, to: destination, weekday, speed: pace, earliest: Math.min(earliest, depart), walkDepart: depart,
+        walkSeconds: route.cumulative.at(-1)! / pace, shareFactor: params ? params.scalars.campusRideFactor : 1,
+        rideDraw: fraction(`${agent.id}:${from}>${destination}:campus-ride`), timingDraw: fraction(`${agent.id}:campus-ride-timing`),
+        marginDraw: fraction(`${agent.id}:${weekday}:${Math.round(depart)}:campus-ride-margin`),
+        hasRoom: (trip, line) => (tripLoad.get(trip) ?? 0) + 2 <= VEHICLE_PEAK_MAX_LOAD[routeKind(line)],
+        // Staying on at the origin and arriving early must both keep within the places' hours.
+        fits: (leave, reach) => (!basis || !!basis.meeting || leave <= freeAt || isOpen({ ...basis, start: freeAt, end: leave }))
+          && (!target || !!target.meeting || reach >= target.start || isOpen({ ...target, start: reach, end: target.start })) });
+      if (!ride || ride.leave < freeAt - 1e-7 || ride.reach > DAY) return false;
+      addStay(origin, freeAt, ride.leave, basis, undefined, target);
+      moves.push({ from: origin, to: 'off-campus', route: ride.option.access, depart: ride.leave, arrive: ride.atStop, pace, campusRide: true });
+      addStay('off-campus', ride.atStop, ride.walkOn, undefined, target ? waitFor(target) : WAIT_FOR_ACTIVITY);
+      moves.push({ from: 'off-campus', to: destination, route: ride.option.egress, depart: ride.walkOn, arrive: ride.reach, pace, campusRide: true });
+      walkingSeconds += ride.atStop - ride.leave + ride.reach - ride.walkOn;
+      const { route: line, direction, board, alight } = ride.option;
+      rides.push({ kind: 'board', trip: ride.trip, route: line, direction, stop: board, time: ride.departs, waitStart: ride.atStop,
+        position: ride.option.access.path.at(-1)!, alightsAt: ride.arrives });
+      rides.push({ kind: 'alight', trip: ride.trip, route: line, direction, stop: alight, time: ride.arrives, position: ride.option.egress.path[0], boardedAt: ride.departs });
+      from = destination; freeAt = ride.reach; currentBasis = undefined; notBeforeDeparture = freeAt; lingerUntil = 0;
+      return true;
+    };
     for (const stop of stops) {
       if (home === 'off-campus' && from !== 'off-campus' && stop.location === 'off-campus') {
         const leaveAt = Math.max(freeAt, Math.min(lingerUntil, stop.start - accessDuration(agent, from, 'out')));
@@ -1222,8 +1264,11 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         let departHomeward = from === 'off-campus' ? Math.max(freeAt, offReady(home)) : Math.max(freeAt, lingerUntil);
         if (from !== 'off-campus' && departHomeward + toHome + dwell + homeToNext > stop.start) departHomeward = freeAt;
         if (departHomeward + toHome + dwell + homeToNext <= stop.start) {
-          addStay(from, freeAt, departHomeward, currentBasis);
-          if (!move(home, departHomeward, walkTo(home, departHomeward, stop.start - dwell - homeToNext))) return undefined;
+          const homeward = walkTo(home, departHomeward, stop.start - dwell - homeToNext);
+          if (!rideInstead(home, departHomeward, departHomeward, homeward)) {
+            addStay(from, freeAt, departHomeward, currentBasis);
+            if (!move(home, departHomeward, homeward)) return undefined;
+          }
           notBeforeDeparture = freeAt + dwell;
         }
       }
@@ -1251,8 +1296,10 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
               stop: commute.inGate, time: match.visits.arrivals[match.index], position: gate };
           } else if (onPlatform) unmatchedLegs++;
         }
-        addStay(from, freeAt, depart, currentBasis, undefined, stop);
-        if (!move(stop.location, depart, route, stop)) return undefined;
+        if (ride || !rideInstead(stop.location, earliest, depart, route, stop)) {
+          addStay(from, freeAt, depart, currentBasis, undefined, stop);
+          if (!move(stop.location, depart, route, stop)) return undefined;
+        }
         if (ride) rides.push(ride);
         addStay(stop.location, freeAt, stop.start, stop, waitFor(stop));
       }
@@ -1268,18 +1315,21 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     }
     if (from !== home) {
       const depart = from === 'off-campus' ? Math.max(freeAt, offReady(home)) : Math.max(freeAt, lingerUntil);
-      addStay(from, freeAt, depart, currentBasis);
-      if (!move(home, depart, walkTo(home, depart, DAY))) return undefined;
+      const homeward = walkTo(home, depart, DAY);
+      if (!rideInstead(home, depart, depart, homeward)) {
+        addStay(from, freeAt, depart, currentBasis);
+        if (!move(home, depart, homeward)) return undefined;
+      }
     }
     addStay(home, freeAt, DAY, undefined, HOME_PURPOSE);
     if (!valid) return undefined;
     // Riders leaving campus wait at their stop for the next published departure the other way,
     // and must be aboard before any later return to campus.
     if (commute) moves.forEach((leg, index) => {
-      if (leg.to !== 'off-campus') return;
+      if (leg.to !== 'off-campus' || leg.campusRide) return;
       const stopPoint = leg.route.path.at(-1)!;
       const visits = transit!.visits(commute.outGate, commute.route, commute.outDirection, weekday, 'board');
-      const returnLeg = moves.slice(index + 1).find((later) => later.from === 'off-campus');
+      const returnLeg = moves.slice(index + 1).find((later) => later.from === 'off-campus' && !later.campusRide);
       const limit = Math.min(leg.arrive + MAX_STOP_WAIT_SECONDS, returnLeg ? returnLeg.depart - ALIGHT_SECONDS - 60 : DAY - 1);
       let best = -1;
       // A walk that had to use another stop (no route within 2 km from the rider's own) isn't a ride.
@@ -1390,7 +1440,8 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     const transitRides: TransitRide[] = [];
     tripLoad = new Map();
     let transitUnmatchedLegs = 0;
-    const riders = new Set<string>();
+    const riders = new Set<string>(), campusRiders = new Set<string>();
+    let campusRideCount = 0;
     const stays: { agent: string; location: string; start: number; end: number }[] = [];
     const assignments: SourceAssignment[] = [];
     const activities: SourceActivity[] = [];
@@ -1625,6 +1676,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         const openTable = (slot: string, stop: WeeklyStop, before: WeeklyStop | undefined, sizeDraw: number) => {
           const keys = [...(ownHome ? [homeTableKey(slot, ownHome)] : []),
             ...(before?.meeting && stop.start - before.end <= MEAL_GROUP_CLASS_GAP_SECONDS ? [classTableKey(slot, before.meeting.id)] : [])];
+          if (keys.length) stop.groupHost = true;
           if (keys.length) mealTables.open({ id: `${agent.id}:${weekday}:${slot}:${Math.round(stop.start)}`, location: stop.location, start: stop.start, end: stop.end,
             size: mealGroupSize(sizeDraw), pace: speed(agent) }, agent.id, stop, keys);
         };
@@ -1710,14 +1762,15 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       const plan = planDay(agent, stops)!;
       for (const stay of plan.stays) stays.push({ agent: agent.id, ...stay });
       for (const ride of plan.rides) {
-        transitRides.push({ agent: agent.id, ...ride }); riders.add(agent.id);
+        transitRides.push({ agent: agent.id, ...ride });
+        if (isCampusRide(ride)) { campusRiders.add(agent.id); if (ride.kind === 'board') campusRideCount++; } else riders.add(agent.id);
         tripLoad.set(ride.trip, (tripLoad.get(ride.trip) ?? 0) + 1);
       }
       transitUnmatchedLegs += plan.unmatchedLegs;
       for (const move of plan.moves) {
         const timestamps = move.route.cumulative.map(distance => move.depart + distance / move.pace);
         trips.push({ agent: agent.id, from: move.from, to: move.to, path: move.route.path, timestamps });
-        if (move.from === 'off-campus' || move.to === 'off-campus') campusAccessTrips++;
+        if ((move.from === 'off-campus' || move.to === 'off-campus') && !move.campusRide) campusAccessTrips++;
         if (composed.has(`${move.from}>${move.to}`)) composedTrips++;
       }
       for (const stop of stops) {
@@ -1766,8 +1819,9 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     const result: SourceDay = { ...base, agents: dayAgents, locations: dayPlaces, day: WEEKDAYS[weekday], trips, stays, transitRides,
       sourceStats: { ...stats, eligibleMeetings: [...occurrences].filter((key) => Number(key.split(':').at(-3)) === weekday).length,
         assignedClasses: assignments.length, scheduledStudents, composedTrips, campusAccessTrips, modeledActivities, modeledOffCampusMeals, modeledOffCampusOutings, unavailableActivities, optionalCapacityRejected, classroomWaitsShortened, estimatedActivities, unmappedAcademicBlocks, behaviorRejectedCandidates, optionalTravelRejectedCandidates, estimatedLocationCounts,
-        transitCommuters: riders.size, transitAlightings: transitRides.filter((ride) => ride.kind === 'alight').length,
-        transitBoardings: transitRides.filter((ride) => ride.kind === 'board').length, transitUnmatchedLegs, staff: staffStats,
+        transitCommuters: riders.size, transitAlightings: transitRides.filter((ride) => ride.kind === 'alight' && !isCampusRide(ride)).length,
+        transitBoardings: transitRides.filter((ride) => ride.kind === 'board' && !isCampusRide(ride)).length, transitUnmatchedLegs,
+        campusRides: campusRideCount, campusRiders: campusRiders.size, staff: staffStats,
         assumptions: gatherings.length ? [...stats.assumptions, ...GATHERING_ASSUMPTIONS] : stats.assumptions },
       sourceAssignments: assignments, sourceActivities: activities, eventDate,
       gatherings: gatherings.map(g => ({ ...g, attendees: gatheringAttendees.get(g.id)!, capacity: gatheringCapacity(g) })) };

@@ -4,6 +4,7 @@
 import type { CampusData } from '../data/campusData';
 import type { DayData } from './playback';
 import { isStaff } from './staff';
+import { ALIGHT_SECONDS } from './transitService';
 import type { SourceDay } from './sourceDay';
 import { EVERYONE_BAND, pearson as observedPearson, peakHoursApart, seriesForWeekday, simulatedPedestrians, simulatedTransit,
   type CalibrationObservations, type ObservationBin } from '../data/observations';
@@ -210,7 +211,17 @@ export function scoreDay(input: ScoreInput): DayScore {
   const long = day.trips.filter(trip => length(trip) > 1500).length / Math.max(1, day.trips.length);
   add({ id: 'walk-long-share', label: 'Walks longer than 1.5 km', value: long, loss: hinge(long, 0.05, 0.1), target: '≤ 5%', weight: 0.5 });
   const access = new Map<string, number>();
-  for (const trip of day.trips) if (trip.from === 'off-campus' || trip.to === 'off-campus') access.set(trip.agent, (access.get(trip.agent) ?? 0) + 1);
+  // Walks to and from a ride between campus stops (sim/campusRides.ts) are not trips onto or off campus.
+  const rideWalks = new Set<string>();
+  for (const ride of day.transitRides ?? []) {
+    if (ride.alightsAt !== undefined && ride.waitStart !== undefined) rideWalks.add(`${ride.agent}|to|${Math.round(ride.waitStart)}`);
+    if (ride.boardedAt !== undefined) rideWalks.add(`${ride.agent}|from|${Math.round(ride.time + ALIGHT_SECONDS)}`);
+  }
+  for (const trip of day.trips) {
+    if (trip.from !== 'off-campus' && trip.to !== 'off-campus') continue;
+    if (rideWalks.size && rideWalks.has(trip.to === 'off-campus' ? `${trip.agent}|to|${Math.round(trip.timestamps.at(-1)!)}` : `${trip.agent}|from|${Math.round(trip.timestamps[0])}`)) continue;
+    access.set(trip.agent, (access.get(trip.agent) ?? 0) + 1);
+  }
   const commuters = new Set(input.base.agents.filter(agent => agent.residency === 'commuter' || agent.home === 'off-campus').map(agent => agent.id));
   const commuterTrips = [...access].filter(([agent]) => commuters.has(agent)).map(([, count]) => count);
   if (commuterTrips.length) {

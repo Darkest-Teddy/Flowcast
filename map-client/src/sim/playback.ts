@@ -144,6 +144,11 @@ export interface TransitRide {
   time: number;
   waitStart?: number;
   position: [number, number];
+  /** A ride between two campus stops (sim/campusRides.ts), recorded as a board and an alight on one trip:
+   * the board record carries the published arrival where the rider steps off again, the alight record
+   * the published departure where they got on. Commute rides have neither (the other end is off the map). */
+  alightsAt?: number;
+  boardedAt?: number;
 }
 
 /** A student standing at a stop for their published departure. */
@@ -419,7 +424,9 @@ export class Playback {
     for (const ride of this.ridesByTrip.get(trip) ?? []) {
       if (ride.cancelledAt !== undefined && t >= ride.cancelledAt) continue;
       if (this.isCasualty(ride.agent, t)) continue;
-      if (ride.kind === 'alight' ? t < ride.time : t >= ride.time) count++;
+      // A ride between campus stops is aboard only between its two stops (counted once, on the alight record).
+      if (ride.alightsAt !== undefined) continue;
+      if (ride.boardedAt !== undefined ? ride.boardedAt <= t && t < ride.time : ride.kind === 'alight' ? t < ride.time : t >= ride.time) count++;
     }
     return count;
   }
