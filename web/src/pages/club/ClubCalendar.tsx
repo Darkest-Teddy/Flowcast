@@ -143,12 +143,8 @@ export default function ClubCalendar() {
             {picked.events.slice(0, PREVIEW_LIMIT).map((ev) => (
               <ListRow
                 key={`${ev.line}`}
-                title={
-                  <span className={styles.event}>
-                    <span>{ev.title}</span>
-                    {ev.location && <span className={styles.eventPlace}>{ev.location}</span>}
-                  </span>
-                }
+                title={ev.title}
+                subtitle={ev.location || undefined}
                 detail={ev.allDay ? `${formatDayLabel(ev.start)}, all day` : formatDateTime(ev.start)}
               />
             ))}

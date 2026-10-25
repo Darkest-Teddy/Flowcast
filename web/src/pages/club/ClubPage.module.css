@@ -1,4 +1,6 @@
+/* Belongs to the header above it: pulled up to sit under the description. */
 .status {
+  margin-top: calc(var(--space-4) * -1);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -7,26 +9,31 @@
   font-size: var(--text-sm);
 }
 
+/* Three glass stat tiles, the same shape as StatCard elsewhere. */
 .facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: var(--space-6) 0 var(--space-8);
-  border-top: 1px solid var(--color-hairline);
-  border-bottom: 1px solid var(--color-hairline-soft);
+  gap: var(--space-5);
+  margin: var(--space-6) 0 var(--space-5);
 }
 
-.facts > div {
-  padding: var(--space-3) var(--space-4) var(--space-3) 0;
-}
-
-.facts > div + div {
-  padding-left: var(--space-4);
-  border-left: 1px solid var(--color-hairline-soft);
+.fact {
+  composes: glass from global;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
 }
 
 .facts dt {
   color: var(--color-ink-secondary);
   font-size: var(--text-sm);
+}
+
+.facts dt {
+  overflow-wrap: anywhere;
 }
 
 .facts dd {
@@ -38,32 +45,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-.facts dd.small {
-  font-size: var(--text-lg);
-  line-height: var(--leading-normal);
-}
-
 .columns {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: var(--space-8);
-  align-items: start;
-}
-
-.event {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.event > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.place {
-  color: var(--color-ink-tertiary);
-  font-size: var(--text-sm);
+  gap: var(--space-5);
 }
 
 .error {
@@ -74,10 +59,16 @@
 @media (max-width: 720px) {
   .columns {
     grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
   }
 
-  .facts > div + div {
-    padding-left: var(--space-3);
+  .facts {
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .fact {
+    padding: var(--space-3) var(--space-4);
   }
 
   .facts dd {
@@ -86,5 +77,6 @@
 
   .facts dd.small {
     font-size: var(--text-md);
+    line-height: calc(var(--text-xl) * var(--leading-tight));
   }
 }
