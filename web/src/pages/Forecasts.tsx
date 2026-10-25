@@ -4,7 +4,8 @@ import { api, locationName, useResource } from '../data/api';
 import type { HourlyForecast } from '../data/types';
 import type { HourFigure, PlaceWeek } from '@map/bestTimes';
 import { formatHour, formatPercent, formatWeekday } from '../lib/format';
-import { Button, CrowdMeter, EmptyState, ListRow, Loading, Page, PageHeader, SectionHeading, SectionList, SelectField } from '../ui';
+import { Button, CrowdMeter, EmptyState, ExportMenu, ListRow, Loading, Page, PageHeader, SectionHeading, SectionList, SelectField } from '../ui';
+import { download, exportName, toCsv } from '../lib/exportData';
 import { HourlyChart } from './student/HourlyChart';
 import { CrowdReportNow, PRIVACY_NOTE, StudentReports, useCrowdReports } from './student/CrowdReport';
 import styles from './Forecasts.module.css';
@@ -133,9 +134,34 @@ export default function Forecasts() {
     );
   }
 
+  const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
+  const exportOptions = [
+    {
+      label: 'Hourly forecasts (CSV)',
+      detail: selected === 'all' ? `Every hour at all ${shown.length} places` : `Every hour at ${name(selected)}`,
+      run: () => download(exportName(selected === 'all' ? 'forecasts' : `forecast-${selected}`, 'csv'), toCsv(
+        ['place', 'place_id', 'date', 'hour_boston', 'projected_share', 'projected_percent', 'level', 'basis'],
+        shown.flatMap((f) => f.hours.map((h) => [locationName(locations.data, f.locationId, false), f.locationId, f.day, hourLabel(h.hour),
+          Number(h.share.toFixed(4)), Math.round(h.share * 100), crowdFor(h.share).label, f.basis ?? ''])),
+      ), 'text/csv'),
+    },
+    ...(bestTimes.data?.length ? [{
+      label: 'Best times this week (CSV)',
+      detail: 'Quietest and busiest open hour, each day',
+      run: () => download(exportName('best-times', 'csv'), toCsv(
+        ['place', 'place_id', 'date', 'quietest_hour_boston', 'quietest_share', 'busiest_hours_this_week', 'measure'],
+        bestTimes.data!.filter((w) => selected === 'all' || w.locationId === selected).flatMap((w) => w.byDay.map((d) => [
+          locationName(locations.data, w.locationId, false), w.locationId, d.date,
+          d.quietest ? hourLabel(d.quietest.hour) : '', d.quietest?.share ?? '',
+          w.busiest.map((b) => `${b.date} ${hourLabel(b.hour)}`).join('; '), w.measure,
+        ])),
+      ), 'text/csv'),
+    }] : []),
+  ];
+
   return (
     <Page>
-      {header}
+      <PageHeader title="Forecasts" description="Modeled crowds, not live occupancy." actions={<ExportMenu options={exportOptions} />} />
       <div className={styles.controls}>
         <SelectField label="Place" value={selected} onChange={(event) => setParams(event.target.value === 'all' ? {} : { place: event.target.value }, { replace: true })}>
           <option value="all">All places</option>

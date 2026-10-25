@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { api, useResource } from '../data/api';
 import { formatDayLabel } from '../lib/format';
-import { Button, EmptyState, Loading, Page, PageHeader, SectionList, Segmented } from '../ui';
+import { Button, EmptyState, ExportMenu, Loading, Page, PageHeader, SectionList, Segmented } from '../ui';
+import { download, exportName, toCsv, toIcs } from '../lib/exportData';
 import { AgendaRow } from './student/AgendaRow';
 import { groupByDay, isUpcoming } from './student/days';
 import { eventDate, eventVenue, mapStatusText } from './student/events';
@@ -49,9 +50,34 @@ export default function Events() {
   const groups = groupByDay(visible.filter((e) => isUpcoming(e.start)), (e) => e.start);
   const onMap = upcoming.filter((e) => e.mapStatus === 'simulated').length;
 
+  const which = filter === 'all' ? 'events' : filter === 'map' ? 'events-on-map' : 'events-off-map';
+  const listed = [...running, ...groups.flatMap((g) => g.items)];
+  const exportOptions = [
+    {
+      label: 'Events (CSV)',
+      detail: `The ${listed.length} events in this view`,
+      run: () => download(exportName(which, 'csv'), toCsv(
+        ['title', 'start', 'end', 'venue', 'organizer', 'changes_map_crowds', 'map_status', 'source_url'],
+        listed.map((e) => [e.title, e.start, e.end ?? '', eventVenue(e), e.organizer ?? '', e.mapStatus === 'simulated' ? 'yes' : 'no', mapStatusText(e), e.sourceUrl ?? '']),
+      ), 'text/csv'),
+    },
+    {
+      label: 'Add to your calendar (.ics)',
+      detail: 'Google, Apple or Outlook',
+      run: () => download(exportName(which, 'ics'), toIcs('Flowcast campus events', listed.map((e) => ({
+        uid: e.id, title: e.title, start: e.start, end: e.end, location: e.venue, url: e.sourceUrl,
+        description: [e.organizer && `Hosted by ${e.organizer}`, mapStatusText(e)].filter(Boolean).join('. '),
+      }))), 'text/calendar'),
+    },
+  ];
+
   return (
     <Page>
-      {header}
+      <PageHeader
+        title="Events"
+        description="Public listings from BU’s Terrier Central."
+        actions={<>{listed.length > 0 && <ExportMenu options={exportOptions} />}<Button to="/event-impact">See crowd impact by date</Button></>}
+      />
       <Segmented
         label="Show"
         value={filter}

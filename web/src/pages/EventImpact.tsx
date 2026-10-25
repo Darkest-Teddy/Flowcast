@@ -6,7 +6,8 @@ import { mapLink as buildMapLink } from '../lib/mapLink';
 import { api, useResource } from '../data/api';
 import type { CampusEvent, EventImpactData, ImpactPlace } from '../data/types';
 import { formatHour, formatPercent, formatTime } from '../lib/format';
-import { Button, CellStack, CrowdMeter, EmptyState, Loading, Page, PageHeader, SectionHeading, SectionList, ListRow, Table, Tag, type Column } from '../ui';
+import { Button, CellStack, CrowdMeter, EmptyState, ExportMenu, Loading, Page, PageHeader, SectionHeading, SectionList, ListRow, Table, Tag, type Column } from '../ui';
+import { download, exportName, toCsv, toIcs } from '../lib/exportData';
 import { CompareChart, type CompareHour } from './student/CompareChart';
 import { EventCalendar, type CalendarDay } from './student/EventCalendar';
 import { eventDate, eventVenue, mapStatusText } from './student/events';
@@ -128,9 +129,33 @@ export default function EventImpact() {
       : <CellStack primary={<strong className={styles.change}>{r.added > 0 ? '+' : '−'}{Math.abs(r.added).toLocaleString()} people</strong>} secondary={`at ${formatHour(r.addedHour)}`} /> },
   ];
 
+  const exportOptions = [
+    {
+      label: `Hourly crowding, ${shortDate(date)} (CSV)`,
+      detail: 'Every place, with and without events',
+      run: () => download(exportName(`event-impact-${date}`, 'csv'), toCsv(
+        ['date', 'place', 'place_id', 'kind', 'capacity', 'hour_boston', 'people_without_events', 'people_with_events', 'share_without_events', 'share_with_events', 'event_hour'],
+        rows.flatMap((r) => {
+          const during = eventHours(r.place.id);
+          return r.hours.map((h) => [date, r.place.name, r.place.id, r.place.kind, r.place.capacity, `${String(h.hour).padStart(2, '0')}:00`,
+            Math.round(h.baseline * r.place.capacity), Math.round(h.withEvents * r.place.capacity),
+            Number(h.baseline.toFixed(4)), Number(h.withEvents.toFixed(4)), during.has(h.hour) ? 'yes' : 'no']);
+        }),
+      ), 'text/csv'),
+    },
+    ...(dayEvents.length ? [{
+      label: `Events on ${shortDate(date)} (calendar)`,
+      detail: '.ics for Google, Apple or Outlook',
+      run: () => download(exportName(`events-${date}`, 'ics'), toIcs(`Flowcast events, ${shortDate(date)}`, dayEvents.map((e) => ({
+        uid: e.id, title: e.title, start: e.start, end: e.end, location: e.venue, url: e.sourceUrl,
+        description: [e.organizer && `Hosted by ${e.organizer}`, mapStatusText(e)].filter(Boolean).join('. '),
+      }))), 'text/calendar'),
+    }] : []),
+  ];
+
   return (
     <Page wide>
-      {header}
+      <PageHeader title="Event impact" description="Compare simulated crowds with and without campus events." actions={<ExportMenu options={exportOptions} />} />
       <div className={styles.layout}>
         <aside className={styles.picker}>
           <details className={styles.datePicker}>
