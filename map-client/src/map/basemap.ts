@@ -193,6 +193,23 @@ const DEFAULT_VIEW = {
   bearing: 250,
 };
 
+/**
+ * `?style=dark` and friends, for the MapLibre path only.
+ *
+ * An allowlist rather than an arbitrary URL: this comes from the address bar, and
+ * a style URL is fetched and executed as map configuration. The landing page links
+ * here with ?style=dark so arriving from its night title screen does not snap the
+ * map back to the bright default.
+ */
+const OPEN_FREE_MAP_STYLES = ['liberty', 'bright', 'positron', 'fiord', 'dark'] as const;
+
+function styleFromUrl(): string | undefined {
+  const name = new URLSearchParams(window.location.search).get('style');
+  if (!name) return undefined;
+  const allowed = OPEN_FREE_MAP_STYLES.find((s) => s === name);
+  return allowed ? `https://tiles.openfreemap.org/styles/${allowed}` : undefined;
+}
+
 function viewFromUrl() {
   const q = new URLSearchParams(window.location.search);
   const num = (key: string, fallback: number) => (q.has(key) ? Number(q.get(key)) : fallback);
@@ -556,7 +573,8 @@ export async function createBasemap(
   const maplibregl = (maplibreModule.default ?? maplibreModule) as typeof maplibreModule.default;
   const map = new maplibregl.Map({
     container,
-    style: options.styleUrl ?? 'https://tiles.openfreemap.org/styles/liberty',
+    // Explicit option, then ?style=, then the default.
+    style: options.styleUrl ?? styleFromUrl() ?? 'https://tiles.openfreemap.org/styles/liberty',
     ...INITIAL_VIEW,
     ...BOSTON_LIMITS,
     maxPitch: 85, // the default 60 is too flat for the street-level view

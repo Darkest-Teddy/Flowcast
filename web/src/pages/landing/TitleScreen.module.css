@@ -38,28 +38,17 @@
 }
 
 /*
- * Local contrast behind the type only.
+ * There is deliberately no scrim behind the type.
  *
- * A global wash heavy enough to carry white text buries the campus, which defeats
- * the point of having a live scene back there. This is a soft ellipse that travels
- * with the text, so the map stays bright at the edges and the words stay readable
- * in the middle. It sits behind the planes but in front of the scene.
+ * An earlier version put a dark ellipse here to carry white text over the bright
+ * Liberty basemap. The basemap is now the dark style, so that scrim was doing no
+ * work and was plainly visible as a black patch floating over the headline and the
+ * action -- worse, it sat on its own Z plane, so it drifted with the pointer.
+ *
+ * On a night map the white type already clears contrast on its own. The only
+ * support it keeps is the text-shadow below, for the rare lit rooftop that lands
+ * directly behind a letter.
  */
-.deck::before {
-  content: '';
-  position: absolute;
-  inset: -18% -14%;
-  z-index: -1;
-  transform: translateZ(-40px);
-  background: radial-gradient(
-    ellipse 60% 56% at 50% 48%,
-    color-mix(in srgb, var(--color-canvas) 78%, transparent) 0%,
-    color-mix(in srgb, var(--color-canvas) 52%, transparent) 46%,
-    transparent 76%
-  );
-  opacity: calc(1 - var(--depth-scroll, 0) * 1.5);
-  pointer-events: none;
-}
 
 /* ---------------------------------------------------------------------------
  * The wash. Sits between the live campus and the type, and clears as the visitor
@@ -70,20 +59,23 @@
   inset: 0;
   z-index: -1;
   /*
-   * Light enough that the campus reads through it, heavy enough that the wordmark
-   * stays legible over moving geometry. The centre is deliberately the clearest
-   * part: that is where the buildings are, and where the eye goes first.
+   * A vignette, not a veil.
    *
-   * The centre tracks the pointer slightly, so the "clear patch" follows the
-   * cursor and the wash feels like glass in front of the scene rather than paint
-   * on top of it.
+   * These values were set when the basemap was the bright Liberty style and the
+   * wash had to carry white text on its own. The basemap is the dark style now, so
+   * the centre is left almost entirely clear: anything more darkens an already
+   * dark map twice over and the campus stops reading.
+   *
+   * The edges still fade to canvas so the section meets the page cleanly, and the
+   * centre tracks the pointer slightly so it feels like glass in front of the
+   * scene rather than paint on top of it.
    */
   background:
     radial-gradient(
-      ellipse 78% 68% at calc(50% + var(--depth-x, 0) * -3%) calc(48% + var(--depth-y, 0) * -3%),
-      color-mix(in srgb, var(--color-canvas) 30%, transparent) 0%,
-      color-mix(in srgb, var(--color-canvas) 62%, transparent) 52%,
-      color-mix(in srgb, var(--color-canvas) 88%, transparent) 82%,
+      ellipse 82% 72% at calc(50% + var(--depth-x, 0) * -3%) calc(48% + var(--depth-y, 0) * -3%),
+      transparent 0%,
+      color-mix(in srgb, var(--color-canvas) 18%, transparent) 54%,
+      color-mix(in srgb, var(--color-canvas) 66%, transparent) 84%,
       var(--color-canvas) 100%
     );
   opacity: calc(1 - var(--depth-scroll, 0) * 1.35);
@@ -134,9 +126,9 @@
   line-height: 0.95;
   color: var(--color-ink);
   white-space: nowrap;
-  /* A last line of defence where a bright building sits directly behind a letter.
-     Tight and low-alpha, so it reads as weight rather than as a drop shadow. */
-  text-shadow: 0 2px 24px color-mix(in srgb, var(--color-canvas) 70%, transparent);
+  /* A tight halo, not a drop shadow: no offset, small radius, low alpha. It only
+     has to survive a lit rooftop landing behind a letter. */
+  text-shadow: 0 0 12px color-mix(in srgb, var(--color-canvas) 55%, transparent);
 }
 
 /*

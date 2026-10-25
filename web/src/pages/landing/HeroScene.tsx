@@ -24,6 +24,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Basemap, CameraState } from '@map/map/basemap';
 import type { WalkingAgent } from '@map/sim/playback';
+import { config } from '../../config';
 import styles from './HeroScene.module.css';
 import type { DepthState } from './useDepth';
 
@@ -118,6 +119,7 @@ const TITLE_VIDEO = '/video/title-campus.webm';
 export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const timers = useRef<number[]>([]);
   const [failed, setFailed] = useState(false);
   const [handedOver, setHandedOver] = useState(false);
   const capture = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('capture') === '1';
@@ -352,6 +354,33 @@ export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
               fly: false,
               easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
             });
+
+            /*
+             * The flight ends in the real map, not back on the landing page.
+             *
+             * basemap.ts reads lng/lat/zoom/pitch/bearing from the address bar at
+             * startup, so handing the landed camera across means the map opens on
+             * the exact frame the flight finished on and the move reads as one
+             * continuous shot. `style=dark` keeps it the night map rather than
+             * snapping back to the bright default.
+             */
+            const dest = new URLSearchParams({
+              style: 'dark',
+              lng: String(COMMITTED.center[0]),
+              lat: String(COMMITTED.center[1]),
+              zoom: String(COMMITTED.zoom),
+              pitch: String(COMMITTED.pitch),
+              bearing: String(COMMITTED.bearing),
+            });
+            // Slightly after the flight settles, so the last frame is seen.
+            timers.current.push(
+              window.setTimeout(
+                () => {
+                  window.location.href = `${config.mapUrl}?${dest}`;
+                },
+                reduced ? 0 : FLIGHT_MS + 260,
+              ),
+            );
           },
         };
         /*
@@ -548,6 +577,8 @@ export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
     return () => {
       cancelled = true;
       cancelAnimationFrame(frame);
+      timers.current.forEach(window.clearTimeout);
+      timers.current = [];
       // Must run before the element is removed, or a WebGL context leaks per mount.
       basemap?.remove();
       el.remove();
