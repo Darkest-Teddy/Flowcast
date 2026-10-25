@@ -189,7 +189,7 @@ export default function ClubApply() {
                 value={form.officerEmail}
                 onChange={(e) => set('officerEmail', e.target.value)}
                 error={errors.officerEmail}
-                hint="Use your bu.edu email. It’s the quickest way for us to confirm you’re at BU."
+                hint="Your Google sign-in does not verify club officer status. Enter the email you use for your club."
                 autoComplete="email"
               />
               <TextField

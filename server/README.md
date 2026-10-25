@@ -88,9 +88,9 @@ The browser retains the visible chat while switching tabs and sends only bounded
 
 ## PostgreSQL dashboard
 
-The dashboard reads public snapshots and guest data only from PostgreSQL. Ask retains its existing
+The dashboard reads public snapshots and authenticated account data only from PostgreSQL. Ask retains its existing
 map simulation/data loading behavior. `DATABASE_URL` enables the dashboard pool at server startup;
-without it dashboard endpoints return 503. There is no file/fixture fallback and no automatic
+without it data endpoints return 503 (the public auth config endpoint does not require PostgreSQL). There is no file/fixture fallback and no automatic
 migration or import during requests. PostgreSQL 17 is supported.
 
 Put `DATABASE_URL` in `server/.env` (keep this file private and untracked), then from `server/` run:
@@ -117,7 +117,7 @@ and evaluate published opening hours against the current Boston date, not the so
 
 ### Supabase access
 
-The migration enables row-level security on all three dashboard tables and revokes access from
+The migration enables row-level security on all four dashboard tables and revokes access from
 `PUBLIC`, `anon`, and `authenticated` (when those roles exist). The browser uses the Flowcast API,
 not Supabase REST. Configure the backend with a private PostgreSQL connection whose role owns the
 tables or bypasses RLS; never expose that connection string to the browser.
@@ -128,9 +128,10 @@ All routes are under `/api/dashboard` and return `Cache-Control: no-store`:
 
 - `GET /public`: `{locations, geo, events, impact, hourly, places, clubs}`. Public organizer records
   are unverified; following is false here. Join the personal following IDs from `/me` in the client.
-- `GET /me`: `{session, profile, notificationPrefs, following: string[]}`. Creates a browser-linked
-  guest on the first request. Session roles are `[]`, email is empty, calendar connection is false,
-  officer club is null, and onboarded is false. This does not establish a student, Google, or admin identity.
+- `GET /me`: `{session, profile, notificationPrefs, following: string[]}`. Creates an authenticated
+  account keyed by the verified Supabase UUID on the first personal request. Session roles are `[]`,
+  email comes from the verified Auth response, calendar connection is false, officer club is null,
+  and onboarded is false. No student, officer, or admin privileges are inferred.
 - `PATCH /profile`: partial `Profile`, returns the complete persisted `Profile`. Allowed fields:
   name (trimmed, at most 100 characters), nullable homeLocationId/studySpotId (published dashboard
   catalog IDs), lunchTime/dinnerTime (empty or HH:MM), avatarSwatch (integer 0–5).
@@ -140,9 +141,11 @@ All routes are under `/api/dashboard` and return `Cache-Control: no-store`:
   URL-encode the entire organizer ID. Only published organizers are accepted; repeated writes do
   not duplicate IDs.
 - `GET /export`: `{exportedAt, account, profile, notificationPrefs, followedOrganizers, createdAt,
-  updatedAt, calendars: [], events: []}` from the current persisted guest. No token/hash is exported.
-- `DELETE /me`: deletes only the guest identified by the current cookie, clears that cookie, returns
-  204. It does not delete public snapshots or other guests. The next `/me` request creates a new guest.
+  updatedAt, calendars: [], events: []}` from the current persisted account. No token/hash is exported.
+- `DELETE /me`: deletes only the Flowcast profile/preferences/following for the verified UUID and
+  returns 204. It does not delete or sign out the Google/Supabase identity. The client must clearly
+  describe this scope and sign out afterward. A later authenticated personal request creates a fresh
+  Flowcast profile with the same UUID. Public snapshots, guests, and other accounts are untouched.
 
 Mutations require an Origin with the same host (including port) as the request and reject
 `Sec-Fetch-Site: cross-site`. The dashboard proxy must preserve Host (`changeOrigin: false`).
@@ -150,11 +153,39 @@ Unknown write fields and invalid values return 400, origin failures 403, deleted
 and database/unimported-data failures sanitized 503. Writes never report success after a failed query.
 The API does not enable cross-origin credential access.
 
-The random 256-bit bearer cookie is HttpOnly, SameSite=Lax, scoped to `/api/dashboard`, and Secure
-when `NODE_ENV=production` (serve production over HTTPS). Only its SHA-256 hash is stored. Sessions
-expire after 30 days; expiration is checked on every lookup. Expired records may be removed by an
-operator with `DELETE FROM dashboard_guests WHERE expires_at <= now()`. No personal schedules,
-OAuth tokens, Google connections, admin actions, or authenticated roles are synthesized.
+### Auth configuration and identity
+
+Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` (or `SUPABASE_ANON_KEY` as fallback).
+`GET /api/dashboard/auth/config` publicly returns only `{url, publishableKey}` before the database
+availability gate. Only `sb_publishable_` keys or legacy JWT API keys with role `anon` are allowed;
+secret/service-role keys and malformed configuration return sanitized 503. HTTPS is required except
+for loopback development URLs. Configuration is never written by the server.
+
+`GET /public` and `GET /auth/config` require no bearer. Every personal route requires
+`Authorization: Bearer <Supabase access token>`. The browser owns PKCE, session refresh, and signout.
+The server calls `GET <SUPABASE_URL>/auth/v1/user` with `apikey` and `Authorization` on every personal
+request, using a five-second timeout and refusing redirects. It never decodes a user JWT to establish
+identity, reads identity from a cookie/body, or grants roles from metadata. Missing/malformed tokens
+and Auth 401/403 responses return 401. Auth network/timeouts, malformed responses, other upstream
+errors, or unavailable configuration return 503. The existing same-origin mutation check still runs
+first and returns 403 on an origin violation.
+
+`dashboard_accounts.id` is the verified Supabase UUID. An insert-on-conflict preserves existing
+profile, preferences, and follows across devices and token refreshes. Initial display name comes
+only from Auth `user_metadata.full_name` or `user_metadata.name`, trimmed to 100 characters; it is
+editable display text, never authorization. Email comes only from the Auth response's top-level
+`email`. Auth tokens are neither stored nor exported. The legacy `dashboard_guests` table/data are
+preserved without migration into accounts; its cookies no longer identify any personal request.
+
+`src/dashboard/db.ts` is the idempotent local/Supabase migration source. It creates the separate
+account table and enables RLS with no browser policies, revoking PUBLIC/anon/authenticated access.
+Run migrations explicitly with an owning backend PostgreSQL role; requests never migrate remotely.
+The verifier and config getter are injectable through `dashboardRouter(pool, options)`; the default
+verifier's HTTP transport is injectable through `createUserVerifier(config, request)`.
+
+Reference: [Supabase JWT verification](https://supabase.com/docs/guides/auth/jwts) documents the
+Auth user endpoint and headers; [API key guidance](https://supabase.com/docs/guides/getting-started/api-keys)
+distinguishes public publishable/anon keys from privileged secret/service-role keys.
 
 ### Verification
 
@@ -166,7 +197,11 @@ npm run test:db
 
 `test:db` loads `server/.env` and requires `TEST_DATABASE_URL` pointing at a dedicated database,
 separate from `DATABASE_URL`; without it the integration test explicitly skips. Tests apply migrations
-and import actual source data into that database, exercise HTTP sessions and mutations, restart the
+and import actual source data into that database, exercise authenticated HTTP accounts and mutations, restart the
 router to verify persistence, check isolation/export/deletion, and verify sanitized database failures.
-Test-created guests are cleaned up; imported public snapshots remain. `npm test` does not load `.env`
+Test-created accounts and the legacy guest preservation fixture are cleaned up; imported public snapshots remain. `npm test` does not load `.env`
 and keeps the existing Ask tests runnable without PostgreSQL.
+
+Auth unit tests inject HTTP responses and cover forged tokens, network failures, malformed user data,
+privileged config rejection, and the database-independent config route. Database tests use injected
+verified users to exercise persistence and cross-device identity; they do not claim a real Google login.

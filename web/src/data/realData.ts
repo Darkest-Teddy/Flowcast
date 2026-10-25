@@ -59,14 +59,22 @@ export function forecastsFromBundle(bundle: EventImpactData, at: Date,
 }
 
 /** Only in-flight reads are shared. Later reads always ask the server for current projections/state. */
-export function createDashboardClient(fetcher: typeof fetch = (...args) => fetch(...args)) {
+export function createDashboardClient(fetcher: typeof fetch = (...args) => fetch(...args),
+  authHeaders?: () => Promise<Record<string, string>>,
+) {
+  let generation = 0;
   async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+    const started = generation;
+    const headers: Record<string, string> = { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) };
+    if (path !== '/public' && authHeaders) Object.assign(headers, await authHeaders());
+    if (started !== generation) throw new Error('Account changed. Please retry.');
     const response = await fetcher(`/api/dashboard${path}`, {
       method, credentials: 'same-origin', cache: 'no-store',
-      headers: body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     const text = await response.text();
+    if (path !== '/public' && started !== generation) throw new Error('Account changed. Please retry.');
     let data: unknown;
     try { data = text ? JSON.parse(text) : undefined; } catch {
       throw new Error(`Dashboard request failed (${response.status}): server returned a non-JSON response.`);
@@ -95,18 +103,29 @@ export function createDashboardClient(fetcher: typeof fetch = (...args) => fetch
   let readMe = share(() => request<DashboardMe>('/me'));
   let mutations: Promise<unknown> = Promise.resolve();
   async function getMe(): Promise<DashboardMe> {
+    const started = generation;
     const barrier = mutations;
     await barrier;
+    if (started !== generation) throw new Error('Account changed. Please retry.');
     if (barrier !== mutations) return getMe();
     return readMe();
   }
   function mutate<T>(path: string, method: string, body?: unknown): Promise<T> {
-    const result = mutations.then(() => request<T>(path, method, body));
+    const started = generation;
+    const result = mutations.then(() => {
+      if (started !== generation) throw new Error('Account changed. Please retry.');
+      return request<T>(path, method, body);
+    });
     mutations = result.then(() => undefined, () => undefined).then(() => {
       // Detach any pre-mutation read so it cannot supply a subsequent account refresh.
       readMe = share(() => request<DashboardMe>('/me'));
     });
     return result;
   }
-  return { request, getPublic, getMe, mutate };
+  function reset() {
+    generation++;
+    readMe = share(() => request<DashboardMe>('/me'));
+    mutations = Promise.resolve();
+  }
+  return { request, getPublic, getMe, mutate, reset };
 }

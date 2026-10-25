@@ -79,7 +79,7 @@ export default function Profile() {
       setDraft(saved);
       profile.setData(saved);
       await refreshSession();
-      setMessage({ ok: true, text: 'Profile saved by Flowcast for this browser.' });
+      setMessage({ ok: true, text: 'Profile saved to your Flowcast account.' });
     } catch {
       setMessage({ ok: false, text: 'Couldn’t finish saving your profile. Please try again.' });
     } finally {
@@ -89,7 +89,7 @@ export default function Profile() {
 
   return (
     <Page>
-      <PageHeader title="Your profile" description="Optional details saved by Flowcast and linked to this browser. This is not a Google account, and these preferences do not control an agent on the shared map." />
+      <PageHeader title="Your profile" description="Optional details saved to your Flowcast account. These preferences do not change your Google account or control an agent on the shared map." />
 
       <form className={styles.form} onSubmit={save} noValidate>
         <section className={styles.section}>

@@ -24,7 +24,7 @@ export default function Clubs() {
   const header = (
     <PageHeader
       title="Clubs"
-      description="Organizers named in BU’s published event listings. Follows are saved by Flowcast and linked to this browser."
+      description="Organizers named in BU’s published event listings. Follows are saved to your Flowcast account."
     />
   );
 

@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, useLocation, Navigate } from 'react-router';
 import { useSession } from '../auth/session';
+import { safeReturnRoute } from '../auth/client';
 import { config } from '../config';
 import { Button, Logo } from '../ui';
 import styles from './SignIn.module.css';
 
 export default function SignIn() {
-  const { ready, startLocalSession } = useSession();
-  const navigate = useNavigate();
+  const { ready, session, signIn: googleSignIn, error: sessionError } = useSession();
   const location = useLocation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,13 +18,14 @@ export default function SignIn() {
     setBusy(true);
     setError(null);
     try {
-      await startLocalSession();
-      navigate(from?.startsWith('/') && !from.startsWith('//') && from !== '/signin' ? from : '/', { replace: true });
+      await googleSignIn(from);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Couldn’t open a browsing session. Please try again.');
+      setError(error instanceof Error ? error.message : 'Couldn’t start Google sign-in. Please try again.');
       setBusy(false);
     }
   }
+
+  if (ready && session) return <Navigate to={safeReturnRoute(from)} replace />;
 
   return (
     <main className={styles.screen}>
@@ -34,26 +35,26 @@ export default function SignIn() {
           <span>{config.appName}</span>
         </div>
 
-        <h1 className={styles.title}>Browse campus</h1>
+        <h1 className={styles.title}>Sign in to Flowcast</h1>
         <p className={styles.lede}>
-          Explore BU places, published events and model-derived crowd projections. No account is required.
+          Use your Google account to save your Flowcast profile and preferences.
         </p>
 
         <Button variant="primary" size="lg" className={styles.google} onClick={signIn} disabled={busy || !ready}>
-          {busy ? 'Opening…' : 'Continue to campus'}
+          {busy ? 'Opening Google…' : 'Continue with Google'}
         </Button>
-        {error && (
+        {(error || sessionError) && (
           <p className={styles.error} role="alert">
-            {error}
+            {error || sessionError}
           </p>
         )}
 
         <p className={styles.fine}>
-          Google sign-in and calendar connection are unavailable. You can enter an optional profile saved by Flowcast and linked to this browser.
+          Sign-in uses your Google identity. It does not grant access to your Google Calendar.
         </p>
 
         <p className={styles.footer}>
-          <Link to="/profile">Edit your profile</Link>
+          <Link to="/landing">Explore public campus data</Link>
         </p>
       </div>
     </main>

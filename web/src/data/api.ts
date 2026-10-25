@@ -1,5 +1,6 @@
 // The only data door for dashboard pages; dashboard state comes from the server.
 import { useCallback, useEffect, useState } from 'react';
+import { auth } from '../auth/client';
 import { config } from '../config';
 import { createDashboardClient } from './realData';
 import { agentConfigured, askAgentWithRetry, type AgentResult, type AgentMessage } from '@map/askClient';
@@ -14,7 +15,11 @@ import type {
 
 const copy = <T,>(value: T): Promise<T> => Promise.resolve(structuredClone(value));
 const unsupported = <T,>(action: string): Promise<T> => Promise.reject(new Error(`${action} is unavailable: no connected backend supports this operation.`));
-const dashboard = createDashboardClient();
+const dashboard = createDashboardClient(undefined, () => auth.headers());
+export function resetAccountData() {
+  dashboard.reset();
+  try { window.sessionStorage.removeItem('flowcast.askChat.v1'); } catch { /* Storage may be disabled. */ }
+}
 const disconnected = (): CalendarConnection => ({ connected: false, email: null, syncedAt: null, calendars: [] });
 async function clubs() {
   const [data, me] = await Promise.all([dashboard.getPublic(), dashboard.getMe()]);

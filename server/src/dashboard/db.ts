@@ -21,6 +21,11 @@ export async function migrate(pool: pg.Pool) {
         singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
         snapshot_hash text NOT NULL REFERENCES dashboard_snapshots(hash)
       );
+      CREATE TABLE IF NOT EXISTS dashboard_accounts (
+        id uuid PRIMARY KEY, profile jsonb NOT NULL, preferences jsonb NOT NULL,
+        following text[] NOT NULL DEFAULT '{}',
+        created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+      );
       CREATE TABLE IF NOT EXISTS dashboard_guests (
         id uuid PRIMARY KEY, token_hash text UNIQUE NOT NULL,
         profile jsonb NOT NULL, preferences jsonb NOT NULL,
@@ -30,16 +35,17 @@ export async function migrate(pool: pg.Pool) {
       );
     `);
     await client.query(`
+      ALTER TABLE dashboard_accounts ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_snapshots ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_current ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_guests ENABLE ROW LEVEL SECURITY;
-      REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests FROM PUBLIC;
+      REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts FROM PUBLIC;
       DO $$ BEGIN
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests FROM anon;
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts FROM anon;
         END IF;
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests FROM authenticated;
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts FROM authenticated;
         END IF;
       END $$;
     `);

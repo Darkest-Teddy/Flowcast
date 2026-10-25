@@ -25,16 +25,16 @@ test('API forwards GET, POST, status, Host, Origin and cookies', async (t) => {
     let body = '';
     for await (const chunk of req) body += chunk;
     res.writeHead(201, { 'Content-Type': 'application/json', 'Set-Cookie': ['session=abc; HttpOnly; SameSite=Lax', 'second=xyz; Path=/'] });
-    res.end(JSON.stringify({ method: req.method, url: req.url, host: req.headers.host, origin: req.headers.origin, cookie: req.headers.cookie, body }));
+    res.end(JSON.stringify({ method: req.method, url: req.url, host: req.headers.host, origin: req.headers.origin, authorization: req.headers.authorization, cookie: req.headers.cookie, body }));
   }));
   const host = await fixture(t, { apiUrl: upstream });
-  for (const path of ['/api/dashboard/session?x=1', '/api/dashboard?x=1', '/api/ask', '/api/health']) {
+  for (const path of ['/api/dashboard/auth/config', '/api/dashboard/me', '/api/dashboard/session?x=1', '/api/dashboard?x=1', '/api/ask', '/api/health']) {
     for (const method of ['GET', 'POST']) {
       const body = method === 'POST' ? JSON.stringify({ name: 'A student' }) : undefined;
-      const response = await fetch(host + path, { method, headers: { Origin: host, Cookie: 'session=abc', 'Content-Type': 'application/json' }, body });
+      const response = await fetch(host + path, { method, headers: { Origin: host, Authorization: 'Bearer test-access-token', Cookie: 'session=abc', 'Content-Type': 'application/json' }, body });
       assert.equal(response.status, 201);
       assert.equal(response.headers.getSetCookie().length, 2);
-      assert.deepEqual(await response.json(), { method, url: path, host: new URL(host).host, origin: host, cookie: 'session=abc', body: body || '' });
+      assert.deepEqual(await response.json(), { method, url: path, host: new URL(host).host, origin: host, authorization: 'Bearer test-access-token', cookie: 'session=abc', body: body || '' });
     }
   }
 });
@@ -81,6 +81,7 @@ test('static map, dashboard fallback, missing assets and HEAD retain their behav
   const host = await fixture(t);
   for (const path of ['/map', '/map/', '/map?at=12:15']) assert.equal(await (await fetch(host + path)).text(), 'map entry');
   assert.equal(await (await fetch(host + '/schedule')).text(), 'dashboard entry');
+  assert.equal(await (await fetch(host + '/auth/callback?code=test-code')).text(), 'dashboard entry');
   assert.equal((await fetch(host + '/missing.js')).status, 404);
   assert.equal((await fetch(host + '/schedule', { method: 'POST' })).status, 405);
   assert.equal(await (await fetch(host + '/map', { method: 'HEAD' })).text(), '');

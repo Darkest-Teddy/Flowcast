@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Ask from './pages/Ask';
 import Landing from './pages/Landing';
 import SignIn from './pages/SignIn';
+import AuthCallback from './pages/AuthCallback';
 import Welcome from './pages/Welcome';
 import Schedule from './pages/Schedule';
 import Forecasts from './pages/Forecasts';
@@ -44,6 +45,7 @@ function StudentArea() {
 }
 
 const router = createBrowserRouter([
+  { path: '/auth/callback', element: <AuthCallback /> },
   { path: '/signin', element: <SignIn /> },
   { path: '/landing', element: <Landing /> }, // the landing page for everyone, signed in or not
   { path: '/welcome', element: <RequireAuth><Welcome /></RequireAuth> },
