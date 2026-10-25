@@ -114,6 +114,8 @@ test('the conditions engine meets the validator’s sanity targets on a sampled 
   assert.equal(metric('outdoor-3am').loss, 0);
   assert.equal(metric('dining-peak-at-meal').loss, 0, `dining peaks at ${metric('dining-peak-at-meal').value}h`);
   assert.ok(metric('fitrec-hourly-r').value > 0.8);
+  assert.equal(metric('fitrec-hourly-r').weight, 0, 'observed arrival timing is an input, not independent validation');
+  assert.equal(metric('fitrec-peak-hour').weight, 0);
   assert.ok(metric('fitrec-daily-ratio').loss < 0.4, `FitRec ratio ${metric('fitrec-daily-ratio').value}`);
 });
 

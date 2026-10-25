@@ -181,6 +181,25 @@ test('validator scores: correlation, sanity checks and acceptance rule', () => {
   assert.equal(sampled.base.agents.length, 10); assert.equal(sampled.scale, 0.25); assert.equal(sampled.base.locations[0].capacity, 25);
 });
 
+test('calibration cannot improve by losing a metric, changing its weight or supplying invalid scores', () => {
+  const metric = { id: 'm', loss: 1, weight: 1 };
+  const current = [{ day: 'd', loss: 1, metrics: [metric] }];
+  const candidate = (metrics, loss = 0) => [{ day: 'd', loss, metrics }];
+  assert.equal(compareScores(current, candidate([])).accept, false, 'a disappearing metric is not a gain');
+  assert.equal(compareScores(current, []).accept, false, 'a missing day is not a gain');
+  assert.equal(compareScores(current, candidate([{ ...metric, weight: 0 }])).accept, false);
+  for (const loss of [NaN, Infinity, -1]) {
+    assert.equal(compareScores(current, candidate([{ ...metric, loss }])).accept, false);
+    assert.equal(compareScores(current, candidate([metric], loss)).accept, false);
+  }
+  assert.equal(compareScores(current, candidate([metric, metric])).accept, false);
+  assert.equal(compareScores(current, [...candidate([metric]), ...candidate([metric])]).accept, false);
+  assert.equal(compareScores(current, candidate([{ ...metric, loss: 0.5 }], 0.5)).accept, true);
+  const withDiagnostic = [{ day: 'd', loss: 1, metrics: [metric, { id: 'reconstruction', loss: 0, weight: 0 }] }];
+  const improved = candidate([{ ...metric, loss: 0.5 }, { id: 'reconstruction', loss: 1, weight: 0 }], 0.5);
+  assert.equal(compareScores(withDiagnostic, improved).accept, true, 'reconstruction does not gate an independent improvement');
+});
+
 test('the day codec round-trips trips and stays exactly enough to play back', () => {
   const base = { day: 'Wednesday', buildings: [], locations: [{ id: 'gsu', name: 'GSU', short: 'GSU', kind: 'dining', position: [-71.1, 42.35], capacity: 100, building: 'gsu' }],
     agents: [{ id: 'a', home: 'off-campus', model: 1 }, { id: 'b', home: 'off-campus', model: 2 }], trips: [] };
@@ -254,9 +273,53 @@ test('observed ridership: students’ timing at BU stops, a band penalty when st
   const bu = good.groups.find(g => g.id === 'bu-b-line');
   assert.ok(bu.shape > 0.95 && bu.peakHours === 0 && bu.overflow === 0, JSON.stringify(bu));
   assert.equal(good.everyone.medianRatio, 1, 'the public fills the rest of each count');
+  assert.equal(good.metrics.find(m => m.id === 'obs-everyone-shape').weight, 0);
+  assert.equal(good.metrics.find(m => m.id === 'obs-everyone-ratio').weight, 0);
+  assert.equal(good.metrics.find(m => m.id === 'obs-bu-b-line-shape').weight, 1);
+  assert.ok(good.metrics.find(m => m.id === 'obs-student-overflow').weight > 0 && good.metrics.find(m => m.id === 'obs-student-overflow').weight < 0.2, 'assumed student shares receive reduced weight');
+  assert.equal(good.metrics.find(m => m.id === 'obs-student-count-excess').value, 0);
   // A class-change spike at 10 well above the count: timing off and overflow penalised.
   const spike = scoreObservations(observations, { trips: [], transitRides: Array.from({ length: 40 }, () => ride(10, 0)) }, 2);
   const busy = spike.groups.find(g => g.id === 'bu-b-line');
   assert.ok(busy.shape < 0.2 && busy.peakHours >= 1 && busy.overflow > 0.1, JSON.stringify(busy));
   assert.ok(spike.metrics.find(m => m.id === 'obs-student-overflow').loss > good.metrics.find(m => m.id === 'obs-student-overflow').loss);
+  assert.ok(spike.metrics.find(m => m.id === 'obs-student-count-excess').value > 0);
+});
+
+test('pedestrian peak comparison counts the measured crossings, not unrelated walker-minutes', () => {
+  const site = { id: 'warren', source: 'bu-warren-epnf-2024', dayType: 'weekday', weekdays: [2, 3], quality: 'primary',
+    position: [-71.1, 42.35], screen: { type: 'line', from: [-71.1, 42.349], to: [-71.1, 42.351] },
+    bins: [{ start: '08:00', end: '09:00', value: 10 }, { start: '17:00', end: '18:00', value: 20 }], expectedStudentShare: [0.6, 0.9] };
+  const trip = (hour, latitude = 42.35) => ({ agent: 'a', from: 'x', to: 'y', path: [[-71.101, latitude], [-71.099, latitude]], timestamps: [hour * 3600, hour * 3600 + 600] });
+  const base = { agents: [{ id: 'a', home: 'x' }], locations: [] };
+  const day = { trips: [trip(8), trip(17), trip(17)], stays: [], sourceActivities: [], sourceAssignments: [], sourceStats: {} };
+  const observations = { transit: [], pedestrian: [site] };
+  const score = (value, weekday = 2, kind = 'normal') => scoreDay({ label: 'x', day: value, base,
+    data: { signals: [], libraryHistory: {} }, observations, weekday, kind });
+  const metric = value => score(value).metrics.find(row => row.id === 'pedestrian-pm-am');
+  assert.equal(metric(day).value, 1);
+  assert.equal(metric(day).basis, 'historical comparison');
+  assert.equal(metric({ ...day, trips: [...day.trips, ...Array.from({ length: 20 }, () => trip(8, 42.36))] }).value, 1);
+  assert.ok(!score(day, 0).metrics.some(row => row.id === 'pedestrian-pm-am'), 'no Monday survey was collected');
+  const rain = score(day, 2, 'sanity');
+  assert.ok(rain.metrics.length > 0 && rain.metrics.every(row => row.weight > 0 && row.weight <= 0.1));
+  assert.equal(rain.metrics.find(row => row.id === 'walker-spike').basis, 'assumed sanity target');
+});
+
+test('a report with only assumed checks says not evaluated rather than perfect accuracy', async () => {
+  const { scoreTable } = await import('../scripts/lib/behavior-report.mjs');
+  const score = { day: 'rain', loss: 0, metrics: [{ id: 'walker-spike', label: 'spike', target: 'assumed', value: 0.2, loss: 0.5, weight: 0, basis: 'assumed sanity target' }] };
+  const table = scoreTable([score], [score]);
+  assert.match(table, /No comparable observed targets/);
+  assert.match(table, /assumed sanity target/);
+  assert.doesNotMatch(table, /\*\*0\.000\*\*/);
+});
+
+test('assumptions are soft penalties rather than individual regression vetoes', () => {
+  const observed = { id: 'observed', loss: 1, weight: 1, basis: 'historical comparison' };
+  const assumed = { id: 'assumed', loss: 0, weight: 0.1, basis: 'assumed sanity target' };
+  const current = [{ day: 'd', loss: 1, metrics: [observed, assumed] }];
+  const proposed = [{ day: 'd', loss: 0.6, metrics: [{ ...observed, loss: 0.5 }, { ...assumed, loss: 1 }] }];
+  assert.equal(compareScores(current, proposed).accept, true);
+  assert.equal(compareScores(current, [{ ...proposed[0], loss: 1.1 }]).accept, false);
 });

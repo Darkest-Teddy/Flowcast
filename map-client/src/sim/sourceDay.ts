@@ -442,6 +442,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       'Nondegree 0xx and PDP offerings remain visible in source data but are omitted from modeled degree-course enrollment; noncredit attendance is unknown.',
       'Explicit linked lecture, discussion, and lab requirements are admitted atomically as one degree course. Missing mapped components or unresolved source requirements exclude that course; unknown relationships are not invented.',
       'Each student has a stable synthetic school affinity weighted by eligible section seats. The planner prefers that school for target minus one courses, allowing cross-school electives and feasible fallback. This is a model preference, not an observed major.',
+      'Within deterministic four-section candidate batches, enrollment favors proximity to an already enrolled academic building. This spatial-coherence assumption is not an observed student schedule or a fitted count weight.',
       'Modeled course loads are 1–2 for part-time students, 3–4 for full-time graduate students, and 4–5 for full-time undergraduates; only mapped, reachable, mutually feasible weekly sections are assigned. Linked lecture/lab requirements are unknown.',
       'Concurrent published meetings share one physical building-code/room-code seat pool, including partial time overlaps. Conflicting catalog entries reduce modeled attendance rather than shifting source times or enlarging room capacity.',
       'Unknown room capacity uses a conservative 24-student cap; cross-listed shared occurrences share the same seat pool.',
@@ -1040,8 +1041,21 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a;
       let stride = 1 + Math.floor(fraction(`${agent.id}:weekly-stride:${phase}`) * Math.max(1, candidates.length - 1));
       while (candidates.length && gcd(stride, candidates.length) !== 1) stride++;
+      let nearbyPositions: number[] = [];
       for (let attempt = 0; attempt < budget && candidates.length && courseCount < limit; attempt++, attempts++) {
-        const position = (startIndex + attempt * stride) % candidates.length;
+        if (!nearbyPositions.length) {
+          nearbyPositions = Array.from({ length: Math.min(4, budget - attempt) }, (_, offset) =>
+            (startIndex + (attempt + offset) * stride) % candidates.length);
+        }
+        // A small choice set preserves course variety while keeping a student's courses near
+        // an enrolled academic building. Home location does not determine academic affiliation.
+        const anchor = stops[0] && locations.get(stops[0].location)?.position;
+        if (anchor) nearbyPositions.sort((a, b) => {
+          const distance = (position: number) => Math.min(...candidates[position % candidates.length].stops.map(stop =>
+            straightLineMetres(anchor, locations.get(stop.location)!.position)));
+          return distance(a) - distance(b);
+        });
+        const position = nearbyPositions.shift()! % candidates.length;
         const section = candidates[position];
         const poolFull = section.stops.some(stop => (used.get(stop.pool) ?? 0) >= limits.get(stop.pool)!);
         const roomFull = section.stops.some(stop => stop.roomSlots!.some(slot => roomAttendance[slot] >= roomSlotLimits[slot]));

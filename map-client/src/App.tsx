@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
+import { campusFromUrl, playbackFromUrl } from './map/deepLink';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, VIEW_IN_URL, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
 import { HudAsk, HudBrand, HudDate, HudIcons, HudLegend, HudRail, HudStatus, HudTabs, HudTime, type HudTab, type RailItem } from './hud/Chrome';
 import { agentLayers, loadCharacterModels, type Character, type LoadedModels } from './layers/agents';
@@ -135,13 +136,14 @@ const MemoWeatherControls = memo(WeatherControls);
 const SPEEDS = [1, 30, 120, 600];
 const COUNTS_KEY = 'flowcast.trafficCounts';
 const params = new URLSearchParams(window.location.search);
+const playbackLink = playbackFromUrl(params);
 /** ?date=2026-11-18 plays that date's campus events on its weekday (projected onto the representative week). */
-const URL_DATE = /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date')! : null;
+const URL_DATE = playbackLink.date;
 /** ?events=0 starts with campus events off, showing the no-event baseline. */
 const START_EVENTS = params.get('events') !== '0';
 // Live by default: the simulated day follows the real clock at 1x, so walkers, trains and buses
 // all move at their true relative speeds. ?at=, ?speed= or ?date= start in playback mode instead.
-const START_LIVE = !params.has('at') && !params.has('speed') && !URL_DATE;
+const START_LIVE = playbackLink.live;
 
 const BOSTON_CLOCK = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
@@ -154,9 +156,7 @@ function wallClockSeconds(): number {
 
 /** ?at=9:00 (24h clock) starts playback there; default is the run-up to the 9:05 class change. */
 function startTimeFromUrl(): number {
-  const at = params.get('at');
-  const match = at?.match(/^(\d{1,2}):(\d{2})$/);
-  return match ? Number(match[1]) * 3600 + Number(match[2]) * 60 : 8 * 3600 + 50 * 60;
+  return playbackLink.at ?? 8 * 3600 + 50 * 60;
 }
 
 const BOSTON_WEEKDAY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
@@ -191,7 +191,7 @@ function storedTagMode(): TagMode {
 /** The map's weather look for a scenario's weather (live weather otherwise). */
 const SCENARIO_LOOK: Record<string, WeatherMode> = { clear: 'clear', rain: 'rain', 'heavy-rain': 'rain', drizzle: 'rain', snow: 'snow', thunderstorm: 'thunderstorm', heatwave: 'heatwave', fog: 'fog' };
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
-const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
+const START_SPEED = START_LIVE ? 1 : playbackLink.speed ?? SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
 /** The map opens on the intro still (IntroScreen) and flies in from its camera, unless the URL sets the view. */
 const FROM_INTRO = !VIEW_IN_URL;
@@ -337,6 +337,9 @@ const VIEW_TITLES: Record<View, string> = {
  * list of eight.
  */
 type Tab = 'crowds' | 'data' | 'transit' | 'traffic' | 'bikes' | 'weather' | 'incidents';
+const LINKED_TAB = params.get('tab');
+const START_TAB: Tab = ['crowds', 'data', 'transit', 'traffic', 'bikes', 'weather', 'incidents'].includes(LINKED_TAB ?? '') ? LINKED_TAB as Tab : 'crowds';
+const LINKED_ANALYTICS = ['crowds', 'data', 'transit', 'bikes'].includes(LINKED_TAB ?? '');
 /** Gap between the floating toolbar and what it sits on (the screen edge, or the phone sheet). */
 const TOOLBAR_GAP = 12;
 
@@ -396,7 +399,7 @@ export default function App() {
   /* Which tab is open, for the handlers the map holds onto across renders. */
   const viewRef = useRef<View | null>(null);
   /* Analytics: which of the three subjects, and how the places list is cut. */
-  const [analyticsSub, setAnalyticsSub] = useState<'places' | 'transit' | 'bikes'>('places');
+  const [analyticsSub, setAnalyticsSub] = useState<'places' | 'transit' | 'bikes'>(START_TAB === 'transit' || START_TAB === 'bikes' ? START_TAB : 'places');
   const [category, setCategory] = useState<Category>('all');
   const [sort, setSort] = useState<'quiet' | 'busy'>('quiet');
   const [listExpanded, setListExpanded] = useState(false);
@@ -465,9 +468,9 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   // Never 'ask': that lives in the bar at the bottom of the screen, and a start
   // question is handed to it directly rather than by opening a panel.
-  const [tab, setTab] = useState<Tab>('crowds');
+  const [tab, setTab] = useState<Tab>(START_TAB);
   // Which top tab is lit, or null for the map with nothing over it.
-  const [view, setView] = useState<View | null>(null);
+  const [view, setView] = useState<View | null>(LINKED_ANALYTICS ? 'analytics' : null);
   // Narrows the campus list. Empty shows the full ranking.
   const [search, setSearch] = useState('');
   // The sheet: open on wide screens, a peek on phones (half height when ?ask= has an answer to show).
@@ -475,7 +478,7 @@ export default function App() {
   const phoneRef = useRef(phone);
   phoneRef.current = phone; // read by the sheet's layout callbacks, which run before this render's effects
   // Opens on Live, so the panel starts out of the way and the map is uncovered.
-  const [detent, setDetent] = useState<Detent>(() => (window.matchMedia(PHONE_QUERY).matches && START_QUESTION ? 'half' : 'peek'));
+  const [detent, setDetent] = useState<Detent>(() => (LINKED_ANALYTICS ? (window.matchMedia(PHONE_QUERY).matches ? 'half' : 'full') : window.matchMedia(PHONE_QUERY).matches && START_QUESTION ? 'half' : 'peek'));
   // Crossing the breakpoint (a rotated tablet, a resized window): each layout's own default.
   const wasPhone = useRef(phone);
   useEffect(() => {
@@ -795,6 +798,9 @@ export default function App() {
       });
       setRange([0, 86400]);
       setCampuses(day.campuses ?? []);
+      const linkedCampus = campusFromUrl(params, day.locations);
+      campusRef.current = linkedCampus;
+      setCampus(linkedCampus);
 
       // What a map pointer is over, for the tags that expand on hover (and on tap, for touch).
       const buildingUnder = (object: unknown) =>
@@ -2469,6 +2475,11 @@ export default function App() {
                     campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} />
                 )}
               </>
+            )}
+
+            {tab === 'data' && analyticsSub === 'places' && !detailLocation && sourceData && baseDayRef.current && (
+              <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected}
+                campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} />
             )}
 
             {analyticsSub === 'places' && !detailLocation && (

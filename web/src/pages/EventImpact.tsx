@@ -2,6 +2,7 @@ import { Map as MapIcon } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 import { crowdFor } from '@theme/tokens';
 import { config } from '../config';
+import { mapLink as buildMapLink } from '../lib/mapLink';
 import { api, useResource } from '../data/api';
 import type { CampusEvent, EventImpactData, ImpactPlace } from '../data/types';
 import { formatHour, formatPercent, formatTime } from '../lib/format';
@@ -116,7 +117,7 @@ export default function EventImpact() {
   const eventHours = (placeId: string) => new Set((day?.gatherings ?? []).filter((g) => g.locationId === placeId)
     .flatMap((g) => HOURS.filter((h) => h * 3600 < g.endSec && (h + 1) * 3600 > g.startSec)));
   const firstStart = day?.gatherings.length ? Math.min(...day.gatherings.map((g) => g.startSec)) : null;
-  const mapLink = `${config.mapUrl}?date=${date}${firstStart !== null ? `&at=${clock(firstStart)}` : ''}`;
+  const mapLink = buildMapLink(config.mapUrl, { date, events: '1', ...(firstStart !== null ? { at: clock(firstStart) } : {}) });
   const attendees = day?.gatherings.reduce((sum, g) => sum + g.attendees, 0) ?? 0;
 
   const columns: Column<PlaceImpact>[] = [

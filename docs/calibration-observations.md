@@ -14,6 +14,60 @@ non-student public crowd can be sized from them.
 
 No source needs an API key or an account.
 
+## Kenmore measurement-quality correction (2026-10-25)
+
+The committed bundle and the historical coverage tables below predate this correction.
+The collector now retains every valid nonnegative observation, including explicit zero;
+it no longer rejects days with at most 500 recorded entries. An absent half-hour is
+omitted, never filled with zero. Each aggregate bin has `days` (its own denominator)
+and `dates`; series-level `days` means dates with at least one observation, not complete
+24-hour days. Summing these conditional bin means is **not** a measured average daily total.
+`dailyObservations` retains dated, sparse half-hour values for source inspection and potential
+future joins. Missing periods cannot distinguish station closure from collection failure.
+
+Each series directly references its period-specific source ID. Source metadata retains
+`requestedCalendarPeriod`, the exact selected `dates`, configured `excludedDates`,
+`invalidCountRecords`, `ambiguousBins`, and `pageProvenance` (each query URL, retrieval time,
+and SHA-256). Duplicate station/date/time rows are excluded as ambiguous rather than summed.
+A source entry is retained even when there are no usable observations.
+
+Live official API queries on 2026-10-25 returned 3,659 Fall 2025 rows over two pages and
+1,011 Fall 2026 rows over one page, including the service-date boundary buffers.
+After calendar-date conversion and the existing holiday exclusions:
+
+| Calendar period / day type | Dates with observations | Aggregate clock bins | Reporting dates per bin | Retained dated half-hours |
+|---|---:|---:|---:|---:|
+| 2025-09-02–2025-11-25 weekdays | 59 | 48 | 2–59 | 2,513 |
+| 2025-09-06–2025-11-22 Saturdays | 12 | 45 | 3–12 | 477 |
+| 2025-09-07–2025-11-23 Sundays | 12 | 46 | 1–12 | 493 |
+| 2026-09-02–2026-09-25 weekdays | 17 | 46 | 1–17 | 729 |
+| 2026-09-05–2026-09-26 Saturdays | 4 | 47 | 1–4 | 108 |
+| 2026-09-06–2026-09-20 Sundays | 3 | 44 | 1–3 | 94 |
+
+There were no explicit zeros or invalid numeric counts in the queried rows. Three conflicting
+Fall 2025 bins were excluded: September 19 at 17:30 (179 versus 178), and September 20
+at 08:00 (41 versus 40) and 13:00 (98 versus 97). The removed 500-entry rule had excluded
+September 19, 2026 (233 entries in 13 bins), September 20 (12 in 7 bins), and September 26
+(225 in 8 bins). These are partial observations, not verified quiet full days. September 26
+contains only post-midnight bins from the September 25 service date. The latest returned
+2026 service date is September 25; there are no October measurements in this query.
+
+[MBTA's official item description](https://www.arcgis.com/sharing/rest/content/items/001c177f07594e7c99f193dde32284c9?f=pjson)
+defines service dates as 03:00–02:59, publishes only station-open periods, and explicitly
+warns that stop/date coverage is not guaranteed and held-open gates can undercount. The
+[official layer metadata](https://services1.arcgis.com/ceiitspzDAHrdGO1/arcgis/rest/services/GSE/FeatureServer/0?f=pjson)
+confirms the item ID and fields. Live timestamps represent Boston local midnight; the existing
+Boston conversion and post-midnight reassignment are retained.
+
+Weather calibration is not established by these counts. Dated faregate observations could
+support a separately designed transit-entry/weather association study with matched dates,
+coverage, closures, service changes, events and calendar effects considered. They do not
+measure pedestrian traffic or identify a pedestrian rain multiplier. Existing rail/bus
+seasonal means have no daily weather pairing, and the pedestrian series combine isolated
+count dates from different years and sites. Student-share bands remain assumptions.
+
+The checked-in bundle was refreshed with `data-pipeline/.venv/bin/python data-pipeline/fetch_calibration_observations.py --only-kenmore --refresh`. Other transit and pedestrian observations and their source metadata were verified unchanged. Consumers score only reported bins, and smoothing does not bridge missing intervals. Per-bin reporting-day means are not measured daily totals; their sum is used only as a reported-bin comparison or a modeled activity profile, not a census. Raw responses are saved in the normal local observations cache with per-page hashes.
+
 ## Schema
 
 ```jsonc
@@ -52,7 +106,7 @@ calendar day they happen (the MBTA files them on the previous service day).
 | id | What | Period | URL |
 |---|---|---|---|
 | `mbta-gse-fall-2025` | MBTA Gated Station Entries, Kenmore, 30-min bins, averaged per day type | 2025-09-02 to 2025-11-25 (59 weekdays, 12 Sat, 12 Sun), holidays removed | https://mbta-massdot.opendata.arcgis.com/datasets/001c177f07594e7c99f193dde32284c9 (feature service `.../GSE/FeatureServer/0`) |
-| `mbta-gse-fall-2026` | Same, current term so far | 2026-09-02 to 2026-09-25 (17 weekdays, 2 Sat, 2 Sun) | same |
+| `mbta-gse-fall-2026` | Same, current term so far | 2026-09-02 to 2026-09-26 calendar coverage (17 weekdays, 4 Sat, 3 Sun; partial dates retained) | same |
 | `mbta-rail-hourly-fall-2025` | Fall 2025 MBTA Rail Ridership by Hour, Route/Line, and Stop: ons and offs per stop, branch, direction, hour | MBTA Fall 2025 rating, holidays and line diversion days excluded | https://mbta-massdot.opendata.arcgis.com/datasets/6494749a29c648018820d0e49636205c |
 | `mbta-bus-apc-fall-2025` | MBTA Bus Ridership by Trip, Season, Route/Line, and Stop (APC), Fall 2025 file | Fall 2025 rating; Wkdy = Mon-Thu, Fri, Sat, Sun | https://mbta-massdot.opendata.arcgis.com/datasets/8daf4a33925a4df59183f860826d29ee |
 | `mbta-gtfs-fall-2025` | MBTA GTFS archive (feed of 2025-10-21), only to put each APC trip row in the hour it reaches the stop | Fall 2025 | https://cdn.mbtace.com/archive/20251021.zip |
@@ -71,7 +125,7 @@ facts are reused, with page citations. The City of Boston's BTD count archive ha
 
 | Series | Stops / sites | Bins | Day types |
 |---|---|---|---|
-| Kenmore gated entries | Kenmore (all Green branches) | 48 x 30 min | weekday, Sat, Sun; Fall 2025 (`primary`) and Fall 2026 to date (`comparison`) |
+| Kenmore gated entries | Kenmore (all Green branches) | 44–48 reported 30-min bins, sparse by day type | weekday, Sat, Sun; Fall 2025 (`primary`) and Fall 2026 to date (`comparison`) |
 | Green Line ons/offs | B: Kenmore, Blandford, BU East, BU Central, Amory, Babcock; C: Kenmore, St Mary's, Hawes, Kent; D: Kenmore, Fenway, Longwood | 24 x 1 h, per direction | weekday, Sat, Sun (156 series) |
 | Bus boardings/alightings | 57 map bus stops on routes 1, 8, 10, 47, 57, 749, 751 (Charles River, Fenway, Medical) | 24 x 1 h, per stop and route | weekday (Mon-Thu), Fri, Sat, Sun (655 series) |
 | Pedestrian, primary | 7 Comm Ave / Bay State Rd intersections (2023 peak hours, 2018 15-min, 2012 midday 15-min), Buick St, BU Bridge, University Rd (2012 midday), 12 Medical Campus intersections (2019 15-min) | 15 min or 1 h | weekday (32 series) |
@@ -175,7 +229,7 @@ If the observations file is missing, the map shows students only.
   Bus rows are placed in an hour by the Fall 2025 timetable: 19,499 trip rows matched exactly and
   880 used the median stop offset.
 - **Gated entries are unscaled.** They miss fare evaders and children, and they include employee
-  taps. Kenmore Fall 2025 averages 4,285 weekday entries; September 2026 averages 6,544.
+  taps. Coverage varies by half-hour and date; sums of conditional bin means must not be described as observed average daily totals.
 - **Student shares are assumptions** (see above), not measured.
 - **The pedestrian screen only approximates the count method.** OSM crosswalk geometry decides
   which crossings count. Where OSM maps one segment for a whole divided-road crossing (Comm Ave at
@@ -185,3 +239,23 @@ If the observations file is missing, the map shows students only.
   public walkers, because no saved walk route crosses their crosswalks.
 - **Missing legs.** At Cummington Mall, the 2018 NW and SW legs (3-7 people an hour) are not
   in the 15-min rows.
+
+
+## Data-grounded validation
+
+The validator now respects each pedestrian series' recorded `weekdays`. The 2012 Tuesday
+and 2018 Thursday sheets are compared with Tuesday and Thursday simulations; pooled
+2023 Wednesday/Thursday counts apply only on those days. The Warren PM/AM comparison
+uses simulated crossings through those same survey screens and intervals, not campus-wide
+walker-minutes. These remain historical comparisons: different years and all-person counts
+cannot establish current student-only prediction accuracy.
+
+Public through-walker generation also uses the matching weekday's survey where one exists.
+Other weekdays use the existing activity-profile extrapolation, rather than treating a
+different weekday's measured bins as observations for that day.
+
+Calibration uses historical timing comparisons and excess student trips above the reported
+all-person count. Assumed student-share bands and sanity targets contribute soft penalties at 10% of their original weights, without individual regression vetoes. This factor is a modeling choice.
+FitRec timing reconstruction, old dining aggregates, unknown-method library patron counts,
+and Bluebikes as a walking proxy do not contribute to the objective. Hand-set smoothness/occupancy thresholds and rain/finals checks retain reduced-weight assumption penalties, but no accuracy score without
+comparable observations. The report's source inventory states the saved measurement periods.
