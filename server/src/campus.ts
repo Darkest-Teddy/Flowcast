@@ -11,6 +11,7 @@ import { buildSourceDay } from '../../map-client/src/sim/sourceDay';
 import { askMeetings } from '../../map-client/src/insights';
 import type { CampusData, SourceMeeting } from '../../map-client/src/data/campusData';
 import { assumptionTable, capacityBasis, dayFrom, pedestrianSites, type AskFacts } from './facts';
+import { loadChatFacts } from './chatData';
 
 const root = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
@@ -129,6 +130,7 @@ export function loadCampusModel(env: Record<string, string | undefined> = proces
     pedestrians: pedestrianSites(readJson(root('map-client/public/data/mobility.json'))),
     assumptions: assumptionTable(campus, locations, populationSummary),
     allLocations: base.locations,
+    chat: loadChatFacts((path) => readJson(root(path)), campus, population),
   };
 
   return {

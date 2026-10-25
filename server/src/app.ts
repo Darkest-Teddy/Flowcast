@@ -5,9 +5,12 @@ import { isIP } from 'node:net';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { WEEKDAYS } from '../../map-client/src/data/campusData';
+import type { ChatResponse, ChatTurn, DataDomain } from '../../map-client/src/chatContract';
 import type { CampusModel } from './campus';
 import type { AskResult } from './agent';
 import type { ServerAskContext } from './facts';
+import type { ChatContext } from './chatTools';
+import { buildDirectory } from './directory';
 
 export const AskRequest = z.object({
   question: z.string().trim().min(1).max(300),
@@ -16,9 +19,26 @@ export const AskRequest = z.object({
   campus: z.string().min(1).max(40),
 });
 
+const isDate = (d: string) => !Number.isNaN(Date.parse(`${d}T12:00:00Z`)) && new Date(`${d}T12:00:00Z`).toISOString().slice(0, 10) === d;
+
+export const ChatRequest = z.object({
+  messages: z.array(z.discriminatedUnion('role', [
+    z.object({ role: z.literal('user'), text: z.string().trim().min(1).max(300) }),
+    z.object({ role: z.literal('assistant'), text: z.string().max(2000) }),
+  ])).min(1).max(12).refine((m) => m.length > 0 && m[m.length - 1].role === 'user', 'The last turn must be the user’s question.'),
+  weekday: z.number().int().min(0).max(6),
+  time: z.number().int().min(0).max(86399),
+  campus: z.string().min(1).max(40),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isDate).nullable().optional(),
+});
+
 export interface AppOptions {
   campus: CampusModel;
   ask: (question: string, ctx: ServerAskContext, signal: AbortSignal) => Promise<AskResult>;
+  /** One chat turn (chat.ts); without it /api/chat answers 503 and the directory says chat is unavailable. */
+  chat?: (input: { messages: ChatTurn[] }, ctx: ChatContext, signal: AbortSignal) => Promise<ChatResponse>;
+  /** The directory's domains; built from the campus model when not given. */
+  directory?: () => DataDomain[];
   keyConfigured: boolean;
   model: string;
   /** Per client address, per minute. */
@@ -92,7 +112,11 @@ export function createApp(options: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', options.trustProxyHops ?? Number(process.env.TRUST_PROXY_HOPS ?? 0));
+  // A chat request carries up to 12 turns; everything else stays at 4 KB. The first parser to run wins.
+  app.use('/api/chat', express.json({ limit: '64kb' }));
   app.use(express.json({ limit: '4kb' }));
+  let domains: DataDomain[] | undefined;
+  const directory = () => (domains ??= options.directory?.() ?? buildDirectory(campus));
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, model: options.model, keyConfigured: options.keyConfigured, privateBundle: campus.privateBundle });
@@ -110,25 +134,33 @@ export function createApp(options: AppOptions) {
       return;
     }
     const { question, weekday, time, campus: campusId } = parsed.data;
+    const playback = ready(weekday, req, res);
+    if (!playback) return;
+    await run(res, 'ask', (signal) => ask(question, contextFor(playback, weekday, time, campusId), signal));
+  });
+
+  /**
+   * The simulated day when it's built and the client is within its limits; otherwise answers 503
+   * warming up (and starts the build) or 429, and returns undefined. A chat turn counts like a question.
+   */
+  function ready(weekday: number, req: Request, res: Response) {
     const playback = campus.ready(weekday);
     if (!playback) {
       // Start (or keep) building the day in the background; the client asks again shortly.
       campus.playback(weekday).catch((error: Error) => console.error(`couldn't simulate ${WEEKDAYS[weekday]}: ${error.name}`));
       res.setHeader('Retry-After', String(retryAfter));
       res.status(503).json({ error: `Warming up the simulation for ${WEEKDAYS[weekday]}, try again in a few seconds.`, retryAfter });
-      return;
+      return undefined;
     }
     if (!perClient(clientKey(req.ip)) || !overall('all')) {
       res.status(429).json({ error: 'Too many questions. Try again in a minute.' });
-      return;
+      return undefined;
     }
+    return playback;
+  }
 
-    // The timeout covers only the paid model run; a client that leaves cancels it.
-    const timeout = AbortSignal.timeout(options.timeoutMs ?? 25_000);
-    const disconnect = new AbortController();
-    res.on('close', () => { if (!res.writableFinished) disconnect.abort(); });
-    const signal = AbortSignal.any([timeout, disconnect.signal]);
-    const ctx: ServerAskContext = {
+  function contextFor(playback: NonNullable<ReturnType<CampusModel['ready']>>, weekday: number, time: number, campusId: string): ServerAskContext {
+    return {
       locations: campus.locations,
       walkRoutes: campus.walkRoutes,
       meetings: campus.meetings,
@@ -139,19 +171,52 @@ export function createApp(options: AppOptions) {
       data: campus.facts.data,
       facts: campus.facts,
     };
+  }
+
+  /** Runs the paid model call with the timeout and disconnect handling both endpoints share. */
+  async function run(res: Response, what: 'ask' | 'chat', answer: (signal: AbortSignal) => Promise<object>) {
+    // The timeout covers only the paid model run; a client that leaves cancels it.
+    const timeout = AbortSignal.timeout(options.timeoutMs ?? 25_000);
+    const disconnect = new AbortController();
+    res.on('close', () => { if (!res.writableFinished) disconnect.abort(); });
+    const signal = AbortSignal.any([timeout, disconnect.signal]);
     try {
-      const result = await ask(question, ctx, signal);
+      const result = await answer(signal);
       if (!disconnect.signal.aborted) res.json(result);
     } catch (error) {
       if (disconnect.signal.aborted) {
-        console.error('ask cancelled: client disconnected');
+        console.error(`${what} cancelled: client disconnected`);
         return;
       }
       const timedOut = timeout.aborted;
       // Log the failure kind, not the question: questions can carry personal details.
-      console.error(`ask failed: ${timedOut ? 'timeout' : error instanceof Error ? error.name : 'unknown'}`);
+      console.error(`${what} failed: ${timedOut ? 'timeout' : error instanceof Error ? error.name : 'unknown'}`);
       res.status(timedOut ? 504 : 502).json({ error: timedOut ? 'The answer took too long. Try again.' : 'Couldn’t get an answer right now.' });
     }
+  }
+
+  app.get('/api/chat/directory', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.json({ domains: directory(), chatAvailable: options.keyConfigured && Boolean(options.chat), model: options.model });
+  });
+
+  app.post('/api/chat', async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const parsed = ChatRequest.safeParse(req.body);
+    if (!parsed.success || !campuses.has(parsed.data.campus)) {
+      res.status(400).json({ error: `Send { messages (1–12 turns, the last from the user, 1–300 characters), weekday (0 = Monday), time (seconds since midnight), campus (${[...campuses].join(', ')}), date (YYYY-MM-DD or null) }.` });
+      return;
+    }
+    const chat = options.chat;
+    if (!options.keyConfigured || !chat) {
+      res.status(503).json({ error: 'Chat is not configured on this server (no OpenAI key).' });
+      return;
+    }
+    const { messages, weekday, time, campus: campusId, date } = parsed.data;
+    const playback = ready(weekday, req, res);
+    if (!playback) return;
+    const ctx: ChatContext = { ...contextFor(playback, weekday, time, campusId), date: date ?? null };
+    await run(res, 'chat', (signal) => chat({ messages }, ctx, signal));
   });
 
   // Last: malformed or oversized bodies and anything unexpected become a short JSON error. Only the
