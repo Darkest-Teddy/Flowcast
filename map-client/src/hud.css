@@ -60,7 +60,6 @@
 .hud-legend,
 .hud-ask .ask-form,
 .hud-ask .ask-transcript,
-.hud-campus-menu,
 .hud-tag-menu,
 .hud-month {
   background: var(--hud-fill);
@@ -97,7 +96,7 @@
  * Not accent blue, which is the Quiet crowd colour on this map (theme/crowd.ts),
  * and not a hue per button, which made six lit toggles six different signals.
  */
-.hud :is(.hud-rail-button[aria-pressed='true'], .hud-tabs [role='tab'][aria-selected='true'], .hud-speeds button[aria-pressed='true'], .hud-step[aria-pressed='true'], .hud-live-toggle[aria-pressed='true'], .hud-campus-menu button[aria-checked='true'], .hud-tag-menu button[aria-checked='true']) {
+.hud :is(.hud-rail-button[aria-pressed='true'], .hud-tabs [role='tab'][aria-selected='true'], .hud-speeds button[aria-pressed='true'], .hud-step[aria-pressed='true'], .hud-live-toggle[aria-pressed='true'], .hud-tag-menu button[aria-checked='true']) {
   background: var(--map-selected);
   color: var(--color-ink);
   font-weight: var(--weight-semibold);
@@ -153,80 +152,49 @@
   letter-spacing: var(--tracking-text);
 }
 
-/* The campus, as a button when there is more than one and a label when there is not. */
-.hud-campus {
+/* Back to the dashboard: a pill beside the wordmark, with the bento icon. */
+.hud-dashboard {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   height: var(--hud-button);
-  padding: 0 var(--space-2) 0 var(--space-3);
-  border: 0;
+  padding: 0 var(--space-3) 0 var(--space-2);
   border-radius: var(--radius-capsule);
   background: var(--map-control);
   color: var(--color-ink);
-  font: inherit;
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
   white-space: nowrap;
-  cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
-.hud-campus.is-static {
-  background: none;
-  padding: 0 var(--space-3) 0 var(--space-1);
+.hud-dashboard svg {
+  width: 16px;
+  height: 16px;
   color: var(--map-ink-secondary);
-  cursor: default;
+}
+
+.hud-dashboard:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) {
-  .hud-campus:not(.is-static):hover {
+  .hud-dashboard:hover {
     background: var(--map-hover);
+    text-decoration: none;
   }
 }
 
-.hud-campus svg {
-  color: var(--map-ink-secondary);
-}
+/* Narrow screens: the icon alone, so the brand bar still fits beside the clock. */
+@media (max-width: 800px) {
+  .hud-dashboard {
+    padding: 0 var(--space-2);
+  }
 
-.hud-campus-wrap {
-  position: relative;
-  display: flex;
-}
-
-/* Hangs below the campus button, aligned to its left edge. */
-.hud-campus-menu {
-  position: absolute;
-  top: calc(100% + var(--space-2));
-  left: 0;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 200px;
-  padding: var(--space-2);
-  border-radius: var(--radius-panel);
-}
-
-.hud-campus-menu button {
-  height: var(--hud-button);
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--color-ink);
-  font: inherit;
-  font-size: var(--text-md);
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-standard);
-}
-
-@media (hover: hover) {
-  .hud-campus-menu button:hover {
-    background: var(--map-hover);
+  .hud-dashboard span {
+    display: none;
   }
 }
 
@@ -1169,11 +1137,6 @@
 @media (max-width: 800px) {
   .app {
     --hud-dock-h: calc(var(--space-3) * 2 + var(--hud-bar-height) + var(--space-2) + var(--hud-button) + env(safe-area-inset-bottom));
-  }
-
-  /* The campus still reads in the panel; the pill has no room for it. */
-  .hud-campus {
-    display: none;
   }
 
   .hud-status {
