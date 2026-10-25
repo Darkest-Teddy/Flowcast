@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { LightPreset } from './map/basemap';
 import { INTRO_KEY, introSources } from './intro';
-import { introSound, setSoundMuted, soundState } from './introSound';
+import { introSound, setSoundMuted, soundOn } from './introSound';
 import './intro.css';
 
 /**
@@ -88,13 +88,10 @@ function stillFor(preset: LightPreset): { src: string; srcSet?: string } {
 export function IntroScreen({ progress, preset }: { progress: LoadProgress; preset: LightPreset }) {
   const state = useSyncExternalStore(progress.subscribe, progress.get);
   const [still] = useState(() => stillFor(preset));
-  // The sound's state for the speaker button, checked while the loading screen is up (the browser
-  // may hold the audio back until a press on the page: then the button asks for one).
-  const [sound, setSound] = useState(soundState);
+  // The speaker button: the intro's sound on or off (on by default).
+  const [sound, setSound] = useState(soundOn);
   useEffect(() => {
     introSound.prepare();
-    const timer = window.setInterval(() => setSound(soundState()), 400);
-    return () => window.clearInterval(timer);
   }, []);
   // Downloads fill the first part of the bar by count (slightly filled from the start, so it never
   // sits empty); each stage after them eases on to its mark over its expected time.
@@ -125,17 +122,16 @@ export function IntroScreen({ progress, preset }: { progress: LoadProgress; pres
         <>
         <button
           type="button"
-          className={`intro-sound${sound === 'blocked' ? ' is-blocked' : ''}`}
-          aria-pressed={sound === 'on' || sound === 'starting'}
+          className="intro-sound"
+          aria-pressed={sound}
           aria-label="Intro sound"
-          title={sound === 'off' ? 'Turn the intro sound on' : sound === 'blocked' ? 'The browser is holding the sound back: tap to hear it' : 'Turn the intro sound off'}
-          onClick={() => { setSoundMuted(sound === 'on' || sound === 'starting'); setSound(soundState()); }}
+          title={sound ? 'Turn the intro sound off' : 'Turn the intro sound on'}
+          onClick={() => { setSoundMuted(sound); setSound(soundOn()); }}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
-            {sound === 'off' ? <path d="M16 9.5l5 5m0-5l-5 5" /> : <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />}
+            {sound ? <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /> : <path d="M16 9.5l5 5m0-5l-5 5" />}
           </svg>
-          {sound === 'blocked' && <span>Tap for sound</span>}
         </button>
         <div className="intro-progress">
           <p className="intro-step" aria-live="polite">{step}…</p>

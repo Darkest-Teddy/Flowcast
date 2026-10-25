@@ -925,16 +925,15 @@ export default function App() {
           const unwatch = basemap.onUserInteraction(() => { introStopped = true; });
           loadProgress.finish(); // the still goes: the live map is under it at the same camera
           setIntroPhase('drop');
-          introSound.clouds(900);
           for (const [i, step] of INTRO_DROPS.entries()) {
             if (cancelled || introStopped) break;
-            introSound.drop(step.ms, i > 0); // the clouds' whoosh carries the first drop
+            introSound.drop(i);
             basemap.easeTo({ zoom: sky.zoom + step.zoomDown, duration: step.ms, easing: easeInOutCubic });
             await sleep(step.ms + step.hold);
           }
           setIntroPhase('land');
           if (!cancelled && !introStopped) {
-            introSound.swoop(INTRO_SWOOP_MS);
+            introSound.swoop(); // the last boom, its rumble running on past the landing, then the chime
             basemap.easeTo({ ...INITIAL_VIEW, padding: paddingRef.current, duration: INTRO_SWOOP_MS, easing: easeInOutCubic });
             await sleep(INTRO_SWOOP_MS);
           }

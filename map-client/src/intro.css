@@ -80,23 +80,6 @@
   stroke-linejoin: round;
 }
 .intro-sound:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-/* The browser is holding the sound back: say so, and ask for the press that lets it play. */
-.intro-sound.is-blocked {
-  grid-auto-flow: column;
-  gap: 8px;
-  width: auto;
-  padding: 0 16px 0 12px;
-  font: 600 13px/1 system-ui, sans-serif;
-  background: rgba(0, 102, 204, 0.9);
-  border-color: rgba(255, 255, 255, 0.5);
-  animation: intro-sound-ask 1.6s ease-in-out infinite;
-}
-@keyframes intro-sound-ask {
-  50% { box-shadow: 0 0 0 6px rgba(0, 102, 204, 0.25); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .intro-sound.is-blocked { animation: none; }
-}
 
 .intro-error {
   pointer-events: auto;

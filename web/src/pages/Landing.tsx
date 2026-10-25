@@ -286,9 +286,9 @@ function LandingNav({ away }: { away: boolean }) {
 /* ---------- 01 Hero ---------- */
 
 function Hero({ preset, still }: { preset: ReturnType<typeof presetNow>; still: ReturnType<typeof introSources> }) {
-  // Once the still is up, start the map behind the scenes (prepareMap), so it opens ready or nearly.
+  // Once the still is up, ready the map behind the scenes (prepareMap), so its downloads are done by the click.
   const [stillUp, setStillUp] = useState<HTMLImageElement | null>(null);
-  useEffect(() => (stillUp ? prepareMap(config.mapUrl, stillUp) : undefined), [stillUp]);
+  useEffect(() => (stillUp ? prepareMap(stillUp) : undefined), [stillUp]);
 
   // Scrolling away, the words drift up and fade before the picture leaves.
   const heroRef = useRef<HTMLElement>(null);
