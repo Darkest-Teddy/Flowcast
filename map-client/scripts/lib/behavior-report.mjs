@@ -50,7 +50,41 @@ export function scoreTable(legacy, current) {
   return lines.join('\n');
 }
 
-export function writeReport({ legacy, current, audits, timings, search, accepted, notes = [] }) {
+/** Observed MBTA ridership and pedestrian counts, per series group: one column set per model. */
+export function observationTable(columns) {
+  const runs = columns.filter(([, built]) => built?.some(row => row.observed));
+  if (!runs.length) return '';
+  const cell = (value, digits = 2) => value === null || value === undefined ? '—' : Number(value).toFixed(digits);
+  const lines = [];
+  for (const day of runs[0][1].filter(row => row.observed)) {
+    lines.push(`\n**${day.spec.label}**\n`);
+    lines.push(`| Series group | n | ${runs.map(([name]) => `${name}: students r / peak h / ratio / overflow`).join(' | ')} |`);
+    lines.push(`|---|---|${runs.map(() => '---').join('|')}|`);
+    for (const group of day.observed.groups) {
+      const parts = runs.map(([, built]) => {
+        const g = built.find(row => row.spec.label === day.spec.label)?.observed?.groups.find(row => row.id === group.id);
+        return g ? `${cell(g.shape)} / ${cell(g.peakHours, 1)} / ${cell(g.ratio)} / ${cell(g.overflow)}` : '—';
+      });
+      lines.push(`| ${group.label} | ${group.series} | ${parts.join(' | ')} |`);
+    }
+    const medians = runs.map(([name, built]) => {
+      const o = built.find(row => row.spec.label === day.spec.label)?.observed;
+      return o ? `${name}: students alone median r ${cell(o.studentsOnly.medianShape)}, median ratio ${cell(o.studentsOnly.medianRatio)}; students + public median r ${cell(o.everyone.medianShape)}, median ratio ${cell(o.everyone.medianRatio)} (${o.everyone.series} series); students through Kenmore's gates ${Math.round(o.kenmoreStudentEntries)}` : '';
+    });
+    lines.push('', ...medians.map(text => `- ${text}`));
+  }
+  return lines.join('\n');
+}
+
+/** What the observed counts show that engine parameters cannot fix (for the day builder's owner). */
+export const OBSERVATION_FINDINGS = [
+  "Observed counts, findings for the day builder (not engine parameters): no student enters through Kenmore's gates or rides from the Fenway or Longwood stations, because the transit planner's campus stop set and weights (transitService.ts / sourceDay.ts commutes) never pick them.",
+  "Students alone exceed the counts at Green Line C stops (Hawes Street: 150 student alightings a day toward Cleveland Circle vs 30 counted; Kent Street 144 vs 32) and at several Route 57 stops (e.g. stop 933: 250 student boardings vs 104 counted): the planner weights a commuter's stop by published weekly trips, which loads the C branch and the 57; the engine has no parameter for stop choice.",
+  "Comm Ave crosswalks see 2–4× the counted crossings in the 12:00–12:15 class change (Granby 2,164 vs 543; Cummington 2,176 vs 447; St Mary's 1,696 vs 706): weekly enrollment spreads each student's classes across the campus, so most class changes cross Comm Ave. Attendance below 100% and longer minimum trips home help only a little; the fit kept attendance at 100% because lowering it also cut dining-hall meals below BU Dining's counts.",
+  "On Saturdays almost no students ride (B branch BU stops 2% of counts): commuters only come in on class days and residents' outings walk to a gateway rather than board a published trip.",
+];
+
+export function writeReport({ legacy, current, audits, timings, search, accepted, notes = [], observed = [] }) {
   const auditRows = Object.keys(audits.current).map(key => `| ${key} | ${fmt(audits.legacy[key])} | ${fmt(audits.current[key])} |`);
   const text = `# Behaviour validation
 
@@ -77,7 +111,12 @@ ${scoreTable(legacy, current)}
 |---|---|---|
 ${auditRows.join('\n')}
 
-## Build time
+${observed.length ? `## Observed MBTA ridership and pedestrian counts
+
+Scored with \`scoreObservations\` (src/sim/validate.ts) on the series in \`public/data/calibration-observations.json\` (see docs/calibration-observations.md). Students are the only people in university buildings; streets and the T also carry the public crowd (sim/publicCrowd.ts), which fills observed − students wherever students fall short, so students + public match by construction except where students alone exceed a count. The calibration therefore scores: the **timing of the students' own peaks** at BU-dominated places (B branch BU stops, ons and offs with both directions added; Comm Ave crosswalks, 2018 15-min and 2012 midday), as volume-weighted Pearson r and hours between busiest bins, weighted like FitRec and the library; a **band penalty** where students exceed their plausible share of a count ("overflow": students above observed × the series' high expected student share, as a share of everyone counted); and students + public shape and level over all primary series (public fill per publicCrowd.ts's rule).
+${observationTable(observed)}
+
+## Build time` : '## Build time'}
 
 ${timings.map(row => `- ${row.label}: ${row.ms.toFixed(0)} ms`).join('\n')}
 
@@ -92,7 +131,7 @@ ${search ? `## Calibration search
 ` : ''}
 ## Notes and limitations
 
-${['Library gate counts are from a small theology library in 2019–20; only their hourly shape is used. Mugar’s 800-seat capacity is a configured model value, not published.', 'Bluebikes dock activity is a proxy for when people move around campus, not a pedestrian count.', 'FitRec counts are entries (people can enter more than once) and include all FitRec users with a valid pass.', 'Outdoor (BU Beach, Esplanade, river path) shares are assumptions; there are no counts in the data. They are bounded by sanity checks only.', 'Only about 64% of catalog offerings map to buildings (unmatched building codes in the pipeline); unmapped course time is placed on BU’s class grid in BU buildings by the conditions engine.', 'The simulated day still runs midnight to midnight; late-night presence after 24:00 is not modelled.', ...notes].map(line => `- ${line}`).join('\n')}
+${['Library gate counts are from a small theology library in 2019–20; only their hourly shape is used. Mugar’s 800-seat capacity is a configured model value, not published.', 'Bluebikes dock activity is a proxy for when people move around campus, not a pedestrian count.', 'FitRec counts are entries (people can enter more than once) and include all FitRec users with a valid pass.', 'Outdoor (BU Beach, Esplanade, river path) shares are assumptions; there are no counts in the data. They are bounded by sanity checks only.', 'Only about 64% of catalog offerings map to buildings (unmatched building codes in the pipeline); unmapped course time is placed on BU’s class grid in BU buildings by the conditions engine.', 'The simulated day still runs midnight to midnight; late-night presence after 24:00 is not modelled.', ...OBSERVATION_FINDINGS, ...notes].map(line => `- ${line}`).join('\n')}
 `;
   const path = resolve(ROOT, '..', 'docs', 'behavior-validation.md');
   writeFileSync(path, text);
