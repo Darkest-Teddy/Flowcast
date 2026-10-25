@@ -115,13 +115,13 @@
    loads. Art over a photo, like the progress line: it keeps the dark glass values and light ink in
    both themes. */
 
-/* The shot leads and the text column is the narrower one. The captures are 1000 × 1190, so the
-   shot column is sized from the window's height at that ratio and is never cropped; the card is
-   the shot plus the text, so it hugs both. 600px tall keeps the shot about 504px wide, which the
-   1000px captures still cover at 2x. */
+/* The shot leads and the text column is the narrower one. The captures are 1568 × 1120 (7:5), so
+   the shot column is sized from the window's height at that ratio and is never cropped; the card
+   is the shot plus the text, so it hugs both. 560px tall keeps the shot 784px wide, which the
+   1568px captures cover exactly at 2x. */
 .intro-tips {
-  --tips-shot-w: min(calc(min(68vh, 600px, 100vh - 168px) * 1000 / 1190), calc(100vw - 312px));
-  --tips-text-w: clamp(280px, 26vw, 380px);
+  --tips-shot-w: min(calc(min(62vh, 560px, 100vh - 168px) * 7 / 5), calc(100vw - 292px));
+  --tips-text-w: clamp(260px, 20vw, 320px);
   pointer-events: auto;
   position: absolute;
   z-index: 60;
@@ -192,7 +192,7 @@
 .intro-tip h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(24px, 2.3vw, 36px);
+  font-size: clamp(22px, 1.9vw, 30px);
   font-weight: 700;
   line-height: var(--leading-display);
   letter-spacing: var(--tracking-display);
@@ -277,12 +277,12 @@
 }
 
 /* The shots run the full height of the card, edge to edge, and crossfade with the text. The column
-   keeps the captures' own ratio (1000 × 1190), so cover never crops the playback controls or the
-   crowd scale out of a shot. */
+   keeps the captures' own ratio (7:5), so cover never crops the playback controls or the crowd
+   scale out of a shot. */
 .intro-tips-shots {
   position: relative;
   flex: 0 0 var(--tips-shot-w);
-  aspect-ratio: 1000 / 1190;
+  aspect-ratio: 7 / 5;
   overflow: hidden;
 }
 .intro-tips-shots img {

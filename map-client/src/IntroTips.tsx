@@ -14,7 +14,7 @@ interface Tip {
   body: string;
   /** Where in the app the feature lives, under the body in secondary ink. */
   where: string;
-  /** public/intro/tips/<shot>-1000.webp, a capture of the feature from the running app. */
+  /** public/intro/tips/<shot>-wide.webp, a 1568×1120 (7:5) capture of the feature from the running app. */
   shot: string;
   alt: string;
 }
@@ -25,42 +25,42 @@ const TIPS: Tip[] = [
     body: 'Every building glows by how full it is, and its tag shows a level word and a percentage. Scrub the timeline, play at up to 600× speed, or switch to Clock to follow the real time in Boston.',
     where: 'Playback · top of the map',
     shot: 'crowds',
-    alt: 'Commonwealth Avenue at 12:20 PM: buildings glowing by how full they are, crowd tags on Yawkey, CDS and Saxbys, and the playback controls at the top',
+    alt: 'Commonwealth Avenue at 12:20 PM: buildings glowing by how full they are, each tagged with its percentage, and the playback controls at the top',
   },
   {
     title: 'Plan around campus events',
     body: 'During an event, students who are free attend it, up to the room’s published seat count, and the venue lights up on the map.',
     where: 'Events tab',
     shot: 'events',
-    alt: 'A Thursday evening with the Events tab open: two campus events, their rooms and simulated attendance, and the venue packed on the map',
+    alt: 'A Thursday evening with the Events tab open on the day’s two campus events, and Agganis Arena on the map with 120 people at the play',
   },
   {
     title: 'See what an event changes',
     body: 'Pick any date on the calendar to see that day’s events and, for every place, hour-by-hour crowding with and without them.',
     where: 'Event impact',
     shot: 'impact',
-    alt: 'The Event impact page: a calendar of dates with events, and hour-by-hour bars for Agganis Arena and the College of Arts and Sciences with and without them',
+    alt: 'The Event impact page for Thursday, October 29: the day’s two events with their simulated attendance, and hour-by-hour bars for Agganis Arena and the College of Arts and Sciences with and without them',
   },
   {
     title: 'Rehearse emergencies',
     body: 'Start a fire drill, alarm or closure on any building. Occupants evacuate, gather, then choose a feasible next place, compared against the normal day.',
     where: 'Log tab',
     shot: 'incidents',
-    alt: 'The Log tab setting up a fire drill: the scenario chips, the building at the centre, a 250 m radius and the eighteen buildings it affects',
+    alt: 'The Log tab setting up a fire drill: the scenario chips, Yawkey Center as the centre and a 250 m radius, drawn on the map around it',
   },
   {
     title: 'Ask where to go',
     body: 'Try “Least crowded library right now” or “Quietest dining hall at 6 PM”. Answers come from the same simulation and walking routes the map uses.',
     where: 'Ask · bottom of the map',
     shot: 'ask',
-    alt: 'Ask answering “Least crowded library right now” with every library ranked by how full it is',
+    alt: 'Ask answering “Least crowded library right now” with the libraries ranked by how full they are, and Mugar Memorial Library picked out on the map',
   },
   {
     title: 'Never colour alone',
     body: 'Crowd levels use three steps, Quiet, Busy and Packed, always with a word, a percentage and a one, two or three people icon.',
     where: 'Building tags',
     shot: 'levels',
-    alt: 'Close-up of building tags: Yawkey packed at 100% of seats and Saxbys at 92% in red, CDS, CAS and ENG busy in yellow, with the crowd scale below them',
+    alt: 'Building tags along Commonwealth Avenue: Yawkey Center’s tag opened at 100% Packed, Saxbys at CDS at 92% in red, busy buildings in yellow and quiet ones in blue, with the crowd scale below them',
   },
 ];
 
@@ -182,7 +182,7 @@ export function IntroTips() {
             <img
               key={tip.shot}
               className={i === index ? 'is-on' : undefined}
-              src={`/intro/tips/${tip.shot}-1000.webp`}
+              src={`/intro/tips/${tip.shot}-wide.webp`}
               alt={tip.alt}
               decoding="async"
             />
