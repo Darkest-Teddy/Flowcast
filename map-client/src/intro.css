@@ -7,6 +7,7 @@
   inset: 0;
   z-index: 50;
   overflow: hidden;
+  pointer-events: none; /* the map under it can be grabbed once the still has gone */
 }
 
 /* Covers the window exactly as the live map will (centred, object-fit: cover; intro.ts works out
@@ -56,6 +57,7 @@
 }
 
 .intro-error {
+  pointer-events: auto;
   position: absolute;
   left: 50%;
   top: 50%;
