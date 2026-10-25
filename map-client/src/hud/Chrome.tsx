@@ -726,30 +726,3 @@ export function HudDate({ value, onPick }: { value: string; onPick: (date: strin
 export function HudAsk({ children }: { children: ReactNode }) {
   return <div className="hud-ask">{children}</div>;
 }
-
-/* ---------------------------------------------------------------------------
- * Right panel.
- * ------------------------------------------------------------------------- */
-export function HudPanel({
-  id,
-  title,
-  onClose,
-  children,
-}: {
-  id: string;
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <aside className="hud-panel" id={`hud-panel-${id}`} role="tabpanel" aria-labelledby={`hud-tab-${id}`}>
-      <header className="hud-panel-head">
-        <h2>{title}</h2>
-        <button type="button" className="hud-panel-close" onClick={onClose} aria-label={`Close ${title}`}>
-          <HudIcons.close />
-        </button>
-      </header>
-      <div className="hud-panel-body">{children}</div>
-    </aside>
-  );
-}

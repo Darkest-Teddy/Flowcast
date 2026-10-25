@@ -1179,3 +1179,70 @@ select.tool { padding: 0 8px 0 12px; }
 
 /* Brand mark beside the sheet title (the favicon art). */
 .sheet-logo { width: 24px; height: 24px; margin-right: var(--space-2); vertical-align: -4px; }
+
+/* ---------------------------------------------------------------------------
+ * The what-if's area on the map (WhatIfCircle.tsx)
+ * ------------------------------------------------------------------------- */
+/*
+ * Drawn over the map, above the tags, below the chrome. Only the drag handle
+ * takes the pointer: the ring and its label are a readout, and a circle that
+ * swallowed clicks would stop you selecting the buildings it covers.
+ */
+.wi-circle {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/*
+ * fill and stroke are painted per frame by WhatIfCircle.tsx, which knows the
+ * scenario's hue. What is here is the shape, and a neutral that still reads if
+ * the overlay has not drawn yet: an unresolvable var() in `fill` computes to
+ * black, which put an opaque disc over the campus.
+ */
+.wi-ring {
+  fill: rgba(245, 245, 247, 0.06);
+  stroke: #f5f5f7;
+  stroke-width: 1.5;
+  stroke-dasharray: 7 6;
+}
+
+.wi-centre {
+  fill: #f5f5f7;
+  stroke: rgb(10 12 18 / 0.75);
+  stroke-width: 2;
+}
+
+/*
+ * White, so it reads as a control rather than as part of the scenario's colour,
+ * with the scenario's hue as its rim. touch-action is what stops a drag on it
+ * from panning the map on a touchscreen.
+ */
+.wi-handle {
+  fill: #f5f5f7;
+  stroke: #f5f5f7;
+  stroke-width: 2;
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.wi-handle:hover {
+  r: 14;
+}
+
+.wi-label rect {
+  fill: rgb(13 16 23 / 0.88);
+  stroke: rgb(245 245 247 / 0.4);
+}
+
+.wi-label text {
+  fill: #f5f5f7;
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 700;
+}

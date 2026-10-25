@@ -289,3 +289,17 @@
     transition: none;
   }
 }
+
+/*
+ * The live character beside the code.
+ *
+ * 48 x 64 on screen, drawn at twice that so it stays crisp on a retina display.
+ * It is decorative: the card says what it is in words, and the renderer is
+ * allowed to fail without the invitation losing its meaning.
+ */
+.join-character {
+  display: block;
+  flex: none;
+  width: 48px;
+  height: 64px;
+}
