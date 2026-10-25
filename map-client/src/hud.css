@@ -1166,7 +1166,7 @@
  * become one sheet along the bottom edge, and the ask bar sits above it. The
  * legend and the join card stand down (the map tags carry the level words).
  */
-@media (max-width: 800px) {
+@media (max-width: 980px) {
   .app {
     --hud-dock-h: calc(var(--space-3) * 2 + var(--hud-bar-height) + var(--space-2) + var(--hud-button) + env(safe-area-inset-bottom));
   }
@@ -1252,12 +1252,20 @@
     margin: var(--space-2) 0;
   }
 
-  /* The tag flyout opens upward from the sheet rather than off the screen. */
+  /*
+   * The tag flyout opens upward from the sheet rather than off the screen. It hangs off the dock,
+   * not its button: the rail scrolls sideways here, and a scroller clips whatever is positioned
+   * inside it, so a menu anchored in the rail was cut away entirely.
+   */
+  .hud-dock .hud-rail-tags {
+    position: static;
+  }
+
   .hud-tag-menu {
     top: auto;
     bottom: calc(100% + var(--space-3));
     left: auto;
-    right: 0;
+    right: var(--hud-inset);
     width: min(248px, calc(100vw - 2 * var(--hud-inset)));
   }
 
@@ -1284,6 +1292,18 @@
   .app .sheet.is-phone {
     top: calc(var(--hud-inset) + 2 * (var(--hud-bar-height) + var(--hud-gap)));
     bottom: var(--hud-dock-h);
+    transition: transform var(--sheet-ms) var(--sheet-ease), top var(--sheet-ms) var(--sheet-ease);
+  }
+
+  /* A drag follows the finger (styles.css), which the transition above would otherwise outrank. */
+  .app.is-dragging .sheet.is-phone {
+    transition: none;
+  }
+
+  /* With the time controls open the clock card is three rows tall: the panel moves down under it
+     rather than being covered, as it starts under the whole card on wide screens. */
+  .app:has(.hud-status[data-open]) .sheet.is-phone {
+    top: calc(var(--hud-inset) + var(--hud-bar-height) + var(--hud-gap) + var(--hud-status-height) + var(--hud-gap));
   }
 
   /*
@@ -1303,6 +1323,102 @@
   .app .perf {
     top: calc(var(--hud-inset) + 2 * (var(--hud-bar-height) + var(--hud-gap)));
     left: var(--hud-inset);
+  }
+}
+
+/*
+ * A phone on its side: under 500px tall the phone layout's two top rows and two dock rows left a
+ * strip of map. It is wide enough for one of each instead: the clock card beside the brand, the tabs
+ * beside the rail. The notch is on a side now, so whatever meets a side keeps clear of it.
+ */
+@media (max-width: 980px) and (max-height: 500px) {
+  .app {
+    --hud-left: max(var(--hud-inset), env(safe-area-inset-left));
+    --hud-right: max(var(--hud-inset), env(safe-area-inset-right));
+    --hud-dock-h: calc(var(--space-3) * 2 + var(--hud-bar-height) + env(safe-area-inset-bottom));
+  }
+
+  .hud-brand {
+    left: var(--hud-left);
+  }
+
+  .hud-status {
+    top: var(--hud-inset);
+    left: auto;
+    right: var(--hud-right);
+    width: min(var(--hud-card-width), calc(100vw - var(--hud-left) - var(--hud-right) - 160px - var(--hud-gap)));
+  }
+
+  .hud-dock {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--hud-gap);
+    padding-left: var(--hud-left);
+    padding-right: var(--hud-right);
+  }
+
+  .hud-dock > .hud-tabs {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .hud-dock > .hud-rail {
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: var(--space-2);
+  }
+
+  .hud-tag-menu {
+    right: var(--hud-right);
+  }
+
+  .hud-ask {
+    left: var(--hud-left);
+    right: var(--hud-right);
+  }
+
+  .app .sheet.is-phone {
+    top: calc(var(--hud-inset) + var(--hud-bar-height) + var(--hud-gap));
+    left: env(safe-area-inset-left);
+    right: env(safe-area-inset-right);
+  }
+
+  .app:has(.hud-status[data-open]) .sheet.is-phone {
+    top: calc(var(--hud-inset) + var(--hud-status-height) + var(--hud-gap));
+  }
+
+  .app .perf {
+    top: calc(var(--hud-inset) + var(--hud-bar-height) + var(--hud-gap));
+    left: var(--hud-left);
+  }
+}
+
+/*
+ * Touch: 44px to the finger (--control-height-touch), as on the dashboard, without changing what
+ * is drawn: the 36px buttons keep their place in the 44px bars and reach 4px past their edges.
+ * Rail buttons have room on every side; the rest sit edge to edge in a row, so only up and down.
+ */
+@media (max-width: 980px) and (pointer: coarse) {
+  .hud :is(.hud-rail-button, .hud-tabs [role='tab'], .hud-status-more, .hud-step, .hud-time-play, .hud-speeds button, .hud-live-toggle) {
+    position: relative;
+  }
+
+  .hud :is(.hud-tabs [role='tab'], .hud-step, .hud-time-play, .hud-speeds button, .hud-live-toggle)::before,
+  .hud :is(.hud-rail-button, .hud-status-more)::before {
+    content: '';
+    position: absolute;
+    inset: calc((var(--hud-button) - var(--control-height-touch)) / 2) 0;
+  }
+
+  .hud :is(.hud-rail-button, .hud-status-more)::before {
+    inset: calc((var(--hud-button) - var(--control-height-touch)) / 2);
+  }
+
+  /* The rail scrolls sideways here, and a scroller clips (and stops taps on) whatever reaches past
+     its edge: room for the reach inside it, given back outside so nothing moves. */
+  .hud-dock > .hud-rail {
+    padding: calc((var(--control-height-touch) - var(--hud-button)) / 2);
+    margin: calc((var(--hud-button) - var(--control-height-touch)) / 2);
   }
 }
 

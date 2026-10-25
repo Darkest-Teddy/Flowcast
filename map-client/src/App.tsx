@@ -268,11 +268,16 @@ const CHROME_REFRESH_MS = 400;
 function measureChrome(): Box[] {
   const boxes: Box[] = [];
   // The dock only groups the tabs and the rail for phones (display: contents elsewhere), so its
-  // children are measured instead of it.
-  for (const el of document.querySelectorAll('.hud > :not(.hud-dock), .hud-dock > *, .join-slot, .perf')) {
+  // children are measured instead of it. An open panel is chrome too: on a phone it covers most of
+  // the map, and tags placed under it showed through the glass.
+  for (const el of document.querySelectorAll('.hud > :not(.hud-dock), .hud-dock > *, .join-slot, .perf, .sheet.is-open')) {
     const r = el.getBoundingClientRect();
     if (r.width > 0 && r.height > 0) boxes.push({ x0: r.left, x1: r.right, y0: r.top, y1: r.bottom });
   }
+  // Past the screen's sides counts as taken too: a tag that would hang off the edge lifts or drops
+  // out like one under the chrome, rather than being cut in half (most often on a phone).
+  const { innerWidth: w, innerHeight: h } = window;
+  boxes.push({ x0: -w, x1: 0, y0: -h, y1: 2 * h }, { x0: w, x1: 2 * w, y0: -h, y1: 2 * h });
   return boxes;
 }
 /** ?ask=least+crowded+library opens the Ask tab with that question answered. */

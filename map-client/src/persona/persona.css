@@ -276,7 +276,7 @@
  * Narrow screens. The chrome already moves the rail and the panel at 860/560;
  * the slot would sit on top of both, so it stands down to a single line.
  * ------------------------------------------------------------------------- */
-@media (max-width: 800px) {
+@media (max-width: 980px) {
   .join-slot {
     display: none;
   }

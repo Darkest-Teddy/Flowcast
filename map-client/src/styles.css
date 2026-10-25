@@ -631,7 +631,7 @@ select.tool { padding: 0 8px 0 12px; }
 .app .mapboxgl-ctrl-bottom-right, .app .maplibregl-ctrl-bottom-right { right: var(--sheet-space); }
 
 /* ---- Phones: the bottom sheet ---- */
-@media (max-width: 800px) {
+@media (max-width: 980px) {
   .sheet.is-phone {
     top: calc(env(safe-area-inset-top) + 44px);
     left: 0;
@@ -722,7 +722,7 @@ select.tool { padding: 0 8px 0 12px; }
   transition: opacity 0.28s ease;
 }
 .btag.is-hidden { opacity: 0; }
-.btag.is-hidden .btag-card, .btag.is-hidden .btag-pill, .btag.is-hidden .btag-dot { pointer-events: none; }
+.btag.is-hidden .btag-card, .btag.is-hidden .btag-pill, .btag.is-hidden .btag-marker, .btag.is-hidden .btag-dot { pointer-events: none; }
 .btag.is-selected { z-index: 2; }
 /* Open (expanded): hovered, focused (keyboard), the building hovered on the map, or selected. */
 .btag:hover, .btag:focus-within, .btag.is-open { z-index: 5; }
@@ -896,7 +896,15 @@ select.tool { padding: 0 8px 0 12px; }
   background: rgba(13, 16, 23, 0.88);
   color: rgb(var(--lv));
   cursor: pointer;
+  pointer-events: auto; /* the layer lets the map through; the marker opens its building, as the pill does */
   transition: scale 0.16s ease, border-color 0.18s ease;
+}
+/* Touch: a reach past the drawn edge. The marker to 44px (markers are thinned to one per cell); the
+   pill to 38px, as stacked pills sit 28px apart and a full 44 would take taps meant for the next. */
+@media (pointer: coarse) {
+  .btag-marker::before, .btag-pill::before { content: ''; position: absolute; }
+  .btag-marker::before { inset: -10px; }
+  .btag-pill::before { inset: -8px -4px; }
 }
 .btag[data-form='marker'] .btag-marker { display: grid; }
 .btag-marker svg { display: block; width: 12px; height: 12px; stroke-width: 2.2; }
