@@ -73,7 +73,9 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       if (!ranked.length) return { text: `There are no ${PLURAL[placeKind]} on this campus in the model.`, rows: [], show: null };
       const rows = ranked.map((r: RankedPlace) => ({
         location: r.location,
-        primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.share === null ? `${r.count.toLocaleString()} students` : `${pct(r.share)} ${crowdLevel(r.share).label}`,
+        // A residence near full could be fuller still (as on the building tags).
+        primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.share === null ? `${r.count.toLocaleString()} students`
+          : `${r.location.kind === 'dorm' && Math.round(r.share * 100) >= 95 ? '≥' : ''}${pct(r.share)} ${crowdLevel(r.share).label}`,
         secondary: [r.modeled && r.open === null ? 'Hours not published' : '', r.walk ? (r.walk.meters === 0 ? 'here' : `${r.walk.basis === 'estimate' ? '~' : ''}${r.walk.minutes} min walk`) : ''].filter(Boolean).join(' · '),
         share: r.open === false ? null : r.share,
       }));
