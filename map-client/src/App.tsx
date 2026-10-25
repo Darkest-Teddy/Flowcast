@@ -20,7 +20,7 @@ import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTa
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer, type Box } from './layers/placement';
 import { cullLayers } from './layers/culling';
-import { buildingModelLayers, campusBounds, campusFootprintLayer, DEFERRED_CAMPUSES, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
+import { buildingModelLayers, campusBounds, DEFERRED_CAMPUSES, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
 import { followLight } from './theme';
 import { loadMonuments, monumentLayers } from './layers/monuments';
@@ -736,8 +736,9 @@ export default function App() {
       setMapKind(basemap.kind);
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
       // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
-      // Standard's own 3D buildings are off).
-      const baselineExcludedBuildings = [...modelled].map((ref) => Number(ref.split('/')[1])).concat(fields ? fieldBuildingIds(fields) : []);
+      // Standard's own 3D buildings are off). The bare map on a phone draws no models, so there the
+      // base map's own buildings stand for the campus too.
+      const baselineExcludedBuildings = LOW_MEMORY ? [] : [...modelled].map((ref) => Number(ref.split('/')[1])).concat(fields ? fieldBuildingIds(fields) : []);
       basemap.excludeBuildings(baselineExcludedBuildings);
       let damageExclusionKey = '';
       // And by geometry: base-map buildings, labels and trees wherever our models stand.
@@ -924,7 +925,13 @@ export default function App() {
           return where ? `${who} → ${displayName(where)}` : who;
         },
       });
-      basemap.addControl(overlay);
+      /*
+       * Everything drawn in WebGL beyond the base map is this deck.gl overlay, drawing inside the
+       * base map's canvas. An iPhone showed no map with it attached, even with the overlay drawing
+       * nothing but footprints, so the bare map on a phone or tablet never attaches it: the base
+       * map draws the buildings and the HTML tags carry the crowd levels.
+       */
+      if (!LOW_MEMORY) basemap.addControl(overlay);
       // Fire response data is only needed once someone sounds a fire alarm: fetch it in the background
       // (not on the bare map of a phone, which draws no fire apparatus).
       if (!LOW_MEMORY) fireRef.current = Promise.all([loadFireNetwork(), loadFireModels()])
@@ -1264,11 +1271,9 @@ export default function App() {
         // Fans a meteor hit stop walking from that moment (the dead are drawn as ragdolls).
         const harmedFans = incidentRunRef.current?.fans?.harmed;
         if (harmedFans?.size) visitorFrame.drawn = visitorFrame.drawn.filter((fan) => !((harmedFans.get(fan.id) ?? Infinity) <= t));
-        // The bare map on a phone or tablet: its campus as plain footprints, and nothing else drawn
-        // in WebGL (the tags are HTML). The full list below never runs there.
-        const frameLayers = LOW_MEMORY ? (detailedBuildings
-          ? [campusFootprintLayer(detailedBuildings.manifest, campusRef.current, damageFootprints, lightRef.current)]
-          : []) : [
+        // The bare map on a phone or tablet draws nothing of its own in WebGL (the overlay isn't
+        // attached there; the tags are HTML), so the full list below never runs there.
+        const frameLayers = LOW_MEMORY ? [] : [
           ...fallbackDamageLayers(damage, new Set(detailedBuildings?.manifest.campuses
             .filter(campus => detailedBuildings.models[campus.id])
             .flatMap(campus => campus.buildings.map(building => building.osm)) ?? [])),

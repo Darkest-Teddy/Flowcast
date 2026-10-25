@@ -12,7 +12,6 @@
 // Model frame: metres, +x east, +y up, +z south (glTF convention), relative to the campus origin.
 // Every OSM id in the manifest (buildings, their building:part pieces and relation members) is
 // left out of the app's city-buildings layer, so nothing is drawn underneath the models.
-import { PolygonLayer } from '@deck.gl/layers';
 import { ScenegraphLayer } from '@deck.gl/mesh-layers';
 import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
@@ -133,50 +132,6 @@ export async function loadBuildings(url?: string, only?: string[], lights = true
   const manifest = await loadBuildingManifest(url);
   const models = await loadBuildingModels(manifest, only ?? manifest.campuses.map((c) => c.id).filter((id) => !DEFERRED_CAMPUSES.includes(id)), lights);
   return { manifest, models };
-}
-
-/** The detailed models' stand-in on the bare map: a campus's footprints, extruded. */
-const FOOTPRINT_COLOR: [number, number, number] = [186, 174, 162];
-const footprintsByCampus = new WeakMap<object, Map<string, { polygon: [number, number][]; height: number }[]>>();
-
-/**
- * The bare map on a phone or tablet (App.tsx, perf/quality.ts LOW_MEMORY): a campus is one cheap
- * extruded polygon per building in place of its detailed models, at the models' roof heights and
- * tinted by the same light.
- */
-export function campusFootprintLayer(
-  manifest: BuildingModelManifest,
-  campus: string,
-  footprints: readonly { id: string; polygon: [number, number][]; height: number }[],
-  lightPreset: BuildingLight = 'day',
-) {
-  let byCampus = footprintsByCampus.get(footprints);
-  if (!byCampus) footprintsByCampus.set(footprints, (byCampus = new Map()));
-  let data = byCampus.get(campus);
-  if (!data) {
-    const ids = new Set(manifest.campuses.find((c) => c.id === campus)?.buildings.map((b) => b.osm) ?? []);
-    data = footprints.filter((f) => ids.has(f.id)).map((f) => ({ polygon: f.polygon, height: f.height }));
-    byCampus.set(campus, data);
-  }
-  const tint = LIGHT_TINT[lightPreset];
-  const color: [number, number, number, number] = [
-    Math.round((FOOTPRINT_COLOR[0] * tint[0]) / 255),
-    Math.round((FOOTPRINT_COLOR[1] * tint[1]) / 255),
-    Math.round((FOOTPRINT_COLOR[2] * tint[2]) / 255),
-    255,
-  ];
-  return new PolygonLayer({
-    id: `campus-footprints-${campus}`,
-    data,
-    getPolygon: (d) => d.polygon,
-    extruded: true,
-    getElevation: (d) => Math.max(3, d.height),
-    getFillColor: color,
-    stroked: false,
-    pickable: false,
-    slot: 'middle',
-    updateTriggers: { getFillColor: lightPreset },
-  });
 }
 
 const loading = new Set<string>();
