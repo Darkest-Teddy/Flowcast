@@ -61,6 +61,10 @@
   max-width: 40ch;
 }
 
+.cta {
+  margin-top: var(--space-5);
+}
+
 .preview {
   min-width: 0;
 }

@@ -37,10 +37,16 @@ export function phaseOf(id: string, phases = PHASES): number {
 // Metres per model unit for a real ~1.8 m person (the Kenney characters are ~0.78 units tall).
 const REAL_SCALE = 2.3;
 
-/** True size at street level; grows as the camera pulls back so people stay visible on the
- *  campus overview (sizeMinPixels then keeps them at least ~17 px tall). */
+/** How much bigger than true-to-life people are drawn as the camera pulls back, so they stay
+ *  visible on the campus overview (sizeMinPixels then keeps them at least ~17 px tall). Shared
+ *  with layers/personas.ts, whose geometry is already authored in real metres (no REAL_SCALE). */
+export function zoomGrowth(zoom: number) {
+  return Math.min(8, Math.max(1, 2 ** (18.6 - zoom)));
+}
+
+/** True size at street level; grows as the camera pulls back (see zoomGrowth). */
 export function walkerScale(zoom: number) {
-  return REAL_SCALE * Math.min(8, Math.max(1, 2 ** (18.6 - zoom)));
+  return REAL_SCALE * zoomGrowth(zoom);
 }
 
 export interface AgentLayerOptions {

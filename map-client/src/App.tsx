@@ -3,6 +3,10 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
+import { personaLayers } from './layers/personas';
+import { personaAgentAt, type Persona, type PersonaAgent } from './sim/persona';
+import { getPersonas, subscribePersonas } from './sim/personaStore';
+import { JoinQr } from './JoinQr';
 import { crowdLayers, modelRoofHeights, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
@@ -116,6 +120,8 @@ export default function App() {
   const showTransitRef = useRef(true);
   const bikesRef = useRef<Bikes | null>(null);
   const showBikesRef = useRef(true);
+  // Phone-joined personas, read fresh by the frame loop; see sim/personaStore.ts.
+  const personasRef = useRef<Persona[]>(getPersonas());
 
   const [status, setStatus] = useState('Loading campus…');
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
@@ -427,6 +433,14 @@ export default function App() {
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
           ...agentLayers(walking, models, t, { zoom: basemap.getZoom() }),
+          // Date.now(), not the rAF `now` (ms since page load): the wander cycle is keyed by real
+          // wall-clock time so a persona's own phone screen agrees with what the map shows it doing.
+          ...personaLayers(
+            personasRef.current
+              .map((p) => personaAgentAt(p, day.locations, Date.now()))
+              .filter((a): a is PersonaAgent => a !== null),
+            { zoom: basemap.getZoom(), time: t, highlightId: selectedRef.current },
+          ),
           ...(currentMobility ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
@@ -469,6 +483,10 @@ export default function App() {
   }, [showTraffic, mapKind]);
 
   useEffect(() => { campusRef.current = campus; }, [campus]);
+
+  // Picks up personas joined from a phone (same browser, see sim/personaStore.ts) without a
+  // server round trip: a `storage` event fires in other tabs, a custom event fires in this one.
+  useEffect(() => subscribePersonas((personas) => { personasRef.current = personas; }), []);
 
   const goToCampus = (c: Campus) => {
     setCampus(c.id);
@@ -610,6 +628,7 @@ export default function App() {
 
       <PerfMonitor counts={getPerfCounts} />
       {mapKind && <CameraControls basemap={basemapRef.current} locations={ranked.map((o) => o.location)} />}
+      {mapKind && <JoinQr />}
       {mapKind && <WeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={(w) => { weatherRef.current = w; setWeather(w); }} />}
 
       {hud && (

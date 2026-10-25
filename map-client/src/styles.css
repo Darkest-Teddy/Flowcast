@@ -100,6 +100,12 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .note { left: 16px; bottom: 90px; margin: 0; padding: 8px 12px; font-size: 12px; color: var(--muted); }
 .note code { color: var(--text); }
 
+.qr { right: 16px; bottom: 112px; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 148px; }
+.qr-code { width: 120px; height: 120px; background: #fff; border-radius: 6px; padding: 6px; }
+.qr-code svg { display: block; width: 100%; height: 100%; }
+.qr-caption { margin: 0; text-align: center; font-size: 12px; line-height: 1.35; color: var(--text); }
+.qr-url { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; word-break: break-all; }
+
 .deck-tooltip { font-family: inherit !important; border-radius: 6px; }
 
 /* Transit & traffic tab */

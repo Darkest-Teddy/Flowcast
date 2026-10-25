@@ -9,10 +9,16 @@
     "noEmit": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "types": ["vite/client", "node"],
     "paths": {
       "@theme/*": ["../theme/*"],
-      "@map/*": ["../map-client/src/*"]
+      "@map/*": ["../map-client/src/*"],
+      // The landing page mounts map-client's renderer directly, so it imports deck.gl
+      // by name. Vite already resolves these at runtime by walking into map-client's
+      // own node_modules; this is the same resolution for the type checker.
+      "@deck.gl/*": ["../map-client/node_modules/@deck.gl/*"],
+      "@luma.gl/*": ["../map-client/node_modules/@luma.gl/*"]
     }
   },
   "include": ["src", "../theme", "vite.config.ts"]

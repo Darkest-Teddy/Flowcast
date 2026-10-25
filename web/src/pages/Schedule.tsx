@@ -12,6 +12,7 @@ const sourceLabel: Record<EventSource, string> = {
   club: 'Club',
   habit: 'Habit',
   suggested: 'Suggested',
+  course: 'Course',
 };
 
 function SourceTag({ item }: { item: ScheduleItem }) {
@@ -41,8 +42,13 @@ export default function Schedule() {
   const header = (
     <PageHeader
       title="Schedule"
-      description="Your week from Google Calendar, clubs and habits, with suggestions when a place is likely to be crowded."
-      actions={<Button to="/calendars">Manage calendars</Button>}
+      description="Your week from your courses, Google Calendar, clubs and habits, with suggestions when a place is likely to be crowded."
+      actions={
+        <>
+          <Button to="/courses">Add courses</Button>
+          <Button variant="ghost" to="/calendars">Manage calendars</Button>
+        </>
+      }
     />
   );
 

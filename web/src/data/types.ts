@@ -29,7 +29,7 @@ export interface CampusLocation {
   capacity: number;
 }
 
-export type EventSource = 'calendar' | 'club' | 'habit' | 'suggested';
+export type EventSource = 'calendar' | 'club' | 'habit' | 'suggested' | 'course';
 
 export interface ScheduleItem {
   id: string;
@@ -39,8 +39,45 @@ export interface ScheduleItem {
   end: string; // ISO
   source: EventSource;
   clubId?: string;
+  courseId?: string; // links back to the MyCourse this meeting came from, for removal
   note?: string;
   accepted?: boolean; // a suggested item the person added to their day
+}
+
+/** Two-letter ICS weekday order (MO=0 .. SU=6), used for recurrence and course meeting days. */
+export type Weekday = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
+
+/** One offered section in the course catalog a student can add manually, scraped from BU's
+ * published course pages (see data-pipeline/build_course_catalog.py) -- not live registration data. */
+export interface CourseOffering {
+  id: string;
+  code: string; // "CS 350"
+  title: string; // "Fundamentals of Computer Science 2"
+  section: string; // "A1"
+  instructor?: string;
+  days: Weekday[];
+  startTime: string; // "HH:MM", 24-hour
+  endTime: string;
+  locationId: string;
+}
+
+/**
+ * A course on the student's schedule, whether picked from the catalog or read from an .ics file.
+ * Carries its own meeting pattern (not just a reference back to the catalog) so it can be edited
+ * freely after being added, including one read from an import.
+ */
+export interface MyCourse {
+  id: string; // the CourseOffering id, or `ics:<slug>` for an imported one with no catalog match
+  code: string;
+  title: string;
+  section?: string;
+  instructor?: string;
+  days: Weekday[];
+  startTime: string; // "HH:MM", 24-hour
+  endTime: string;
+  locationId: string;
+  source: 'catalog' | 'ics';
+  addedAt: string; // ISO
 }
 
 export interface PlaceForecast {

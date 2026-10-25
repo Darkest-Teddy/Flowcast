@@ -1,0 +1,704 @@
+/*
+ * Flowcast marketing landing page.
+ * Authority: DESIGN.md (locked). Every value here comes from an --fc-* token.
+ *
+ * The reference object is a 1950s-60s New England university trail map printed on linen
+ * stock. The test for anything added below: would it appear on that object?
+ */
+
+/* ---------------------------------------------------------------------------
+ * Page shell
+ *
+ * The landing page pins itself to light. A printed map has no dark mode, and the
+ * app's three-way dark machinery in theme/tokens.css would otherwise drag the
+ * canvas to #000 underneath a linen page.
+ * ------------------------------------------------------------------------- */
+.page {
+  color-scheme: light;
+  background: var(--fc-linen);
+  color: var(--fc-ink-70);
+  font-family: var(--fc-font-text);
+  font-size: var(--fc-body);
+  line-height: 1.6;
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Map materiality, DESIGN.md §1: faint irregular contour rings behind the page.
+   Not a grid, not dots. Hand-plotted ellipses at ~5% ink, two drifting scales. */
+.page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900' viewBox='0 0 900 900'%3E%3Cg fill='none' stroke='%231C2B2A' stroke-width='1.1' opacity='0.055'%3E%3Cpath d='M450 300c92 4 150 62 148 150-2 86-70 148-152 146-80-2-142-66-140-150 2-82 64-148 144-146z'/%3E%3Cpath d='M450 252c124 2 200 86 196 200-4 112-92 194-200 190-106-4-186-88-182-198 4-108 86-194 186-192z'/%3E%3Cpath d='M450 204c156 0 250 110 244 250-6 138-114 240-248 234-132-6-230-112-224-250 6-136 114-236 228-234z'/%3E%3Cpath d='M450 156c188-2 300 134 292 300-8 164-136 286-296 278-158-8-274-136-266-300 8-162 136-280 270-278z'/%3E%3Cpath d='M450 108c220 0 350 158 340 350-10 190-158 332-344 322-184-10-318-158-308-350C148 242 296 106 450 108z'/%3E%3Cpath d='M450 54c254-2 404 184 392 404-12 218-182 382-396 370C234 816 80 630 92 408 104 190 272 56 450 54z'/%3E%3C/g%3E%3C/svg%3E");
+  /* Held small and faint so it reads as the grain of the stock, not as a drawn
+     graphic. At 1100px the rings became a motif competing with the content. */
+  background-size: 460px 460px;
+  background-position: 62% -40px;
+  background-repeat: repeat;
+  opacity: 0.55;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--fc-container);
+  margin-inline: auto;
+  padding-inline: var(--fc-6);
+}
+
+@media (min-width: 900px) {
+  .container {
+    padding-inline: var(--fc-12);
+  }
+}
+
+/* Section rhythm. DESIGN.md §3: never below 96px desktop / 64px mobile, and the
+   rhythm is broken exactly once (see .problem). */
+.section {
+  padding-block: var(--fc-16);
+}
+
+@media (min-width: 900px) {
+  .section {
+    padding-block: var(--fc-24);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Type
+ * ------------------------------------------------------------------------- */
+.h1,
+.h2 {
+  font-family: var(--fc-font-display);
+  font-weight: 600;
+  color: var(--fc-ink);
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+  letter-spacing: -0.022em;
+  line-height: 1.02;
+  margin: 0;
+  overflow-wrap: break-word;
+  min-width: 0;
+  text-wrap: balance;
+}
+
+.h1 {
+  font-size: var(--fc-display-xl);
+}
+
+.h2 {
+  font-size: var(--fc-h2);
+}
+
+.h3 {
+  font-family: var(--fc-font-text);
+  font-weight: 700;
+  font-size: var(--fc-h3);
+  line-height: 1.25;
+  color: var(--fc-ink);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  font-size: var(--fc-body-lg);
+  line-height: 1.5;
+  color: var(--fc-ink-70);
+  max-width: 34ch;
+  margin: 0;
+}
+
+.body {
+  max-width: var(--fc-measure);
+  margin: 0;
+}
+
+/* DESIGN.md §2 / Flighty's device: a bold lead-in and its continuation share one
+   paragraph, so a cell gets a headline without a separate heading element. */
+.leadIn {
+  color: var(--fc-ink);
+  font-weight: 600;
+}
+
+/* IBM Plex Mono is a MEASUREMENT marker, never decoration (DESIGN.md §0, §2).
+   Only literal live numbers and coordinates may use .data. */
+.data {
+  font-family: var(--fc-font-data);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fc-depth);
+  letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons — DESIGN.md §5
+ * ------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--fc-2);
+  border: 0;
+  cursor: pointer;
+  font-family: var(--fc-font-text);
+  font-weight: 600;
+  font-size: var(--fc-body);
+  line-height: 1;
+  /* AUDIT.md: marketing controls sit at 44-52px, not the app's 32-40px. */
+  min-height: 48px;
+  padding-inline: var(--fc-6);
+  border-radius: var(--fc-radius-sm);
+  text-decoration: none;
+  transition: background-color var(--fc-dur) var(--fc-ease), color var(--fc-dur) var(--fc-ease);
+}
+
+/* Primary: waymark fill. On hover it does NOT lighten -- it desaturates toward
+   ink, reading as pressed into the page rather than glowing. */
+.btnPrimary {
+  background: var(--fc-waymark);
+  color: var(--fc-linen);
+}
+
+.btnPrimary:hover {
+  background: color-mix(in srgb, var(--fc-waymark) 82%, var(--fc-ink));
+}
+
+.btnSecondary {
+  background: transparent;
+  color: var(--fc-ink);
+  box-shadow: inset 0 0 0 1.5px var(--fc-ink);
+}
+
+.btnSecondary:hover {
+  background: color-mix(in srgb, var(--fc-ink) 6%, transparent);
+}
+
+/* The ONE fully-pill shape on the page (DESIGN.md §5), so it stays special. */
+.btnPill {
+  background: var(--fc-ink);
+  color: var(--fc-linen);
+  border-radius: var(--fc-radius-pill);
+  min-height: 44px;
+  padding-inline: var(--fc-6);
+}
+
+.btnPill:hover {
+  background: color-mix(in srgb, var(--fc-ink) 88%, var(--fc-waymark));
+}
+
+.page :is(a, button):focus-visible {
+  outline: 2px solid var(--fc-waymark);
+  outline-offset: 3px;
+  transition: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Nav
+ * ------------------------------------------------------------------------- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fc-6);
+  padding-block: var(--fc-4);
+  background: color-mix(in srgb, var(--fc-linen) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--fc-dur) var(--fc-ease);
+}
+
+.navStuck {
+  border-bottom-color: var(--fc-ink-20);
+}
+
+/* Wordmark + locality on one baseline, the interactive-map-3d move. */
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--fc-3);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.wordmarkName {
+  font-family: var(--fc-font-display);
+  font-variation-settings: 'opsz' 60, 'SOFT' 100, 'WONK' 1;
+  font-weight: 600;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  color: var(--fc-ink);
+  line-height: 1;
+}
+
+.wordmarkPlace {
+  font-size: var(--fc-label);
+  color: var(--fc-ink-45);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.navLinks {
+  display: none;
+  align-items: center;
+  gap: var(--fc-6);
+}
+
+@media (min-width: 820px) {
+  .navLinks {
+    display: flex;
+  }
+}
+
+/* Labels are the body face, a step smaller, sentence case, untracked.
+   No tracked capitals anywhere (DESIGN.md §0, AUDIT gate 67). */
+.navLink {
+  font-size: var(--fc-label);
+  color: var(--fc-ink-70);
+  text-decoration: none;
+  padding-block: var(--fc-2);
+  border-bottom: 1.5px solid transparent;
+  transition: color var(--fc-dur-fast) var(--fc-ease), border-color var(--fc-dur-fast) var(--fc-ease);
+}
+
+.navLink:hover {
+  color: var(--fc-ink);
+  border-bottom-color: var(--fc-waymark);
+}
+
+/* ---------------------------------------------------------------------------
+ * Problem strip — the ONE deliberate rhythm break (DESIGN.md §3).
+ * Compressed padding, hairlines top and bottom, one measured number set large.
+ * ------------------------------------------------------------------------- */
+.problem {
+  padding-block: var(--fc-12);
+  border-block: 1px solid var(--fc-ink-20);
+}
+
+.problemGrid {
+  display: grid;
+  gap: var(--fc-8);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .problemGrid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: var(--fc-16);
+  }
+}
+
+.problemQuote {
+  font-family: var(--fc-font-display);
+  font-variation-settings: 'opsz' 72, 'SOFT' 100, 'WONK' 1;
+  font-weight: 600;
+  font-size: clamp(1.5rem, 2.6vw, 2.125rem);
+  line-height: 1.22;
+  letter-spacing: -0.018em;
+  color: var(--fc-ink);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.problemAside {
+  display: grid;
+  gap: var(--fc-3);
+}
+
+.measure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fc-2);
+}
+
+.measureValue {
+  font-family: var(--fc-font-data);
+  font-weight: 600;
+  /* Proportional, not tabular: tabular gives the comma a full digit cell, which
+     reads as "6 , 944". Tabular figures are for columns that must align. */
+  font-variant-numeric: proportional-nums;
+  font-size: clamp(2.25rem, 4.4vw, 3rem);
+  line-height: 1;
+  color: var(--fc-depth);
+  letter-spacing: -0.035em;
+}
+
+/* The unit is a word, so it takes the body face. DESIGN.md §2 restricts mono to
+   literal numbers precisely so it keeps meaning "this is a measurement". */
+.measureUnit {
+  font-family: var(--fc-font-text);
+  font-weight: 600;
+  font-size: var(--fc-body-lg);
+  color: var(--fc-ink);
+}
+
+.measureLabel {
+  font-size: var(--fc-label);
+  color: var(--fc-ink-45);
+  max-width: 30ch;
+}
+
+.sourceNote {
+  font-size: var(--fc-label);
+  color: var(--fc-ink-45);
+}
+
+.sourceNote a {
+  color: var(--fc-ink-70);
+  text-underline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Bento grid — DESIGN.md §0 bans the uniform 3-card grid. Mixed cell sizes,
+ * one large lead cell, no shadows: field-on-field separation only (§4).
+ * ------------------------------------------------------------------------- */
+.bento {
+  display: grid;
+  gap: var(--fc-3);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 760px) {
+  .bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1040px) {
+  .bento {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    /* A floor, not a fixed height: a cell whose copy runs long grows instead of
+       clipping, and row spans still resolve. */
+    grid-auto-rows: minmax(286px, auto);
+  }
+}
+
+/* A card is a field on a field (DESIGN.md §4): no shadow separates it, so the field
+   itself has to carry. A hairline in ink-20 gives the edge definition that linen-dim
+   alone does not, without introducing elevation. */
+.cell {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: var(--fc-4);
+  overflow: hidden;
+  padding: var(--fc-4);
+  background: var(--fc-linen-dim);
+  box-shadow: inset 0 0 0 1px var(--fc-ink-20);
+  border-radius: var(--fc-radius-lg);
+  min-width: 0;
+}
+
+.cellMedia,
+.cellSlot {
+  min-height: 148px;
+}
+
+/* The lead cell: taller and wider, so the grid is read as composed rather
+   than tiled. */
+@media (min-width: 1040px) {
+  .cellLead {
+    grid-column: span 4;
+    grid-row: span 2;
+  }
+
+  .cellTall {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  .cellWide {
+    grid-column: span 3;
+  }
+
+  .cellSmall {
+    grid-column: span 2;
+  }
+
+  /* Closes the grid across the full measure, so the composition ends on a line
+     rather than trailing off with four empty columns. Lays out side by side
+     instead of stacked, which also breaks the cell rhythm once. */
+  .cellFull {
+    grid-column: span 6;
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .cellFull .cellMedia,
+  .cellFull .cellSlot {
+    grid-row: 1;
+    grid-column: 1;
+    min-height: 212px;
+  }
+
+  .cellFull .cellCopy {
+    grid-row: 1;
+    grid-column: 2;
+    padding-inline: var(--fc-6);
+    align-content: center;
+  }
+}
+
+/* The clip occupies the cell's upper track. Copy sits below it, never over it, so
+   nothing depends on a scrim to stay legible. §4 inner radius = outer minus padding. */
+.cellMedia,
+.cellSlot {
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: calc(var(--fc-radius-lg) - var(--fc-4));
+  overflow: hidden;
+}
+
+.cellMedia {
+  object-fit: cover;
+  display: block;
+  /* An image on a tinted field needs a neutral edge, never a tinted one. */
+  outline: 1px solid oklch(0 0 0 / 0.1);
+  outline-offset: -1px;
+}
+
+/* Clip slot standing in until the capture pass runs against the real renderer.
+   It is labelled with what the capture must show, so the slot reads as pending
+   work rather than as a finished empty panel. */
+.cellSlot {
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--fc-depth) 9%, var(--fc-linen));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fc-depth) 22%, transparent);
+}
+
+.cellSlotNote {
+  font-size: var(--fc-label);
+  color: var(--fc-depth);
+  text-align: center;
+  padding: var(--fc-6);
+  max-width: 30ch;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.cellCopy {
+  grid-row: 2;
+  display: grid;
+  gap: var(--fc-2);
+  min-width: 0;
+}
+
+/* A section head: title with a single line of orientation beside it, so the
+   heading is not left floating alone above a grid. */
+.sectionHead {
+  display: grid;
+  gap: var(--fc-4);
+  margin-bottom: var(--fc-12);
+  align-items: end;
+}
+
+@media (min-width: 900px) {
+  .sectionHead {
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    gap: var(--fc-16);
+  }
+}
+
+.sectionNote {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--fc-ink-45);
+  padding-bottom: var(--fc-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * Close
+ *
+ * Left-aligned, not centred. The ring sits beside the text rather than above it,
+ * so the page's last beat is composed instead of stacked down the middle.
+ * ------------------------------------------------------------------------- */
+.close {
+  display: grid;
+  gap: var(--fc-8);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .close {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--fc-16);
+  }
+}
+
+.closeText {
+  display: grid;
+  gap: var(--fc-6);
+  justify-items: start;
+}
+
+.closeBody {
+  max-width: 52ch;
+  font-size: var(--fc-body-lg);
+  line-height: 1.5;
+}
+
+.closeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fc-3);
+}
+
+/* ---------------------------------------------------------------------------
+ * Footer
+ * ------------------------------------------------------------------------- */
+.footer {
+  border-top: 1px solid var(--fc-ink-20);
+  padding-block: var(--fc-12) var(--fc-8);
+}
+
+.footerGrid {
+  display: grid;
+  gap: var(--fc-8);
+  align-items: start;
+}
+
+@media (min-width: 760px) {
+  .footerGrid {
+    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)) auto;
+    gap: var(--fc-12);
+  }
+}
+
+.footerCol {
+  display: grid;
+  gap: var(--fc-2);
+  align-content: start;
+}
+
+.footerHead {
+  font-size: var(--fc-label);
+  font-weight: 600;
+  color: var(--fc-ink);
+}
+
+.footerLink {
+  font-size: var(--fc-label);
+  color: var(--fc-ink-70);
+  text-decoration: none;
+  width: fit-content;
+  border-bottom: 1px solid transparent;
+}
+
+.footerLink:hover {
+  color: var(--fc-ink);
+  border-bottom-color: var(--fc-ink-20);
+}
+
+.footerNote {
+  font-size: var(--fc-label);
+  color: var(--fc-ink-45);
+  max-width: 38ch;
+}
+
+.footerBase {
+  margin-top: var(--fc-12);
+  padding-top: var(--fc-4);
+  border-top: 1px solid var(--fc-ink-20);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fc-4);
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fc-label);
+  color: var(--fc-ink-45);
+}
+
+/* ---------------------------------------------------------------------------
+ * Signature: contour rings (DESIGN.md §6)
+ *
+ * Concentric irregular rings radiating from a point that carries a live
+ * measurement. Ring spacing is a real encoding -- tighter rings mean a busier
+ * place -- so this is data, not a decorative tic.
+ * ------------------------------------------------------------------------- */
+.rings {
+  display: block;
+  overflow: visible;
+}
+
+.ringsPath {
+  fill: none;
+  stroke: var(--fc-depth);
+  vector-effect: non-scaling-stroke;
+}
+
+/* A single ring travels outward once, echoing "measurement radiating from a
+   point". One reveal, not a loop that never stops. */
+@keyframes ringOut {
+  from {
+    transform: scale(0.22);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.72;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.ringPulse {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: ringOut 2600ms var(--fc-ease) infinite;
+}
+
+/* Surveyed trail-line: the helix motif, drawn as DESIGN.md §1's dashed
+   hand-plotted route. Dash offset only -- never a layout property. */
+.trail {
+  fill: none;
+  stroke: var(--fc-ink);
+  stroke-width: 1.25;
+  stroke-dasharray: 7 6;
+  opacity: 0.32;
+  stroke-linecap: round;
+}
+
+.trailDraw {
+  stroke-dashoffset: var(--trail-len, 1200);
+  transition: stroke-dashoffset 1400ms var(--fc-ease);
+}
+
+.trailDrawn {
+  stroke-dashoffset: 0;
+}
+
+/* Compass rose: used once, as a footer anchor. Not a repeated system component. */
+.compass {
+  color: var(--fc-ink-45);
+  flex: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Scroll reveals. Content is visible by default; the class only animates when
+ * scripting is on and motion is allowed (Hallmark floor 7 / 62).
+ * ------------------------------------------------------------------------- */
+.reveal {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .jsReady .reveal {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+    transition: opacity var(--fc-dur-slow) var(--fc-ease), transform var(--fc-dur-slow) var(--fc-ease);
+  }
+
+  .jsReady .revealIn {
+    opacity: 1;
+    transform: none;
+  }
+}

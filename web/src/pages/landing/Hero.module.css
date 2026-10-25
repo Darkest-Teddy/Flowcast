@@ -1,0 +1,329 @@
+/*
+ * Hero: the GTA-V style cloud dive, landing on the live campus.
+ * LANDING_PAGE_BRIEF.md §3. Tokens from DESIGN.md.
+ */
+
+.hero {
+  position: relative;
+  /* Capped so the headline, its sentence and the primary action all sit above
+     the fold at 1280x800 with the sticky nav accounted for. */
+  min-height: min(88svh, 720px);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--fc-linen);
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* A soft vignette in linen keeps the headline legible over the map without a
+   scrim panel behind the words. */
+/* Explicitly above the map. MapLibre's canvas container establishes its own
+   stacking context, so an auto z-index here paints underneath it. */
+.stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  /* Carries the copy over a busy map without a scrim panel behind the words.
+     Weighted left, where the copy sits, and along the bottom edge so the hero
+     meets the next section in paper rather than in city. */
+  background:
+    linear-gradient(
+      to right,
+      var(--fc-linen) 0%,
+      var(--fc-linen) 22%,
+      color-mix(in srgb, var(--fc-linen) 92%, transparent) 34%,
+      color-mix(in srgb, var(--fc-linen) 45%, transparent) 50%,
+      transparent 68%
+    ),
+    linear-gradient(to top, var(--fc-linen) 0%, transparent 26%),
+    linear-gradient(to bottom, var(--fc-linen) 0%, transparent 16%);
+}
+
+/* ---------------------------------------------------------------------------
+ * Clouds. Depth-blurred forms in linen tones, lit warm. They fill the viewport,
+ * then scale past the camera, exactly like breaking through cloud cover.
+ * ------------------------------------------------------------------------- */
+.clouds {
+  position: absolute;
+  inset: -12%;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--fc-linen);
+}
+
+.cloud {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform, opacity;
+}
+
+/* Three depth planes. The nearest is the largest and blurs most, so parting
+   reads as passing through a volume rather than across a flat image. */
+.cloudNear {
+  inset: -30% -20% auto -20%;
+  height: 86%;
+  filter: blur(42px);
+  background:
+    radial-gradient(52% 62% at 28% 58%, color-mix(in srgb, var(--fc-linen) 92%, #fff) 0%, transparent 70%),
+    radial-gradient(44% 54% at 68% 44%, color-mix(in srgb, var(--fc-linen) 88%, #fff) 0%, transparent 72%),
+    radial-gradient(60% 50% at 48% 72%, color-mix(in srgb, var(--fc-linen) 96%, var(--fc-waymark)) 0%, transparent 76%);
+}
+
+.cloudMid {
+  inset: 12% -14% auto -14%;
+  height: 74%;
+  filter: blur(30px);
+  opacity: 0.9;
+  background:
+    radial-gradient(48% 58% at 62% 40%, color-mix(in srgb, var(--fc-linen) 90%, #fff) 0%, transparent 72%),
+    radial-gradient(42% 50% at 24% 62%, color-mix(in srgb, var(--fc-linen) 94%, #fff) 0%, transparent 74%);
+}
+
+.cloudFar {
+  inset: 38% -8% -18% -8%;
+  filter: blur(22px);
+  opacity: 0.8;
+  background:
+    radial-gradient(54% 60% at 44% 46%, color-mix(in srgb, var(--fc-linen) 86%, #fff) 0%, transparent 74%),
+    radial-gradient(40% 46% at 78% 60%, color-mix(in srgb, var(--fc-linen) 92%, var(--fc-linen-dim)) 0%, transparent 76%);
+}
+
+/* The dive. A fixed one-shot timeline, so keyframes are correct here: this
+   sequence runs once on arrival and never reverses. */
+@keyframes cloudPart {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  to {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+
+@keyframes cloudPartMid {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@keyframes cloudPartFar {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes cloudFieldOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .diving .clouds {
+    animation: cloudFieldOut 900ms var(--fc-ease) 620ms both;
+  }
+
+  .diving .cloudNear {
+    animation: cloudPart 1500ms cubic-bezier(0.5, 0, 0.75, 0) 480ms both;
+  }
+
+  .diving .cloudMid {
+    animation: cloudPartMid 1500ms cubic-bezier(0.5, 0, 0.75, 0) 560ms both;
+  }
+
+  .diving .cloudFar {
+    animation: cloudPartFar 1400ms cubic-bezier(0.5, 0, 0.75, 0) 640ms both;
+  }
+}
+
+/* Motion off: no dive at all. The clouds simply are not there, and the hero
+   opens on the campus. */
+.landed .clouds,
+.noMotion .clouds {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Copy
+ * ------------------------------------------------------------------------- */
+.copy {
+  position: relative;
+  z-index: 4;
+  align-self: center;
+  display: grid;
+  gap: var(--fc-6);
+  justify-items: start;
+  /* Wide enough that the headline sets in two or three lines. At 20ch it broke
+     to one word per line and read as a stack, not a sentence. */
+  max-width: 54ch;
+  padding-block: var(--fc-12);
+}
+
+.title {
+  margin: 0;
+  /* The headline is the one place the display face is pushed hardest. A tighter
+     measure than the block, so it breaks where the sentence wants to break. */
+  max-width: 16ch;
+  font-size: clamp(2.75rem, 5.4vw, 4.75rem);
+  line-height: 0.98;
+}
+
+.sentence {
+  font-size: var(--fc-body-lg);
+  line-height: 1.5;
+  color: var(--fc-ink-70);
+  max-width: 32ch;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fc-4);
+}
+
+.stamp {
+  display: block;
+  margin-top: var(--fc-1);
+}
+
+/* The wordmark that sits in the clouds before the dive, and leaves as the
+   headline arrives. */
+.overture {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.overtureMark {
+  font-family: var(--fc-font-display);
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+  font-weight: 600;
+  font-size: var(--fc-display-xl);
+  letter-spacing: -0.03em;
+  color: var(--fc-ink);
+  line-height: 1;
+}
+
+@keyframes overtureOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .diving .overture {
+    animation: overtureOut 1100ms cubic-bezier(0.5, 0, 0.75, 0) 420ms both;
+  }
+
+  /* The copy is staggered in behind the dive: title, sentence, actions. */
+  .diving .copy > * {
+    opacity: 0;
+    animation: copyIn 620ms var(--fc-ease) both;
+  }
+
+  .diving .copy > *:nth-child(1) {
+    animation-delay: 1680ms;
+  }
+
+  .diving .copy > *:nth-child(2) {
+    animation-delay: 1780ms;
+  }
+
+  .diving .copy > *:nth-child(3) {
+    animation-delay: 1880ms;
+  }
+}
+
+@keyframes copyIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+.landed .overture,
+.noMotion .overture {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Scroll cue. A single faint contour ring travelling outward once behind the
+ * label, echoing the page's "measurement radiating from a point" idea.
+ * Not a bouncing chevron.
+ * ------------------------------------------------------------------------- */
+.cue {
+  position: relative;
+  z-index: 4;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  gap: var(--fc-2);
+  padding-bottom: var(--fc-8);
+  color: var(--fc-ink-45);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--fc-font-text);
+  font-size: var(--fc-label);
+  transition: color var(--fc-dur-fast) var(--fc-ease);
+}
+
+@media (hover: hover) {
+  .cue:hover {
+    color: var(--fc-ink);
+  }
+}
+
+.cueMark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+}
+
+.cueRing {
+  position: absolute;
+  inset: 0;
+}

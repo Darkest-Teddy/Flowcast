@@ -5,7 +5,7 @@ import { api, useResource } from '../../data/api';
 import type { CalendarImport } from '../../data/types';
 import { formatDateTime, formatDayLabel, formatRelative } from '../../lib/format';
 import { Button, CellStack, EmptyState, ListRow, Loading, Page, PageHeader, SectionHeading, SectionList, StatusBadge, Table, type Column } from '../../ui';
-import { parseIcs, type IcsEvent } from './ics';
+import { parseIcs, type IcsEvent } from '../../lib/ics';
 import styles from './ClubCalendar.module.css';
 
 const MAX_BYTES = 2 * 1024 * 1024;

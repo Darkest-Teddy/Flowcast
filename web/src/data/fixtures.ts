@@ -8,8 +8,10 @@ import type {
   CampusLocation,
   Club,
   ClubApplication,
+  CourseOffering,
   DataSource,
   HourlyForecast,
+  MyCourse,
   PlaceForecast,
   ScheduleItem,
   Session,
@@ -19,6 +21,13 @@ import type {
 } from './types';
 import type { CalendarConnection, ClubDetails, NotificationPrefs, Profile } from './types';
 import type { AdminSettings, AgentBrain } from './types';
+// The real BU published course catalog (data-pipeline/build_course_catalog.py), not illustrative
+// data: thousands of scraped course sections with real codes, titles, instructors and meeting
+// times. Re-run that script against a fresh data-pipeline/output/catalog.json to update these.
+import rawCourseCatalog from './courseCatalog.json';
+// Campus buildings that host classes but aren't in `locations` below, minted by the same script
+// from the catalog's own building names -- never guessed.
+import rawCourseLocations from './courseLocations.json';
 
 const today = new Date();
 const iso = (dayOffset: number, h: number, m = 0) => {
@@ -44,6 +53,7 @@ export const locations: CampusLocation[] = [
   { id: 'warren-dining', name: 'Warren Towers Dining Hall', short: 'Warren Dining', kind: 'dining', capacity: 500 },
   { id: 'agganis', name: 'Agganis Arena', short: 'Agganis', kind: 'venue', capacity: 6300 },
   { id: 'nickerson', name: 'Nickerson Field', short: 'Nickerson', kind: 'venue', capacity: 10000 },
+  ...(rawCourseLocations as unknown as CampusLocation[]),
 ];
 
 export const session: Session = {
@@ -64,6 +74,10 @@ export const schedule: ScheduleItem[] = [
   { id: 's6', title: 'CS 132', locationId: 'cas', start: iso(2, 9, 5), end: iso(2, 9, 55), source: 'calendar' },
   { id: 's7', title: 'DS 340', locationId: 'cds', start: iso(2, 14, 30), end: iso(2, 15, 45), source: 'calendar' },
 ];
+
+export const courseCatalog: CourseOffering[] = rawCourseCatalog as unknown as CourseOffering[];
+
+export const myCourses: MyCourse[] = [];
 
 export const placeForecasts: PlaceForecast[] = [
   { locationId: 'warren-dining', at: iso(0, 12, 20), share: 0.88 },

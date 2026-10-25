@@ -1,0 +1,61 @@
+/*
+ * The live campus surface for the hero.
+ *
+ * Two classes on the inner element, not one. map-client/styles.css:12 documents why:
+ * in production the map library's own CSS loads later and sets `position: relative`
+ * on .maplibregl-map / .mapboxgl-map, so a single-class rule loses the cascade.
+ */
+.wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--fc-linen);
+}
+
+.wrap .map {
+  position: absolute;
+  inset: 0;
+}
+
+/* The renderer fades up once the first frame is drawn, so the hero never shows a
+   half-built scene assembling itself. */
+.wrap .map {
+  opacity: 0;
+  transition: opacity var(--fc-dur-slow) var(--fc-ease);
+}
+
+.wrap .mapReady {
+  opacity: 1;
+}
+
+/*
+ * OpenStreetMap and OpenFreeMap attribution is a licence condition, so it has to
+ * stay legible. The hero's linen scrim sits above the map canvas, which washed it
+ * out; this lifts the control above the scrim and tints it to the page's own ink
+ * rather than leaving it in the map library's default blue.
+ */
+.wrap :global(.maplibregl-ctrl-bottom-right),
+.wrap :global(.mapboxgl-ctrl-bottom-right) {
+  z-index: 3;
+}
+
+.wrap :global(.maplibregl-ctrl-attrib),
+.wrap :global(.mapboxgl-ctrl-attrib) {
+  background: color-mix(in srgb, var(--fc-linen) 86%, transparent);
+  color: var(--fc-ink-70);
+  font-family: var(--fc-font-text);
+  font-size: 11px;
+  border-radius: var(--fc-radius-sm) 0 0 0;
+}
+
+.wrap :global(.maplibregl-ctrl-attrib a),
+.wrap :global(.mapboxgl-ctrl-attrib a) {
+  color: var(--fc-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap .map {
+    opacity: 1;
+    transition: none;
+  }
+}

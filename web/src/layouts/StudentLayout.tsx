@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  BookOpen,
   CalendarDays,
   CalendarSync,
   Gauge,
@@ -27,6 +28,7 @@ export function StudentLayout() {
       items: [
         { to: '/', label: 'Home', icon: Home, end: true },
         { to: '/schedule', label: 'Schedule', icon: CalendarDays },
+        { to: '/courses', label: 'Courses', icon: BookOpen },
         { to: '/forecasts', label: 'Forecasts', icon: Gauge },
         { to: '/events', label: 'Events', icon: Ticket },
         { to: '/clubs', label: 'Clubs', icon: Users },

@@ -1,0 +1,187 @@
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-hairline-soft);
+}
+
+.trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.main {
+  min-width: 0;
+}
+
+.name {
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+}
+
+.section {
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+}
+
+.description {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+  max-width: 64ch;
+}
+
+.meeting {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.via {
+  align-self: center;
+  font-size: var(--text-xs);
+  color: var(--color-ink-tertiary);
+  white-space: nowrap;
+}
+
+.more {
+  padding: var(--space-2) 0;
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-sm);
+}
+
+.editForm {
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-hairline-soft);
+}
+
+.editGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3) var(--space-4);
+}
+
+.editDays {
+  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.editDaysLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.days {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.day,
+.dayOn {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+
+.dayOn {
+  background: var(--color-strong);
+  border-color: var(--color-strong);
+  color: var(--color-on-strong);
+}
+
+.catalog {
+  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.icsTab {
+  margin-top: var(--space-6);
+}
+
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-10) var(--space-6);
+  border: 1px dashed var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  text-align: center;
+  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.dragging {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.dropIcon {
+  width: var(--space-6);
+  height: var(--space-6);
+  color: var(--color-ink-tertiary);
+}
+
+.dropTitle {
+  font-weight: var(--weight-medium);
+}
+
+.dropHint {
+  max-width: 48ch;
+  margin-bottom: var(--space-2);
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-sm);
+}
+
+.problem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--color-bad);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-bad-soft);
+  font-size: var(--text-sm);
+}
+
+.problemTitle {
+  font-weight: var(--weight-semibold);
+  color: var(--color-bad);
+}
+
+.publish {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.ok,
+.error {
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.ok {
+  color: var(--color-ok);
+}
+
+.error {
+  color: var(--color-bad);
+}

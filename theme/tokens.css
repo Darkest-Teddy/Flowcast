@@ -152,6 +152,77 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * MARKETING TOKENS (--fc-*). Authority: DESIGN.md §1-§4.
+ *
+ * These are a SEPARATE system from the --color-* tokens above, on purpose.
+ * DESIGN.md governs the public marketing site only; the dashboard and the map
+ * HUD keep the Apple-like system above and are not touched by this block.
+ *
+ * Every token is named for what it IS on the reference object -- a 1950s-60s
+ * New England university trail map printed on linen stock -- not for a mood.
+ * The test for adding anything here: would it appear on that printed object?
+ *
+ * No dark variants. A printed map has no dark mode; the landing page pins
+ * itself to light (see .root in Landing.module.css) so it does not inherit
+ * the #000 canvas from the dark blocks around it.
+ * ------------------------------------------------------------------------- */
+:root {
+  /* §1 -- four colours, and only four */
+  --fc-ink: #1c2b2a;      /* the printer's ink: blue-green-leaning near-black, never warm brown-black */
+  --fc-linen: #efe7d8;    /* the paper: map stock, cooler and greyer than a coffee cream */
+  --fc-waymark: #b23a2e;  /* the one spot colour: "you are here". One use per screen, never a large fill */
+  --fc-depth: #3e6b63;    /* water and low elevation: the colour of MEASUREMENT, not a tech signal */
+
+  /* Neutrals are --fc-ink tinted toward --fc-linen, never a separate grey ramp.
+     color-mix() encodes that rule literally so it cannot drift. */
+  --fc-ink-70: color-mix(in srgb, var(--fc-ink) 70%, var(--fc-linen)); /* body copy      ~ #5b635e */
+  --fc-ink-45: color-mix(in srgb, var(--fc-ink) 45%, var(--fc-linen)); /* secondary copy ~ #90928a */
+  --fc-ink-20: color-mix(in srgb, var(--fc-ink) 20%, var(--fc-linen)); /* hairlines      ~ #c5c1b5 */
+  --fc-linen-dim: #e3d9c4; /* §4 card field: sits on --fc-linen with NO shadow */
+
+  /* §2 -- three faces, three jobs. Mono is for literal measurements only;
+     §0 bans it as "this looks technical" seasoning on ordinary words. */
+  --fc-font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --fc-font-text: "Space Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --fc-font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --fc-display-xl: clamp(3.5rem, 7vw, 6.5rem);
+  --fc-h2: clamp(2.25rem, 4vw, 3.5rem);
+  --fc-h3: 1.5rem;
+  --fc-body-lg: 1.25rem;
+  --fc-body: 1rem;
+  --fc-label: 0.8125rem;
+
+  /* §3 -- 4px base. These eleven steps only; no arbitrary px in component CSS. */
+  --fc-1: 4px;
+  --fc-2: 8px;
+  --fc-3: 12px;
+  --fc-4: 16px;
+  --fc-6: 24px;
+  --fc-8: 32px;
+  --fc-12: 48px;
+  --fc-16: 64px;
+  --fc-24: 96px;
+  --fc-32: 128px;
+  --fc-48: 192px;
+
+  /* §4 -- TWO radii. A third is a violation, including 6px "almost rounded". */
+  --fc-radius-sm: 10px;
+  --fc-radius-lg: 28px;
+  --fc-radius-pill: 9999px; /* §5: the nav/CTA pill ONLY, so it stays special */
+
+  /* Motion. transform/opacity only; exponential ease-out, never bounce or elastic. */
+  --fc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --fc-dur-fast: 180ms;
+  --fc-dur: 320ms;
+  --fc-dur-slow: 640ms;
+
+  /* Layout */
+  --fc-measure: 62ch;      /* body text never runs wider than this */
+  --fc-container: 1200px;  /* capped and centred: at 1920 the gutters grow, this does not */
+}
+
 :root[data-theme="dark"] {
   --color-canvas: #000000;
   --color-surface: #1c1c1e;

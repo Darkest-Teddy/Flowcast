@@ -5,7 +5,7 @@ import { Button } from '../ui';
 import { tourPreviews, type TourPreviewId } from './account/TourPreviews';
 import styles from './Welcome.module.css';
 
-const steps: { id: TourPreviewId; title: string; body: string }[] = [
+const steps: { id: TourPreviewId; title: string; body: string; cta?: { label: string; to: string } }[] = [
   {
     id: 'home',
     title: 'Home',
@@ -14,7 +14,8 @@ const steps: { id: TourPreviewId; title: string; body: string }[] = [
   {
     id: 'schedule',
     title: 'Schedule and forecasts',
-    body: 'Your classes come from your Google Calendar, each with a forecast of how full the room or dining hall will be when you arrive. Forecasts shows any place hour by hour.',
+    body: 'Add your classes from the course catalog or by importing your BU Student Link schedule, or connect Google Calendar for everything else. Each item gets a forecast of how full the room or dining hall will be when you arrive.',
+    cta: { label: 'Add your courses', to: '/courses' },
   },
   {
     id: 'map',
@@ -24,7 +25,8 @@ const steps: { id: TourPreviewId; title: string; body: string }[] = [
   {
     id: 'clubs',
     title: 'Clubs and events',
-    body: 'Follow clubs to see their events in Flowcast. The Flowcast team verifies every club first, and club events stay in Flowcast, never in your Google Calendar.',
+    body: 'Follow the clubs you’re part of to see their events in Flowcast. The Flowcast team verifies every club first, and club events stay in Flowcast, never in your Google Calendar.',
+    cta: { label: 'Browse clubs', to: '/clubs' },
   },
   {
     id: 'privacy',
@@ -77,6 +79,13 @@ export default function Welcome() {
             {step.title}
           </h1>
           <p className={styles.body}>{step.body}</p>
+          {step.cta && (
+            <div className={styles.cta}>
+              <Button variant="secondary" to={step.cta.to}>
+                {step.cta.label}
+              </Button>
+            </div>
+          )}
         </section>
 
         <div className={styles.preview}>
