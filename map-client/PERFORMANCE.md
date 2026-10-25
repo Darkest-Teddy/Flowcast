@@ -89,3 +89,22 @@ preview can throttle even when document visibility reports visible.
 Verification: `npm test`, `npm run typecheck`, and `npx vite build`. Material tests
 check geometry and per-triangle factors, plus compatibility with the installed
 PBR shader. Projection tests cover camera/padding/resize/source invalidation.
+
+## Venue event visitors
+
+Event visitors (`sim/visitors.ts`) are planned once per shown day: typed arrays per event, sorted
+by door arrival and departure (4–13 ms per day, including a 35,000-visitor Red Sox game). Each frame
+finds the visitors walking now by binary search, skips events beyond the camera's reach, and draws at
+most 600 through the existing walker layers (no new layers). Measured October 24, 2026 (Apple M4 Pro,
+Node 26): 0.02–0.09 ms per frame during a BU hockey game, an A Boogie Wit da Hoodie concert and a
+Red Sox game (5,800 visitors walking at once), and 0.05 µs when no event is on.
+
+Headless Chrome (`--use-angle=metal`, 1400 × 900, 1×), camera on Agganis Arena and Babcock Street
+(zoom 17.3, pitch 52), `?date=2026-10-24` (BU vs UConn, 7 pm), 10 s of requestAnimationFrame per
+sample, two runs each:
+
+- 9:42 pm dismissal surge (about 570 visitors drawn): 43.8 / 42.7 FPS; the same scene with events
+  off (`&events=0`): 43.4 / 43.1 FPS.
+- 6:40 pm arrivals (about 210 visitors drawn): 40.6 / 35.7 FPS; events off: 38.0 / 35.2 FPS.
+
+The differences are within run-to-run noise. Development-machine measurements, not a device guarantee.

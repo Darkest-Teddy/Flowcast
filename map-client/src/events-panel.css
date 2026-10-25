@@ -17,3 +17,18 @@
 .events-list li > button { grid-column: 2; grid-row: 1 / span 3; min-height: 32px; padding: 0 12px; font-size: 12px; white-space: nowrap; }
 .events-panel details summary { cursor: pointer; font-size: var(--text-sm); color: var(--map-ink-secondary); padding: 6px 0; }
 .events-panel details .events-list { margin-top: var(--space-1); }
+/* Venue events (Agganis, Fenway...): the same rows, with visitors, popularity and a live line. */
+.venue-events h3 { margin-top: var(--space-4); }
+.events-list .events-visitors { color: var(--color-ink); font-variant-numeric: tabular-nums; }
+.events-list .events-now { color: var(--color-ink); font-size: 12px; font-weight: 600; }
+.events-list .events-muted, .events-muted { color: var(--map-ink-secondary); }
+/* The popularity line and the estimate's provenance take the row's full width, under the button. */
+.events-list li > :is(.events-pop, details) { grid-column: 1 / -1; }
+.events-pop { display: flex; align-items: center; gap: var(--space-2); font-size: 12px; color: var(--color-ink); }
+.events-spark { flex: none; color: var(--map-ink-secondary); }
+.events-spark-end { fill: var(--color-accent); }
+.events-list details summary { padding: 2px 0; font-size: 12px; }
+.events-provenance { margin: 2px 0 0; padding-left: 16px; font-size: 12px; color: var(--map-ink-secondary); }
+.events-provenance li { display: list-item; padding: 2px 0; border: 0; font-size: 12px; }
+.venue-events .events-date { flex-wrap: wrap; margin: var(--space-2) 0; }
+.venue-events .events-date select { flex: 1; min-width: 0; max-width: 100%; }

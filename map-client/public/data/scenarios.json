@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "description": "Hand-authored what-if presets. Each one overrides parts of the day's conditions (date, weekday, academic period, weather, events) and runs through the same conditions engine (src/sim/conditions.ts → src/sim/behavior.ts → src/sim/sourceDay.ts). No scenario changes counts or capacities directly; they change people's timelines.",
+  "scenarios": [
+    {
+      "id": "baseline",
+      "label": "Ordinary day",
+      "description": "Classes in session, dry and mild, no events. The reference for comparisons.",
+      "overrides": {
+        "period": "classes",
+        "periodLabel": "Classes in session",
+        "weather": {
+          "condition": "clear",
+          "temperatureF": 62
+        }
+      }
+    },
+    {
+      "id": "rainy-exam-week",
+      "label": "Rainy exam week",
+      "description": "Final exams in steady rain: libraries fill, few outings, almost nobody by the river.",
+      "overrides": {
+        "date": "2026-12-16",
+        "weekday": 2,
+        "period": "finals",
+        "periodLabel": "Final exams",
+        "weather": {
+          "condition": "rain",
+          "temperatureF": 44,
+          "precipitationMmPerHour": 2.5
+        }
+      }
+    },
+    {
+      "id": "snow-day",
+      "label": "Snow day",
+      "description": "Heavy snow and BU closes: classes cancelled, residents stay in, slow walking.",
+      "overrides": {
+        "date": "2027-02-03",
+        "weekday": 2,
+        "period": "holiday",
+        "periodLabel": "Classes cancelled for snow (scenario)",
+        "weather": {
+          "condition": "snow",
+          "temperatureF": 26,
+          "precipitationMmPerHour": 3
+        }
+      },
+      "provenance": {
+        "kind": "assumption",
+        "note": "BU announces weather closures on its emergency page; this date and storm are hypothetical."
+      }
+    },
+    {
+      "id": "finals-week",
+      "label": "Finals week",
+      "description": "A dry December exam day: exams in place of most classes, long library sessions.",
+      "overrides": {
+        "date": "2026-12-16",
+        "weekday": 2,
+        "period": "finals",
+        "periodLabel": "Final exams",
+        "weather": {
+          "condition": "clear",
+          "temperatureF": 40
+        }
+      }
+    },
+    {
+      "id": "heatwave",
+      "label": "Heatwave",
+      "description": "Early September, 95°F: indoors at midday, the river in the evening.",
+      "overrides": {
+        "date": "2026-09-09",
+        "weekday": 2,
+        "period": "classes",
+        "periodLabel": "Classes in session",
+        "weather": {
+          "condition": "heatwave",
+          "temperatureF": 95
+        }
+      }
+    },
+    {
+      "id": "warm-saturday",
+      "label": "Warm Saturday",
+      "description": "A dry 78°F October Saturday: BU Beach and the Esplanade fill up.",
+      "overrides": {
+        "date": "2026-10-31",
+        "weekday": 5,
+        "period": "classes",
+        "periodLabel": "Weekend in term",
+        "weather": {
+          "condition": "clear",
+          "temperatureF": 78
+        }
+      }
+    },
+    {
+      "id": "hockey-game",
+      "label": "Home hockey game",
+      "description": "BU men's hockey at Agganis Arena, 7 PM puck drop on a Saturday (a date with no other published event at the arena).",
+      "overrides": {
+        "date": "2026-11-07",
+        "weekday": 5,
+        "period": "classes",
+        "periodLabel": "Weekend in term",
+        "weather": {
+          "condition": "clear",
+          "temperatureF": 55
+        },
+        "events": [
+          {
+            "id": "hockey-agganis",
+            "label": "BU men's hockey at Agganis Arena",
+            "locationId": "agganis",
+            "start": 68400,
+            "end": 77400,
+            "expectedStudents": 2000,
+            "capacity": 6000,
+            "audience": {
+              "residents": true,
+              "commuters": true,
+              "levels": [
+                "undergraduate",
+                "graduate"
+              ]
+            },
+            "provenance": {
+              "kind": "assumption",
+              "note": "Reported attendance at the Oct 10, 2026 home game was 4,951 (goterriers.com box score); about 40% of a crowd that size are assumed to be students. Seats are approximate.",
+              "source": "https://goterriers.com/sports/mens-ice-hockey/stats/2026-27/brown/boxscore/33104"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "move-in-day",
+      "label": "Move-in day",
+      "description": "The Saturday before fall classes: residents arrive, dining halls busy, no classes.",
+      "overrides": {
+        "date": "2026-08-29",
+        "weekday": 5,
+        "period": "move-in",
+        "periodLabel": "Fall move-in",
+        "weather": {
+          "condition": "clear",
+          "temperatureF": 80
+        }
+      }
+    },
+    {
+      "id": "marathon-monday",
+      "label": "Marathon Monday",
+      "description": "Patriots' Day: classes suspended, students head to Kenmore and Beacon Street to cheer.",
+      "overrides": {
+        "date": "2027-04-19",
+        "weekday": 0,
+        "weather": {
+          "condition": "clear",
+          "temperatureF": 58
+        }
+      },
+      "provenance": {
+        "kind": "published",
+        "note": "BU's calendar suspends classes on Patriots' Day (Apr 19, 2027); the Boston Marathon passes Kenmore Square next to campus.",
+        "source": "https://www.bu.edu/reg/calendars/semester/"
+      }
+    }
+  ]
+}

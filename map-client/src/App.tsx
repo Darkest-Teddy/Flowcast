@@ -28,9 +28,12 @@ import { buildSourceDay, type SourceDay } from './sim/sourceDay';
 import { weekdayOf } from './sim/gatherings';
 import { EventsPanel } from './EventsPanel';
 import { createTransitService, mergeSchedules, type TransitService } from './sim/transitService';
+import { loadObservations, type CalibrationObservations } from './data/observations';
+import { buildPublicCrowd, isPublicId, type PublicCrowd } from './sim/publicCrowd';
 import { waitingCharacters, waitingRiderLayers } from './layers/waitingRiders';
 import { SourceDataPanel } from './SourceDataPanel';
 import { AMENITY_KINDS, displayName, displayShort } from './tags/names';
+import { assignNames, type NameLists } from './sim/names';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
@@ -57,6 +60,16 @@ import { LoadingScreen, createLoadProgress } from './LoadingScreen';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
+// Conditions engine: conditioned days simulated off the main thread, scenarios, explanation.
+import { DayEngine, type EngineInput } from './sim/dayEngine';
+import { ConditionsPanel, type EngineStatus } from './ConditionsPanel';
+import { baselineInput, LIVE, loadScenarios, scenarioInput, type ScenarioFile } from './sim/scenarios';
+import { dayWeather } from './sim/conditions';
+import type { DayComparison } from './sim/compare';
+import type { DayInfo } from './sim/explain';
+import { loadOutdoor, type OutdoorFile } from './sim/outdoor';
+import { outdoorCount, outdoorIndex, outdoorLayers, outdoorPeople, type OutdoorIndex } from './layers/outdoor';
+import type { WeatherMode } from './weather/weather';
 import { IncidentPanel, type IncidentRun } from './IncidentPanel';
 import { applyIncident, type IncidentKind } from './sim/incidents';
 import { damageAt } from './sim/disasterDamage';
@@ -67,9 +80,11 @@ import { fireResponseLayers } from './layers/fireResponse';
 import { AskPanel, type AskShow } from './AskPanel';
 import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
-import type { WalkRoute } from './sim/playback';
+import type { Stay, WalkRoute } from './sim/playback';
 import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireModels } from './layers/fireTrucks';
-import { loadFireNetwork, planFireResponse, signalOracle, type FireNetwork } from './sim/fireResponse';
+import { loadFireNetwork, planFireResponse, roadsNear, signalOracle, type FireNetwork } from './sim/fireResponse';
+import { crowdCharacters } from './layers/fireCrowd';
+import { segmentsNear } from './sim/fireEvacuation';
 import { registeredSignals } from './sim/signals';
 import { FireSiren } from './fireSiren';
 import { ParkingTags, type ParkingTagsHandle } from './ParkingTags';
@@ -78,6 +93,9 @@ import { PHONE_QUERY, Sheet, usePhone, type Detent, type SheetCover } from './Sh
 import { Popover } from './Popover';
 import { parkingLayers, parkingUnder } from './layers/parking';
 import { campusParkingEvents, createParkingModel, loadParking, parkingAt, parkingDayKind, type LotState, type ParkingData, type ParkingEvent, type ParkingModel, type ParkingState } from './sim/parking';
+import { loadEventSources, type EventSources } from './data/eventCalendar';
+import { eventLoadAt, eventLoadLabel, NO_EVENT_DAY, planEventDay, setCurrentEventDay, type EventDay } from './sim/eventAttendance';
+import { NO_VISITORS, planVisitors, setCurrentVisitorPlan, visitorFromId, visitorsAt, type VisitorPlan } from './sim/visitors';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -123,6 +141,8 @@ const PARKING_KEY = 'flowcast.parking';
 function storedParking(): boolean {
   try { return localStorage.getItem(PARKING_KEY) === '1'; } catch { return false; }
 }
+/** The map's weather look for a scenario's weather (live weather otherwise). */
+const SCENARIO_LOOK: Record<string, WeatherMode> = { clear: 'clear', rain: 'rain', 'heavy-rain': 'rain', drizzle: 'rain', snow: 'snow', thunderstorm: 'thunderstorm', heatwave: 'heatwave', fog: 'fog' };
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
 const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
@@ -144,6 +164,10 @@ interface Hud {
   riding: Map<string, number>;
   /** Students standing at stops for a published departure. */
   waiting: number;
+  /** People on BU Beach, the Esplanade and the river path (out of buildings, not walking between places). */
+  outdoors?: number;
+  /** Public (non-student) walkers on the streets: never counted with the students. */
+  public?: number;
 }
 
 interface Transit {
@@ -228,9 +252,11 @@ export default function App() {
   const updatePadding = useCallback(() => {
     const cover = coverRef.current;
     const toolbar = toolbarHeightRef.current ? toolbarHeightRef.current + 2 * TOOLBAR_GAP : 0;
-    const next = phoneRef.current
-      ? { top: 0, left: 0, right: 0, bottom: cover.bottom + toolbar }
-      : { top: 0, left: 0, right: cover.right, bottom: toolbar };
+    // The clean view (H) hides the sheet and toolbar, so the whole screen is map.
+    const next = cleanRef.current ? { top: 0, left: 0, right: 0, bottom: 0 }
+      : phoneRef.current
+        ? { top: 0, left: 0, right: 0, bottom: cover.bottom + toolbar }
+        : { top: 0, left: 0, right: cover.right, bottom: toolbar };
     const p = paddingRef.current;
     if (next.top === p.top && next.bottom === p.bottom && next.left === p.left && next.right === p.right) return;
     paddingRef.current = next;
@@ -261,6 +287,7 @@ export default function App() {
   // Boston Fire apparatus for fire alarms: street graph and models, loaded after the map starts.
   const fireRef = useRef<Promise<{ network: FireNetwork; models: FireModels } | null> | null>(null);
   const fireModelsRef = useRef<FireModels>({});
+  const fireNetworkRef = useRef<FireNetwork | null>(null);
   const [responsePending, setResponsePending] = useState(false);
   const [siren, setSiren] = useState(false);
   const sirenRef = useRef<FireSiren | null>(null);
@@ -272,12 +299,38 @@ export default function App() {
   // Published MBTA service the students ride (null: timetable unavailable, gateways are walk-only).
   const transitServiceRef = useRef<TransitService | undefined>(undefined);
   const loadDeferredRef = useRef<((campus: string) => void) | null>(null);
+  // First names for hover text (sim/names.ts), one per student, matching the character's gender.
+  const namesRef = useRef<Map<string, string> | null>(null);
+  // Clean view (H): no panels, tags or data overlays, just the map, buildings, people and transit.
+  const [clean, setClean] = useState(false);
+  const cleanRef = useRef(false);
   const playbackRef = useRef<Playback | null>(null);
+  // Observed MBTA and pedestrian counts (null: file missing, public crowd off) and the non-student
+  // crowd built from them for the shown day. Students alone fill university buildings.
+  const observationsRef = useRef<CalibrationObservations | null>(null);
+  const publicCrowdRef = useRef<PublicCrowd | null>(null);
+  const publicBuildRef = useRef(0);
   // Campus events: on by default. Which date's events play is decided by eventDateFor().
   const [eventsOn, setEventsOn] = useState(START_EVENTS);
   const eventsOnRef = useRef(START_EVENTS);
   const pinnedDateRef = useRef<string | null>(URL_DATE);
-  const [simDay, setSimDay] = useState<SourceDay | null>(null);
+  const [simDay, setSimDay] = useState<Pick<SourceDay, 'eventDate' | 'gatherings'> | null>(null);
+  // Venue events (Agganis, Fenway...): calendar, Trends popularity and visitor walks, loaded once.
+  // Visitors are their own population, drawn with the walkers but never counted as students.
+  const eventSourcesRef = useRef<EventSources>({ calendar: null, popularity: null, routes: null });
+  const eventDayRef = useRef<EventDay>(NO_EVENT_DAY);
+  const visitorPlanRef = useRef<VisitorPlan>(NO_VISITORS);
+  const [eventDay, setEventDay] = useState<EventDay>(NO_EVENT_DAY);
+  /** Plan the venue events (and their visitors) for the date whose events are playing. */
+  const planVenueEvents = (date: string | null) => {
+    const planned = planEventDay(eventSourcesRef.current, date);
+    eventDayRef.current = planned;
+    visitorPlanRef.current = planVisitors(planned);
+    // Other features read these by time alone (currentEventLoadAt, eventVisitorsAt).
+    setCurrentEventDay(planned);
+    setCurrentVisitorPlan(visitorPlanRef.current);
+    setEventDay(planned);
+  };
   /**
    * The Boston date whose events run on this weekday: a date picked in the URL or panel when it
    * falls on this weekday, today's date in Clock mode, else that weekday of the representative week.
@@ -291,8 +344,27 @@ export default function App() {
   };
   /** Build (or fetch from cache) one simulated day with its campus events, and make it current. */
   const playDay = (base: PopulationBase, data: CampusData, day: number): Playback => {
+    // Conditions engine: once its worker is ready, days are simulated there (see the effect on
+    // conditionsInput below) and the current day stays on screen until the new one is ready.
+    if (engineActiveRef.current && playbackRef.current) { setDayRequest((n) => n + 1); return playbackRef.current; }
     const built = buildSourceDay(base, data, day, transitServiceRef.current, { eventDate: eventDateFor(data, day) });
     setSimDay(built);
+    planVenueEvents(built.eventDate);
+    // The public crowd (about a second to build) follows on the next task, so the day starts at once;
+    // a newer day cancels it.
+    const observations = observationsRef.current;
+    const build = ++publicBuildRef.current;
+    publicCrowdRef.current = null;
+    if (observations) {
+      setTimeout(() => {
+        if (build !== publicBuildRef.current) return;
+        try {
+          publicCrowdRef.current = buildPublicCrowd({ observations, day: built, weekday: day, transit: transitServiceRef.current });
+        } catch {
+          publicCrowdRef.current = null; // the students' day plays on without the public crowd
+        }
+      }, 0);
+    }
     return new Playback(built);
   };
   const [campuses, setCampuses] = useState<Campus[]>([]);
@@ -314,6 +386,21 @@ export default function App() {
   const [feedError, setFeedError] = useState<string | null>(null);
   const [feedUpdatedAt, setFeedUpdatedAt] = useState<number | null>(null);
   const weatherRef = useRef<ActiveWeather | null>(null);
+  // Conditions engine (sim/dayEngine.ts): see ConditionsPanel.
+  const engineRef = useRef<DayEngine | null>(null);
+  const engineActiveRef = useRef(false);
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>('starting');
+  const [engineError, setEngineError] = useState<string | null>(null);
+  const [engineReady, setEngineReady] = useState(false);
+  const [dayRequest, setDayRequest] = useState(0);
+  const [scenarioFile, setScenarioFile] = useState<ScenarioFile | null>(null);
+  const [scenario, setScenario] = useState(LIVE);
+  const [dayInfo, setDayInfo] = useState<DayInfo | null>(null);
+  const [comparison, setComparison] = useState<DayComparison | 'loading' | null>(null);
+  const [weatherKey, setWeatherKey] = useState('');
+  const outdoorRef = useRef<{ file: OutdoorFile | null; index: OutdoorIndex | null; of: Playback | null }>({ file: null, index: null, of: null });
+  // Each conditioned day's outdoor stays, found while it was prepared (the unconditioned model has none).
+  const outdoorStaysRef = useRef(new WeakMap<Playback, Stay[]>());
   const [showBikes, setShowBikes] = useState(true);
   const [bikeFeedError, setBikeFeedError] = useState<string | null>(null);
   const [bikeFeedUpdatedAt, setBikeFeedUpdatedAt] = useState<number | null>(null);
@@ -334,6 +421,10 @@ export default function App() {
       const track = loadProgress.track;
       // BU Shuttle timetable (recorded TransLoc schedules + BU's GTFS baseline); MBTA-only without it.
       const shuttleTimetable = loadPublishedSchedule('/data/shuttle-schedule.json').catch(() => null);
+      // Venue events are an extra: fetched alongside, never holding up the map.
+      const venueEvents = loadEventSources();
+      // Observed counts for the public crowd; without them the map shows students only.
+      const observationsLoad = loadObservations().catch(() => null);
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields] = await Promise.all([
         track('Drawing the map', createBasemap(mapElement, shownLight)),
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
@@ -356,6 +447,7 @@ export default function App() {
       ]);
       if (cancelled) return basemap.remove();
       const shuttleSchedule = await shuttleTimetable;
+      observationsRef.current = await observationsLoad;
       const timetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
       basemapRef.current = basemap;
       // The panels were laid out while the map loaded: start centred in what they leave.
@@ -409,12 +501,31 @@ export default function App() {
 
       walkRoutesRef.current = (day as { walkRoutes?: Record<string, WalkRoute> }).walkRoutes ?? {};
       const populationBase = buildPopulation(day, snapshot, population);
+      // Names for hover text: dealt once over the whole roster (the same people every day).
+      fetch('/data/names.json').then((r) => (r.ok ? r.json() : null))
+        .then((lists: NameLists | null) => { if (lists) namesRef.current = assignNames(populationBase.agents, lists); })
+        .catch(() => {});
       baseDayRef.current = populationBase;
       setSourceData(snapshot);
       setMobilityData(mobilitySnapshot);
       transitServiceRef.current = timetable ? createTransitService(timetable) : undefined;
       const playback = playDay(populationBase, snapshot, weekdayRef.current);
       playbackRef.current = playback;
+      // Conditions engine: the day above (the unconditioned model) shows until the worker's
+      // conditioned day for the live conditions is ready.
+      try {
+        const engine = new DayEngine(populationBase, snapshot.academicCalendar);
+        engineRef.current = engine;
+        engine.ready.then(() => { if (!cancelled) { engineActiveRef.current = true; setEngineReady(true); } },
+          (error: Error) => { if (!cancelled) { engineActiveRef.current = false; setEngineStatus('unavailable'); setEngineError(error.message); } });
+      } catch (error) { setEngineStatus('unavailable'); setEngineError((error as Error).message); }
+      void loadScenarios().then((file) => { if (!cancelled) setScenarioFile(file ?? null); });
+      void loadOutdoor().then((file) => { outdoorRef.current = { file: file ?? null, index: null, of: null }; });
+      void venueEvents.then((sources) => {
+        if (cancelled) return;
+        eventSourcesRef.current = sources;
+        planVenueEvents(eventDayRef.current.date ?? (playbackRef.current?.data as SourceDay | undefined)?.eventDate ?? null);
+      });
       setRange([0, 86400]);
       setCampuses(day.campuses ?? []);
 
@@ -492,14 +603,24 @@ export default function App() {
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
+          const visitor = visitorFromId(visitorPlanRef.current, agent.id);
+          if (visitor) {
+            const { estimate, origin } = visitor;
+            return agent.to === estimate.venue.id
+              ? `Event visitor → ${estimate.venue.name} (${estimate.event.name}) from ${origin.name}`
+              : `Event visitor leaving ${estimate.venue.name} → ${origin.name}`;
+          }
           // Riders walking to a stop are headed for a transit stop, not a building.
-          return `Student ${agent.id} → ${playbackRef.current?.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short}`;
+          if (isPublicId(agent.id)) return agent.to === 'street' ? 'Public pedestrian (not a student)' : `Public rider (not a student) · ${transit?.data.stops.find((s) => s.id === agent.to)?.short ?? 'MBTA stop'}`;
+          const where = playbackRef.current?.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short;
+          const who = namesRef.current?.get(agent.id) ?? 'Student';
+          return where ? `${who} → ${displayName(where)}` : who;
         },
       });
       basemap.addControl(overlay);
       // Fire response data is only needed once someone sounds a fire alarm: fetch it in the background.
       fireRef.current = Promise.all([loadFireNetwork(), loadFireModels()])
-        .then(([network, models]) => { fireModelsRef.current = models; return { network, models }; })
+        .then(([network, models]) => { fireModelsRef.current = models; fireNetworkRef.current = network; return { network, models }; })
         .catch(() => null);
       // Dev-only handle for poking at layers from the browser console.
       if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, get incident() { return incidentRunRef.current; }, transitRef, bikesRef, populationBase, quality } });
@@ -537,6 +658,7 @@ export default function App() {
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       let parkingState: ParkingState | null = null; // only while the Parking toggle is on
       let lastParking = 0;
+      let outdoorSeenAt = -Infinity; // last frame with people sitting by the river near the camera
       const tick = (now: number) => {
         // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
         if (!pacer.shouldRender(now)) {
@@ -587,7 +709,16 @@ export default function App() {
         const q = quality.settings;
         setParticleScale(q.particles);
         const walking = playback.walkingAt(t);
+        const publicWalking = publicCrowdRef.current?.walkingAt(t) ?? [];
         const waitingRiders = playback.waitingAt(t);
+        // Outdoor free time by the river (layers/outdoor.ts): indexed once per day, drawn near the camera.
+        const outdoor = outdoorRef.current;
+        if (outdoor.of !== playback) { outdoor.index = outdoorIndex(outdoorStaysRef.current.get(playback), playback.data.agents, outdoor.file); outdoor.of = playback; }
+        const outside = outdoor.index ? outdoorPeople(outdoor.index, t, basemap.getCamera().center, q.walkerRadius) : null;
+        // The idle layers join the frame only while someone sits nearby (kept for a minute after, so
+        // they aren't torn down and rebuilt as people come and go); otherwise they cost nothing.
+        if (outside?.sitting.length) outdoorSeenAt = now;
+        const drawSitters = now - outdoorSeenAt < 60_000;
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
@@ -596,7 +727,8 @@ export default function App() {
           if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
           const ridingByCampus = new Map<string, number>();
           for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
-          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length });
+          setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length,
+            outdoors: outdoor.index ? outdoorCount(outdoor.index, t) : undefined, public: publicWalking.length });
         }
         // Reserve the active assembly label before placing building and transit tags.
         const placer = createPlacer(basemap.project);
@@ -607,17 +739,20 @@ export default function App() {
           basemap.excludeBuildings([...baselineExcludedBuildings, ...damage.map(building => Number(building.id.split('/')[1])).filter(Number.isFinite)], damageExclusionAreas(damage, detailedBuildings?.manifest));
           damageExclusionKey = damageKey;
         }
+        // A fire's evacuees standing outside (nothing without an outdoor crowd).
+        const crowd = incidentRunRef.current?.crowd;
+        const standing = crowd ? crowdCharacters(playback.outdoorAt(t), crowd) : [];
         const response = incidentRunRef.current?.fireResponse;
         const fireTrucks = response ? fireResponseAt(response, t) : [];
         const incidentFrameLayers = incidentLayers(incidentRunRef.current, t, occupancy, day.buildings, placer, damage);
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
         if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
           buildingOccupancy = playback.byBuilding(occupancy);
-          buildings = splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights);
+          buildings = withVenueEvents(splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights), eventDayRef.current, t, populationBase.locations);
           buildingsFrom = occupancy;
           buildingsPlayback = playback;
         }
-        tagsRef.current?.update({
+        if (!cleanRef.current) tagsRef.current?.update({
           buildings: buildings.filter(building => !damagedIds.has(building.id.split('#')[0])),
           footprints: day.buildings,
           locations: populationBase.locations,
@@ -637,7 +772,7 @@ export default function App() {
             parkingState = parkingAt(parking.model, parkingDay(snapshot, liveRef.current, weekdayRef.current), liveRef.current ? wallClockSeconds() : t, parking.campusEvents);
             setParkingView(parkingState);
           }
-          parkingTagsRef.current?.update({ placer, project: basemap.project, camera: basemap.getCamera(), state: parkingState });
+          if (!cleanRef.current) parkingTagsRef.current?.update({ placer, project: basemap.project, camera: basemap.getCamera(), state: parkingState });
         } else parkingState = null;
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
@@ -647,7 +782,7 @@ export default function App() {
         const serviceTime = liveRef.current ? wallClockSeconds() : t;
         const serviceDay = liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7;
         // Then station, stop and dock tags, through the same placer.
-        transitTagsRef.current?.update({
+        if (!cleanRef.current) transitTagsRef.current?.update({
           placer,
           project: basemap.project,
           zoom: basemap.getZoom(),
@@ -658,7 +793,7 @@ export default function App() {
           bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
         });
         // Then monuments, artworks, open spaces and fields.
-        placeTagsRef.current?.update({
+        if (!cleanRef.current) placeTagsRef.current?.update({
           placer,
           project: basemap.project,
           camera: basemap.getCamera(),
@@ -673,6 +808,8 @@ export default function App() {
         for (const d of deferred) {
           if (!detailedBuildings!.models[d.id] && (camera.zoom < 14.5 || metresToBox(camera.center, d.bounds) < DEFERRED_LOAD_METRES)) loadDeferredRef.current?.(d.id);
         }
+        // Event visitors near the camera (none, at no cost, when no venue event is on).
+        const visitorFrame = visitorsAt(visitorPlanRef.current, t, camera.center, q.walkerRadius, ([x, y]) => x >= view[0] && x <= view[2] && y >= view[1] && y <= view[3]);
         const frameLayers = [
           ...fallbackDamageLayers(damage, new Set(detailedBuildings?.manifest.campuses
             .filter(campus => detailedBuildings.models[campus.id])
@@ -681,7 +818,7 @@ export default function App() {
           ...(detailedBuildings
             ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows, damage, footprints: damageFootprints })
             : []),
-          ...crowdLayers({
+          ...(cleanRef.current ? [] : crowdLayers({
             footprints: day.buildings,
             buildings: buildingOccupancy.filter((building) => building.modeled !== false && !damagedIds.has(building.id)),
             trips: playback.trailsAt(t, Math.min(600, Math.max(20, speedRef.current * 3))),
@@ -691,31 +828,38 @@ export default function App() {
             zoom: basemap.getZoom(),
             roofHeights,
             volumes,
-          }),
+          })),
           ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
           ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' }) : []),
-          ...(parking && parkingState ? parkingLayers(parking.data, parkingState) : []),
+          ...(cleanRef.current ? [] : [...(parking && parkingState ? parkingLayers(parking.data, parkingState) : [])]),
           ...placeHitLayers(monuments?.monuments ?? null, fields?.fields ?? null, basemap.getZoom()),
           ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(thinForZoom(inView(nearView(walking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
+          // Students walking, plus river walkers/runners (conditions engine), plus event visitors; then the
+          // public (non-student) crowd, thinned on its own (data/observations.ts, sim/publicCrowd.ts).
+          ...agentLayers(withPublic(thinForZoom(withVisitors(inView(nearView(walking, camera.center, q.walkerRadius).concat(nearView(outside?.moving ?? [], camera.center, q.walkerRadius)), view), visitorFrame.drawn), basemap.getZoom()),
+            thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom() }),
+          ...(outside && drawSitters ? outdoorLayers(outside.sitting, models, t, basemap.getZoom()) : []),
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
-          ...(transit ? waitingRiderLayers(nearView(waitingCharacters(waitingRiders, transit.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
-          ...askRouteLayers(askRouteRef.current),
-          ...(currentMobility && showCountsRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
+          // People standing about: riders waiting at stops, and a fire's evacuees in their crowds (same idle layers).
+          ...(transit || standing.length ? waitingRiderLayers(nearView(standing.length
+            ? [...(transit ? waitingCharacters(waitingRiders, transit.feed.tracks) : []), ...standing]
+            : waitingCharacters(waitingRiders, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
+          ...(cleanRef.current ? [] : askRouteLayers(askRouteRef.current)),
+          ...(currentMobility && showCountsRef.current && !cleanRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
         // Siren (off unless switched on): only while apparatus run lights-and-siren and the clock runs.
         sirenRef.current?.set(playingRef.current ? FireSiren.levelAt(nearestResponding(incidentRunRef.current?.response ?? null, basemap.getCamera().center)) : 0);
         perfRef.current = {
-          walkers: walking.length,
+          walkers: walking.length + visitorFrame.drawn.length + publicWalking.length,
           vehicles: source ? source.positionsAt(now).length : 0,
           layers: frameLayers.length,
         };
@@ -738,6 +882,19 @@ export default function App() {
     // The map is created once; light changes go through setLightPreset below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (e.metaKey || e.ctrlKey || e.altKey || target?.closest('input, select, textarea, [contenteditable="true"]')) return;
+      if (e.key !== 'h' && e.key !== 'H') return;
+      cleanRef.current = !cleanRef.current;
+      setClean(cleanRef.current);
+      updatePadding();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [updatePadding]);
 
   useEffect(() => {
     lightModeRef.current = light;
@@ -774,6 +931,9 @@ export default function App() {
   const getPerfCounts = useCallback(() => perfRef.current, []);
   const onWeather = useCallback((w: ActiveWeather) => {
     weatherRef.current = w;
+    // The conditions engine only rebuilds when the weather's behaviour family or temperature band changes.
+    const shown = dayWeather({ condition: w.condition, temperatureF: w.temperatureF });
+    setWeatherKey(`${shown.kind}|${shown.band}`);
   }, []);
   const openWeather = useCallback(() => {
     setTab('weather');
@@ -878,6 +1038,69 @@ export default function App() {
     setEventsOn(true);
     changeDay(weekdayOf(date));
   };
+  // ── Conditions engine: today's date and live weather in Clock mode, the picked weekday and shown
+  // weather in playback, either overridden by a scenario. Days are simulated in a worker.
+  const activeScenario = scenarioFile?.scenarios.find((row) => row.id === scenario);
+  const conditionsInput = useMemo((): EngineInput | null => {
+    if (!sourceData) return null;
+    const w = weatherRef.current;
+    const weather = w && w.source !== 'none' ? { condition: w.condition, temperatureF: w.temperatureF, precipitationMmPerHour: w.reading?.precipMmPerHour ?? null,
+      windMph: w.wind.mph, source: w.source } : null;
+    const shown = live ? { date: wallClockDate(), weekday: wallClockWeekday(), weather } : { date: dateForWeekday(sourceData, weekday), weekday, weather };
+    const input = scenarioInput(shown, activeScenario);
+    const day = input.weekday ?? weekday;
+    // A scenario's own date plays that date's campus events; otherwise the usual event date.
+    const scenarioDate = activeScenario?.overrides.date && weekdayOf(activeScenario.overrides.date) === day ? activeScenario.overrides.date : null;
+    return { ...input, eventDate: eventsOnRef.current ? scenarioDate ?? eventDateFor(sourceData, day) : null };
+    // weatherKey stands in for weatherRef, dayRequest for the event refs (eventsOn, pinned date).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceData, activeScenario, live, weekday, weatherKey, eventsOn, dayRequest]);
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engineReady || !engine || engine.failed || !conditionsInput) return;
+    let stale = false;
+    const timer = window.setTimeout(() => {
+      setEngineStatus('building');
+      engine.requestDay(conditionsInput.weekday ?? weekdayRef.current, conditionsInput).then((prepared) => {
+        if (stale || !prepared) return;
+        // A new day ends any incident scenario that was running on the old one (as a day change does).
+        if (baselinePlaybackRef.current) { baselinePlaybackRef.current = null; incidentRunRef.current = null; setIncidentRun(null); }
+        outdoorStaysRef.current.set(prepared.playback, prepared.outdoorStays);
+        playbackRef.current = prepared.playback;
+        setSimDay(prepared.day);
+        setDayInfo(prepared.info);
+        setEngineStatus('ready');
+      }, (error: Error) => { if (!stale) { engineActiveRef.current = false; setEngineStatus('unavailable'); setEngineError(error.message); } });
+    }, 300);
+    return () => { stale = true; window.clearTimeout(timer); };
+  }, [engineReady, conditionsInput]);
+  const chooseScenario = (id: string) => {
+    setScenario(id);
+    setComparison(null);
+    const pinned = scenarioFile?.scenarios.find((row) => row.id === id)?.overrides.weekday;
+    if (pinned !== undefined && pinned !== weekdayRef.current) {
+      leaveLive();
+      weekdayRef.current = pinned;
+      setWeekday(pinned);
+    }
+  };
+  const compareWithBaseline = () => {
+    const engine = engineRef.current;
+    if (!engine || !conditionsInput || !sourceData) return;
+    const day = conditionsInput.weekday ?? weekdayRef.current;
+    setComparison('loading');
+    const baseline = { ...baselineInput(conditionsInput, scenarioFile ?? undefined, dateForWeekday(sourceData, day)), eventDate: conditionsInput.eventDate };
+    engine.compare(day, conditionsInput, baseline).then(setComparison, () => setComparison(null));
+  };
+  const scenarioLook = activeScenario?.overrides.weather ? SCENARIO_LOOK[activeScenario.overrides.weather.condition] ?? null : null;
+
+  /** Play a venue event's date from an hour before it starts, and fly to the venue. */
+  const jumpToVenueEvent = (date: string, startSec: number) => {
+    pickEventDate(date);
+    scrub(Math.max(0, startSec - 3600));
+    const venue = eventDayRef.current.events.find((e) => e.startSec === startSec)?.venue;
+    if (venue) basemapRef.current?.flyTo(venue.position, 16.6);
+  };
   const selectSource = (location: CampusLocation) => {
     setCampus(location.campus ?? 'charles-river');
     selectedRef.current = location.kind === 'outdoor' ? null : location.building;
@@ -895,23 +1118,32 @@ export default function App() {
       waiting: playback.waitingAt(timeRef.current).length,
     }));
   };
-  const startIncident = (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number) => {
+  const startIncident = (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number, outdoorCrowd?: boolean) => {
     const baseline = playbackRef.current;
     if (!baseline || baselinePlaybackRef.current) throw new Error('Reset the current scenario before starting another incident.');
     if (timeRef.current + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
-    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration, radiusMetres };
-    const result = applyIncident(baseline.data, incident, sourceData ? { sourceData, weekday: weekdayRef.current } : undefined);
+    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration, radiusMetres,
+      ...(kind === 'fire' && outdoorCrowd ? { outdoorCrowd: true } : {}) };
     const location = baseline.locations.find((entry) => entry.id === locationId)!;
+    // The trucks depend only on the fire's active period, so they are planned first: the outdoor crowd keeps clear of where they park.
     const responsePlan = kind === 'fire' ? (transitRef.current
-      ? planDisasterFireResponse({ incident, location, hazard: result.hazard }, transitRef.current.data, baseline.data.buildings)
+      ? planDisasterFireResponse({ incident, location, hazard: { activeUntil: incident.start + duration } }, transitRef.current.data, baseline.data.buildings)
       : { plan: null, reason: 'no-road-data' as const }) : null;
     const fireResponse = responsePlan?.plan ?? null;
+    const fireScene = incident.outdoorCrowd ? {
+      // Streets (Boston Fire's network, once loaded) and the surface Green Line trackbed and platforms in the median.
+      roads: [...(fireNetworkRef.current ? roadsNear(fireNetworkRef.current, location.position, 600) : []),
+        ...segmentsNear((transitRef.current?.feed.tracks ?? []).filter((track) => track.route.startsWith('Green-')).map((track) => track.points), location.position, 600, 5.5)],
+      apparatus: (fireResponse?.trucks ?? []).flatMap((truck) => fireResponseAt(fireResponse, truck.fightStart).filter((frame) => frame.id === truck.id).map((frame) => frame.position)),
+    } : undefined;
+    const result = applyIncident(baseline.data, incident, sourceData
+      ? { sourceData, weekday: weekdayRef.current, transit: transitServiceRef.current, ...(fireScene ? { fireScene } : {}) } : undefined);
     const playback = new Playback(result.day);
     baselinePlaybackRef.current = baseline;
     playbackRef.current = playback;
     leaveLive();
     const run = { incident, location, fireResponse, fireResponseUnavailable: responsePlan?.reason,
-      hazard: result.hazard, casualties: result.casualties, assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants };
+      hazard: result.hazard, casualties: result.casualties, assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants, crowd: result.crowd };
     incidentRunRef.current = run;
     setIncidentRun(run);
     refreshIncidentHud();
@@ -1039,7 +1271,8 @@ export default function App() {
   );
 
   return (
-    <div className="app">
+    <div className={clean ? 'app is-clean' : 'app'}>
+      {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
         // Auto lighting: a blue multiply veil darkens the chosen preset to the sun's brightness (set per frame).
@@ -1055,7 +1288,7 @@ export default function App() {
       <MemoPerfMonitor counts={getPerfCounts} />
       {mapKind && (
         <MemoWeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={onWeather}
-          panel={weatherPanel} chip={weatherChip} onOpen={openWeather} />
+          panel={weatherPanel} chip={weatherChip} onOpen={openWeather} forceMode={scenarioLook} />
       )}
       <div className="sheet-dim" data-dim={dim} aria-hidden="true" />
 
@@ -1074,7 +1307,9 @@ export default function App() {
           <p className="sheet-stats">
             <span><b>{hud.walking.toLocaleString()}</b> walking</span>
             {hud.waiting > 0 && <span><b>{hud.waiting.toLocaleString()}</b> at stops</span>}
+            {hud.public ? <span><b>{hud.public.toLocaleString()}</b> public on streets</span> : null}
             {bikes && showBikes && <span><b>{ridingHere}</b> on Bluebikes</span>}
+            {hud.outdoors ? <span><b>{hud.outdoors.toLocaleString()}</b> by the river</span> : null}
           </p>
         )}
         actions={<span className="weather-chip-slot" ref={setWeatherChip} />}
@@ -1127,12 +1362,21 @@ export default function App() {
         )}
         {hud && tab === 'crowds' && (
           <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
+            {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
+              info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
             {sourceData && baseDayRef.current && (
               <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
-                onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource} />
+                onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
+                venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
+                time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
             )}
 
             <h2>Campus activity</h2>
+            {hud.public ? (
+              <p className="muted">
+                Students only. Streets: {hud.walking.toLocaleString()} students walking · {hud.public.toLocaleString()} public (non-students), from MBTA ridership and pedestrian counts.
+              </p>
+            ) : null}
             <ol className="rows">
               {ranked.slice(0, 8).map((o) => {
                 const display = activityDisplay({
@@ -1255,6 +1499,7 @@ export default function App() {
         {hud && tab === 'data' && (
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
             {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
+            {publicCrowdRef.current && <p>Public (non-students): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
             {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
           </section>
         )}
@@ -1541,6 +1786,32 @@ function waitingByStop(waiting: { stop: string }[]): Map<string, number> {
   return counts;
 }
 
+/** Students drawn plus event visitors drawn (the same character layers; visitors are never counted as students). */
+function withVisitors(students: WalkingAgent[], visitors: WalkingAgent[]): WalkingAgent[] {
+  return visitors.length ? students.concat(visitors) : students;
+}
+
+const VENUE_TAG_ROOF_M = 24;
+/**
+ * Building tags with each venue event's crowd: on the venue's own tag when it's a simulated place
+ * (Agganis Arena), else a tag of its own (Fenway Park). Student figures on the tag are untouched.
+ */
+function withVenueEvents(buildings: BuildingOccupancy[], day: EventDay, t: number, locations: CampusLocation[]): BuildingOccupancy[] {
+  if (!day.events.length) return buildings;
+  let out = buildings;
+  for (const venueId of new Set(day.events.map((e) => e.venue.id))) {
+    const event = eventLoadLabel(eventLoadAt(day, venueId, t));
+    if (!event) continue;
+    const venue = day.events.find((e) => e.venue.id === venueId)!.venue;
+    const building = venue.locationId ? locations.find((l) => l.id === venue.locationId)?.building : undefined;
+    const index = building ? out.findIndex((b) => b.id === building) : -1;
+    if (out === buildings) out = buildings.slice();
+    if (index >= 0) out[index] = { ...out[index], event };
+    else out.push({ id: `venue:${venueId}`, name: venue.name, short: venue.name, position: venue.position, count: 0, capacity: 0, share: 0, roof: VENUE_TAG_ROOF_M, eventOnly: true, event });
+  }
+  return out;
+}
+
 /** Walkers within `radius` metres of the view centre (all of them when radius is null). */
 function nearView(walkers: WalkingAgent[], center: [number, number], radius: number | null): WalkingAgent[] {
   if (radius === null) return walkers;
@@ -1587,6 +1858,20 @@ function shareOf(id: string): number {
     walkerShare.set(id, (v = (h >>> 0) / 4294967296));
   }
   return v;
+}
+/**
+ * Public walkers join the students' walker layers (same characters, no new layers), capped so the
+ * extra skinned instances stay a small share of the frame: at most PUBLIC_DRAW_SHARE of the drawn
+ * students (and PUBLIC_DRAW_MIN..PUBLIC_DRAW_MAX). The same people stay drawn frame to frame (by id).
+ */
+const PUBLIC_DRAW_SHARE = 0.3;
+const PUBLIC_DRAW_MIN = 150;
+const PUBLIC_DRAW_MAX = 500;
+function withPublic(students: WalkingAgent[], publicWalkers: WalkingAgent[]): WalkingAgent[] {
+  if (!publicWalkers.length) return students;
+  const cap = Math.min(PUBLIC_DRAW_MAX, Math.max(PUBLIC_DRAW_MIN, Math.round(students.length * PUBLIC_DRAW_SHARE)));
+  const keep = publicWalkers.length <= cap ? publicWalkers : publicWalkers.filter((w) => shareOf(w.id) < cap / publicWalkers.length);
+  return students.concat(keep);
 }
 function thinForZoom(walkers: WalkingAgent[], zoom: number): WalkingAgent[] {
   if (zoom >= DRAW_ALL_FROM_ZOOM) return walkers;

@@ -3,6 +3,9 @@ import { fitrecVisitStart } from '../data/fitrecUsage';
 import { effectiveMeetingIntervals } from '../data/academicCalendar';
 import { courseLevel, countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
 import { GATHERING_ASSUMPTIONS, gatheringsOnDate, weekdayOf, type Gathering, type GatheringOutcome } from './gatherings';
+import { dayBehavior, type ActivitySpec, type BehaviorModel, type DayBehavior, type LegacyBehavior, type ResolvedParams } from './behavior';
+import type { DayConditions } from './conditions';
+import type { OutdoorFile } from './outdoor';
 import type { Agent, CampusLocation, DayData, EstimatedActivityProfile, StayPurpose, TransitRide, Trip } from './playback';
 import { ALIGHT_SECONDS, lastAtOrBefore, MAX_EARLY_ARRIVAL_SECONDS, MAX_STOP_PAIR_METRES, MAX_STOP_WAIT_SECONDS, MIN_WEEKLY_TRIPS,
   routeKind, TRANSIT_COMMUTER_SHARE, VEHICLE_PEAK_MAX_LOAD, type TransitService } from './transitService';
@@ -10,7 +13,7 @@ import { ALIGHT_SECONDS, lastAtOrBefore, MAX_EARLY_ARRIVAL_SECONDS, MAX_STOP_PAI
 const DAY = 86400;
 const WALK_SPEED = 1.4;
 const NO_TRANSIT = {};
-const weeklyCache = new WeakMap<DayData, WeakMap<CampusData, WeakMap<object, (weekday: number, eventDate: string | null) => SourceDay>>>();
+const weeklyCache = new WeakMap<DayData, WeakMap<CampusData, WeakMap<object, (weekday: number, eventDate: string | null, behavior?: DayBehavior) => SourceDay>>>();
 /** Built days kept per weekly plan; event dates add variants, and each day holds every student's trips. */
 const CACHED_DAYS = 4;
 const HOME_BREAK = 15 * 60;
@@ -86,6 +89,74 @@ export function habitMultiplier(agentId: string, slot: string): number {
   return fraction(`${agentId}:habit:${slot}`) < trait.share ? trait.high : (1 - trait.share * trait.high) / (1 - trait.share);
 }
 export const freeTimeActivities = (weekday: number): readonly FreeTimeActivity[] => FREE_TIME_ACTIVITIES[weekday] ?? [];
+
+// ── Conditions engine hook (sim/conditions.ts, sim/behavior.ts) ──────────────────────────────
+// The constants above as behaviour parameters. With no conditions, none of this runs; with
+// conditions but no behaviour file, every parameter equals these values and the day is unchanged.
+const LEGACY_ACTIVITY_IDS: readonly (readonly string[])[] = (() => {
+  const weekday = ['breakfast', 'lunch', 'day-study', 'dinner', 'workout', 'evening-study'];
+  const friday = ['breakfast', 'lunch', 'day-study', 'dinner', 'workout', 'night-out'];
+  return [weekday, weekday, weekday, weekday, friday, ['brunch', 'day-study', 'workout', 'dinner', 'night-out'],
+    ['brunch', 'day-study', 'workout', 'dinner', 'evening-study']];
+})();
+export const LEGACY_BEHAVIOR: LegacyBehavior = Object.freeze({
+  scalars: {
+    classAttendance: 1, arrivalLeadMinMinutes: ARRIVAL_LEAD.minimum / 60, arrivalLeadSpreadMinutes: ARRIVAL_LEAD.spread / 60,
+    homeBreakMinutes: HOME_BREAK / 60, commuterOffCampusGapMinutes: OFF_CAMPUS_BREAK / 60, offCampusMealShare: MODELED_OFF_CAMPUS_MEAL_SHARE,
+    shoulderShare: MODELED_ACTIVITY_SHOULDER_SHARE, walkSpeedFactor: 1, walkSpeedSpread: 0, postClassLingerMinutes: 0, visitLengthSpread: 0,
+    gapPlacement: 0, commuterMinClasses: 2, commuterActivityWindowMinutes: 0, unmappedAcademicMinutes: UNMAPPED_ACADEMIC_MINUTES,
+    offMapAcademicShare: OFF_MAP_ACADEMIC_SHARE, habitualTimeShare: HABITUAL_TIME_SHARE, favoriteVenueWeight: FAVORITE_VENUE_WEIGHT,
+    awayShareResidents: 0, awayShareCommuters: 0, eventAttendanceFactor: 1, commuterOutdoorFactor: 1,
+  },
+  menus: FREE_TIME_ACTIVITIES.map((menu, day) => menu.map((activity, index): ActivitySpec => ({ id: LEGACY_ACTIVITY_IDS[day][index], ...activity }))),
+  habits: Object.fromEntries(Object.entries(HABIT_TRAITS).map(([slot, trait]) => [slot, { ...trait }])),
+});
+/** Conditioned start: shoulder share and (optionally) bell-shaped core arrivals; equals sampleActivityStart at base values. */
+function tunedActivityStart(seed: string, activity: Omit<ActivitySpec, 'id'>, params: ResolvedParams): number {
+  if (fraction(`${seed}:shoulder`) < params.scalars.shoulderShare) {
+    return (activity.shoulder[0] + fraction(`${seed}:shoulder-time`) * (activity.shoulder[1] - activity.shoulder[0])) * 3600;
+  }
+  const u = fraction(`${seed}:time`), bell = activity.bell ?? 0;
+  const draw = bell > 0 ? (1 - bell) * u + bell * (u + fraction(`${seed}:time-2`) + fraction(`${seed}:time-3`)) / 3 : u;
+  return (activity.at + draw * activity.spread) * 3600;
+}
+/** habitualStart with the day's parameters (identical at base values). */
+function tunedHabitualStart(agentId: string, slot: string, seed: string, activity: Omit<ActivitySpec, 'id'>, params: ResolvedParams): number {
+  if (fraction(`${seed}:habitual-time`) >= params.scalars.habitualTimeShare) return tunedActivityStart(seed, activity, params);
+  const usual = tunedActivityStart(`${agentId}:usual-time:${slot}`, activity, params);
+  const jittered = usual + (fraction(`${seed}:habit-jitter`) * 2 - 1) * HABIT_TIME_JITTER_MINUTES * 60;
+  const earliest = Math.min(activity.shoulder[0], activity.at) * 3600, latest = Math.max(activity.shoulder[1], activity.at + activity.spread) * 3600;
+  return Math.max(earliest, Math.min(latest, jittered));
+}
+/** habitMultiplier with persona-adjusted regular shares: the student's own share decides whether they
+ * are a regular, the population share keeps everyone else's multiplier mean-preserving (identical at base). */
+function tunedHabitMultiplier(agentId: string, slot: string, own: ResolvedParams, population: ResolvedParams): number {
+  const trait = own.habits[slot], everyone = population.habits[slot] ?? trait;
+  if (!trait) return 1;
+  if (fraction(`${agentId}:habit:${slot}`) < trait.share) return trait.high;
+  return everyone.share < 1 ? Math.max(0, (1 - everyone.share * everyone.high) / (1 - everyone.share)) : 1;
+}
+/** Habit slot of a menu activity; river visits have their own (sitters and runners). */
+const tunedSlot = (activity: Omit<ActivitySpec, 'id'>): string =>
+  activity.kind === 'outdoor' ? activity.spot === 'loop' ? 'river-loop' : 'river-lawn' : habitSlot(activity);
+/** The nearest start in a free gap of the day's plan (with a walking margin), inside the activity's broad window. */
+function placeInGap(stops: readonly Stop[], start: number, seconds: number, shoulder: readonly [number, number]): number {
+  const margin = 10 * 60;
+  const busy = stops.map(stop => [stop.start - margin, stop.end + margin] as const);
+  if (!busy.some(([from, to]) => start < to && start + seconds > from)) return start;
+  let best = start, bestGap = Infinity, cursor = Math.max(0, shoulder[0] * 3600);
+  const limit = Math.min(DAY, shoulder[1] * 3600 + seconds);
+  for (const [from, to] of [...busy, [limit, limit] as const].sort((a, b) => a[0] - b[0])) {
+    const gapEnd = Math.min(from, limit);
+    if (gapEnd - cursor >= seconds) {
+      const placed = Math.min(Math.max(start, cursor), gapEnd - seconds);
+      if (Math.abs(placed - start) < bestGap) { bestGap = Math.abs(placed - start); best = placed; }
+    }
+    cursor = Math.max(cursor, to);
+  }
+  return best;
+}
+// ─────────────────────────────────────────────────────────────────────────────────────────────
 
 const HOME_PURPOSE: StayPurpose = Object.freeze({ kind: 'home', fixed: false });
 const WAIT_FOR_CLASS: StayPurpose = Object.freeze({ kind: 'wait', fixed: false, before: 'class' });
@@ -175,7 +246,7 @@ export interface SourceActivity {
   locationId: string;
   startSec: number;
   endSec: number;
-  kind: 'dining' | 'library' | 'gym' | 'off-campus-meal' | 'off-campus-outing' | 'estimated' | 'unmapped-academic' | 'gathering';
+  kind: 'dining' | 'library' | 'gym' | 'off-campus-meal' | 'off-campus-outing' | 'estimated' | 'unmapped-academic' | 'gathering' | 'outdoor';
   estimated?: true;
   purpose?: EstimatedActivityProfile['purpose'] | 'unmapped-academic';
   basis?: string;
@@ -258,22 +329,29 @@ function validRoute(route: Route): boolean {
  * Without `eventDate` this is the no-event baseline. With it, that Boston date's mapped campus
  * events run as Gathering scenarios on this weekday (the date must fall on the same weekday).
  */
-export function buildSourceDay(base: DayData, data: CampusData, weekday: number, transit?: TransitService, options: { eventDate?: string | null } = {}): SourceDay {
+export function buildSourceDay(base: DayData, data: CampusData, weekday: number, transit?: TransitService,
+  options: { eventDate?: string | null; conditions?: DayConditions; model?: BehaviorModel } = {}): SourceDay {
   if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) throw new Error('Weekday must be Monday=0 through Sunday=6');
   const eventDate = options.eventDate ?? null;
   if (eventDate !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate) || weekdayOf(eventDate) !== weekday)) {
     throw new Error(`Event date ${eventDate} does not fall on weekday ${weekday}`);
   }
+  // Conditions engine hook: `conditions` (sim/conditions.ts) change people's timelines through
+  // sim/behavior.ts; without them the day is exactly the unconditioned model.
+  if (options.conditions && options.conditions.weekday !== weekday) throw new Error('Conditions describe a different weekday');
   let cache = weeklyCache.get(base);
   if (!cache) { cache = new WeakMap(); weeklyCache.set(base, cache); }
   let byTransit = cache.get(data);
   if (!byTransit) { byTransit = new WeakMap(); cache.set(data, byTransit); }
   let makeDay = byTransit.get(transit ?? NO_TRANSIT);
   if (!makeDay) { makeDay = buildWeek(base, data, transit); byTransit.set(transit ?? NO_TRANSIT, makeDay); }
-  return makeDay(weekday, eventDate);
+  return makeDay(weekday, eventDate, options.conditions ? dayBehavior(options.conditions, options.model, LEGACY_BEHAVIOR) : undefined);
 }
 
-function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (weekday: number, eventDate: string | null) => SourceDay {
+/** Conditioned days kept per week (most recent first); the unconditioned days are kept as before. */
+const CONDITIONED_DAYS_KEPT = 4;
+
+function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (weekday: number, eventDate: string | null, behavior?: DayBehavior) => SourceDay {
   const locations = new Map(base.locations.map((location) => [location.id, location]));
   for (const agent of base.agents) {
     if (agent.home !== 'off-campus' && !locations.has(agent.home)) throw new Error(`Student ${agent.id} has an unknown home ${agent.home}`);
@@ -359,7 +437,8 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       }
       if (current === undefined || current === to) break;
       visited.add(current);
-      for (const edge of adjacent.get(current) ?? []) {
+      // Conditions engine hook: outdoor spots are destinations only, never shortcuts between places.
+      for (const edge of (outdoorIds.size && current !== from && outdoorIds.has(current) ? [] : adjacent.get(current) ?? [])) {
         const cost = costs.get(current)! + edge.route.cumulative[edge.route.cumulative.length - 1];
         if (cost < (costs.get(edge.to) ?? Infinity)) {
           costs.set(edge.to, cost);
@@ -391,10 +470,69 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     stats.composedRoutes++;
     return route;
   };
-  const speed = (agent: Agent): number => {
+  // ── Conditions engine hook: outdoor spots by the river (sim/outdoor.ts) join the walk network as
+  // leaf nodes through their connectors, which start exactly at a location's saved walk endpoint.
+  const outdoorIds = new Set<string>();
+  const outdoorLocations: CampusLocation[] = [];
+  let outdoorSource: OutdoorFile | undefined;
+  const injectOutdoor = (file: OutdoorFile) => {
+    if (outdoorSource) return;
+    outdoorSource = file;
+    for (const spot of file.spots) {
+      if (locations.has(spot.id)) continue;
+      const location: CampusLocation = { id: spot.id, name: spot.name, short: spot.name, kind: 'outdoor', position: spot.position,
+        capacity: spot.kind === 'loop' ? 400 : Math.max(50, Math.round((spot.areaSquareMetres ?? 2000) / 10)), building: spot.id, campus: spot.campus };
+      locations.set(spot.id, location);
+      let linked = false;
+      for (const connector of spot.connectors) {
+        const anchor = endpoints.get(connector.location);
+        const inward: Route = { path: connector.path, cumulative: connector.cumulative };
+        if (!anchor || !validRoute(inward) || !near(anchor, inward.path[0]) || (endpoints.has(spot.id) && !near(endpoints.get(spot.id)!, inward.path.at(-1)!))) continue;
+        endpoints.set(spot.id, inward.path.at(-1)!);
+        const length = inward.cumulative.at(-1)!;
+        const outward: Route = { path: [...inward.path].reverse(), cumulative: [...inward.cumulative].reverse().map(distance => length - distance) };
+        routes.set(`${connector.location}>${spot.id}`, inward); routes.set(`${spot.id}>${connector.location}`, outward);
+        const from = adjacent.get(connector.location) ?? []; from.push({ to: spot.id, route: inward }); adjacent.set(connector.location, from);
+        const back = adjacent.get(spot.id) ?? []; back.push({ to: connector.location, route: outward }); adjacent.set(spot.id, back);
+        linked = true;
+      }
+      if (linked) { outdoorIds.add(spot.id); outdoorLocations.push(location); } else locations.delete(spot.id);
+    }
+  };
+  /** Outdoor spots a free-time visit may use: lawns and riverbanks to sit, or the river path loop. */
+  const outdoorCandidates = (spot: 'lawn' | 'loop' | undefined): CampusLocation[] => outdoorLocations.filter(location => {
+    const kind = outdoorSource?.spots.find(row => row.id === location.id)?.kind;
+    return spot === 'loop' ? kind === 'loop' : kind !== 'loop';
+  });
+  const baseSpeed = (agent: Agent): number => {
     const value = (agent as Agent & { walkSpeed?: number }).walkSpeed;
     return value === undefined ? WALK_SPEED : Math.max(1.1, Math.min(1.6, Number.isFinite(value) ? value : WALK_SPEED));
   };
+  // ── Conditions engine hook: the conditioned day being planned (set only while one is built) ──
+  type TunedDay = { behavior: DayBehavior; weekday: number; legacy: Set<string>; params: Map<string, ResolvedParams>; speeds: Map<string, number>;
+    gatheringSeats: Map<string, number> };
+  let tuned: TunedDay | undefined;
+  /** The student's day parameters, or undefined for today's rules (no conditions, or a fallback student). */
+  const tunedParams = (agent: Agent): ResolvedParams | undefined => {
+    if (!tuned || tuned.legacy.has(agent.id)) return undefined;
+    let params = tuned.params.get(agent.id);
+    if (!params) { params = tuned.behavior.paramsOf(agent); tuned.params.set(agent.id, params); }
+    return params;
+  };
+  const tunedSpeed = (agent: Agent, day: TunedDay): number => {
+    const cached = day.speeds.get(agent.id);
+    if (cached !== undefined) return cached;
+    const params = tunedParams(agent), legacy = baseSpeed(agent);
+    let value = legacy;
+    if (params && (params.scalars.walkSpeedFactor !== 1 || params.scalars.walkSpeedSpread !== 0)) {
+      const z = (fraction(`${agent.id}:walk-speed:1`) + fraction(`${agent.id}:walk-speed:2`) + fraction(`${agent.id}:walk-speed:3`) - 1.5) * 2;
+      value = Math.max(0.9, Math.min(1.9, legacy * params.scalars.walkSpeedFactor + params.scalars.walkSpeedSpread * z));
+    }
+    day.speeds.set(agent.id, value);
+    return value;
+  };
+  const speed = (agent: Agent): number => tuned ? tunedSpeed(agent, tuned) : baseSpeed(agent);
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
   const offCampus = (agent: Agent) => agent.home === 'off-campus' || (agent as Agent & { residency?: string }).residency === 'commuter';
   const duration = (from: string, to: string, agent: Agent): number => {
     if (from === to) return 0;
@@ -562,7 +700,8 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     openingCache.set(key, windows); return windows;
   };
   const isOpen = (stop: WeeklyStop): boolean => {
-    if (stop.meeting || stop.location === 'off-campus') return true;
+    // Conditions engine hook: river spots are open air (daylight limits come from the activity windows).
+    if (stop.meeting || stop.location === 'off-campus' || stop.activity === 'outdoor') return true;
     // The event's published time is the access evidence; planning keeps attendance inside it.
     if (stop.gathering) return stop.gathering.startSec <= stop.start && stop.end <= stop.gathering.endSec;
     if (stop.estimatedProfile) {
@@ -880,6 +1019,12 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     const weekday = stops[0]?.weekday ?? 0;
     const home = offCampus(agent) ? 'off-campus' : agent.home;
     let from = home, freeAt = 0, notBeforeDeparture = 0, walkingSeconds = 0, valid = true;
+    // Conditions engine hook: day parameters (undefined = today's constants) and post-class lingering.
+    const params = tunedParams(agent);
+    const offCampusBreak = params ? params.scalars.commuterOffCampusGapMinutes * 60 : OFF_CAMPUS_BREAK;
+    const homeBreak = params ? params.scalars.homeBreakMinutes * 60 : HOME_BREAK;
+    const arrivalLead = params ? { minimum: params.scalars.arrivalLeadMinMinutes * 60, spread: params.scalars.arrivalLeadSpreadMinutes * 60 } : ARRIVAL_LEAD;
+    let lingerUntil = 0;
     let currentBasis: WeeklyStop | undefined;
     let outside: { point: [number, number]; arrived: number; dwell: number } | undefined;
     /** Only a stop's own [start, end) carries its purpose (passed explicitly). Gap and lingering time
@@ -905,7 +1050,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       else if (straightLineMetres(route.path[0], route.path.at(-1)!) > 1) return false;
       if (destination === 'off-campus') outside = { point: route.path.at(-1)!, arrived: arrive, dwell: 0 };
       else if (from === 'off-campus') outside = undefined;
-      from = destination; freeAt = arrive; currentBasis = undefined; notBeforeDeparture = arrive;
+      from = destination; freeAt = arrive; currentBasis = undefined; notBeforeDeparture = arrive; lingerUntil = 0;
       return true;
     };
     for (const stop of stops) {
@@ -916,17 +1061,17 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         const out = accessRoute(agent, from, 'out'), inward = accessRoute(agent, stop.location, 'in');
         if (out && inward) {
           const transfer = straightLineMetres(out.path[0], inward.path[0]) / speed(agent);
-          if (freeAt + accessDuration(agent, from, 'out') + OFF_CAMPUS_BREAK + transfer + accessDuration(agent, stop.location, 'in') <= stop.start) {
+          if (freeAt + accessDuration(agent, from, 'out') + offCampusBreak + transfer + accessDuration(agent, stop.location, 'in') <= stop.start) {
             if (!move('off-campus', freeAt)) return undefined;
-            outside!.dwell = OFF_CAMPUS_BREAK;
+            outside!.dwell = offCampusBreak;
           }
         }
       }
       if (home !== 'off-campus' && from !== home) {
         const toHome = duration(from, home, agent), homeToNext = duration(home, stop.location, agent);
         const extra = Math.max(0, toHome + homeToNext - duration(from, stop.location, agent));
-        const dwell = Math.max(HOME_BREAK, extra);
-        const departHomeward = from === 'off-campus' ? Math.max(freeAt, offReady(home)) : freeAt;
+        const dwell = Math.max(homeBreak, extra);
+        const departHomeward = from === 'off-campus' ? Math.max(freeAt, offReady(home)) : Math.max(freeAt, lingerUntil);
         if (departHomeward + toHome + dwell + homeToNext <= stop.start) {
           addStay(from, freeAt, departHomeward, currentBasis);
           if (!move(home, departHomeward)) return undefined;
@@ -936,9 +1081,9 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       if (from === stop.location) addStay(from, freeAt, stop.start, currentBasis, undefined, stop);
       else {
         const walk = duration(from, stop.location, agent);
-        const earliest = Math.max(freeAt, notBeforeDeparture, from === 'off-campus' ? offReady(stop.location) : 0);
-        const desiredLead = stop.meeting ? ARRIVAL_LEAD.minimum + fraction(`${agent.id}:${stop.weekday}:${stop.meeting.id}:arrival-lead`) * ARRIVAL_LEAD.spread : 0;
         const latest = stop.start - walk;
+        const earliest = Math.max(freeAt, notBeforeDeparture, from === 'off-campus' ? offReady(stop.location) : 0, Math.min(lingerUntil, latest));
+        const desiredLead = stop.meeting ? arrivalLead.minimum + fraction(`${agent.id}:${stop.weekday}:${stop.meeting.id}:arrival-lead`) * arrivalLead.spread : 0;
         let depart = Math.max(earliest, latest - desiredLead);
         if (depart > latest + 1e-7) return undefined;
         let ride: DayPlan['rides'][number] | undefined;
@@ -963,10 +1108,12 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       addStay(stop.location, stop.start, stop.end, stop, stopPurpose(stop));
       if (stop.location === 'off-campus' && outside) outside.dwell += stop.end - stop.start;
       from = stop.location; freeAt = stop.end; notBeforeDeparture = freeAt; currentBasis = stop;
+      lingerUntil = params && stop.meeting && stop.end < DAY - 3 * 3600
+        ? stop.end + fraction(`${agent.id}:${stop.weekday}:${stop.meeting.id}:linger`) * params.scalars.postClassLingerMinutes * 60 : 0;
       if (!valid) return undefined;
     }
     if (from !== home) {
-      const depart = from === 'off-campus' ? Math.max(freeAt, offReady(home)) : freeAt;
+      const depart = from === 'off-campus' ? Math.max(freeAt, offReady(home)) : Math.max(freeAt, lingerUntil);
       addStay(from, freeAt, depart, currentBasis);
       if (!move(home, depart)) return undefined;
     }
@@ -1019,15 +1166,58 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     favorites.set(key, favorite); return favorite;
   };
   const days = new Map<string, SourceDay>();
-  return (weekday, eventDate) => {
-    const cacheKey = `${weekday}:${eventDate ?? 'baseline'}`;
-    const cached = days.get(cacheKey);
-    if (cached) { days.delete(cacheKey); days.set(cacheKey, cached); return cached; }
-    const gatherings = eventDate ? gatheringsOnDate(data, eventDate).filter(g => locations.has(g.locationId)) : [];
+  // ── Conditions engine hook: helpers for a conditioned day (all inert while `tuned` is unset) ──
+  const isResident = (agent: Agent) => agent.residency === 'resident' || (!agent.residency && agent.home !== 'off-campus');
+  const isAway = (agent: Agent, params: ResolvedParams) =>
+    fraction(`${agent.id}:away`) < (isResident(agent) ? params.scalars.awayShareResidents : params.scalars.awayShareCommuters);
+  /** A scenario's event (sim/conditions.ts) as one more Gathering, unless a published event already fills that venue then. */
+  const scenarioGatherings = (published: Gathering[], date: string, weekday: number): Gathering[] => {
+    if (!tuned) return [];
+    const out: Gathering[] = [];
+    for (const event of tuned.behavior.events) {
+      if (!locations.has(event.locationId) || published.some(g => g.locationId === event.locationId && g.startSec < event.end && event.start < g.endSec)) continue;
+      // Who can go under the gathering rules: residents, and commuters on days they have classes.
+      const audience = base.agents.filter(agent => {
+        const levels = event.audience?.levels;
+        const resident = isResident(agent);
+        return (resident ? event.audience?.residents !== false : event.audience?.commuters !== false && enrollment.get(agent.id)!.some(stop => stop.weekday === weekday))
+          && (!levels || (agent.studentLevel !== undefined && levels.includes(agent.studentLevel)));
+      }).length;
+      const id = `${event.id}@${date}`;
+      tuned.gatheringSeats.set(id, event.capacity);
+      out.push({ id, eventId: event.id, name: event.label, locationId: event.locationId, date, startSec: event.start, endSec: event.end, projected: false,
+        endEstimated: false, attendanceProbability: audience ? Math.min(1, event.expectedStudents * tuned.behavior.params.scalars.eventAttendanceFactor / audience) : 0, roomSeats: null, roomCode: null,
+        sourceUrl: event.provenance?.source ?? '' });
+    }
+    return out;
+  };
+  /** A scenario event's published seats replace the venue's everyday capacity while it runs. */
+  const scenarioSeats = (location: string, minute: number): number | undefined => {
+    for (const event of tuned?.behavior.events ?? []) {
+      if (event.locationId === location && minute * OPTIONAL_CAPACITY_BUCKET_SECONDS >= event.start && minute * OPTIONAL_CAPACITY_BUCKET_SECONDS < event.end) return event.capacity;
+    }
+    return undefined;
+  };
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  const buildDay = (weekday: number, eventDate: string | null): SourceDay => {
+    const published = eventDate ? gatheringsOnDate(data, eventDate).filter(g => locations.has(g.locationId)) : [];
+    const gatherings = tuned ? [...published, ...scenarioGatherings(published, eventDate ?? dateForWeekday(data, weekday), weekday)]
+      .sort((a, b) => a.startSec - b.startSec || a.id.localeCompare(b.id)) : published;
     const gatheringAttendees = new Map(gatherings.map(g => [g.id, 0]));
     const gatheringCapacity = (g: Gathering) => {
       const venue = locations.get(g.locationId)!;
+      const seats = tuned?.gatheringSeats.get(g.id); // conditions engine hook: scenario event seats
+      if (seats !== undefined) return seats;
       return Math.max(0, Math.floor(Math.min(venue.capacity, estimatedProfile(venue)?.capacity ?? Infinity, g.roomSeats ?? Infinity)));
+    };
+    // Conditions engine hook: classes the student attends today (all of them under today's rules).
+    const dayStops = (agent: Agent): WeeklyStop[] => {
+      const all = enrollment.get(agent.id)!.filter(stop => stop.weekday === weekday);
+      const params = tunedParams(agent);
+      if (!params || !all.length) return all;
+      if (isAway(agent, params)) return [];
+      const attendance = params.scalars.classAttendance;
+      return attendance >= 1 ? all : all.filter(stop => fraction(`${agent.id}:${weekday}:${stop.meeting?.id ?? stop.pool}:attend`) < attendance);
     };
     const trips: Trip[] = [];
     const transitRides: TransitRide[] = [];
@@ -1057,7 +1247,12 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     const capacityLedger = new Int32Array(dayResources.length * bucketsPerDay);
     const baselinePresence = new Map<string, Set<number>>();
     for (const agent of base.agents) {
-      const plan = planDay(agent, enrollment.get(agent.id)!.filter(stop => stop.weekday === weekday));
+      let plan = planDay(agent, dayStops(agent));
+      // Conditions engine hook: a student whose classes don't fit the day's parameters keeps today's rules.
+      if (!plan && tuned && !tuned.legacy.has(agent.id)) {
+        tuned.legacy.add(agent.id); tuned.speeds.delete(agent.id); tuned.params.delete(agent.id);
+        plan = planDay(agent, dayStops(agent));
+      }
       if (!plan) throw new Error(`Published schedule has no feasible itinerary for ${agent.id}`);
       const keys = dayPresenceKeys(plan);
       baselinePresence.set(agent.id, keys);
@@ -1066,7 +1261,9 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     const activityPlanningOrder = [...base.agents].sort((a, b) => Number(enrollment.get(a.id)!.length > 0) - Number(enrollment.get(b.id)!.length > 0)
       || fraction(`activity-order:${a.id}`) - fraction(`activity-order:${b.id}`) || a.id.localeCompare(b.id));
     for (const agent of activityPlanningOrder) {
-      let stops = enrollment.get(agent.id)!.filter((stop) => stop.weekday === weekday);
+      const params = tunedParams(agent); // conditions engine hook (undefined = today's rules)
+      if (params && isAway(agent, params)) { stays.push({ agent: agent.id, location: 'off-campus', start: 0, end: DAY, purpose: HOME_PURPOSE } as typeof stays[number]); continue; }
+      let stops = dayStops(agent);
       const fixedClasses = stops.length;
       const baseline = baselinePresence.get(agent.id)!;
       let reserved = new Set<number>();
@@ -1079,7 +1276,8 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         for (const key of baseline) keys.delete(key);
         for (const key of keys) {
           const location = dayResources[Math.floor(key / bucketsPerDay)];
-          const limit = Math.max(0, Math.floor(Math.min(location.capacity, estimatedProfile(location)?.capacity ?? Infinity)));
+          const limit = (tuned ? scenarioSeats(location.id, key % bucketsPerDay) : undefined)
+            ?? Math.max(0, Math.floor(Math.min(location.capacity, estimatedProfile(location)?.capacity ?? Infinity)));
           if (capacityLedger[key] - (reserved.has(key) ? 1 : 0) + 1 > limit) { optionalCapacityRejected++; return undefined; }
         }
         return keys;
@@ -1095,15 +1293,18 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       const classStart = stops[0]?.start ?? DAY;
       const classEnd = stops.at(-1)?.end ?? 0;
       const academicDays = [0, 1, 2, 3, 4].sort((a, b) => fraction(`${agent.id}:unmapped-academic-day:${a}`) - fraction(`${agent.id}:unmapped-academic-day:${b}`));
-      if (academicDays.slice(0, Math.min(5, unmappedLoads.get(agent.id) ?? 0)).includes(weekday)) {
+      // Conditions engine hook: unmapped course time follows class attendance; block length and off-map share are parameters.
+      const attendsUnmapped = !params || fraction(`${agent.id}:${weekday}:unmapped-attend`) < params.scalars.classAttendance;
+      const offMapShare = params ? params.scalars.offMapAcademicShare : OFF_MAP_ACADEMIC_SHARE;
+      if (attendsUnmapped && academicDays.slice(0, Math.min(5, unmappedLoads.get(agent.id) ?? 0)).includes(weekday)) {
         for (let attempt = 0; attempt < 8; attempt++) {
           const start = (9 + fraction(`${agent.id}:${weekday}:unmapped-academic-time:${attempt}`) * 7) * 3600;
-          const seconds = UNMAPPED_ACADEMIC_MINUTES * 60;
+          const seconds = (params ? params.scalars.unmappedAcademicMinutes : UNMAPPED_ACADEMIC_MINUTES) * 60;
           const blockAt = (location: string): WeeklyStop => ({ location, start, end: start + seconds,
             weekday, pool: '', activity: 'unmapped-academic', unmappedAcademic: true });
           // Most students study on campus: a library, or a building where they already have mapped classes.
           const sites: { proposed: WeeklyStop[]; keys: Set<number>; weight: number }[] = [];
-          if ((resident || fixedClasses > 0) && fraction(`${agent.id}:${weekday}:unmapped-study-site:${attempt}`) >= OFF_MAP_ACADEMIC_SHARE) {
+          if ((resident || fixedClasses > 0) && fraction(`${agent.id}:${weekday}:unmapped-study-site:${attempt}`) >= offMapShare) {
             const ownBuildings = new Set(enrollment.get(agent.id)!.map(row => row.location));
             for (const location of base.locations) {
               const own = location.kind === 'classroom' && ownBuildings.has(location.id);
@@ -1117,7 +1318,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
               const index = proposed.indexOf(stop);
               const travel = duration(proposed[index - 1]?.location ?? agent.home, location.id, agent)
                 + duration(location.id, proposed[index + 1]?.location ?? agent.home, agent);
-              const habit = location.kind === 'library' && favoriteVenue(agent, 'library') === location.id ? FAVORITE_VENUE_WEIGHT : 1;
+              const habit = location.kind === 'library' && favoriteVenue(agent, 'library') === location.id ? params?.scalars.favoriteVenueWeight ?? FAVORITE_VENUE_WEIGHT : 1;
               sites.push({ proposed, keys, weight: habit * Math.sqrt(Math.max(1, location.capacity)) / (300 + travel) });
             }
           }
@@ -1181,22 +1382,30 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         reserve(estimate.keys); stops = estimate.proposed; currentPlan = planDay(agent, stops)!; estimatedActivities++; modeledActivities++;
         estimatedLocationCounts[estimate.location] = (estimatedLocationCounts[estimate.location] ?? 0) + 1;
       }
-      if (resident || fixedClasses > 1) {
-        for (const [index, activity] of freeTimeActivities(weekday).entries()) {
+      if (resident || fixedClasses >= (params ? params.scalars.commuterMinClasses : 2)) {
+        // Conditions engine hook: the day's menu with persona-adjusted habits, visit length spread,
+        // bell-shaped arrivals, gap placement, commuter window and river visits.
+        const population = tuned?.behavior.params;
+        for (const [index, activity] of (params ? params.menus[weekday] : freeTimeActivities(weekday)).entries()) {
           const seed = `${agent.id}:${weekday}:activity:${index}`;
-          const slot = habitSlot(activity);
-          if (fraction(`${seed}:attend`) >= Math.min(1, activity.probability * habitMultiplier(agent.id, slot))) continue;
-          const start = habitualStart(agent.id, slot, seed, index, weekday);
+          const slot = params ? tunedSlot(activity) : habitSlot(activity);
+          const habitOf = (name: string) => params && population ? tunedHabitMultiplier(agent.id, name, params, population) : habitMultiplier(agent.id, name);
+          const commuterFactor = params && activity.kind === 'outdoor' && !resident ? params.scalars.commuterOutdoorFactor : 1;
+          if (fraction(`${seed}:attend`) >= Math.min(1, activity.probability * commuterFactor * habitOf(slot))) continue;
+          const minutes = params ? activity.minutes * (1 + params.scalars.visitLengthSpread * (2 * fraction(`${seed}:length`) - 1)) : activity.minutes;
+          const intoGap = (time: number) => params && params.scalars.gapPlacement >= 0.5 ? placeInGap(stops, time, minutes * 60, activity.shoulder) : time;
+          const start = intoGap(params ? tunedHabitualStart(agent.id, slot, seed, activity, params) : habitualStart(agent.id, slot, seed, index, weekday));
           const outing = activity.kind === 'off-campus-outing';
           if (outing && !resident) continue;
-          const withinClassDay = (time: number) => resident || (time >= classStart && time + activity.minutes * 60 <= classEnd);
+          const reach = params ? params.scalars.commuterActivityWindowMinutes * 60 : 0;
+          const withinClassDay = (time: number) => resident || (time >= classStart - reach && time + minutes * 60 <= classEnd + reach);
           const offCampusMeal = activity.kind === 'dining'
-            && fraction(`${seed}:off-campus`) < Math.min(1, MODELED_OFF_CAMPUS_MEAL_SHARE * habitMultiplier(agent.id, 'off-campus-meal'));
+            && fraction(`${seed}:off-campus`) < Math.min(1, (params ? params.scalars.offCampusMealShare : MODELED_OFF_CAMPUS_MEAL_SHARE) * habitOf('off-campus-meal'));
           if (offCampusMeal || outing) {
             if (!withinClassDay(start)) continue;
-            const stop: WeeklyStop = { location: 'off-campus', start, end: start + activity.minutes * 60, weekday, pool: '', activity: outing ? 'off-campus-outing' : 'off-campus-meal' };
+            const stop: WeeklyStop = { location: 'off-campus', start, end: start + minutes * 60, weekday, pool: '', activity: outing ? 'off-campus-outing' : 'off-campus-meal' };
             const proposed = [...stops, stop].sort((a, b) => a.start - b.start);
-            const keys = (agent.home === 'off-campus' || accessRoute(agent, agent.home, 'out')) && feasible(proposed, agent) ? capacityFor(proposed, activity.minutes * 60) : undefined;
+            const keys = (agent.home === 'off-campus' || accessRoute(agent, agent.home, 'out')) && feasible(proposed, agent) ? capacityFor(proposed, minutes * 60) : undefined;
             if (keys) {
               reserve(keys); stops = proposed; currentPlan = planDay(agent, stops)!; modeledActivities++;
               if (outing) modeledOffCampusOutings++; else modeledOffCampusMeals++;
@@ -1204,23 +1413,23 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
             continue;
           }
           const candidates: { stop: WeeklyStop; proposed: WeeklyStop[]; weight: number; keys: Set<number> }[] = [];
-          for (const location of base.locations) {
+          for (const location of activity.kind === 'outdoor' ? outdoorCandidates((activity as ActivitySpec).spot) : base.locations) {
             if (location.kind !== activity.kind || !activityCampuses.has(campusOf(location))) continue;
             const visitStart = location.id === 'fitrec' && activity.kind === 'gym'
-              ? fitrecVisitStart(data.fitrecUsage, dateForWeekday(data, weekday), fraction(`${seed}:fitrec-hour`), fraction(`${seed}:fitrec-minute`)) ?? start
+              ? intoGap(fitrecVisitStart(data.fitrecUsage, dateForWeekday(data, weekday), fraction(`${seed}:fitrec-hour`), fraction(`${seed}:fitrec-minute`)) ?? start)
               : start;
             if (!withinClassDay(visitStart)) continue;
-            const stop: WeeklyStop = { location: location.id, start: visitStart, end: visitStart + activity.minutes * 60, weekday, pool: '', activity: activity.kind };
+            const stop: WeeklyStop = { location: location.id, start: visitStart, end: visitStart + minutes * 60, weekday, pool: '', activity: activity.kind };
             if (!isOpen(stop)) continue;
             const proposed = [...stops, stop].sort((a, b) => a.start - b.start);
             if (!feasible(proposed, agent)) continue;
-            const keys = capacityFor(proposed, activity.minutes * 60);
+            const keys = capacityFor(proposed, minutes * 60);
             if (!keys) continue;
             const index = proposed.indexOf(stop);
             const origin = proposed[index - 1]?.location ?? agent.home;
             const destination = proposed[index + 1]?.location ?? agent.home;
             const travelTime = duration(origin, location.id, agent) + duration(location.id, destination, agent);
-            const habit = favoriteVenue(agent, activity.kind) === location.id ? FAVORITE_VENUE_WEIGHT : 1;
+            const habit = favoriteVenue(agent, activity.kind) === location.id ? params?.scalars.favoriteVenueWeight ?? FAVORITE_VENUE_WEIGHT : 1;
             candidates.push({ stop, proposed, keys, weight: habit * Math.sqrt(Math.max(1, location.capacity)) / (300 + travelTime) });
           }
           const totalWeight = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
@@ -1267,7 +1476,10 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         || carriedForwardHours(hours, dates[weekday], weekday).length > 0 } : location;
     });
     transitRides.sort((a, b) => a.time - b.time || a.agent.localeCompare(b.agent));
-    const result: SourceDay = { ...base, locations: dayLocations, day: WEEKDAYS[weekday], trips, stays, transitRides,
+    // Conditions engine hook: river spots are places in a conditioned day (kind 'outdoor', like an incident's
+    // assembly point), so every stay names a known location; they hold people, not seats (capacity 0).
+    const dayPlaces = tuned?.behavior.outdoor && outdoorLocations.length ? [...dayLocations, ...outdoorLocations.map(location => ({ ...location, capacity: 0 }))] : dayLocations;
+    const result: SourceDay = { ...base, locations: dayPlaces, day: WEEKDAYS[weekday], trips, stays, transitRides,
       sourceStats: { ...stats, eligibleMeetings: [...occurrences].filter((key) => Number(key.split(':').at(-3)) === weekday).length,
         assignedClasses: assignments.length, scheduledStudents, composedTrips, campusAccessTrips, modeledActivities, modeledOffCampusMeals, modeledOffCampusOutings, unavailableActivities, optionalCapacityRejected, estimatedActivities, unmappedAcademicBlocks, behaviorRejectedCandidates, optionalTravelRejectedCandidates, estimatedLocationCounts,
         transitCommuters: riders.size, transitAlightings: transitRides.filter((ride) => ride.kind === 'alight').length,
@@ -1275,8 +1487,30 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         assumptions: gatherings.length ? [...stats.assumptions, ...GATHERING_ASSUMPTIONS] : stats.assumptions },
       sourceAssignments: assignments, sourceActivities: activities, eventDate,
       gatherings: gatherings.map(g => ({ ...g, attendees: gatheringAttendees.get(g.id)!, capacity: gatheringCapacity(g) })) };
-    days.set(cacheKey, result);
-    while (days.size > CACHED_DAYS) days.delete(days.keys().next().value!);
+    return result;
+  };
+  // Conditions engine hook: unconditioned days are cached as before; conditioned days by weekday,
+  // event date and conditions/model key, keeping only the most recent few.
+  const conditionedDays = new Map<string, SourceDay>();
+  return (weekday, eventDate, behavior) => {
+    if (!behavior) {
+      const cacheKey = `${weekday}:${eventDate ?? 'baseline'}`;
+      const cached = days.get(cacheKey);
+      if (cached) { days.delete(cacheKey); days.set(cacheKey, cached); return cached; }
+      const result = buildDay(weekday, eventDate);
+      days.set(cacheKey, result);
+      while (days.size > CACHED_DAYS) days.delete(days.keys().next().value!);
+      return result;
+    }
+    const key = `${weekday}:${eventDate ?? 'baseline'}|${behavior.key}`;
+    const cached = conditionedDays.get(key);
+    if (cached) { conditionedDays.delete(key); conditionedDays.set(key, cached); return cached; }
+    if (behavior.outdoor) injectOutdoor(behavior.outdoor);
+    tuned = { behavior, weekday, legacy: new Set(), params: new Map(), speeds: new Map(), gatheringSeats: new Map() };
+    let result: SourceDay;
+    try { result = buildDay(weekday, eventDate); } finally { tuned = undefined; }
+    conditionedDays.set(key, result);
+    while (conditionedDays.size > CONDITIONED_DAYS_KEPT) conditionedDays.delete(conditionedDays.keys().next().value!);
     return result;
   };
 }

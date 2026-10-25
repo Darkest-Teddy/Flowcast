@@ -9,6 +9,8 @@ import { destructionLayers, isDamaged } from './destruction';
 import { casualtyLayers } from './casualties';
 import { casualtiesAt } from '../sim/incidentProgress';
 import type { CasualtyEvent } from '../sim/casualties';
+import type { FireCrowd } from '../sim/fireCrowd';
+import { crowdCount } from './fireCrowd';
 
 interface IncidentMapState {
   incident: Incident;
@@ -19,6 +21,8 @@ interface IncidentMapState {
   endsAt: number;
   /** Disaster casualty events (IncidentResult.casualties), sorted by time; only those at or before `time` are drawn. */
   casualties?: readonly CasualtyEvent[];
+  /** Fire with an outdoor crowd: its standing areas are counted for the label. */
+  crowd?: FireCrowd | null;
 }
 
 interface Outline { footprint: BuildingFootprint; color: [number, number, number, number]; width: number }
@@ -91,15 +95,19 @@ export function incidentLayers(run: IncidentMapState | null, time: number, occup
     // Aggregate injured markers only; fatalities stay in the panel.
     layers.push(...casualtyLayers(run.casualties, time));
     const injured = casualtiesAt(run, time).filter(event => event.outcome === 'injured').length;
-    const label = hazardLabel(disaster!, hazard, time, damaged.size, injured);
+    const crowd = run.crowd ? { outside: crowdCount(occupancy, run.crowd), inside: occupancy.reduce((n, entry) => n + (entry.location.building === primary && entry.location.kind !== 'outdoor' ? entry.count : 0), 0) } : null;
+    const label = hazardLabel(disaster!, hazard, time, damaged.size, injured, crowd);
     if (label) layers.push(...labelLayers(disaster!, center, label.text, label.opacity, placer));
   }
   return outlines.length || layers.length > 1 ? layers : [];
 }
 
-function hazardLabel(kind: DisasterKind, hazard: IncidentHazard, time: number, damagedCount: number, injured = 0): { text: string; opacity: number } | null {
+function hazardLabel(kind: DisasterKind, hazard: IncidentHazard, time: number, damagedCount: number, injured = 0, crowd: { inside: number; outside: number } | null = null): { text: string; opacity: number } | null {
   const radius = hazard.radiusMetres > 0 ? ` · ${Math.round(hazard.radiusMetres)} m` : '';
   const hurt = injured ? ` · ${injured.toLocaleString()} modeled injured` : '';
+  // Outdoor crowd: the closed building counts only people still getting out; evacuees are counted where they stand.
+  if (kind === 'fire' && crowd && (time < hazard.activeUntil || crowd.outside > 0))
+    return { text: `Closed: fire · ${crowd.inside.toLocaleString()} inside · ${crowd.outside.toLocaleString()} evacuated outside${hurt}`, opacity: 1 };
   const buildings = (damagedCount ? ` · ${damagedCount} building${damagedCount === 1 ? '' : 's'} damaged` : '') + hurt;
   if (time >= hazard.activeUntil) {
     if (kind === 'meteor') return { text: `Modeled impact crater${buildings}`, opacity: 0.9 };

@@ -189,6 +189,18 @@ data-pipeline/.venv/bin/python data-pipeline/scrape_signals.py \
   --discover-sports --max-boxscores 10
 ```
 
+### Venue events, popularity and visitor walks
+
+Ticketed events at venues on or near the map (Agganis Arena, Walter Brown Arena, Case Gym, Nickerson Field, New Balance Field, Fenway Park, MGM Music Hall) bring crowds of non-students, which the map draws as a separate "visitor" population. Three scripts, none needing an API key or account, all cached under `.cache/` and run by hand (never during `npm run prepare:data`):
+
+```sh
+data-pipeline/.venv/bin/python data-pipeline/scrape_venue_events.py   # goterriers.com, agganisarena.com, Live Nation (MGM), MLB Stats API -> event-calendar.json
+python3 data-pipeline/event_popularity.py                              # Google Trends (public endpoints, cached, backoff on 429) -> event-popularity.json
+python3 data-pipeline/build_visitor_routes.py                          # OSM doors, stations, garages, drop-offs, sidewalk routes -> event-visitor-routes.json
+```
+
+`event_popularity.py` scores each event's search terms (performers, teams) over the 90 days before it in the Boston DMA, rescaled through anchor terms queried in the same request (TD Garden = 100), and fits fill-vs-popularity on past games with published attendance. If Trends is unreachable or keeps rate limiting, the affected events are written with `source: "prior"` and the map uses its kind's documented prior; re-running later resumes from the cache (`--offline` uses the cache only). The attendance model, student/visitor split and arrival curves live in `map-client/src/sim/eventAttendance.ts`.
+
 Discovery defaults to 20 events and at most three listing requests. Housing defaults to 45 directory/detail pages. Limits and unresolved fields are reported; none of these bounded runs claims exhaustive campus coverage. A zero or missing registration count does not establish attendance. Multiday event spans are preserved rather than expanded into assumed recurring occurrences.
 
 ### Historical and date-specific evidence
