@@ -288,6 +288,15 @@
 
 /* ---------- 01 Hero ---------- */
 
+/* The title screen. Full viewport, and the only section holding a live renderer. */
+.titleSection {
+  position: relative;
+  height: 100svh;
+  min-height: 560px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
 .hero {
   position: relative;
   overflow: hidden;

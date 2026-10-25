@@ -1,0 +1,256 @@
+/*
+ * The title screen, and its holographic depth.
+ *
+ * Depth comes from --depth-x / --depth-y (pointer, -1..1) and --depth-scroll
+ * (0..1), written by useDepth on the host each frame. Every rule below is a pure
+ * function of those three numbers, so the whole effect runs in the compositor with
+ * no React re-render and no layout.
+ *
+ * Only transform, opacity and filter are animated. The parallax amount per plane is
+ * what creates the illusion: the further "back" a plane is meant to sit, the less it
+ * moves, exactly as real parallax behaves.
+ */
+
+.host {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  /* A real perspective frustum, so the planes below are genuinely projected rather
+     than scaled. 1400px reads as depth without the fish-eye of a short throw. */
+  perspective: 1400px;
+  perspective-origin: calc(50% + var(--depth-x, 0) * 6%) calc(50% + var(--depth-y, 0) * 6%);
+  transform-style: preserve-3d;
+  /* The title screen must not eat scroll: the page scrolls through it normally. */
+  pointer-events: none;
+}
+
+/* Everything inside tilts slightly toward the pointer, like a held card. */
+.deck {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: var(--space-6);
+  transform-style: preserve-3d;
+  transform: rotateX(calc(var(--depth-y, 0) * -2.4deg)) rotateY(calc(var(--depth-x, 0) * 3.2deg));
+  will-change: transform;
+}
+
+/*
+ * Local contrast behind the type only.
+ *
+ * A global wash heavy enough to carry white text buries the campus, which defeats
+ * the point of having a live scene back there. This is a soft ellipse that travels
+ * with the text, so the map stays bright at the edges and the words stay readable
+ * in the middle. It sits behind the planes but in front of the scene.
+ */
+.deck::before {
+  content: '';
+  position: absolute;
+  inset: -18% -14%;
+  z-index: -1;
+  transform: translateZ(-40px);
+  background: radial-gradient(
+    ellipse 60% 56% at 50% 48%,
+    color-mix(in srgb, var(--color-canvas) 78%, transparent) 0%,
+    color-mix(in srgb, var(--color-canvas) 52%, transparent) 46%,
+    transparent 76%
+  );
+  opacity: calc(1 - var(--depth-scroll, 0) * 1.5);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * The wash. Sits between the live campus and the type, and clears as the visitor
+ * scrolls or commits. This is what lets the 3D scene read faintly behind the title.
+ * ------------------------------------------------------------------------- */
+.wash {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  /*
+   * Light enough that the campus reads through it, heavy enough that the wordmark
+   * stays legible over moving geometry. The centre is deliberately the clearest
+   * part: that is where the buildings are, and where the eye goes first.
+   *
+   * The centre tracks the pointer slightly, so the "clear patch" follows the
+   * cursor and the wash feels like glass in front of the scene rather than paint
+   * on top of it.
+   */
+  background:
+    radial-gradient(
+      ellipse 78% 68% at calc(50% + var(--depth-x, 0) * -3%) calc(48% + var(--depth-y, 0) * -3%),
+      color-mix(in srgb, var(--color-canvas) 30%, transparent) 0%,
+      color-mix(in srgb, var(--color-canvas) 62%, transparent) 52%,
+      color-mix(in srgb, var(--color-canvas) 88%, transparent) 82%,
+      var(--color-canvas) 100%
+    );
+  opacity: calc(1 - var(--depth-scroll, 0) * 1.35);
+  will-change: opacity;
+}
+
+/* ---------------------------------------------------------------------------
+ * Planes. translateZ sets how far forward each sits; the matching negative
+ * translate on x/y is the parallax. Nearer planes move more.
+ * ------------------------------------------------------------------------- */
+.plane {
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+/* The wordmark: nearest, so it swings the most. */
+.planeTitle {
+  transform: translate3d(calc(var(--depth-x, 0) * 22px), calc(var(--depth-y, 0) * 14px), 90px)
+    translateY(calc(var(--depth-scroll, 0) * -70px));
+  opacity: calc(1 - var(--depth-scroll, 0) * 1.6);
+}
+
+/* The lede sits behind the wordmark and trails it. */
+.planeLede {
+  transform: translate3d(calc(var(--depth-x, 0) * 13px), calc(var(--depth-y, 0) * 8px), 46px)
+    translateY(calc(var(--depth-scroll, 0) * -48px));
+  opacity: calc(1 - var(--depth-scroll, 0) * 2);
+}
+
+/* Actions are furthest forward in reading order but move least, which keeps them
+   feeling anchored and clickable rather than floating away. */
+.planeActions {
+  pointer-events: auto;
+  transform: translate3d(calc(var(--depth-x, 0) * 7px), calc(var(--depth-y, 0) * 4px), 24px)
+    translateY(calc(var(--depth-scroll, 0) * -26px));
+  opacity: calc(1 - var(--depth-scroll, 0) * 2.4);
+}
+
+/* ---------------------------------------------------------------------------
+ * The wordmark itself, split per character (Splitting-style, done by hand).
+ *
+ * Each character falls from above squashed flat and stretches back as it lands.
+ * The scaleY is the whole trick: it reads as type being stamped rather than text
+ * sliding in.
+ * ------------------------------------------------------------------------- */
+.title {
+  margin: 0;
+  display: flex;
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-4xl), 13vw, 11rem);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  color: var(--color-ink);
+  white-space: nowrap;
+  /* A last line of defence where a bright building sits directly behind a letter.
+     Tight and low-alpha, so it reads as weight rather than as a drop shadow. */
+  text-shadow: 0 2px 24px color-mix(in srgb, var(--color-canvas) 70%, transparent);
+}
+
+.char {
+  display: inline-block;
+  transform-origin: 50% 0%;
+  will-change: transform, opacity;
+}
+
+@keyframes charDrop {
+  from {
+    transform: translateY(-120%) scaleY(0.1);
+    opacity: 0;
+  }
+}
+
+@keyframes ledeRise {
+  from {
+    transform: translateY(150%);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .char {
+    animation: charDrop 1.5s cubic-bezier(0.3, 0.9, 0.4, 1) both;
+    animation-delay: calc(90ms * var(--char-index, 0));
+  }
+
+  .word {
+    display: inline-block;
+    animation: ledeRise 1.4s cubic-bezier(0.2, 1, 0.1, 1) both;
+    /* The lede starts after the wordmark has mostly landed. */
+    animation-delay: calc(620ms + 70ms * var(--word-index, 0));
+  }
+}
+
+.lede {
+  margin: 0;
+  max-width: 34ch;
+  text-align: center;
+  color: var(--color-ink-secondary);
+  font-size: clamp(var(--text-lg), 2vw, var(--text-xl));
+  line-height: 1.4;
+}
+
+.word {
+  display: inline-block;
+}
+
+/* A non-breaking gap between split words, since each is its own inline-block. */
+.space {
+  display: inline-block;
+  width: 0.28em;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * Scroll cue. Fades as soon as the visitor starts scrolling, because by then it
+ * has done its job.
+ * ------------------------------------------------------------------------- */
+.cue {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-8);
+  transform: translateX(-50%) translateY(calc(var(--depth-scroll, 0) * 20px));
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+  opacity: calc(1 - var(--depth-scroll, 0) * 3);
+  pointer-events: none;
+}
+
+.cueTrack {
+  width: 1px;
+  height: var(--space-8);
+  background: linear-gradient(to bottom, transparent, var(--color-ink-secondary));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cueTrack {
+    animation: cueTravel 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    transform-origin: 50% 0%;
+  }
+}
+
+@keyframes cueTravel {
+  0% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+
+/* Once scrolled past, the whole title screen stops intercepting anything. */
+.spent {
+  pointer-events: none;
+  visibility: hidden;
+}

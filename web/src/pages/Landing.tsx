@@ -7,6 +7,9 @@ import { Logo } from '../ui/Logo';
 import { api, useResource } from '../data/api';
 import { formatPercent } from '../lib/format';
 import { CampusScene } from './landing/CampusScene';
+import { HeroScene, type HeroSceneHandle } from './landing/HeroScene';
+import { TitleScreen } from './landing/TitleScreen';
+import type { DepthState } from './landing/useDepth';
 import {
   HOURS,
   FIRST_HOUR,
@@ -69,6 +72,50 @@ function Dot({ share, size = 'md' }: { share: number; size?: 'sm' | 'md' | 'lg' 
   return <span className={`${styles.dot} ${styles[`dot-${size}`]}`} style={{ background: crowdFor(share).color }} aria-hidden />;
 }
 
+/*
+ * The title screen: the live 3D campus with the wordmark over it.
+ *
+ * Two ways out, both landing in the same place. Clicking the action flies the camera
+ * into campus; simply scrolling lifts the overlay and continues into the rest of the
+ * page. Scroll is never trapped, so a visitor who ignores it entirely just gets an
+ * ordinary page.
+ *
+ * This holds the page's only live renderer. The feature thumbnails further down keep
+ * the CSS scene: seven WebGL contexts would exceed what browsers allow.
+ */
+function TitleSection() {
+  const sceneRef = useRef<HeroSceneHandle | null>(null);
+
+  const onDepthFrame = useCallback((state: DepthState) => {
+    sceneRef.current?.applyDepth(state);
+  }, []);
+
+  const onCommit = useCallback(() => {
+    sceneRef.current?.commit();
+  }, []);
+
+  return (
+    <section
+      className={`${styles.dark} ${styles.titleSection}`}
+      data-theme="dark"
+      aria-label="Flowcast, a live 3D model of the Boston University campus"
+    >
+      <HeroScene onReady={(h) => (sceneRef.current = h)} />
+      <TitleScreen
+        title="Flowcast"
+        lede="Boston University, live. Students on real class schedules, the Green Line down Comm Ave."
+        onCommit={onCommit}
+        onDepthFrame={onDepthFrame}
+        cue="Scroll to see how it works"
+      >
+        <a href={config.mapUrl} className={`${styles.cta} ${styles.ctaLarge}`}>
+          Explore the campus
+        </a>
+      </TitleScreen>
+    </section>
+  );
+}
+
 export default function Landing() {
   const impact = useResource(api.getEventImpact);
   const day = useMemo(() => (impact.data ? dayForecast(impact.data) : null), [impact.data]);
@@ -95,6 +142,7 @@ export default function Landing() {
       </a>
       <LandingNav />
       <main id="main" tabIndex={-1} className={styles.main}>
+        <TitleSection />
         <Hero day={day} />
         <Preview day={day} error={impact.error} reload={impact.reload} />
         <HowItWorks />

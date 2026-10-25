@@ -1,0 +1,64 @@
+/*
+ * The live campus behind the title screen.
+ *
+ * Note the two-class selector on .canvas. mapbox-gl.css / maplibre-gl.css are
+ * imported by basemap.ts and set `.maplibregl-map { position: relative }` with the
+ * same specificity but LATER source order, so a single-class rule loses and the map
+ * collapses to zero height. This is the documented pitfall in map-client/styles.css.
+ */
+
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--color-canvas);
+  /* The map is interactive by default and there is no `interactive: false` option.
+     Without this, scrolling over the hero zooms the map instead of the page. */
+  pointer-events: none;
+}
+
+.stage .canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.4s cubic-bezier(0.2, 1, 0.1, 1);
+}
+
+.stage .canvasReady {
+  opacity: 1;
+}
+
+/*
+ * Scene-level depth. The real camera already gives true parallax; this adds a small
+ * counter-drift so the scene feels like it sits behind glass rather than being the
+ * glass. Deliberately subtle -- the camera is doing the real work.
+ */
+.parallax {
+  position: absolute;
+  inset: -3%;
+  will-change: transform;
+  transform: translate3d(calc(var(--depth-x, 0) * -10px), calc(var(--depth-y, 0) * -7px), 0)
+    scale(calc(1 + var(--depth-scroll, 0) * 0.06));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parallax {
+    transform: none;
+  }
+
+  .stage .canvas {
+    transition: none;
+  }
+}
+
+/* Shown only if the scene cannot start. Never a spinner that spins forever. */
+.fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-sm);
+}
