@@ -45,6 +45,7 @@ import { precipitationLayers, setParticleScale } from './weather/precipitation';
 import { atmosphereLayers } from './weather/atmosphere';
 import { ragdollLayers, ragdollsAt } from './layers/ragdolls';
 import { LANDMARK_TARGETS, withLandmarkTarget } from './sim/landmarks';
+import { fanCasualties } from './sim/fanCasualties';
 import { quality } from './perf/quality';
 import { pacer } from './perf/pacer';
 import {
@@ -171,6 +172,11 @@ function modelOfAgent(day: DayData): (id: string) => number {
     return found;
   }
   return lookup;
+}
+/** A venue visitor's character model, from its id `visitor:<slot>:<i>`. */
+function visitorModel(plan: VisitorPlan, id: string): number {
+  const [, slot, index] = id.split(':');
+  return plan.events.find((e) => e.slot === Number(slot))?.model[Number(index)] ?? 0;
 }
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -895,9 +901,11 @@ export default function App() {
         const incidentFrameLayers = incidentLayers(incidentRunRef.current, t, occupancy, day.buildings, placer, damage);
         // Meteor fatalities thrown from the impact, then lying where they land.
         const run = incidentRunRef.current;
-        if (run?.incident.kind === 'meteor' && run.casualties?.length && models) {
-          incidentFrameLayers.push(...ragdollLayers(ragdollsAt(run.casualties, run.location.position, run.hazard?.radiusMetres ?? 100, t, modelOfAgent(day)),
-            models, t, basemap.getZoom()));
+        if (run?.incident.kind === 'meteor' && (run.casualties?.length || run.fans?.ragdolls.length) && models) {
+          const thrown = run.fans?.ragdolls.length ? [...(run.casualties ?? []), ...run.fans.ragdolls] : run.casualties!;
+          const modelOf = modelOfAgent(day), plan = visitorPlanRef.current;
+          incidentFrameLayers.push(...ragdollLayers(ragdollsAt(thrown, run.location.position, run.hazard?.radiusMetres ?? 100, t,
+            (id) => (id.startsWith('visitor:') ? visitorModel(plan, id) : modelOf(id))), models, t, basemap.getZoom()));
         }
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
         if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
@@ -964,6 +972,9 @@ export default function App() {
         }
         // Event visitors near the camera (none, at no cost, when no venue event is on).
         const visitorFrame = visitorsAt(visitorPlanRef.current, t, camera.center, q.walkerRadius, ([x, y]) => x >= view[0] && x <= view[2] && y >= view[1] && y <= view[3]);
+        // Fans a meteor hit stop walking from that moment (the dead are drawn as ragdolls).
+        const harmedFans = incidentRunRef.current?.fans?.harmed;
+        if (harmedFans?.size) visitorFrame.drawn = visitorFrame.drawn.filter((fan) => !((harmedFans.get(fan.id) ?? Infinity) <= t));
         const frameLayers = [
           ...fallbackDamageLayers(damage, new Set(detailedBuildings?.manifest.campuses
             .filter(campus => detailedBuildings.models[campus.id])
@@ -1310,7 +1321,9 @@ export default function App() {
     baselinePlaybackRef.current = baseline;
     playbackRef.current = playback;
     leaveLive();
-    const run = { incident, location, fireResponse, fireResponseUnavailable: responsePlan?.reason,
+    // A meteor also hits venue-event visitors (fans) in the open or in an open-air venue: counted apart from students.
+    const fans = kind === 'meteor' ? fanCasualties(visitorPlanRef.current, location.position, result.hazard?.radiusMetres ?? radiusMetres ?? 0, incident.start, incident.id) : undefined;
+    const run = { incident, location, fans, fireResponse, fireResponseUnavailable: responsePlan?.reason,
       hazard: result.hazard, casualties: result.casualties, assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants, crowd: result.crowd };
     incidentRunRef.current = run;
     setIncidentRun(run);

@@ -10,6 +10,7 @@ import type { FireResponse } from './sim/fireResponse';
 import { FIRE_CROWD_LIMITATIONS, type FireCrowd, type FireDispersal } from './sim/fireCrowd';
 import { GAME_MINUTES, OPPONENTS, type SimulatedGame } from './sim/simulatedGame';
 import type { VenueEventEstimate } from './sim/eventAttendance';
+import type { FanCasualties } from './sim/fanCasualties';
 
 const dispersalNames: Record<FireDispersal, string> = {
   'next-activity': 'Went on to their next class or activity',
@@ -49,6 +50,8 @@ export interface IncidentRun {
   casualties?: CasualtyEvent[];
   /** Fire with an outdoor crowd: standing areas and each evacuee's spot. */
   crowd?: FireCrowd;
+  /** Meteor: venue-event visitors (fans) hit, counted apart from students. */
+  fans?: FanCasualties;
 }
 
 /** A simulated Red Sox game at Fenway: start one with a first pitch and opponent, follow its crowd, end it. */
@@ -189,6 +192,10 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
             <dl className="incident-counts">
               <div><dt>Injured so far</dt><dd>{progress.injured.toLocaleString()}</dd></div>
               <div><dt>Fatalities so far</dt><dd>{progress.fatalities.toLocaleString()}</dd></div>
+              {run.fans && run.fans.injured + run.fans.fatalities > 0 && time >= run.fans.settledAt && <>
+                <div><dt>Fans injured (not students)</dt><dd>{run.fans.injured.toLocaleString()}</dd></div>
+                <div><dt>Fan fatalities (not students)</dt><dd>{run.fans.fatalities.toLocaleString()}</dd></div>
+              </>}
             </dl>
             <p className="model-note">Illustrative scenario, not a prediction. Injured agents remain incapacitated; treatment and rescue are not simulated. Map circles group injuries.</p>
           </section>}
