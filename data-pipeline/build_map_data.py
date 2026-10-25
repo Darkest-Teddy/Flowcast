@@ -13,6 +13,7 @@ import tempfile
 from zoneinfo import ZoneInfo
 
 from academic_calendar import effective_intervals
+from building_hours import attach as attach_building_hours
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_INPUT = ROOT / "data-pipeline" / "output"
@@ -341,6 +342,8 @@ def build_bundle(datasets, day, input_files=None):
         locations[target]["hours"] = audited
         locations[target]["hoursStatus"] = record["status"]
         locations[target]["hoursReason"] = record.get("reason", "")
+    # Published academic building hours: for showing a building closed, not for admitting visits.
+    attach_building_hours(locations)
     for record in datasets.get("residential_availability", {}).get("records", []):
         if record["locationId"] not in locations:
             raise ValueError("Residential availability references an unknown location")

@@ -70,6 +70,16 @@
   color: var(--color-ink);
 }
 
+/* Library mode's note at the head of the legend: what the colours are limited to. */
+.hud-legend-scope {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-capsule);
+  background: var(--map-selected);
+  color: var(--color-ink);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
 .hud-brand,
 .hud-tabs,
 .hud-legend,

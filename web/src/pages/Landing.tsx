@@ -141,6 +141,7 @@ export default function Landing() {
           {status}
           <div className={styles.footerRow}>
             <span>Flowcast · Built at Hackachusetts, Civic Action track.</span>
+            <Link to="/privacy">Privacy &amp; terms</Link>
             <a href={GITHUB_URL}>GitHub</a>
           </div>
         </footer>

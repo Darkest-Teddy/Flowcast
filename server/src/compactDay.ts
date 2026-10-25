@@ -5,7 +5,7 @@
 // (a few MB a day). Answers are identical to the Playback's at every time.
 
 import { Playback, type CampusLocation, type Occupancy } from '../../map-client/src/sim/playback';
-import { createOccupancyIndex, type OccupancyIndex } from '../../map-client/src/sim/occupancyIndex';
+import { createOccupancyIndex, occupancyIndexFrom, type OccupancyEvents, type OccupancyIndex } from '../../map-client/src/sim/occupancyIndex';
 import { splitResidenceStays } from '../../map-client/src/sim/residenceSplit';
 
 /** What the server reads from a built day. Playback satisfies it too. */
@@ -19,20 +19,40 @@ export interface DayView {
 /** Long enough that trailsAt covers every five-minute bucket of the day, including walks past midnight. */
 const WHOLE_DAY = 3 * 86400;
 
+/** Everything a CompactDay answers from. Plain data, so a day built on a worker thread can be sent back. */
+export interface CompactDayData {
+  locations: CampusLocation[];
+  total: number;
+  // Walks sorted by start; `to` is an index into `destinations`.
+  starts: Float64Array;
+  ends: Float64Array;
+  to: Uint16Array;
+  destinations: string[];
+  occupancy: OccupancyEvents;
+}
+
 export class CompactDay implements DayView {
   readonly locations: CampusLocation[];
   private readonly onMap: CampusLocation[];
   private readonly total: number;
-  // Walks sorted by start; `to` is an index into `destinations`.
   private readonly starts: Float64Array;
   private readonly ends: Float64Array;
   private readonly to: Uint16Array;
   private readonly destinations: string[];
+  private readonly index: OccupancyIndex;
 
-  constructor(playback: Playback, private readonly index: OccupancyIndex) {
-    this.locations = playback.locations;
-    this.onMap = playback.locations.filter((location) => location.kind !== 'off-campus');
-    this.total = playback.data.agents.length;
+  constructor(readonly data: CompactDayData) {
+    this.locations = data.locations;
+    this.total = data.total;
+    this.starts = data.starts;
+    this.ends = data.ends;
+    this.to = data.to;
+    this.destinations = data.destinations;
+    this.onMap = data.locations.filter((location) => location.kind !== 'off-campus');
+    this.index = occupancyIndexFrom(data.occupancy);
+  }
+
+  static fromPlayback(playback: Playback, index: OccupancyIndex): CompactDay {
     // trailsAt returns the walks exactly as walkingAt reads them (doorway legs and casualty cuts applied).
     const walks = [...playback.trailsAt(2 * 86400, WHOLE_DAY)]
       .map((trip) => ({ start: trip.timestamps[0], end: trip.timestamps[trip.timestamps.length - 1], to: trip.to }))
@@ -40,11 +60,13 @@ export class CompactDay implements DayView {
     const ids = new Map<string, number>();
     for (const walk of walks) if (!ids.has(walk.to)) ids.set(walk.to, ids.size);
     if (ids.size > 0xffff) throw new Error('Too many walk destinations for CompactDay');
-    this.starts = new Float64Array(walks.length);
-    this.ends = new Float64Array(walks.length);
-    this.to = new Uint16Array(walks.length);
-    walks.forEach((walk, i) => { this.starts[i] = walk.start; this.ends[i] = walk.end; this.to[i] = ids.get(walk.to)!; });
-    this.destinations = [...ids.keys()];
+    const starts = new Float64Array(walks.length);
+    const ends = new Float64Array(walks.length);
+    const to = new Uint16Array(walks.length);
+    walks.forEach((walk, i) => { starts[i] = walk.start; ends[i] = walk.end; to[i] = ids.get(walk.to)!; });
+    return new CompactDay({
+      locations: playback.locations, total: playback.data.agents.length, starts, ends, to, destinations: [...ids.keys()], occupancy: index.events,
+    });
   }
 
   /** Same as Playback.occupancyAt for a day with stays, a valid index and no casualties. */
@@ -83,5 +105,5 @@ export function compactDay(playback: Playback): DayView {
   if (!playback.data.stays || playback.casualtiesAt(Number.MAX_VALUE).length > 0) return playback;
   // Counted as Playback counts them: a residence with classrooms is two places (sim/residenceSplit.ts).
   const index = createOccupancyIndex(splitResidenceStays(playback.data.stays, playback.data.locations));
-  return index ? new CompactDay(playback, index) : playback;
+  return index ? CompactDay.fromPlayback(playback, index) : playback;
 }

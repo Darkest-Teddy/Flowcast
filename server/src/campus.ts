@@ -1,7 +1,8 @@
 // Loads the same bundled data the map plays, and builds the same simulation, so the server's
-// answers match what the map shows. Each weekday takes several seconds to build (blocking the
-// event loop while it runs); days are built one at a time, in the background, only while no
-// answer is being worked out, and kept in a small LRU cache in compact form (compactDay.ts).
+// answers match what the map shows. Each weekday takes several seconds of solid CPU to build, so
+// days are built on a worker thread (dayWorker.ts) and kept in a small LRU cache in compact form
+// (compactDay.ts). If the worker fails, the day is built here instead, blocking the event loop,
+// and only while no answer is being worked out.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +13,8 @@ import { askMeetings } from '../../map-client/src/insights';
 import type { CampusData, SourceMeeting } from '../../map-client/src/data/campusData';
 import { assumptionTable, capacityBasis, dayFrom, pedestrianSites, type AskFacts } from './facts';
 import { loadChatFacts } from './chatData';
-import { compactDay, type DayView } from './compactDay';
+import { CompactDay, compactDay, type DayView } from './compactDay';
+import { DayWorker } from './dayWorker';
 
 const root = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
@@ -160,17 +162,40 @@ export function daysCachedFrom(env: Record<string, string | undefined>): number 
   return Number.isInteger(n) && n >= 1 ? Math.min(n, 7) : 7;
 }
 
-export function loadCampusModel(env: Record<string, string | undefined> = process.env, retryAfterSec = 10): CampusModel {
+/** What every day is simulated from. The worker thread loads the same (dayWorker.ts). */
+export function loadSources(bundlePath: string) {
   const day = expandDay(readJson(root('map-client/public/data/demo-day.json')));
-  const bundle = chooseBundle(env, (path) => existsSync(root(path)));
-  const campus: CampusData = readJson(root(bundle.path));
+  const campus: CampusData = readJson(root(bundlePath));
   const population = readJson(root('map-client/public/data/population.json'));
   const base: PopulationBase = buildPopulation(day, campus, population);
-  const daysCached = daysCachedFrom(env);
-  const asks = new InFlight();
+  return { day, campus, population, base };
+}
+
+/** One weekday's simulation in compact form. Several seconds of CPU. */
+export function buildDay({ base, campus }: { base: PopulationBase; campus: CampusData }, weekday: number): DayView {
   // buildSourceDay keeps its last few full days per `base` object; a copy per build lets them go
   // once the compact day is made (same inputs, same day).
-  const days = new BuildCache<number, DayView>((weekday) => compactDay(new Playback(buildSourceDay({ ...base }, campus, weekday))), daysCached, () => asks.settled(BUILD_WAIT_MS));
+  return compactDay(new Playback(buildSourceDay({ ...base }, campus, weekday)));
+}
+
+export function loadCampusModel(env: Record<string, string | undefined> = process.env, retryAfterSec = 10): CampusModel {
+  const bundle = chooseBundle(env, (path) => existsSync(root(path)));
+  const sources = loadSources(bundle.path);
+  const { day, campus, population, base } = sources;
+  const daysCached = daysCachedFrom(env);
+  const asks = new InFlight();
+  const worker = env.FLOWCAST_DAY_WORKER === '0' ? null : new DayWorker(bundle.path);
+  const days = new BuildCache<number, DayView>(async (weekday) => {
+    try {
+      const data = await worker?.build(weekday);
+      if (data) return new CompactDay(data);
+    } catch (error) {
+      console.error(`day worker failed (${error instanceof Error ? error.message : 'unknown'}); building the day on the main thread`);
+    }
+    // No worker, or a day CompactDay can't summarize: build it here, between answers.
+    await asks.settled(BUILD_WAIT_MS);
+    return buildDay(sources, weekday);
+  }, daysCached);
 
   const locations = base.locations.filter((l) => l.kind !== 'off-campus');
   const populationSummary = {

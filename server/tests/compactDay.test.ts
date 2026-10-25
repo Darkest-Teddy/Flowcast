@@ -6,6 +6,8 @@ import { expandDay, Playback } from '../../map-client/src/sim/playback';
 import { buildPopulation } from '../../map-client/src/sim/population';
 import { buildSourceDay } from '../../map-client/src/sim/sourceDay';
 import { CompactDay, compactDay } from '../src/compactDay';
+import { buildDay, loadSources, PUBLIC_BUNDLE } from '../src/campus';
+import { DayWorker } from '../src/dayWorker';
 
 const readJson = (path: string) => JSON.parse(readFileSync(fileURLToPath(new URL(`../../${path}`, import.meta.url)), 'utf8'));
 
@@ -24,5 +26,18 @@ test('a compact day answers exactly like the Playback it was built from', () => 
     assert.deepEqual(occupancy(compact), occupancy(playback), `occupancy at ${t}`);
     assert.deepEqual(compact.populationAt(t), playback.populationAt(t), `population at ${t}`);
     assert.deepEqual(compact.walkingAt(t).map((w) => w.to).sort(), playback.walkingAt(t).map((w) => w.to).sort(), `walkers at ${t}`);
+  }
+});
+
+test('a day built on the worker thread answers exactly like one built here', async () => {
+  const sources = loadSources(PUBLIC_BUNDLE);
+  const here = buildDay(sources, 4);
+  const data = await new DayWorker(PUBLIC_BUNDLE).build(4);
+  assert.ok(here instanceof CompactDay && data);
+  const there = new CompactDay(data);
+  for (let t = -60; t <= 2 * 86400; t += 397) {
+    assert.deepEqual(there.occupancyAt(t), here.occupancyAt(t), `occupancy at ${t}`);
+    assert.deepEqual(there.populationAt(t), here.populationAt(t), `population at ${t}`);
+    assert.deepEqual(there.walkingAt(t), here.walkingAt(t), `walkers at ${t}`);
   }
 });

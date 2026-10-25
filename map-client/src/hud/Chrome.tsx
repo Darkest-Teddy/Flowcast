@@ -112,6 +112,13 @@ export const HudIcons = {
     </svg>
   ),
   /* The campus calendar: events, both as a layer and as a tab. */
+  /* An open book: library mode, every library's fill and nothing else. */
+  library: () => (
+    <svg {...svg}>
+      <path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z" />
+      <path d="M12 6.5v13" />
+    </svg>
+  ),
   calendar: () => (
     <svg {...svg}>
       <rect x="3.5" y="5" width="17" height="15.5" rx="3" />
@@ -574,11 +581,15 @@ export function HudStatus({
  */
 export function HudLegend({
   levels,
+  scope,
 }: {
   levels: readonly { key: string; label: string; range: string; icon: ReactNode }[];
+  /** What the colours are showing when it isn't every building ("Libraries only"). */
+  scope?: string;
 }) {
   return (
-    <div className="hud-legend" role="group" aria-label="Crowd scale">
+    <div className="hud-legend" role="group" aria-label={scope ? `Crowd scale, ${scope.toLowerCase()}` : 'Crowd scale'}>
+      {scope && <span className="hud-legend-scope">{scope}</span>}
       {levels.map((l) => (
         <span key={l.key} className="hud-legend-item" data-level={l.key}>
           {l.icon}

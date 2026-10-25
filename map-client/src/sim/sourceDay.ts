@@ -1,4 +1,5 @@
-import { carriedForwardHours, CARRY_FORWARD_DAYS, dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type SourceMeeting } from '../data/campusData';
+import type { NextOpening } from './playback';
+import { carriedForwardHours, CARRY_FORWARD_DAYS, dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type OpeningHours, type SourceMeeting } from '../data/campusData';
 import { fitrecVisitStart } from '../data/fitrecUsage';
 import { effectiveMeetingIntervals } from '../data/academicCalendar';
 import { courseLevel, countsTowardDegreeLoad, eligibleStudentLevels } from './courseEligibility';
@@ -1810,14 +1811,21 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     }
     const residentLocations = new Set(base.agents.filter(agent => agent.residency === 'resident').map(agent => agent.home));
     const visited = new Set(stays.filter(stay => (stay as { purpose?: StayPurpose }).purpose?.kind !== 'wait').map(stay => stay.location));
-    const dayLocations = base.locations.map(location => {
-      const source = data.locations[location.id];
-      const hasClass = source?.meetings.some(meeting => effectiveMeetingIntervals(meeting, data).some(interval => interval.weekday === weekday));
+    const dayLocations = base.locations.map(place => {
+      const source = data.locations[place.id];
+      // A venue's own service hours, else its building's; a class meeting there keeps it open for the class.
+      const hours = source?.hours.length ? source.hours : source?.buildingHours ?? [];
+      const classes = source?.meetings.flatMap(meeting => effectiveMeetingIntervals(meeting, data))
+        // Interval seconds count from Monday's midnight.
+        .filter(interval => interval.weekday === weekday)
+        .map((interval): [number, number] => [interval.startSec - weekday * DAY - CLASS_DOORS_SEC, interval.endSec - weekday * DAY]) ?? [];
+      const location = withClassWindows(publishedOpenWindows(place, hours, dates[weekday], weekday), classes);
+      const hasClass = classes.length > 0;
       const optionalOnly = ['dining', 'library', 'gym'].includes(location.kind) && !residentLocations.has(location.id) && !hasClass && !location.estimatedProfile;
       if (!optionalOnly) return location;
-      const hours = source?.hours ?? [];
-      const today = openingHoursForDate(hours, dates[weekday], weekday);
-      const entries = today.length ? today : carriedForwardHours(hours, dates[weekday], weekday);
+      const venueHours = source?.hours ?? [];
+      const today = openingHoursForDate(venueHours, dates[weekday], weekday);
+      const entries = today.length ? today : carriedForwardHours(venueHours, dates[weekday], weekday);
       const open = entries.flatMap(entry => entry.windows);
       // Unknown hours are not modeled; a published closure is a known zero. A venue open only outside
       // every modeled visit window of its kind (After Hours opens after dinner ends at 22:00) has no
@@ -1866,6 +1874,56 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     while (conditionedDays.size > CONDITIONED_DAYS_KEPT) conditionedDays.delete(conditionedDays.keys().next().value!);
     return result;
   };
+}
+
+/** The previous calendar day of an ISO date. */
+function previousDate(iso: string): string {
+  return new Date(Date.parse(`${iso}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
+}
+
+/** A day's published entries for a place: exact-date or weekly, else carried from a week away. */
+function publishedEntries(hours: OpeningHours[], date: string, weekday: number): OpeningHours[] {
+  const today = openingHoursForDate(hours, date, weekday);
+  return today.length ? today : carriedForwardHours(hours, date, weekday);
+}
+
+/**
+ * The location with `openWindows`: when it is open on the simulated day by its published hours
+ * (local seconds within the day), so the map can show it closed outside them. Includes the tail of
+ * the previous night's late opening (a library open till 2 AM is open at 1 AM). Places with no
+ * published hours, or none for this date or week, are left alone: unknown hours never read as closed.
+ */
+export function publishedOpenWindows<T extends { kind: string }>(location: T, hours: OpeningHours[], date: string, weekday: number): T & { openWindows?: [number, number][]; nextOpening?: NextOpening } {
+  if (!hours.length || location.kind === 'dorm') return location;
+  const today = publishedEntries(hours, date, weekday);
+  if (!today.length) return location;
+  const yesterday = publishedEntries(hours, previousDate(date), (weekday + 6) % 7);
+  const spill = yesterday.flatMap(entry => entry.windows).filter(([, to]) => to > 86400).map(([, to]): [number, number] => [0, to - 86400]);
+  const windows = [...spill, ...today.flatMap(entry => entry.windows).map(([from, to]): [number, number] => [from, Math.min(to, 86400)])];
+  const nextOpening = laterOpening(hours, date, weekday);
+  return { ...location, openWindows: windows.filter(([from, to]) => to > from), ...(nextOpening ? { nextOpening } : {}) };
+}
+
+/** The first published opening on a later day, up to a week ahead; none once a day's hours are unknown. */
+function laterOpening(hours: OpeningHours[], date: string, weekday: number): NextOpening | null {
+  const start = Date.parse(`${date}T12:00:00Z`);
+  for (let days = 1; days <= 7; days++) {
+    const later = new Date(start + days * 86400000).toISOString().slice(0, 10);
+    const entries = publishedEntries(hours, later, (weekday + days) % 7);
+    if (!entries.length) return null;
+    const starts = entries.flatMap(entry => entry.windows.map(([from]) => from));
+    if (starts.length) return { days, weekday: (weekday + days) % 7, sec: Math.min(...starts) };
+  }
+  return null;
+}
+
+/** A class's doors open this long before it starts. */
+const CLASS_DOORS_SEC = 15 * 60;
+
+/** Adds the day's class meetings to a place's known open windows (unknown hours stay unknown). */
+function withClassWindows<T extends { openWindows?: [number, number][] }>(location: T, classes: [number, number][]): T {
+  if (!location.openWindows || !classes.length) return location;
+  return { ...location, openWindows: [...location.openWindows, ...classes.map(([from, to]): [number, number] => [Math.max(0, from), Math.min(to, 86400)])] };
 }
 
 /** Whether any of the day's free-time activities of this kind (breakfast, lunch, dinner, study, gym)

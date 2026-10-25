@@ -249,18 +249,32 @@ export function backendConfig(env = process.env) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const config = backendConfig();
   let backend;
-  if (config.env) {
-    const require = createRequire(new URL('./server/package.json', import.meta.url));
+  let stopping = false;
+  const require = createRequire(new URL('./server/package.json', import.meta.url));
+  // The API's own output goes to this process's log (it never prints secrets), and a crash
+  // restarts it: otherwise every /api request answers 503 until the whole host is redeployed.
+  const startBackend = (attempt = 0) => {
+    const startedAt = Date.now();
     // The API keeps ~100 MB of compact days; a heap cap makes V8 collect each day build's garbage
     // instead of growing toward its default ~2 GB limit (server/src/compactDay.ts).
     backend = spawn(process.execPath, ['--max-old-space-size=512', '--import', require.resolve('tsx'), 'src/index.ts'], {
-      cwd: fileURLToPath(new URL('./server', import.meta.url)), env: config.env, stdio: 'ignore',
+      cwd: fileURLToPath(new URL('./server', import.meta.url)), env: config.env, stdio: 'inherit',
     });
-    backend.on('error', () => console.error('Flowcast API could not start'));
-    backend.on('exit', () => console.error('Flowcast API stopped'));
-  }
+    backend.on('error', (error) => console.error(`Flowcast API could not start: ${error.message}`));
+    backend.on('exit', (code, signal) => {
+      if (stopping) return;
+      // A run that lasted a minute was healthy, so the next crash restarts after the shortest wait.
+      const next = Date.now() - startedAt > 60_000 ? 0 : attempt + 1;
+      const delay = Math.min(30_000, 1_000 * 2 ** next);
+      console.error(`Flowcast API stopped (${signal || `exit code ${code}`}); restarting in ${delay / 1000} s`);
+      setTimeout(() => startBackend(next), delay);
+    });
+  };
+  if (config.env) startBackend();
+  else if (!config.apiUrl) console.error('Flowcast API not started: DATABASE_URL is not set, so sign-in and the dashboard answer 503');
   const server = createHostServer({ apiUrl: config.apiUrl });
   const shutdown = () => {
+    stopping = true;
     backend?.kill('SIGTERM');
     server.close(() => process.exit(0));
     setTimeout(() => { backend?.kill('SIGKILL'); process.exit(0); }, 5_000).unref();

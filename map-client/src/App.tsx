@@ -168,6 +168,12 @@ const BOSTON_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_Yo
 /** Today's calendar date in Boston, "2026-10-24". */
 function wallClockDate(): string { return BOSTON_DATE.format(new Date()); }
 
+// Library mode: only libraries show their fill (tags and glow). Off by default and remembered.
+const LIBRARY_MODE_KEY = 'flowcast.libraryMode';
+function storedLibraryMode(): boolean {
+  try { return localStorage.getItem(LIBRARY_MODE_KEY) === '1'; } catch { return false; }
+}
+
 // Parking is an opt-in estimate layer (Transit tab), off by default and remembered.
 const PARKING_KEY = 'flowcast.parking';
 function storedParking(): boolean {
@@ -430,6 +436,9 @@ export default function App() {
   const showBikesRef = useRef(true);
   const parkingRef = useRef<Parking | null>(null);
   const parkingTagsRef = useRef<ParkingTagsHandle>(null);
+  /* Library mode: only libraries keep their tag and glow, so every library's fill reads at a glance. */
+  const [libraryMode, setLibraryMode] = useState(storedLibraryMode);
+  const libraryModeRef = useRef(libraryMode);
   const [showParking, setShowParking] = useState(storedParking);
   const showParkingRef = useRef(showParking);
   const [parkingView, setParkingView] = useState<ParkingState | null>(null);
@@ -808,8 +817,6 @@ export default function App() {
       setCampus(linkedCampus);
 
       // What a map pointer is over, for the tags that expand on hover (and on tap, for touch).
-      const buildingUnder = (object: unknown) =>
-        object && typeof object === 'object' && ('polygon' in object || 'share' in object) ? (object as unknown as { id: string }).id : null;
       const markerUnder = (object: unknown): TagMarker =>
         !object || typeof object !== 'object' ? null
         : 'platforms' in object ? { kind: 'stop', id: (object as unknown as { id: string }).id }
@@ -820,9 +827,10 @@ export default function App() {
         _animate: true, // keeps the walk cycles ticking between data updates
         // Skips drawing models that are wholly off-screen (see layers/culling.ts).
         layerFilter: cullLayers,
-        // Hovering a building or a stop/dock dot expands its tag.
+        // Hovering a stop/dock dot expands its tag. Not a building: its tag opens only from the
+        // tag's own glass (BuildingTags.tsx), since an open card covers part of the building and
+        // the pointer crossing between the two would close and reopen it over and over.
         onHover: ({ object }: PickingInfo) => {
-          tagsRef.current?.hoverBuilding(buildingUnder(object));
           transitTagsRef.current?.hoverMarker(markerUnder(object));
           placeTagsRef.current?.hoverPlace(placeUnder(object));
           if (showParkingRef.current) {
@@ -940,6 +948,7 @@ export default function App() {
         } else {
           loadProgress.stage('Lining up the view', 0.97, 2000);
           introSound.prepare();
+          const sound = introSound.ready(1500); // alongside the tiles below, so it rarely adds to the wait
           // Still under the still: fetch the tiles of the views the camera will pass through (it would
           // otherwise fetch them on the way, in stutters), then back to the sky. The first frames after
           // loading also build layers and shaders: let them settle so the drops run smoothly.
@@ -948,7 +957,7 @@ export default function App() {
             basemap.jumpTo(view);
             await tilesIn(basemap, 1200);
           }
-          await steadyFrames(6, 45, 2500);
+          await Promise.all([steadyFrames(6, 45, 2500), sound]);
           if (cancelled) return;
           const unwatch = basemap.onUserInteraction(() => { introStopped = true; });
           loadProgress.finish(); // the still goes: the live map is under it at the same camera
@@ -975,6 +984,7 @@ export default function App() {
         basemap.setLimits(true);
         focusCampusRef.current?.(campusRef.current);
         if (introStopped) basemap.setViewPadding(paddingRef.current);
+        introSound.end();
         setIntroPhase('done');
       };
       const revealFrom = performance.now();
@@ -986,6 +996,7 @@ export default function App() {
         basemap.jumpTo({ zoom: camera.zoom - 0.9, bearing: camera.bearing - 25, pitch: Math.max(0, camera.pitch - 15) });
         basemap.easeTo({ ...camera, duration: 2200 });
         loadProgress.finish();
+        introSound.end();
       };
       requestAnimationFrame(() => requestAnimationFrame(reveal));
 
@@ -1019,6 +1030,7 @@ export default function App() {
       let buildingOccupancy: BuildingOccupancy[] = [];
       let buildingsFrom: Occupancy[] | null = null;
       let buildingsPlayback: Playback | null = null;
+      let buildingsLibraryMode = libraryModeRef.current;
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       let parkingState: ParkingState | null = null; // only while the Parking toggle is on
       let lastParking = 0;
@@ -1160,11 +1172,15 @@ export default function App() {
             (id) => (id.startsWith('visitor:') ? visitorModel(plan, id) : modelOf(id))), models, t, basemap.getZoom()));
         }
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
-        if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
-          buildingOccupancy = playback.byBuilding(occupancy);
-          buildings = withVenueEvents(splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights), eventDayRef.current, t, populationBase.locations);
+        if (occupancy !== buildingsFrom || playback !== buildingsPlayback || libraryModeRef.current !== buildingsLibraryMode) {
+          // Library mode rolls up library spaces only: other buildings get no tag and no glow.
+          const shown = libraryModeRef.current ? occupancy.filter((o) => o.location.kind === 'library') : occupancy;
+          buildingOccupancy = playback.byBuilding(shown);
+          const tagged = splitSharedTags(buildingOccupancy, shown, day.buildings, roofHeights);
+          buildings = libraryModeRef.current ? tagged : withVenueEvents(tagged, eventDayRef.current, t, populationBase.locations);
           buildingsFrom = occupancy;
           buildingsPlayback = playback;
+          buildingsLibraryMode = libraryModeRef.current;
         }
         if (!cleanRef.current) {
           const tagBuildings = buildings.filter(building => !damagedIds.has(building.id.split('#')[0]));
@@ -1428,6 +1444,13 @@ export default function App() {
     showCountsRef.current = !showCountsRef.current;
     setShowCounts(showCountsRef.current);
     try { localStorage.setItem(COUNTS_KEY, showCountsRef.current ? '1' : '0'); } catch { /* storage blocked: this session only */ }
+  };
+  const toggleLibraryMode = () => {
+    libraryModeRef.current = !libraryModeRef.current;
+    setLibraryMode(libraryModeRef.current);
+    // The Places list follows: libraries ("Study") while it's on, every kind again after.
+    setCategory(libraryModeRef.current ? 'library' : 'all');
+    try { localStorage.setItem(LIBRARY_MODE_KEY, libraryModeRef.current ? '1' : '0'); } catch { /* storage blocked: this session only */ }
   };
   const toggleParking = () => {
     showParkingRef.current = !showParkingRef.current;
@@ -1830,7 +1853,7 @@ export default function App() {
         const d = activityDisplay({
           count: o.count, capacity: o.location.capacity, share: o.share,
           modeled: o.modeled ?? o.location.activityModeled,
-          capacityBasis: o.location.capacityBasis, kind: o.location.kind,
+          capacityBasis: o.location.capacityBasis, kind: o.location.kind, closed: o.closed,
         });
         return { id: o.location.id, name: o.location.short || o.location.name, icon: d.icon, style: d.style as Record<string, string> };
       });
@@ -1912,6 +1935,7 @@ export default function App() {
         modeled: here?.modeled ?? detailLocation.activityModeled,
         capacityBasis: detailLocation.capacityBasis,
         kind: detailLocation.kind,
+        closed: here?.closed,
       });
       out.push({
         sec,
@@ -1920,7 +1944,7 @@ export default function App() {
         icon: d.icon,
         style: d.style as Record<string, string>,
         known: d.hasPercentage,
-        word: d.secondary,
+        word: d.level === 'closed' ? 'Closed' : d.secondary,
       });
     }
     return out;
@@ -1938,6 +1962,8 @@ export default function App() {
     modeled: detailEntry?.modeled ?? detailLocation?.activityModeled,
     capacityBasis: detailLocation?.capacityBasis,
     kind: detailLocation?.kind,
+    closed: detailEntry?.closed,
+    opens: detailEntry?.opens,
   });
 
   /** An event in this building today, so the detail can point at it. */
@@ -2072,6 +2098,7 @@ export default function App() {
    * the people glyph, which now belongs to the crowd scale alone.
    */
   const railItems: RailItem[] = [
+    { id: 'libraries', label: libraryMode ? 'Show every building' : 'Library mode: only libraries', icon: <HudIcons.library />, on: libraryMode, hue: 'violet', onSelect: toggleLibraryMode },
     { id: 'transit', label: showTransit ? 'Hide MBTA' : 'Show MBTA', icon: <HudIcons.transit />, on: showTransit, hue: 'green', onSelect: toggleTransit },
     ...(bikes ? [{ id: 'bikes', label: showBikes ? 'Hide Bluebikes' : 'Show Bluebikes', icon: <HudIcons.bikes />, on: showBikes, hue: 'orange' as const, onSelect: toggleBikes }] : []),
     ...(mapKind === 'mapbox'
@@ -2187,7 +2214,7 @@ export default function App() {
           )}
 
           {/* Bottom left: what the three colours mean. */}
-          <HudLegend levels={legendLevels} />
+          <HudLegend levels={legendLevels} scope={libraryMode ? 'Libraries only' : undefined} />
 
           {/*
             Everything about when, in one block: the clock and the temperature to
@@ -2920,9 +2947,11 @@ function splitSharedTags(
     const centre: [number, number] = pts.length
       ? [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length]
       : b.position;
-    const main = rest.reduce((a, o) => (o.share > a.share ? o : a));
+    // Named for its busiest open part; closed only when every part is.
+    const open = rest.filter((o) => !o.closed);
+    const main = (open.length ? open : rest).reduce((a, o) => (o.share > a.share ? o : a));
     out.push({ ...b, position: centre, name: displayName(main.location.name), short: displayShort(main.location.short, main.location.name),
-      count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, capacityBasis: main.location.capacityBasis });
+      count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, closed: !open.length, opens: open.length ? undefined : main.opens, capacityBasis: main.location.capacityBasis });
     // Amenities recorded at (nearly) the same point would stack and the label placer would hide all
     // but one: those are fanned out around their shared point, AMENITY_SPREAD_M apart.
     const kx = 111_320 * Math.cos((centre[1] * Math.PI) / 180);
@@ -2940,6 +2969,8 @@ function splitSharedTags(
         short: displayShort(d.location.short, d.location.name),
         position: spot(d),
         modeled: d.modeled,
+        closed: d.closed,
+        opens: d.opens,
         capacityBasis: d.location.capacityBasis,
         count: d.count,
         capacity: d.location.capacity,

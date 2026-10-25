@@ -109,3 +109,222 @@
 }
 .intro-error button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
+
+/* ── Tips carousel (IntroTips.tsx) ───────────────────────────────────────────────────────────────
+   A glass card over the still, on the progress line's layer, teaching the features while the map
+   loads. Art over a photo, like the progress line: it keeps the dark glass values and light ink in
+   both themes. */
+
+/* The shot leads and the text column is the narrower one. The captures are 1000 × 1190, so the
+   shot column is sized from the window's height at that ratio and is never cropped; the card is
+   the shot plus the text, so it hugs both. 600px tall keeps the shot about 504px wide, which the
+   1000px captures still cover at 2x. */
+.intro-tips {
+  --tips-shot-w: min(calc(min(68vh, 600px, 100vh - 168px) * 1000 / 1190), calc(100vw - 312px));
+  --tips-text-w: clamp(280px, 26vw, 380px);
+  pointer-events: auto;
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  top: calc(50% - 40px); /* clear of the progress line at the bottom */
+  width: min(calc(var(--tips-shot-w) + var(--tips-text-w)), calc(100% - 32px));
+  max-height: calc(100% - 152px);
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  transform: translate(-50%, -50%);
+  color: #f5f5f7;
+  background: rgba(28, 28, 30, 0.72);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Phones stack the shot over the text (the max-width query below). */
+.intro-tips-row {
+  display: flex;
+}
+
+.intro-tips-text {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px 24px 20px 32px;
+}
+
+.intro-tips-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a1a1a6;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.intro-tips-eyebrow img { border-radius: var(--radius-sm); }
+
+/* Every tip sits in the same cell, so the card is as tall as the longest one and never resizes. */
+.intro-tips-stack {
+  display: grid;
+  flex: 1;
+}
+.intro-tip {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity 400ms var(--ease-standard), transform 400ms var(--ease-standard);
+}
+.intro-tip.is-on {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.intro-tip h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(24px, 2.3vw, 36px);
+  font-weight: 700;
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+}
+.intro-tip-body {
+  margin: 0;
+  font-size: clamp(15px, 1.1vw, 17px);
+  line-height: var(--leading-normal);
+  letter-spacing: var(--tracking-text);
+  text-wrap: pretty;
+}
+.intro-tip-where {
+  margin: 2px 0 0;
+  color: #a1a1a6;
+  font-size: clamp(13px, 0.9vw, 14px);
+  line-height: var(--leading-snug);
+}
+
+.intro-tips-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+/* Dots double as the timer: the open one stretches and fills white over the tip's seven seconds. */
+.intro-tips-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.intro-tips-dots button {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.28);
+  cursor: pointer;
+  transition: width var(--duration-base) var(--ease-standard);
+}
+.intro-tips-dots button.is-on { width: 28px; }
+.intro-tips-dots button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.intro-tips-dots span {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-full);
+  background: #fff;
+  transform-origin: left;
+  animation: intro-tip-timer linear forwards; /* duration and play state from IntroTips */
+}
+@keyframes intro-tip-timer {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.intro-tips-arrows { display: flex; gap: 6px; }
+.intro-tips-arrows button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #f5f5f7;
+  opacity: 0.85;
+  cursor: pointer;
+}
+.intro-tips-arrows button:hover { opacity: 1; }
+.intro-tips-arrows button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; border-radius: var(--radius-full); }
+.intro-tips-arrows svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The shots run the full height of the card, edge to edge, and crossfade with the text. The column
+   keeps the captures' own ratio (1000 × 1190), so cover never crops the playback controls or the
+   crowd scale out of a shot. */
+.intro-tips-shots {
+  position: relative;
+  flex: 0 0 var(--tips-shot-w);
+  aspect-ratio: 1000 / 1190;
+  overflow: hidden;
+}
+.intro-tips-shots img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 500ms var(--ease-standard);
+}
+.intro-tips-shots img.is-on { opacity: 1; }
+/* Softens the seam into the text column. */
+.intro-tips-seam {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(28, 28, 30, 0.55) 0%, rgba(28, 28, 30, 0) 20%);
+  pointer-events: none;
+}
+
+/* Phones: no room for two columns, so the shot goes on top at full width and the text sits under
+   it. The shot gives up height before the text does (cropping its bottom edge, the legend and Ask
+   bar), so the dots and arrows always stay on the card. */
+@media (max-width: 640px) {
+  .intro-tips { display: flex; flex-direction: column; width: calc(100% - 32px); }
+  .intro-tips-row { flex: 1 1 auto; min-height: 0; flex-direction: column-reverse; }
+  .intro-tips-text { flex: none; padding: 20px 24px 16px; gap: 12px; }
+  .intro-tips-shots { flex: 0 1 auto; width: 100%; min-height: 160px; }
+  .intro-tips-shots img { object-position: top; }
+  .intro-tips-seam { background: linear-gradient(0deg, rgba(28, 28, 30, 0.55) 0%, rgba(28, 28, 30, 0) 20%); }
+}
+
+/* Less motion: the crossfades stay (they're what makes the swap legible), the timer bar goes, and
+   the card holds on its tip until an arrow or dot is pressed (IntroTips). */
+@media (prefers-reduced-motion: reduce) {
+  .intro-tip { transition: opacity 400ms var(--ease-standard); transform: none; }
+  .intro-tips-dots span { animation: none; transform: none; }
+}
+
+/* On a short window the card would crowd the progress line: the shot goes and the text leads. */
+@media (max-height: 560px) {
+  .intro-tips { top: calc(50% - 28px); width: min(560px, calc(100% - 32px)); }
+  .intro-tips-shots { display: none; }
+  .intro-tips-text { padding: 20px 24px 16px; gap: 12px; }
+}
