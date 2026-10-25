@@ -117,3 +117,8 @@
 }
 .forecastNote summary { cursor: pointer; }
 .forecastNote p { margin-top: var(--space-2); }
+
+.eventFilter {
+  display: flex;
+  padding-block: var(--space-3);
+}

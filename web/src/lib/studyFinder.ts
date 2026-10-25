@@ -18,7 +18,8 @@ function clock(at: number) {
   const day = `${get('year')}-${get('month')}-${get('day')}`;
   return { day, weekday: (new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7, seconds: +get('hour') * 3600 + +get('minute') * 60 + +get('second') };
 }
-function entriesFor(hours: StudyHours[], day: string, weekday: number) {
+/** Published entries for a Boston date: dated ones win, else weekly ones valid that date (weekday 0 = Monday). */
+export function entriesFor(hours: StudyHours[], day: string, weekday: number) {
   const exact = hours.filter(h => h.date === day);
   return exact.length ? exact : hours.filter(h => h.date === null && h.weekday === weekday && (!h.validFrom || day >= h.validFrom) && (!h.validTo || day <= h.validTo));
 }

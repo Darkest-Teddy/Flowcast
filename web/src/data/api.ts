@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { sourcesFromCampusBundle } from './sourceCatalog';
 import { studySpots } from './studySpots';
 import type { StudyHoursByLocation } from '../lib/studyFinder';
+import type { VenueCalendar } from '../lib/morningBrief';
 import { auth } from '../auth/client';
 import { config } from '../config';
 import { createDashboardClient } from './realData';
@@ -68,6 +69,14 @@ function pause(ms: number, signal?: AbortSignal): Promise<boolean> {
 
 export const api = {
   getStudySpots: () => copy(studySpots),
+  /** Venue events near campus (Red Sox, Agganis, MGM Music Hall, BU home games) as published, with venue capacities. */
+  async getVenueCalendar(): Promise<VenueCalendar> {
+    const response = await fetch('/data/event-calendar.json');
+    if (!response.ok) throw new Error('The venue event calendar could not be loaded.');
+    const data = await response.json();
+    if (!Array.isArray(data?.venues) || !Array.isArray(data?.events)) throw new Error('The venue event calendar is unavailable.');
+    return { venues: data.venues, events: data.events, referenceEvents: Array.isArray(data.referenceEvents) ? data.referenceEvents : [] };
+  },
   /** Published hours for every mapped place (dining halls, libraries, FitRec...), as the study finder reads them. */
   async getPlaceHours(): Promise<StudyHoursByLocation> {
     const response = await fetch('/data/campus-data.json');
