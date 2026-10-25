@@ -109,11 +109,13 @@ export function PostedMeeting({ clubId, meeting, going, locations, clubs, onChan
 }) {
   const [open, setOpen] = useState<'edit' | 'checkin' | 'tasks' | 'cohost' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Cancelling a whole series notifies every follower, so it asks first.
+  const [confirmSeries, setConfirmSeries] = useState(false);
   const place = locations.find((l) => l.id === meeting.locationId)?.name;
   const host = meeting.clubId === clubId;
   const toggle = (k: NonNullable<typeof open>) => setOpen((v) => (v === k ? null : k));
   async function cancel(scope: 'one' | 'series') {
-    setError(null);
+    setError(null); setConfirmSeries(false);
     try { await api.updateClubMeetingScope(clubId, meeting.id, { cancelled: !meeting.cancelled }, scope); onChanged(); } catch (e) { setError(errorText(e)); }
   }
   return <li className={styles.card}>
@@ -124,8 +126,14 @@ export function PostedMeeting({ clubId, meeting, going, locations, clubs, onChan
     {meeting.outdoor && <WeatherNote start={meeting.start} end={meeting.end} />}
     <div className={styles.actions}>
       {host && <Button size="sm" variant="ghost" onClick={() => toggle('edit')}>{open === 'edit' ? 'Close' : 'Change'}</Button>}
-      {host && <Button size="sm" variant="ghost" onClick={() => void cancel('one')}>{meeting.cancelled ? 'Restore' : 'Cancel this one'}</Button>}
-      {host && meeting.seriesId && !meeting.cancelled && <Button size="sm" variant="ghost" onClick={() => void cancel('series')}>Cancel this and later</Button>}
+      {host && <Button size="sm" variant="ghost" onClick={() => void cancel('one')}>{meeting.cancelled ? (meeting.seriesId ? 'Restore this one' : 'Restore') : 'Cancel this one'}</Button>}
+      {host && meeting.seriesId && (meeting.cancelled
+        ? <Button size="sm" variant="ghost" onClick={() => void cancel('series')}>Restore this and later</Button>
+        : confirmSeries
+          ? <span className={styles.confirm} role="group" aria-label="Confirm cancelling the series">Cancel this and every later weekly meeting, and tell followers?
+              <Button size="sm" variant="danger" onClick={() => void cancel('series')}>Yes, cancel them</Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmSeries(false)}>Keep them</Button></span>
+          : <Button size="sm" variant="ghost" onClick={() => setConfirmSeries(true)}>Cancel this and later…</Button>)}
       <Button size="sm" variant="ghost" onClick={() => toggle('checkin')}>Check-in code</Button>
       <Button size="sm" variant="ghost" onClick={() => toggle('tasks')}>Checklist</Button>
       {host && <Button size="sm" variant="ghost" onClick={() => toggle('cohost')}>Co-host</Button>}

@@ -117,7 +117,7 @@ function Stats({ clubId }: { clubId: string }) {
   const max = Math.max(1, ...series.map((p) => p.followers));
   const points = series.map((p, i) => `${(i / (series.length - 1)) * 300},${60 - (p.followers / max) * 56}`).join(' ');
   return <Panel id="stats" title="Club stats">
-    <p><strong>{s.data.followers}</strong> followers{s.data.trackingSince ? <span className={styles.muted}> · follows tracked since {formatRelative(s.data.trackingSince)}</span> : null}</p>
+    <p><strong>{s.data.followers}</strong> {s.data.followers === 1 ? 'follower' : 'followers'}{s.data.trackingSince ? <span className={styles.muted}> · follows tracked since {formatRelative(s.data.trackingSince)}</span> : null}</p>
     <svg viewBox="0 0 300 62" className={styles.spark} role="img" aria-label={`Followers over the last 60 days, from ${series[0].followers} to ${series.at(-1)!.followers}`}>
       <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" />
     </svg>

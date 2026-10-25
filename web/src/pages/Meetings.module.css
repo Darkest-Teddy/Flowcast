@@ -84,3 +84,4 @@ a.organizer:hover { text-decoration: underline; }
 .checkinBar { background: var(--color-accent); }
 .spark { width: 100%; max-width: 480px; height: 62px; color: var(--color-accent); }
 @media (max-width: 600px) { .checkin { grid-template-columns: 1fr; } .attendance li { grid-template-columns: 1fr 1fr; } }
+.confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }

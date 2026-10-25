@@ -445,7 +445,7 @@ export function orgRoutes(deps: OrgDeps) {
     const changes: string[] = [];
     const which = updated.length > 1 ? ` (${updated.length} meetings from ${shortDate.format(new Date(meeting.start))})` : '';
     if (meeting.cancelled && !old.cancelled) changes.push(`cancelled${which}`);
-    else if (!meeting.cancelled && old.cancelled) changes.push(`back on, ${timeFormat.format(new Date(meeting.start))}`);
+    else if (!meeting.cancelled && old.cancelled) changes.push(`back on, ${timeFormat.format(new Date(meeting.start))}${which}`);
     else {
       if (meeting.start !== old.start || meeting.end !== old.end) changes.push(updated.length > 1 ? `now at ${clockFormat.format(new Date(meeting.start))}${which}` : `moved to ${timeFormat.format(new Date(meeting.start))}`);
       if (meeting.locationId !== old.locationId || meeting.room !== old.room) changes.push(`now${await whereText(meeting)}${updated.length > 1 ? which : ''}`);
