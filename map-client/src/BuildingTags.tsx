@@ -1,8 +1,8 @@
-// Glassy HTML tags floating over each tracked building, on a stem that stands on the roof. By
-// default a small pill: the level's people icon, the short name, the level word and the % (never
-// colour alone).
-// Hovering the pill, its roof dot or the building itself, focusing it, tapping it, or selecting
-// the building expands it into the full card: kind icon, name, "87% · Packed" and a fill bar.
+// Glass HTML tags floating over each tracked building, on a stem that stands on the roof. By
+// default a small capsule in the chrome's material: a level-coloured dot and the figure ("87%"),
+// in the level's ink. Hovering the capsule, its roof dot or the building itself, focusing it,
+// tapping it, or selecting the building expands it into the full card: kind icon, name, "87%
+// Packed", any event under way and a fill bar. The card grows out of the capsule's outline.
 // HTML rather than a deck.gl TextLayer for real typography, hover/focus states and keyboard access.
 //
 // React renders only the empty layer. The App's frame loop calls update() every frame, which
@@ -78,19 +78,15 @@ interface Tag {
   root: HTMLDivElement;
   /** The compact pill: the focusable button, and what the placer makes room for. */
   pill: HTMLButtonElement;
-  /** The pill's level mark: the people icon, or a plain dot where there is no level. */
-  pdot: HTMLElement;
-  pdotIcon: string;
-  pname: HTMLElement;
-  /** The level's word ("Packed"), so the pill never says it with colour alone. */
-  pword: HTMLElement;
   ppct: HTMLElement;
   /** A venue event's crowd (visitors included), beside the student figure, never in it. */
   pevent: HTMLElement;
   event: HTMLElement;
   card: HTMLElement;
   icon: HTMLElement;
-  short: HTMLElement;
+  name: HTMLElement;
+  /** What kind of place, for the kinds with no icon to say it. */
+  meta: HTMLElement;
   pct: HTMLElement;
   word: HTMLElement;
   fill: HTMLElement;
@@ -111,12 +107,12 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
   root.innerHTML =
     '<span class="btag-dot"></span><span class="btag-stem"></span>' +
     '<button type="button" class="btag-pill" aria-expanded="false"><span class="btag-pdot"></span>' +
-    '<span class="btag-pname"></span><span class="btag-pword"></span><span class="btag-ppct"></span><span class="btag-pevent" hidden></span></button>' +
+    '<span class="btag-ppct"></span><span class="btag-pevent" hidden></span></button>' +
     '<span class="btag-card" aria-hidden="true">' +
-    '<span class="btag-icon"></span>' +
-    '<span class="btag-text"><span class="btag-name"><span class="btag-short"></span><span class="btag-pulse"></span></span>' +
+    '<span class="btag-head"><span class="btag-icon"></span><span class="btag-name"></span><span class="btag-pulse"></span></span>' +
     '<span class="btag-stats"><span class="btag-pct"></span><span class="btag-word"></span></span>' +
-    '<span class="btag-event" hidden></span></span>' +
+    '<span class="btag-meta"></span>' +
+    '<span class="btag-event" hidden></span>' +
     '<span class="btag-bar"><span class="btag-fill"></span></span>' +
     '</span>';
   const q = (s: string) => root.querySelector(s) as HTMLElement;
@@ -130,16 +126,13 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
     id,
     root,
     pill,
-    pdot: q('.btag-pdot'),
-    pdotIcon: '',
-    pname: q('.btag-pname'),
-    pword: q('.btag-pword'),
     ppct: q('.btag-ppct'),
     pevent: q('.btag-pevent'),
     event: q('.btag-event'),
     card,
     icon: q('.btag-icon'),
-    short: q('.btag-short'),
+    name: q('.btag-name'),
+    meta: q('.btag-meta'),
     pct: q('.btag-pct'),
     word: q('.btag-word'),
     fill: q('.btag-fill'),
@@ -218,7 +211,10 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         if (compact !== s.compact) {
           s.compact = compact;
           layer.classList.toggle('is-compact', compact);
-          for (const tag of s.tags.values()) tag.width = tag.pill.offsetWidth;
+          for (const tag of s.tags.values()) {
+            tag.width = tag.pill.offsetWidth;
+            tag.root.style.setProperty('--pw', `${tag.width}px`);
+          }
           s.tagHeight = 0;
         }
 
@@ -244,7 +240,11 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
           if (writeContent(tag, b, s.kinds.get(b.name) ?? null, s.canBeEmpty.has(b.name))) changed.push(tag);
         }
         // All writes first, then all reads: one layout pass, however many tags changed.
-        for (const tag of changed) tag.width = tag.pill.offsetWidth;
+        for (const tag of changed) {
+          tag.width = tag.pill.offsetWidth;
+          // The card opens out of the capsule's own outline (styles.css, .btag-card).
+          tag.root.style.setProperty('--pw', `${tag.width}px`);
+        }
         if (!s.tagHeight) {
           const any = s.tags.values().next().value;
           s.tagHeight = any ? any.pill.offsetHeight : 0;
@@ -348,14 +348,17 @@ export function activityDisplay({ count, capacity: total, modeled, capacityBasis
   const unit = seats ? ' seats' : '';
   const nearZeroPct = Math.max(2, Math.min(NEAR_ZERO_PERCENT, Math.ceil((band.high / capacity) * 100)));
   const nearFull = kind === 'dorm' && percent >= NEAR_FULL_RESIDENCE_PERCENT;
+  const figure = percent < NEAR_ZERO_PERCENT && !(allowZero && count === 0) ? `≤${nearZeroPct}%` : `${nearFull ? '≥' : ''}${percent}%`;
   const primary = modeled === false ? 'Not modeled'
     : hasPercentage
-      ? percent < NEAR_ZERO_PERCENT && !(allowZero && count === 0) ? `≤${nearZeroPct}%${unit}` : `${nearFull ? '≥' : ''}${percent}%${unit}`
+      ? `${figure}${unit}`
       // Headcount-only places this quiet are special buildings few people can use: shown as 0.
       : count < NEAR_ZERO_STUDENTS ? '0 people' : `${count.toLocaleString()} people`;
   const secondary = hasPercentage ? level.label : '';
   return {
     primary,
+    /** The map tags' figure: the primary without the " seats" unit. */
+    tagText: hasPercentage ? figure : primary,
     secondary,
     percent,
     hasPercentage,
@@ -371,7 +374,7 @@ export function activityDisplay({ count, capacity: total, modeled, capacityBasis
 /** Rewrites a tag's text when it has changed; returns whether it did. */
 function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null, allowZero = false): boolean {
   const display = b.eventOnly
-    ? { primary: '', secondary: '', percent: 0, hasPercentage: false, level: 'event', icon: '', style:{ '--lv': '167, 139, 250', '--lv-text': '#ddd6fe', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' }, description: '' }
+    ? { primary: '', tagText: '', secondary: '', percent: 0, hasPercentage: false, level: 'event', icon: '', style:{ '--lv': '167, 139, 250', '--lv-text': '#ddd6fe', '--lv-ink': 'var(--tag-event-ink)', '--lv-fill': 'rgb(var(--tag-event-rgb))' }, description: '' }
     : activityDisplay({ ...b, kind, allowZero });
   const eventText = b.event?.text ?? '';
   const key = `${b.name}|${b.short}|${display.primary}|${display.level}|${kind}|${eventText}`;
@@ -382,19 +385,14 @@ function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null,
     tag.icon.innerHTML = kind ? ICONS[kind] : '';
     tag.icon.title = kind ? KIND_LABEL[kind] : '';
   }
-  if (tag.pdotIcon !== display.icon) {
-    tag.pdotIcon = display.icon;
-    tag.pdot.innerHTML = display.icon;
-    tag.pdot.classList.toggle('is-icon', Boolean(display.icon));
-  }
-  tag.short.textContent = b.short;
-  tag.pname.textContent = b.short;
-  tag.pct.textContent = display.primary;
-  tag.pword.textContent = display.secondary;
-  tag.pword.hidden = !display.secondary;
-  tag.ppct.textContent = display.primary;
-  tag.ppct.hidden = !display.primary;
-  tag.pct.hidden = !display.primary;
+  const name = displayName(b.name);
+  tag.name.textContent = name;
+  tag.meta.textContent = kind && !ICONS[kind] ? KIND_LABEL[kind] : '';
+  tag.meta.hidden = !tag.meta.textContent;
+  tag.pct.textContent = display.tagText;
+  tag.ppct.textContent = display.tagText;
+  tag.ppct.hidden = !display.tagText;
+  tag.pct.hidden = !display.tagText;
   tag.word.textContent = display.secondary;
   tag.word.hidden = !display.secondary;
   tag.pevent.textContent = eventText;

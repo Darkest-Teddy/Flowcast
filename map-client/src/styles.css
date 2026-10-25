@@ -42,15 +42,17 @@
   /* A venue event's visitors on a tag (violet, apart from every crowd level). */
   --tag-event: #ddd6fe;
   --tag-event-rgb: 167, 139, 250;
+  /* The same violet as text on the theme's glass (the tags and their cards): deep by day, pale by night. */
+  --tag-event-ink: #6d28d9;
 
   font-family: var(--font-text);
   color: var(--color-ink);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) { --map-card: var(--color-surface-sunken); }
+  :root:not([data-theme='light']) { --map-card: var(--color-surface-sunken); --tag-event-ink: var(--tag-event); }
 }
-:root[data-theme='dark'] { --map-card: var(--color-surface-sunken); }
+:root[data-theme='dark'] { --map-card: var(--color-surface-sunken); --tag-event-ink: var(--tag-event); }
 
 * { box-sizing: border-box; }
 html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background: var(--color-canvas); }
@@ -703,21 +705,29 @@ select.tool { padding: 0 8px 0 12px; }
   .sheet, .toolbar, .sheet-dim, .switch, .switch::after, .row .bar span { transition: none !important; }
 }
 
-/* Building tags (BuildingTags.tsx): glass cards on a stem standing on the roof. Each tag's root
+/* Building tags (BuildingTags.tsx): a glass capsule on a stem standing on the roof. Each tag's root
    sits exactly on its roof anchor (moved by a transform every frame); --stem is the stem length,
-   --lv the level colour as "r, g, b" and --lv-text its pale, 4.5:1-on-glass twin. */
+   --lv the level colour as "r, g, b", --lv-fill its solid swatch and --lv-ink its text colour for
+   the current theme. The capsule and card are the chrome's one material (hud.css), so they turn
+   light or dark with the map's time of day like every other floating piece. */
 .btags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-/* Tags stay dark in the light theme too: their own scheme and ink, never the page's. Each layer is
-   its own stacking context, so an open tag (z-index 5) stays under the sheet and toolbar. */
-.btags, .gtags { z-index: 0; color-scheme: dark; color: #fff; font-family: var(--font-label); }
+/* Each layer is its own stacking context, so an open tag (z-index 5) stays under the sheet and
+   toolbar. The transit tags keep their own dark glass. */
+.btags { z-index: 0; color: var(--color-ink); font-family: var(--font-label); }
+.gtags { z-index: 0; color-scheme: dark; color: #fff; font-family: var(--font-label); }
 .btag {
   position: absolute;
   left: 0;
   top: 0;
   --stem: 16px;
+  /* The capsule's size, which the card opens out of: --pw is measured per tag (BuildingTags.tsx). */
+  --pw: 48px;
+  --ph: 20px;
   /* Quiet until crowdLevelStyle sets the level; mirrors theme/crowd.ts (crowdScale.test.mjs checks). */
   --lv: 56, 189, 248;
   --lv-text: #7dd3fc;
+  --lv-ink: var(--crowd-quiet-text);
+  --lv-fill: var(--crowd-quiet);
   will-change: transform;
   transition: opacity 0.28s ease;
 }
@@ -727,37 +737,8 @@ select.tool { padding: 0 8px 0 12px; }
 /* Open (expanded): hovered, focused (keyboard), the building hovered on the map, or selected. */
 .btag:hover, .btag:focus-within, .btag.is-open { z-index: 5; }
 
-.btag-card {
-  position: absolute;
-  left: 0;
-  bottom: var(--stem);
-  translate: -50% 0;
-  transform-origin: 50% 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px 8px 6px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: linear-gradient(180deg, rgba(28, 33, 45, 0.84), rgba(11, 14, 21, 0.86));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 22px -8px rgba(0, 0, 0, 0.6);
-  /* No backdrop blur: behind an 85% opaque card it's barely visible, and re-blurring ~30 moving
-     cards every frame cost a few fps on the big screen. */
-  color: #fff;
-  font: inherit;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  cursor: pointer;
-  /* Closed until the tag opens; then it grows out of the pill. */
-  opacity: 0;
-  scale: 0.86;
-  pointer-events: none;
-  transition: opacity 0.2s ease, scale 0.22s cubic-bezier(0.2, 0.8, 0.3, 1.15), border-color 0.18s ease, box-shadow 0.18s ease;
-}
-.btag:hover .btag-card, .btag:focus-within .btag-card, .btag.is-open .btag-card { opacity: 1; scale: 1; pointer-events: auto; }
-
-/* The compact pill: the level's people icon, the short name, the level word and the % (never colour alone). */
+/* The capsule: a level dot and the figure, nothing else. The name waits for hover. No backdrop
+   blur: re-blurring ~30 moving tags every frame cost frame rate, and at this fill it barely shows. */
 .btag-pill {
   position: absolute;
   left: 0;
@@ -766,96 +747,125 @@ select.tool { padding: 0 8px 0 12px; }
   transform-origin: 50% 100%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 9px 3px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(var(--lv), 0.45);
-  background: rgba(13, 16, 23, 0.84);
-  box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.6);
-  color: #fff;
+  gap: 5px;
+  height: var(--ph);
+  padding: 0 7px 0 6px;
+  border: 0;
+  border-radius: var(--radius-capsule);
+  background: var(--hud-fill);
+  box-shadow: var(--glass-inner-shadow), inset 0 0 0 1px rgba(var(--lv), 0.28), var(--glass-shadow);
+  color: var(--lv-ink);
   font: inherit;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.2;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
   white-space: nowrap;
   cursor: pointer;
   pointer-events: auto;
-  transition: opacity 0.16s ease, scale 0.2s ease;
+  /* Closing: back in as the card folds down onto it. */
+  transition: opacity 0.1s linear 0.14s, box-shadow 0.18s ease;
 }
-.btag:hover .btag-pill, .btag:focus-within .btag-pill, .btag.is-open .btag-pill { opacity: 0; scale: 0.9; }
-.btag-pill:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; opacity: 1; }
-/* The level mark: one, two or three people in the level's fill, so the pill reads at a glance
-   without colour (theme/crowd.ts picks the icon). A place with no level, not modeled or a venue
-   showing only an event, keeps the plain dot. */
-.btag-pdot { position: relative; flex: none; width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--lv)); box-shadow: 0 0 6px rgba(var(--lv), 0.9); }
-.btag-pdot.is-icon {
-  width: 14px;
-  height: 14px;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: rgb(var(--lv));
+.btag:hover .btag-pill, .btag:focus-within .btag-pill, .btag.is-open .btag-pill { opacity: 0; transition: opacity 0.1s linear, box-shadow 0.18s ease; }
+.btag-pill:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; opacity: 1; }
+/* The level's swatch, with a soft halo of its own colour. */
+.btag-pdot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lv-fill);
+  box-shadow: 0 0 0 2px rgba(var(--lv), 0.2);
 }
-.btag-pdot.is-icon svg { display: block; width: 14px; height: 14px; stroke-width: 2; }
-.btag-pword { color: var(--lv-text); font-weight: 600; }
-.btag-ppct { color: var(--lv-text); font-variant-numeric: tabular-nums; font-weight: 700; }
-/* A venue event's crowd: its own colour (violet, 9:1 on the pill) and a separator, so visitors never
-   read as the student %. */
-.btag-pevent, .btag-event { color: var(--tag-event); font-variant-numeric: tabular-nums; font-weight: 650; }
-.btag-ppct:not([hidden]) + .btag-pevent::before { content: '·'; margin-right: 6px; color: rgba(255, 255, 255, 0.5); }
-.btag-event { font-size: 12px; line-height: 1.2; }
-.btag.has-event .btag-pill { border-color: rgba(var(--tag-event-rgb), 0.7); }
-.btag.is-selected .btag-pill { border-color: var(--tag-selected); }
-.btags.is-compact .btag-pname { display: none; }
-.btag-card:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; }
-.btag[data-level='busy'] .btag-card { border-color: rgba(var(--lv), 0.38); }
-.btag[data-level='packed'] .btag-card {
-  border-color: rgba(var(--lv), 0.6);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 22px -8px rgba(0, 0, 0, 0.6), 0 0 20px -2px rgba(var(--lv), 0.5);
-}
-.btag.is-selected .btag-card {
-  border-color: var(--tag-accent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 22px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--tag-accent), 0 0 24px -2px rgba(var(--tag-accent-rgb), 0.5);
-}
+.btag[data-level='packed'] .btag-pill { box-shadow: var(--glass-inner-shadow), inset 0 0 0 1px rgba(var(--lv), 0.5), var(--glass-shadow), 0 0 14px -3px rgba(var(--lv), 0.7); }
+.btag.has-event .btag-pill { box-shadow: var(--glass-inner-shadow), inset 0 0 0 1px rgba(var(--tag-event-rgb), 0.6), var(--glass-shadow); }
+.btag.is-selected .btag-pill { box-shadow: var(--glass-inner-shadow), 0 0 0 2px var(--color-ink), var(--glass-shadow); }
 
+/* A venue event's crowd: its own colour and a separator, so visitors never read as the student %. */
+.btag-pevent, .btag-event { color: var(--tag-event-ink); font-variant-numeric: tabular-nums; font-weight: 650; }
+.btag-ppct:not([hidden]) + .btag-pevent::before { content: '·'; margin-right: 6px; color: var(--map-ink-secondary); }
+
+/* The card: what the capsule leaves out. Grows out of the capsule on hover. */
+.btag-card {
+  position: absolute;
+  left: 0;
+  bottom: var(--stem);
+  translate: -50% 0;
+  transform-origin: 50% 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: max(120px, var(--pw));
+  max-width: 210px;
+  padding: 7px 10px 8px;
+  border-radius: 12px;
+  background: var(--hud-fill);
+  box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  /*
+   * Closed, the card is cut down to exactly the capsule's outline (same glass, same place), so
+   * opening it reads as the capsule itself stretching up and out into the card, and closing folds
+   * it back down. The open clip sits well outside the box so the shadow isn't cut, with its corner
+   * radius grown by the same 40px so the card's own 12px corners show through.
+   */
+  clip-path: inset(calc(100% - var(--ph)) calc(50% - var(--pw) / 2) 0 round calc(var(--ph) / 2));
+  opacity: 0;
+  pointer-events: none;
+  transition: clip-path 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.08s linear 0.16s, box-shadow 0.18s ease;
+}
+.btag:hover .btag-card, .btag:focus-within .btag-card, .btag.is-open .btag-card {
+  clip-path: inset(-40px round 52px);
+  opacity: 1;
+  pointer-events: auto;
+  transition: clip-path 0.34s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.06s linear, box-shadow 0.18s ease;
+}
+/* The contents follow the shape: gone before it folds, in once it has mostly opened. */
+.btag-card > * { opacity: 0; transition: opacity 0.08s linear; }
+.btag:hover .btag-card > *, .btag:focus-within .btag-card > *, .btag.is-open .btag-card > * { opacity: 1; transition: opacity 0.18s ease 0.1s; }
+.btag-card:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.btag[data-level='packed'] .btag-card { box-shadow: var(--glass-inner-shadow), var(--glass-shadow), 0 0 22px -4px rgba(var(--lv), 0.55); }
+.btag.is-selected .btag-card { box-shadow: var(--glass-inner-shadow), 0 0 0 2px var(--color-ink), var(--glass-shadow); }
+
+.btag-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .btag-icon {
   display: grid;
   place-items: center;
   flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
   background: rgba(var(--lv), 0.16);
-  box-shadow: inset 0 0 0 1px rgba(var(--lv), 0.32);
-  color: rgb(var(--lv));
+  color: var(--lv-ink);
 }
-.btag-icon svg { width: 16px; height: 16px; }
-.btag-text { display: flex; flex-direction: column; gap: 1px; }
-.btag-name { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 650; line-height: 1.15; letter-spacing: 0.01em; }
-.btag-stats { font-size: 12px; font-weight: 600; line-height: 1.2; color: var(--lv-text); font-variant-numeric: tabular-nums; }
-.btag-pct { color: #fff; font-weight: 700; }
-.btag-word::before { content: '·'; margin: 0 4px; color: rgba(255, 255, 255, 0.5); }
+.btag-icon:empty { display: none; }
+.btag-icon svg { width: 11px; height: 11px; }
+.btag-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; font-weight: 650; line-height: 1.2; }
 
-/* Slim fill bar along the bottom edge: how full, at a glance. */
-.btag-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255, 255, 255, 0.1); }
-.btag-fill {
-  display: block;
-  height: 100%;
-  max-width: 100%;
-  background: linear-gradient(90deg, rgba(var(--lv), 0.55), rgb(var(--lv)));
-  box-shadow: 0 0 8px rgba(var(--lv), 0.9);
-  transition: width 0.6s ease;
-}
+.btag-stats { display: flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; }
+.btag-pct { color: var(--lv-ink); font-size: 15px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; }
+.btag-word { color: var(--lv-ink); font-size: 11px; font-weight: 650; }
+.btag-meta { color: var(--map-ink-secondary); font-size: 11px; font-weight: 500; line-height: 1.25; }
+.btag-meta[hidden], .btag-pct[hidden], .btag-word[hidden], .btag-bar[hidden] { display: none; }
+.btag-event { font-size: 11px; line-height: 1.25; }
 
-/* Packed: a small live dot that pings. */
-.btag-pulse { display: none; position: relative; width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--lv)); }
+/* How full, at a glance: a short track under the figures. */
+.btag-bar { display: block; height: 3px; margin-top: 4px; border-radius: var(--radius-capsule); background: var(--map-hairline); overflow: hidden; }
+.btag-fill { display: block; height: 100%; max-width: 100%; border-radius: inherit; background: var(--lv-fill); transition: width 0.6s ease; }
+
+/* Packed: a small live dot that pings, beside the name. */
+.btag-pulse { display: none; position: relative; flex: none; width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: var(--lv-fill); }
 .btag[data-level='packed'] .btag-pulse { display: inline-block; }
 .btag-pulse::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgb(var(--lv));
+  background: var(--lv-fill);
   animation: btag-ping 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
 }
 @keyframes btag-ping {
@@ -863,14 +873,14 @@ select.tool { padding: 0 8px 0 12px; }
   to { transform: scale(3.2); opacity: 0; }
 }
 
-/* Stem from the card down to the roof, ending in a glowing dot. */
+/* Stem from the capsule down to the roof, ending in a glowing dot. */
 .btag-stem {
   position: absolute;
   left: -0.5px;
   bottom: 0;
   width: 1px;
   height: var(--stem);
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6), rgba(var(--lv), 0.95));
+  background: linear-gradient(to bottom, rgba(var(--lv), 0.25), rgba(var(--lv), 0.95));
 }
 .btag.is-selected .btag-stem { background: var(--tag-selected); width: 2px; left: -1px; }
 .btag-dot {
@@ -887,16 +897,14 @@ select.tool { padding: 0 8px 0 12px; }
 .btag-dot::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
 .btag.is-selected .btag-dot { background: var(--tag-selected); box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.75), 0 0 12px 3px rgb(245 245 247 / 0.8); }
 
-/* The overview: tighter, so more tags fit. */
-.btags.is-compact .btag-card { gap: 6px; padding: 4px 10px 6px 4px; border-radius: 10px; }
-.btags.is-compact .btag-icon { width: 22px; height: 22px; border-radius: 6px; }
-.btags.is-compact .btag-icon svg { width: 13px; height: 13px; }
-.btags.is-compact .btag-name { font-size: 13px; }
-.btags.is-compact .btag-stats { font-size: 11.5px; }
+/* The overview: a touch smaller, so more tags fit. */
+.btags.is-compact .btag { --ph: 18px; }
+.btags.is-compact .btag-pill { padding: 0 6px 0 5px; gap: 4px; font-size: 10.5px; }
+.btags.is-compact .btag-pdot { width: 5px; height: 5px; }
 
 @media (prefers-reduced-motion: reduce) {
   .btag-pulse::after { animation: none; }
-  .btag-card, .btag-pill, .btag-fill, .btag { transition: none; }
+  .btag-card, .btag-card > *, .btag-pill, .btag-fill, .btag { transition: none !important; }
 }
 
 /* Transit, shuttle and Bluebikes tags (TransitTags.tsx, tags/glassTags.ts): the building tags'
