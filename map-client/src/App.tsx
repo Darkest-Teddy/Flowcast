@@ -9,6 +9,7 @@ import { CROWD_LEVELS } from './layers/crowdLevels';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle, type TagMode } from './BuildingTags';
 import { orderPlaces, PlacesPanel, type Category } from './panel/Places';
 import { BikesPanel, TransitPanel, type DockRow, type ShuttleRow, type StopRow } from './panel/TransitBikes';
+import { EventDetail, EventsList, type EventWhen } from './panel/Events';
 import './panel/panel.css';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
@@ -321,6 +322,10 @@ export default function App() {
   const [category, setCategory] = useState<Category>('all');
   const [sort, setSort] = useState<'quiet' | 'busy'>('quiet');
   const [listExpanded, setListExpanded] = useState(false);
+  /* Events: which days, which one is open, and whether the list is unfolded. */
+  const [eventWhen, setEventWhen] = useState<EventWhen>('today');
+  const [openEventId, setOpenEventId] = useState<string | null>(null);
+  const [eventsExpanded, setEventsExpanded] = useState(false);
   const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitTagsRef = useRef<TransitTagsHandle>(null);
   const placeTagsRef = useRef<PlaceTagsHandle>(null);
@@ -1470,6 +1475,43 @@ export default function App() {
   })();
 
   /*
+   * One search, read by every list in the panel. Declared here because the
+   * events list below is the first to use it and `const` has no hoisting: with
+   * it further down, opening the Events tab threw before the panel rendered.
+   */
+  const matchesQuery = (text: string) => !search.trim() || text.toLowerCase().includes(search.trim().toLowerCase());
+
+  /*
+   * What the Events tab is showing.
+   *
+   * Today, tomorrow or the rest of the week from the simulated date, in starting
+   * order, narrowed by the search. The dates are compared as the leading yyyy-mm-dd
+   * of the event's own ISO start, which is already local to Boston in the data, so
+   * no timezone conversion can shift one into the wrong day.
+   */
+  const eventBaseDate = simDay?.eventDate ?? null;
+  const shownEvents = (() => {
+    if (!sourceData || !eventBaseDate) return [];
+    const base = new Date(`${eventBaseDate}T12:00:00`);
+    const iso = (offset: number) => {
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset, 12);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const inRange = (date: string) =>
+      eventWhen === 'today' ? date === eventBaseDate
+      : eventWhen === 'tomorrow' ? date === iso(1)
+      : date >= eventBaseDate && date <= iso(6);
+    return sourceData.events
+      .filter((event) => inRange(event.start.slice(0, 10)))
+      .filter((event) => matchesQuery(`${event.name} ${event.locationName ?? ''} ${event.roomCode ?? ''}`))
+      .sort((a, b) => a.start.localeCompare(b.start));
+  })();
+  const openEvent = openEventId ? shownEvents.find((event) => event.id === openEventId) ?? null : null;
+  /** The mapped building an event sits in, if its venue is one the model knows. */
+  const eventLocation = (event: { locationId: string | null }) =>
+    (event.locationId && baseDayRef.current?.locations.find((l) => l.id === event.locationId)) || null;
+
+  /*
    * The mobility lists, each cut to three.
    *
    * A table of every stop and every dock answered "show me the data". Standing
@@ -1477,8 +1519,6 @@ export default function App() {
    * and is there a bike at the dock on the corner", which is three rows; the
    * search above reaches the rest, which is what let the tables go.
    */
-  const matchesQuery = (text: string) => !search.trim() || text.toLowerCase().includes(search.trim().toLowerCase());
-
   const stopRows: StopRow[] = stations
     .map((stop): StopRow => {
       // Trains only: Kenmore is also a stop for the 57 and other buses.
@@ -1776,9 +1816,52 @@ export default function App() {
           keeping this section mounted and merely hidden: multi-turn chat has to
           keep its history when you look at something else.
         */}
-        {/* Events: making and scheduling them, nothing else. */}
+        {/* Events: what is on, led by the photograph. */}
         {hud && view === 'events' && sourceData && baseDayRef.current && (
           <section id="hud-panel-events" role="tabpanel" aria-labelledby="hud-tab-events">
+            <div className="pn-search">
+              <HudIcons.search />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                placeholder="Search events or places"
+                aria-label="Search events or places"
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} aria-label="Clear search">
+                  <HudIcons.close />
+                </button>
+              )}
+            </div>
+
+            {openEvent ? (
+              <EventDetail
+                event={openEvent}
+                onBack={() => setOpenEventId(null)}
+                onShow={(event) => {
+                  const where = eventLocation(event);
+                  if (where) selectSource(where);
+                }}
+                buildingName={eventLocation(openEvent)?.name ?? null}
+              />
+            ) : (
+              <EventsList
+                events={shownEvents}
+                when={eventWhen}
+                onWhen={(w) => {
+                  setEventWhen(w);
+                  setEventsExpanded(false);
+                }}
+                expanded={eventsExpanded}
+                onExpand={setEventsExpanded}
+                onOpen={(event) => setOpenEventId(event.id)}
+                nowSec={hud.time}
+              />
+            )}
+
+            {/* The scheduling tools stay: making an event is a different job from
+                reading what is on, and nothing in the handoff replaces them. */}
             <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
               onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
               venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}

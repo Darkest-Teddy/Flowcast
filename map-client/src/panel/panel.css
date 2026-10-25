@@ -577,3 +577,286 @@
   font-size: 11px;
   line-height: 1.35;
 }
+
+/* ---------------------------------------------------------------------------
+ * Events
+ * ------------------------------------------------------------------------- */
+/*
+ * The featured event: a photograph with its name under it.
+ *
+ * It is a button the whole way across rather than a card with a link in it. The
+ * picture is the affordance, and a 140px image you cannot press is a puzzle.
+ */
+.pn-feature {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: var(--map-card, #2c2c2e);
+  box-shadow: inset 0 0 0 1px rgb(245 245 247 / 0.12);
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 160ms ease;
+}
+
+@media (hover: hover) {
+  .pn-feature:hover {
+    box-shadow: inset 0 0 0 1px rgb(245 245 247 / 0.28);
+  }
+}
+
+.pn-feature-photo {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
+/*
+ * No photograph: stripes, not a grey rectangle.
+ *
+ * An event with no picture still has to read as a card with a picture slot, or
+ * the list changes shape halfway down. Stripes say "nothing here" without
+ * looking like an image that failed to load.
+ */
+.pn-feature-photo.is-placeholder,
+.pn-thumb.is-placeholder,
+.pn-detail-photo.is-placeholder {
+  background: repeating-linear-gradient(135deg, #34343a 0 9px, #2f2f34 9px 18px);
+}
+
+.pn-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgb(13 16 23 / 0.86);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pn-feature-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px 12px;
+}
+
+.pn-feature-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* Clock, time, pin, place on one line; the place takes whatever is left. */
+.pn-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+}
+
+.pn-meta svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
+.pn-meta svg:not(:first-child) {
+  margin-left: 5px;
+}
+
+.pn-meta-place {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* An event row: thumbnail, name over its time and place, chevron. */
+.pn-row--event {
+  grid-template-columns: 48px minmax(0, 1fr) 14px;
+  grid-template-areas: 'thumb name chev' 'thumb when chev';
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.pn-row--event .pn-thumb {
+  grid-area: thumb;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.pn-row--event .pn-name {
+  grid-area: name;
+  align-self: end;
+}
+
+.pn-when {
+  grid-area: when;
+  align-self: start;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+}
+
+.pn-row--event .pn-chev {
+  grid-area: chev;
+}
+
+/* ---------------------------------------------------------------------------
+ * Event detail
+ * ------------------------------------------------------------------------- */
+.pn-back {
+  align-self: flex-start;
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+@media (hover: hover) {
+  .pn-back:hover {
+    background: rgb(255 255 255 / 0.14);
+  }
+}
+
+.pn-detail-photo {
+  display: block;
+  flex: none;
+  width: 100%;
+  height: 180px;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.pn-detail-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pn-detail-org {
+  margin: -6px 0 0;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+}
+
+/* Three facts, hairline-split, each led by its own glyph. */
+.pn-split p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 10px;
+  font-size: 13px;
+}
+
+.pn-split p + p {
+  border-top: 1px solid rgb(245 245 247 / 0.12);
+}
+
+.pn-split svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--map-ink-secondary, #b4b4b9);
+}
+
+/* Violet: what this event does to the map, which is the event layer's colour. */
+.pn-effect {
+  color: var(--tag-event, #ddd6fe);
+}
+
+.pn-effect svg {
+  color: var(--tag-event, #ddd6fe);
+}
+
+.pn-effect.is-off,
+.pn-effect.is-off svg {
+  color: var(--map-ink-secondary, #b4b4b9);
+}
+
+.pn-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.pn-primary,
+.pn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 140ms ease, background-color 140ms ease;
+}
+
+.pn-primary {
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+
+.pn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pn-secondary {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--color-ink, #f5f5f7);
+}
+
+@media (hover: hover) {
+  .pn-secondary:hover {
+    background: rgb(255 255 255 / 0.14);
+  }
+}
+
+.pn-secondary svg {
+  width: 13px;
+  height: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pn-feature,
+  .pn-back,
+  .pn-primary,
+  .pn-secondary {
+    transition: none;
+  }
+}

@@ -1234,6 +1234,20 @@
   gap: 10px;
 }
 
+/*
+ * Each tab's section is a column too.
+ *
+ * Without this the section is a plain block, and a card that is a <button> sizes
+ * itself to its contents instead of the panel: the featured event came out a
+ * third of the width with its photograph squeezed beside it.
+ */
+.app .sheet .sheet-body > section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
 /* The scenario picker drops to the foot of Analytics: it sets up a reading
    rather than being one, so it should not be the first thing in the panel. */
 .app .sheet .sheet-context {
