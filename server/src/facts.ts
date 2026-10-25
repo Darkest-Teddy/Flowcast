@@ -13,6 +13,7 @@ import type { CampusLocation, Playback } from '../../map-client/src/sim/playback
 import type { PopulationSummary } from '../../map-client/src/sim/population';
 import { MODELED_OFF_CAMPUS_MEAL_SHARE } from '../../map-client/src/sim/sourceDay';
 import { WEEKDAYS, type CampusData } from '../../map-client/src/data/campusData';
+import type { ChatFacts } from './chatData';
 
 export const BASIS_TOPICS = ['capacity', 'crowding', 'walking', 'enrollment', 'hours', 'meals_study_gym', 'housing', 'estimated_places', 'population'] as const;
 export type BasisTopic = (typeof BASIS_TOPICS)[number];
@@ -46,6 +47,8 @@ export interface AskFacts {
   assumptions: Record<BasisTopic, string[]>;
   /** Every location the playback knows, including off-campus gateways (for walking destinations). */
   allLocations: CampusLocation[];
+  /** The extra datasets only the chat tools read (chatData.ts); absent in minimal fixtures. */
+  chat?: ChatFacts;
 }
 
 /** The Ask context on the server: the shared one plus the facts above. */

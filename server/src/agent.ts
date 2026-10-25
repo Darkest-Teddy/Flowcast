@@ -72,7 +72,9 @@ export function rewordAnswer(answer: string): string | null {
 const numbers = (text: string) => text.replace(/(\d),(?=\d{3}\b)/g, '$1').match(/\d+(?:\.\d+)?/g) ?? [];
 
 /** Table columns whose cells are figures an answer may quote; hour and open-flag columns are not. */
-const FIGURE_COLUMNS = new Set(['percent', 'students', 'visits', 'pedestrians']);
+const FIGURE_COLUMNS = new Set(['percent', 'students', 'visits', 'pedestrians',
+  // chat tools (chatTools.ts)
+  'normalPercent', 'withEventsPercent', 'normalStudents', 'withEventsStudents', 'arrivals', 'departures', 'patrons']);
 
 /**
  * Numbers a tool output supports: scalar fields and strings anywhere, but in hourly tables

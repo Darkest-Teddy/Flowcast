@@ -3,9 +3,9 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { buApiPlugin } from './server/buApi';
 
-/** Ask (server/): only these two paths go to the Ask server; /api/bu/* stays with buApiPlugin. */
+/** Ask (server/): only these paths go to the Ask server (/api/chat also covers /api/chat/directory); /api/bu/* stays with buApiPlugin. */
 const askTarget = process.env.FLOWCAST_API_URL || 'http://127.0.0.1:8787';
-const askProxy = Object.fromEntries(['/api/ask', '/api/health'].map((path) => [path, { target: askTarget, changeOrigin: true }]));
+const askProxy = Object.fromEntries(['/api/ask', '/api/chat', '/api/health'].map((path) => [path, { target: askTarget, changeOrigin: true }]));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'CATALOG_');
