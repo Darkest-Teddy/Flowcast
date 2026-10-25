@@ -43,6 +43,7 @@ import { activeWindFromDegrees } from './weather/weather';
 import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
 import { atmosphereLayers } from './weather/atmosphere';
+import { ragdollLayers, ragdollsAt } from './layers/ragdolls';
 import { quality } from './perf/quality';
 import { pacer } from './perf/pacer';
 import {
@@ -88,7 +89,7 @@ import { AskPanel, type AskShow } from './AskPanel';
 import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
 import { LiveVoice } from './LiveVoice';
-import type { Stay, WalkRoute } from './sim/playback';
+import type { DayData, Stay, WalkRoute } from './sim/playback';
 import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireModels } from './layers/fireTrucks';
 import { loadFireNetwork, planFireResponse, roadsNear, signalOracle, type FireNetwork } from './sim/fireResponse';
 import { crowdCharacters } from './layers/fireCrowd';
@@ -158,6 +159,18 @@ const OCCUPANCY_REFRESH_MS = 500;
 /** The map opens on the intro still (IntroScreen) and flies in from its camera, unless the URL sets the view. */
 const FROM_INTRO = !VIEW_IN_URL;
 const NO_PADDING = { top: 0, left: 0, right: 0, bottom: 0 };
+/** Each person's character model, looked up by id; built once per day. */
+const agentModels = new WeakMap<DayData, (id: string) => number>();
+function modelOfAgent(day: DayData): (id: string) => number {
+  let lookup = agentModels.get(day);
+  if (!lookup) {
+    const models = new Map<string, number>(day.agents.map((agent) => [agent.id, agent.model]));
+    const found = (id: string) => models.get(id) ?? 0;
+    agentModels.set(day, found);
+    return found;
+  }
+  return lookup;
+}
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const nextFrames = (n: number) => new Promise<void>((resolve) => { const step = (left: number) => (left ? requestAnimationFrame(() => step(left - 1)) : resolve()); step(n); });
@@ -879,6 +892,12 @@ export default function App() {
         const response = incidentRunRef.current?.fireResponse;
         const fireTrucks = response ? fireResponseAt(response, t) : [];
         const incidentFrameLayers = incidentLayers(incidentRunRef.current, t, occupancy, day.buildings, placer, damage);
+        // Meteor fatalities thrown from the impact, then lying where they land.
+        const run = incidentRunRef.current;
+        if (run?.incident.kind === 'meteor' && run.casualties?.length && models) {
+          incidentFrameLayers.push(...ragdollLayers(ragdollsAt(run.casualties, run.location.position, run.hazard?.radiusMetres ?? 100, t, modelOfAgent(day)),
+            models, t, basemap.getZoom()));
+        }
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
         if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
           buildingOccupancy = playback.byBuilding(occupancy);
