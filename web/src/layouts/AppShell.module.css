@@ -159,16 +159,8 @@
 }
 
 .footer {
-  padding-top: var(--space-2);
-}
-
-/* Theme and collapse, just above the footer: pinned to the bottom of the sidebar. */
-.tools {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-1);
   margin-top: auto;
-  padding: var(--space-4) var(--space-1) 0;
+  padding-top: var(--space-4);
 }
 
 .main {
@@ -178,13 +170,20 @@
   min-width: 0;
 }
 
+/* Above every page: the admin menu button on phones, the light/dark toggle at the right. */
+.topBar {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-4) 0;
+}
+
 .menu {
   display: none;
   align-items: center;
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin: var(--space-3) var(--space-4) 0;
+  margin: 0;
   border: 0;
   border-radius: var(--radius-capsule);
   background: transparent;
@@ -320,7 +319,7 @@
   color: var(--color-ink-secondary);
 }
 
-/* The theme and collapse toggles. */
+/* The collapse toggle (sidebar header) and the theme toggle (top bar). */
 .tool {
   display: inline-flex;
   align-items: center;
@@ -346,6 +345,23 @@
   height: 16px;
 }
 
+/* Collapse sits at the right end of the brand row, like the sidebar toggle in most apps. */
+.collapse {
+  margin-left: auto;
+}
+
+.theme {
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  color: var(--color-ink-secondary);
+}
+
+.theme svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* Collapsed: an icon rail. Labels stay in the accessibility tree (visually hidden) and show as
    tooltips; the footer keeps its avatar or icon and hides anything marked data-rail="hide". */
 .collapsed {
@@ -353,14 +369,27 @@
 }
 
 .collapsed .brand {
+  flex-direction: column;
   justify-content: center;
+  gap: var(--space-2);
+  height: auto;
   padding: 0;
 }
 
-.collapsed .tools {
-  flex-direction: column;
-  align-items: center;
-  padding-inline: 0;
+.collapsed .collapse {
+  margin-left: 0;
+}
+
+/* No labels on the rail, so a short hairline marks where each section starts. */
+.collapsed .nav {
+  gap: var(--space-3);
+}
+
+.collapsed .group + .group::before {
+  content: '';
+  height: 1px;
+  margin: 0 var(--space-3) var(--space-3);
+  background: var(--color-hairline-soft);
 }
 
 .collapsed .brandName,
@@ -395,20 +424,32 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* Phones: the collapse toggle has no rail to fold to; theme stays. */
-  .tool[aria-pressed] {
+  /* Phones: the collapse toggle has no rail to fold to. */
+  .collapse {
     display: none;
+  }
+
+  /* A full-size touch target in the corner. */
+  .theme {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-capsule);
   }
 
   /* The drawer is always full width: undo the rail. */
   .collapsed .brand {
+    flex-direction: row;
     justify-content: flex-start;
+    height: 36px;
     padding: 0 var(--space-3);
   }
 
-  .collapsed .tools {
-    flex-direction: row;
-    padding-inline: var(--space-1);
+  .collapsed .nav {
+    gap: var(--space-4);
+  }
+
+  .collapsed .group + .group::before {
+    content: none;
   }
 
   .collapsed .brandName,

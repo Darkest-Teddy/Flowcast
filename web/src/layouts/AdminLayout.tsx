@@ -18,11 +18,21 @@ export function AdminLayout() {
     {
       items: [
         { to: '/admin', label: 'Overview', icon: LayoutGrid, end: true },
+        { to: config.mapUrl, label: 'Campus map', icon: Map, external: true },
+      ],
+    },
+    {
+      label: 'Data',
+      items: [
         { to: '/admin/data-sources', label: 'Data sources', icon: Database, badge: sourceIssues },
         { to: '/admin/simulation', label: 'Simulation', icon: SlidersHorizontal },
         { to: '/admin/live', label: 'Live demo', icon: Radio },
+      ],
+    },
+    {
+      label: 'People',
+      items: [
         { to: '/admin/clubs', label: 'Club verification', icon: BadgeCheck, badge: pending },
-        { to: config.mapUrl, label: 'Campus map', icon: Map, external: true },
         { to: '/admin/users', label: 'Users', icon: Users },
       ],
     },

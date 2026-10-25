@@ -2,10 +2,12 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { config } from '../config';
 import { Logo } from '../ui';
+import { MapBackdrop } from '../layouts/MapBackdrop';
 import styles from '../pages/SignIn.module.css';
 
 export function AuthFrame({ title, children }: { title: string; children: ReactNode }) {
   return <main className={styles.screen}>
+    <MapBackdrop />
     <div className={styles.column}>
       <Link to="/landing" className={styles.brand} aria-label={`${config.appName} home`}>
         <Logo className={styles.mark} /><span>{config.appName}</span>
