@@ -59,10 +59,11 @@ export function walkerScale(zoom: number) {
 export interface AgentLayerOptions {
   zoom: number;
   highlightId?: string | null;
+  runningIds?: ReadonlySet<string>;
 }
 
-/** Which Kenney clip a set of characters plays: 'walk' for walkers, 'idle' for people standing about. */
-export type CharacterClip = 'walk' | 'idle';
+/** Kenney clips for walking, standing, and fleeing. */
+export type CharacterClip = 'walk' | 'idle' | 'sprint';
 
 export interface CharacterLayerOptions extends AgentLayerOptions {
   /** Layer id prefix; one layer per model and phase, `${id}-${model}-${phase}`. */
@@ -128,7 +129,8 @@ export function characterLayers(items: Character[], models: LoadedModels, time: 
   // cadence, so the crowd still doesn't march in step): 12 draws instead of 36. The other phase
   // layers stay in the list, empty and hidden, so zooming back in re-uploads nothing.
   const usedPhases = clip === 'walk' && zoom < PHASED_FROM_ZOOM ? 1 : phases;
-  const animationFor = (model: number, phase: number) => (clip === 'walk' ? WALK_ANIMATIONS[model % WALK_ANIMATIONS.length][phase] : IDLE_ANIMATIONS[model % IDLE_ANIMATIONS.length]);
+  const animationFor = (model: number, phase: number) => (clip === 'walk' ? WALK_ANIMATIONS[model % WALK_ANIMATIONS.length][phase]
+    : clip === 'sprint' ? SPRINT_ANIMATIONS[model % SPRINT_ANIMATIONS.length] : IDLE_ANIMATIONS[model % IDLE_ANIMATIONS.length]);
   const sizeScale = walkerScale(zoom);
   // Bucket index model * phases + phase (the phase is a hash of the id, remembered per id).
   const buckets: Character[][] = [];
@@ -177,8 +179,19 @@ export function characterLayers(items: Character[], models: LoadedModels, time: 
 }
 
 export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time: number, options: AgentLayerOptions) {
+  if (options.runningIds?.size) {
+    const runners: WalkingAgent[] = [], others: WalkingAgent[] = [];
+    for (const person of walking) (options.runningIds.has(person.id) ? runners : others).push(person);
+    return [...characterLayers(others, models, time, { ...options, id: 'agents', clip: 'walk' }),
+      ...characterLayers(runners, models, time, { ...options, id: 'agents-running', clip: 'sprint' })];
+  }
   return characterLayers(walking, models, time, { ...options, id: 'agents', clip: 'walk' });
 }
+
+const SPRINT_ANIMATIONS = CHARACTER_MODELS.map((_, model) => ({
+  '*': { playing: false },
+  sprint: { playing: true, startTime: model * 0.047, speed: 1 + (model % 4) * 0.06 },
+}));
 
 // Per model and phase: phases a third of a stride apart, and each model offset and paced a little
 // differently, so even with one layer per model (the overview) neighbours don't share a stride.

@@ -461,6 +461,9 @@ function meteorLayers(frame: DisasterFrame, fadeEnd: number): Layer[] {
       const k = 1 - clamp01(q);
       return at(ground, path.dx * path.horizontal * k, path.dy * path.horizontal * k, Math.max(2, path.altitude * k));
     };
+    const body = Math.max(5, Math.min(18, impactRadius * 0.09));
+    rocks.push({ position: point(s), scale: [body, body * 0.8, body * 1.25],
+      orientation: [s * 260, s * 170, s * 90], color: [92, 43, 24] });
     hot.push({ icon: 'glow', position: point(s), size: 150, color: [255, 90, 40, 130] });
     // A normally blended body under the additive glow, so the meteor reads on a light basemap too.
     smoke.push({ icon: 'glow', position: point(s), size: 60, color: [255, 110, 30, 255] });
@@ -478,6 +481,17 @@ function meteorLayers(frame: DisasterFrame, fadeEnd: number): Layer[] {
       const age = k / 18;
       const shade = Math.round(80 + 40 * age);
       smoke.push({ icon: 'puff', position: point(q), size: 22 + 40 * age, color: [shade, shade - 4, shade - 8, Math.round(140 * (1 - age))] });
+    }
+    // Ablating fragments peel away from the hot core along the incoming trajectory.
+    for (let k = 0; k < 36; k++) {
+      const age = frac(s * 5 + hash(k, salt + 31));
+      const q = s - age * 0.22;
+      if (q < 0) continue;
+      const p = point(q), a = hash(k, salt + 32) * Math.PI * 2;
+      const spread = age * (12 + 30 * hash(k, salt + 33));
+      const xy = offset([p[0], p[1]], Math.cos(a) * spread, Math.sin(a) * spread);
+      hot.push({ icon: 'glow', position: [xy[0], xy[1], p[2] + Math.sin(a) * spread],
+        size: 3 + 7 * (1 - age), color: [255, 165, 65, Math.round(230 * (1 - age))] });
     }
     flat.push({ icon: 'glow', position: [...center, 0.5], size: impactRadius * (0.5 + s), color: [255, 140, 70, Math.round(140 * s ** 3)] });
   } else {
@@ -499,6 +513,13 @@ function meteorLayers(frame: DisasterFrame, fadeEnd: number): Layer[] {
       if (u <= 0) continue;
       rings.push({ position: [...center, 0.5], radius: cr + (impactRadius * 2.6 - cr) * easeOut(u), fill: [255, 210, 180, Math.round(30 * (1 - u))],
         line: [255, 225, 200, Math.round((k ? 140 : 240) * (1 - u) ** 1.3)], width: k ? 2 : 4 });
+    }
+    // A low, broad pressure front makes the blast readable against bright map tiles.
+    if (dt < 30) for (let k = 0; k < 48; k++) {
+      const u = dt / 30, a = k / 48 * Math.PI * 2;
+      const d = cr + impactRadius * 2.6 * easeOut(u);
+      smoke.push({ icon: 'puff', position: at(ground, Math.cos(a) * d, Math.sin(a) * d, 3 + 14 * Math.sin(u * Math.PI)),
+        size: impactRadius * (0.12 + 0.35 * u), color: alpha(DUST, 190 * Math.sin(Math.PI * u) ** 0.5) });
     }
     // Base surge: a dust ring that runs out with the shockwave and settles.
     if (dt < 400) for (let k = 0; k < 28; k++) {
