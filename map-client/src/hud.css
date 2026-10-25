@@ -64,7 +64,8 @@
 .hud-ask .ask-clear,
 .hud-tag-menu,
 .hud-month,
-.map-lost {
+.map-lost,
+.mobile-notice {
   background: var(--hud-fill);
   box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
   color: var(--color-ink);
@@ -1423,6 +1424,50 @@
     padding: calc((var(--control-height-touch) - var(--hud-button)) / 2);
     margin: calc((var(--hud-button) - var(--control-height-touch)) / 2);
   }
+}
+
+/* The bare map's one-time notice on a phone or tablet (App.tsx): above the chrome, in the middle of
+   the map it's about, the same card as the lost-map note. */
+.mobile-notice {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: min(360px, calc(100% - 2 * var(--hud-inset)));
+  padding: var(--space-5);
+  border-radius: var(--radius-panel);
+  transform: translate(-50%, -50%);
+  font-size: var(--text-sm);
+  pointer-events: auto;
+}
+
+.mobile-notice p {
+  margin: 0;
+  color: var(--map-ink-secondary);
+  line-height: 1.45;
+}
+
+.mobile-notice .mobile-notice-title {
+  color: var(--color-ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.mobile-notice button {
+  height: var(--control-height-touch);
+  margin-top: var(--space-2);
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-capsule);
+  background: var(--color-accent-fill);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
 }
 
 /* The map lost its graphics context and Speed could not keep it (perf/contextLoss.ts). It sits in

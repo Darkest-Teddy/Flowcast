@@ -68,6 +68,11 @@ export interface BuildingTagsFrame {
   camera: CameraState;
   /** Detailed-model heights, so tags stand on the model's roof rather than the footprint's. */
   roofHeights?: RoofHeights;
+  /**
+   * Stand on the ground instead of the roof: the bare map of a phone draws flat buildings, and a tag
+   * held up at the detailed model's roof height hung in the air above them.
+   */
+  ground?: boolean;
 }
 
 export interface BuildingTagsHandle {
@@ -186,7 +191,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
   useImperativeHandle(
     ref,
     () => ({
-      update({ buildings, footprints, locations, selectedId, spotlitId = null, placer, project, camera, roofHeights }) {
+      update({ buildings, footprints, locations, selectedId, spotlitId = null, placer, project, camera, roofHeights, ground = false }) {
         const layer = layerRef.current;
         const [width, height] = s.size;
         if (!layer || !width) return;
@@ -223,7 +228,7 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         // padding); an unpadded viewport of the same camera gives the roof's offset above it
         // (padding only shifts the whole picture).
         const anchors = s.projection.get(buildings, camera, width, height, project,
-          b => [b.position[0], b.position[1], b.roof ?? s.heights.get(b.id) ?? 0], s.heights);
+          b => [b.position[0], b.position[1], ground ? 0 : b.roof ?? s.heights.get(b.id) ?? 0], ground ? 'ground' : s.heights);
 
         // Selected first, then venues with an event under way, then busiest: if tags must be
         // dropped, the quiet ones go (the side panel still lists every building).

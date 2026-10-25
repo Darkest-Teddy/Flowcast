@@ -195,6 +195,8 @@ const FROM_INTRO = !VIEW_IN_URL && !LOW_MEMORY;
  */
 const CAMPUS_MARGIN_M = 500;
 const CAMPUS_MIN_ZOOM = 14.5;
+/** Set once the phone notice has been dismissed in this tab's session. */
+const MOBILE_NOTICE_KEY = 'flowcast.mobileNotice';
 const NO_PADDING = { top: 0, left: 0, right: 0, bottom: 0 };
 /** Each person's character model, looked up by id; built once per day. */
 const agentModels = new WeakMap<DayData, (id: string) => number>();
@@ -639,6 +641,15 @@ export default function App() {
   const [selectedMobility, setSelectedMobility] = useState<string | null>(null);
   const selectedMobilityRef = useRef<string | null>(null);
   const [showTransit, setShowTransit] = useState(!LOW_MEMORY);
+  // Phones and tablets get the bare map: say so once a session, when it opens.
+  const [mobileNotice, setMobileNotice] = useState(() => {
+    if (!LOW_MEMORY) return false;
+    try { return !sessionStorage.getItem(MOBILE_NOTICE_KEY); } catch { return true; }
+  });
+  const dismissMobileNotice = () => {
+    setMobileNotice(false);
+    try { sessionStorage.setItem(MOBILE_NOTICE_KEY, '1'); } catch { /* storage blocked: ask again next load */ }
+  };
   // Car traffic is off by default: most students walk, bike or take the T. Still available in the Transit tab.
   const [showTraffic, setShowTraffic] = useState(false);
   // Traffic count sites ("1,313 vehicles/h · 29 bikes/h"): off by default, remembered.
@@ -1203,6 +1214,7 @@ export default function App() {
             project: basemap.project,
             camera: basemap.getCamera(),
             roofHeights,
+            ground: LOW_MEMORY,
           }));
         }
         // The what-if's area, re-projected every frame: its shape depends on the
@@ -2198,6 +2210,13 @@ export default function App() {
         surface: brand top left, layers down the left edge, views across the top,
         clock, weather and time top right, legend bottom left, ask bottom centre, join bottom right.
       */}
+      {mobileNotice && introPhase === 'done' && (
+        <div className="mobile-notice" role="dialog" aria-labelledby="mobile-notice-title" aria-describedby="mobile-notice-body">
+          <p className="mobile-notice-title" id="mobile-notice-title">Flowcast is made for computers</p>
+          <p id="mobile-notice-body">On a phone you get a lighter map: the buildings and how full they are. Open Flowcast on a computer for the full 3D campus, with students, transit and events.</p>
+          <button type="button" onClick={dismissMobileNotice} autoFocus>Got it</button>
+        </div>
+      )}
       {hud && !clean && (
         <div className="hud">
           <HudBrand name="Flowcast" dashboardHref="/" />
