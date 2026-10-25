@@ -42,7 +42,7 @@ export default function Study() {
   const loading = resources.some(r => r.loading);
 
   return <Page>
-    <PageHeader title="Find a study spot" description="Choose what you need, then see how much time you can spend there." />
+    <PageHeader title="Find a study spot" />
     <section className={styles.filters} aria-label="Study preferences">
       <div className={styles.controls}>
         <SelectField label="Starting building" value={from} onChange={e => setOrigin(e.target.value)}>
@@ -56,7 +56,6 @@ export default function Study() {
           <option value="">Any distance</option>{[5, 10, 15, 20].map(n => <option key={n} value={n}>{n} minutes</option>)}
         </SelectField>
       </div>
-      <p className={styles.muted}>Confirm your starting building; this is not GPS. Walks use saved routes at 1.4 m/s, plus a five-minute buffer before class.</p>
       <fieldset className={styles.amenities}><legend>What do you need?</legend>
         {amenityKeys.map(key => <label key={key}><input type="checkbox" checked={amenities.includes(key)} onChange={e => setAmenities(current => e.target.checked ? [...current, key] : current.filter(a => a !== key))} />{amenityLabels[key]}</label>)}
       </fieldset>
@@ -65,9 +64,13 @@ export default function Study() {
         <label><input type="checkbox" checked={lateOnly} onChange={e => setLateOnly(e.target.checked)} />Library open at 10 PM today</label>
         <label><input type="checkbox" checked={fitsOnly} onChange={e => setFitsOnly(e.target.checked)} />Full session fits before class</label>
       </div>
-      <p className={styles.muted}>Filters require published confirmation. Unlisted amenities are unknown. Library hours do not guarantee room access or a free seat.</p>
-      {!schedule.loading && !schedule.error && !schedule.data?.length && <p><Link to="/calendars">Import your classes</Link> to check conflicts. Without an import, study time only accounts for walking and library hours.</p>}
-      {defaults.current && <p role="status">Your schedule has a class in progress until {bostonTime(defaults.current.end)}. No study session is marked as fitting now.</p>}
+      <p className={styles.muted}>Only verified amenities match filters. Room access and seats aren’t guaranteed.</p>
+      <details className={styles.muted}><summary>How estimates work</summary>
+        <p>Confirm your starting building. Walking estimates use saved routes at 1.4 m/s and allow five minutes before class. All times are Boston time.</p>
+        <p>Hours are from a saved snapshot; check current hours before leaving. Individual seat power and current bookings are unknown.</p>
+      </details>
+      {!schedule.loading && !schedule.error && !schedule.data?.length && <p><Link to="/calendars">Import your classes</Link> to check for class conflicts.</p>}
+      {defaults.current && <p role="status">In class until {bostonTime(defaults.current.end)}; no session fits now.</p>}
     </section>
     {resources.filter(r => r.error).map((r, i) => <p role="alert" key={i}>{r.error?.message} <Button size="sm" variant="ghost" onClick={r.reload}>Try again</Button></p>)}
     <div className={styles.resultsHeader}>
@@ -77,7 +80,7 @@ export default function Study() {
       </SelectField>
       <Button variant="ghost" size="sm" onClick={reset}>Clear filters</Button>
     </div>
-    {loading ? <Loading label="Loading study spaces" /> : results.length === 0 ? <EmptyState title="No confirmed matches" body="Try removing a filter. Missing information does not mean an amenity is unavailable, and unknown hours cannot confirm a session fits." action={<Button onClick={reset}>Clear filters</Button>} /> : <div className={styles.results}>
+    {loading ? <Loading label="Loading study spaces" /> : results.length === 0 ? <EmptyState title="No confirmed matches" body="Try fewer filters. Spaces with unverified amenities or hours may be excluded." action={<Button onClick={reset}>Clear filters</Button>} /> : <div className={styles.results}>
       {results.map(result => {
         const { spot } = result;
         const point = geo.data?.positions[spot.locationId];
@@ -85,17 +88,16 @@ export default function Study() {
         const unknown = amenityKeys.filter(key => spot.amenities[key] === undefined);
         return <article key={spot.id} className={styles.spot}>
           <div className={styles.spotHeading}><div><h2>{spot.name}</h2><p className={styles.muted}>{spot.area}</p></div>
-            <p className={styles.time}>{result.usable === null ? 'Time unconfirmed' : `${result.usable} min potential study time`}</p>
+            <p className={styles.time}>{result.usable === null ? 'Time unconfirmed' : `${result.usable} min estimated study time`}</p>
           </div>
           <p>{result.walk === null ? 'Walk time unavailable' : `${result.walk} min walk · arrive ${bostonTime(result.arrival)}`} · {result.open === null ? 'Library hours unconfirmed' : result.open ? `Library open ${result.walk === null ? 'now' : 'at arrival'}` : `Library closed ${result.walk === null ? 'now' : 'at arrival'}`}</p>
           {result.reason && <p className={styles.muted}>{result.reason}</p>}
-          {result.leaveAt !== null && <p>Study until {bostonTime(result.leaveAt)}{result.next && <> · {result.onwardWalk} min walk to {result.next.title}, with 5 min to arrive early</>}.</p>}
+          {result.leaveAt !== null && <p>Study until {bostonTime(result.leaveAt)}{result.next && <> · {result.onwardWalk} min walk to {result.next.title}, plus a 5 min buffer</>}.</p>}
           <ul className={styles.features}>{amenityKeys.filter(key => spot.amenities[key] === true).map(key => <li key={key}>{amenityLabels[key]}</li>)}</ul>
           <p>{spot.notes}</p>
-          <p className={styles.muted}>{result.crowd === null ? 'No crowd projection for this arrival.' : `Building crowd projection at arrival: ${Math.round(result.crowd * 100)}% of modeled capacity. Not a room-level seat count.`}</p>
-          <details><summary>Amenity evidence & limitations</summary>
+          <p className={styles.muted}>{result.crowd === null ? 'No crowd projection for this arrival.' : `Projected building crowd: ${Math.round(result.crowd * 100)}% · not seat availability`}</p>
+          <details><summary>Sources & unverified amenities</summary>
             {unknown.length > 0 && <p>Not verified: {unknown.map(key => amenityLabels[key].toLowerCase()).join(', ')}.</p>}
-            <p>Power availability at individual seats and current room bookings are not known. Hours come from the saved campus dataset and may not cover today. All times are Boston time.</p>
             <p><a href={spot.sourceUrl} target="_blank" rel="noreferrer">BU space details</a> · Checked {spot.checkedAt}</p>
           </details>
           <div className={styles.actions}><Button href={spot.sourceUrl} target="_blank" rel="noreferrer" size="sm">Details & booking</Button><Button href={spot.hoursUrl} target="_blank" rel="noreferrer" size="sm" variant="ghost">Check current hours</Button>{mapLink && <Button href={mapLink} size="sm" variant="ghost">View building on map</Button>}</div>

@@ -89,7 +89,7 @@ export default function Profile() {
 
   return (
     <Page>
-      <PageHeader title="Your profile" description="Optional details saved to your Flowcast account. These preferences do not change your Google account or control an agent on the shared map." />
+      <PageHeader title="Your profile" description="Optional Flowcast preferences. They don’t affect the shared simulation." />
 
       <form className={styles.form} onSubmit={save} noValidate>
         <section className={styles.section}>

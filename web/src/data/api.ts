@@ -1,5 +1,6 @@
 // The only data door for dashboard pages; dashboard state comes from the server.
 import { useCallback, useEffect, useState } from 'react';
+import { sourcesFromCampusBundle } from './sourceCatalog';
 import { studySpots } from './studySpots';
 import type { StudyHoursByLocation } from '../lib/studyFinder';
 import { auth } from '../auth/client';
@@ -22,7 +23,6 @@ export function resetAccountData() {
   dashboard.reset();
   try { window.sessionStorage.removeItem('flowcast.askChat.v1'); } catch { /* Storage may be disabled. */ }
 }
-const disconnected = (): CalendarConnection => ({ connected: false, email: null, syncedAt: null, calendars: [] });
 async function clubs() {
   const [data, me] = await Promise.all([dashboard.getPublic(), dashboard.getMe()]);
   return data.clubs.map((club) => ({ ...club, following: me.following.includes(club.id) }));
@@ -86,7 +86,7 @@ export const api = {
   getPlaceForecasts: () => dashboard.getPublic().then((data) => data.places),
   getHourlyForecasts: () => dashboard.getPublic().then((data) => data.hourly),
   getCampusGeo: () => dashboard.getPublic().then((data) => data.geo),
-  getSuggestions: (): Promise<Suggestion[]> => copy([]),
+  getSuggestions: (): Promise<Suggestion[]> => unsupported('Personalized suggestions'),
   acceptSuggestion: (_id: string): Promise<Suggestion[]> => unsupported('Schedule suggestions'),
   async askCampus(question: string, at: Date, signal?: AbortSignal, onWarming?: (retryAfterSec: number) => void, history?: AgentMessage[]): Promise<AgentResult> {
     if (!(await agentConfigured())) return { ok: false, error: { kind: 'notConfigured', message: 'Ask is not configured on the server.' } };
@@ -118,14 +118,7 @@ export const api = {
       return { ok: false, error: { kind: 'unreachable', message: 'The Ask server isn’t running.' } };
     }
   },
-  /**
-   * Development only: a fixed conversation and directory showing every visual kind, for checking
-   * the /ask page without the Ask server (/ask?sample=1). Labelled as a sample wherever it shows;
-   * production builds resolve null and don't include the fixture.
-   */
-  chatSample: (): Promise<typeof import('./chatSample').chatSample | null> =>
-    import.meta.env.DEV ? import('./chatSample').then((m) => m.chatSample) : Promise.resolve(null),
-  getWeekStats: (_range: StatRange = '7d'): Promise<WeekStat[]> => copy([]),
+  getWeekStats: (_range: StatRange = '7d'): Promise<WeekStat[]> => unsupported('Measured weekly activity statistics'),
   getCampusEvents: (): Promise<CampusEvent[]> => dashboard.getPublic().then((data) => data.events),
   getEventImpact: (): Promise<EventImpactData> => dashboard.getPublic().then((data) => data.impact),
   getClubs: clubs,
@@ -135,7 +128,7 @@ export const api = {
   },
   getProfile: () => dashboard.getMe().then((data) => data.profile),
   updateProfile: (patch: Partial<Profile>) => dashboard.mutate<Profile>('/profile', 'PATCH', patch),
-  getCalendarConnection: () => copy(disconnected()),
+  getCalendarConnection: (): Promise<CalendarConnection> => unsupported('Google Calendar connection status'),
   setCalendarRead: (_calendarId: string, _read: boolean): Promise<CalendarConnection> => unsupported('Calendar selection'),
   syncCalendars: (): Promise<CalendarConnection> => unsupported('Calendar sync'),
   disconnectCalendar: (): Promise<CalendarConnection> => unsupported('Calendar disconnection'),
@@ -152,18 +145,22 @@ export const api = {
     if (!club) throw new Error(`No published organizer with id ${clubId}`);
     return { ...club, listingUrl: '', officers: [], verifiedAt: null, followers: null };
   },
-  getCalendarImports: (_clubId: string): Promise<CalendarImport[]> => copy([]),
+  getCalendarImports: (_clubId: string): Promise<CalendarImport[]> => unsupported('Club calendar import history'),
   uploadClubCalendar: (_clubId: string, _fileName: string, _eventCount: number): Promise<CalendarImport> => unsupported('Club calendar upload'),
   submitClubApplication: (_input: Pick<ClubApplication, 'clubName' | 'officerName' | 'officerEmail' | 'listingUrl' | 'description'>): Promise<ClubApplication> => unsupported('Club application submission'),
-  getDataSources: (): Promise<DataSource[]> => copy([]),
+  async getDataSources(): Promise<DataSource[]> {
+    const response = await fetch('/data/campus-data.json');
+    if (!response.ok) throw new Error('The deployed campus source inventory could not be loaded.');
+    return sourcesFromCampusBundle(await response.json());
+  },
   updateDataSource: (_id: string, _patch: Partial<DataSource>): Promise<DataSource> => unsupported('Data source updates'),
   testDataSource: (_id: string, _settings: DataSource['settings']): Promise<{ ok: boolean; message: string }> => unsupported('Data source connection test'),
   getSimulation: (): Promise<SimulationSettings> => unsupported('Shared simulation settings'),
   updateSimulation: (_patch: Partial<SimulationSettings>): Promise<SimulationSettings> => unsupported('Shared simulation updates'),
-  getPlaybackSpeeds: (): Promise<number[]> => copy([]),
-  getClubApplications: (): Promise<ClubApplication[]> => copy([]),
+  getPlaybackSpeeds: (): Promise<number[]> => unsupported('Shared playback controls'),
+  getClubApplications: (): Promise<ClubApplication[]> => unsupported('Club application records'),
   setApplicationStatus: (_id: string, _status: ApplicationStatus, _note?: string): Promise<ClubApplication> => unsupported('Club application review'),
-  getAdminUsers: (): Promise<AdminUser[]> => copy([]),
+  getAdminUsers: (): Promise<AdminUser[]> => unsupported('Administrative user directory'),
   resetSimulation: (): Promise<SimulationSettings> => unsupported('Shared simulation reset'),
   getAgentBrain: (): Promise<AgentBrain> => unsupported('Agent administration'),
   getAdminSettings: (): Promise<AdminSettings> => unsupported('Admin settings'),

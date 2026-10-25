@@ -49,7 +49,7 @@ export default function Home() {
   const followed = (clubs.data ?? []).filter((c) => c.following);
 
   const calendarStatus = schedule.data?.length ? (
-    <StatusBadge tone="ok">Imported schedule · {schedule.data.length} classes · <Link to="/calendars">Manage import</Link></StatusBadge>
+    <StatusBadge tone="ok">{schedule.data.length} imported {schedule.data.length === 1 ? 'class' : 'classes'} · <Link to="/calendars">Manage import</Link></StatusBadge>
   ) : (
     <StatusBadge tone="off">{schedule.loading ? 'Loading your schedule. ' : 'No imported classes. '}<Link to="/calendars">Import .ics schedule</Link></StatusBadge>
   );
@@ -134,18 +134,13 @@ export default function Home() {
               />
             );
           })}
-          <ListRow title="Find a study spot" subtitle="Compare amenities, walking time, and space to study." to="/study" />
+          <ListRow title="Find a study spot" subtitle="Amenities and walking time" to="/study" />
           {places.data?.[0]?.basis && <details className={styles.forecastNote}><summary>About these projections</summary><p>{places.data[0].basis}</p></details>}
         </SectionList>
 
 
       </div>
 
-      <SectionList title="Published campus data">
-        <ListRow title="Mapped places" detail={locations.data ? `${locations.data.length} locations` : loadingText} />
-        <ListRow title="Upcoming public events" detail={events.data ? `${events.data.filter((event) => Date.parse(event.end ?? event.start) >= Date.now()).length} in the saved listings` : loadingText} to="/events" />
-        <ListRow title="Event organizers" detail={clubs.data ? `${clubs.data.length} named in public listings` : loadingText} to="/clubs" />
-      </SectionList>
 
       <div className={styles.bottom}>
         <SectionList

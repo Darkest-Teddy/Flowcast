@@ -11,7 +11,7 @@ from common import Fetcher, ScrapeError, run_cli
 ROOT = Path(__file__).resolve().parent.parent
 FEED_URL = 'https://cdn.mbta.com/MBTA_GTFS.zip'
 TRANSIT_FILE = ROOT / 'map-client/public/data/transit.json'
-WEEK_START = '2026-10-19'
+WEEK_START = '2026-10-26'
 DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
 

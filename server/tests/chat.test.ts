@@ -107,7 +107,8 @@ test('transit_near: scheduled departures in the next hour from the published tim
   assert.match(out.method, /not live/);
   const shuttle = (await call('transit_near', { place: 'CAS', weekday: null, time: '12:30', mode: 'shuttle' })).out;
   assert.ok(shuttle.stops.every((s: any) => s.kind === 'shuttle'));
-  assert.match(shuttle.timetables, /2024–25/);
+  assert.equal(shuttle.stops.length, 0);
+  assert.match(shuttle.method, /historical baseline excluded/);
 });
 
 test('housing, population_summary and academic_calendar give published aggregates with their basis', async () => {
@@ -314,7 +315,7 @@ test('every new domain produces a visual with provenance, and citations name dir
   assert.equal(kinds.population_summary, 'published');
   assert.equal(kinds.weather_effects, 'assumption');
   assert.equal(kinds.emergency_info, 'simulated');
-  assert.equal(kinds.transit_near, 'mixed'); // shuttle stops near CAS
+  assert.equal(kinds.transit_near, 'published'); // historic shuttle baseline is excluded
 
   const catalog = datasetCatalog(campus);
   const kindOf = (name: string) => campus.locations.find((l) => l.name === name)?.kind;
@@ -328,7 +329,7 @@ test('every new domain produces a visual with provenance, and citations name dir
   for (const d of ['bikes', 'transit', 'housing', 'population', 'counts', 'conditions', 'emergencies', 'parking', 'crowds', 'classes', 'events']) {
     assert.ok(sources.some((s) => s.domain === d), d);
   }
-  assert.ok(sources.some((s) => s.label.startsWith('BU Shuttle')));
+  assert.ok(!sources.some((s) => s.label.startsWith('BU Shuttle')), 'excluded historic shuttle timetable is not cited as current service');
   assert.deepEqual(citationsFor([{ tool: 'place_day', value: { error: 'x' } }], catalog, kindOf), []);
   // place_day cites the hours of that kind of place.
   const lib = citationsFor((await run([['place_day', { place: 'Mugar', weekday: null, time: null }]])).results, catalog, kindOf);
@@ -573,4 +574,12 @@ test('GET /api/chat/directory describes every domain from the loaded data, with 
   try {
     assert.equal((await (await fetch(`${withKey.url}/api/chat/directory`)).json()).chatAvailable, true);
   } finally { withKey.close(); }
+});
+
+
+test('transit_near refuses a different date with the same weekday', async () => {
+  const { out } = await call('transit_near', { place: 'CAS', weekday: null, time: '12:30', mode: 'mbta' }, { ...ctx, date: '2026-11-04' });
+  assert.equal(out.kind, 'unavailable');
+  assert.equal(out.date, '2026-11-04');
+  assert.match(out.note, /matching weekday/);
 });

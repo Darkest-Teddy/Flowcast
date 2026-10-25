@@ -61,14 +61,9 @@ function errorText(error: ChatError): ReactNode {
   }
 }
 
-function AnswerBody({ response, sample }: { response: ChatResponse; sample?: boolean }) {
+function AnswerBody({ response }: { response: ChatResponse }) {
   return (
     <>
-      {sample && (
-        <p className={styles.sampleTag}>
-          <Tag tone="warn">Sample response — not from the model</Tag>
-        </p>
-      )}
       <Markdown source={response.answer} />
       {response.visuals.length > 0 && (
         <div className={styles.visuals}>
@@ -102,7 +97,7 @@ export function MessageItem({ message, onRetry, busy }: { message: ChatMessage; 
     <li className={`${styles.message} ${styles.assistant}`} data-message-id={message.id}>
       <span className="visually-hidden">Flowcast: </span>
       <div className={`${styles.assistantBubble} ${message.status === 'error' ? styles.errorBubble : ''}`}>
-        {message.status === 'answer' && <AnswerBody response={message.response} sample={message.sample} />}
+        {message.status === 'answer' && <AnswerBody response={message.response} />}
         {message.status === 'device' && (
           <>
             <p className={styles.deviceText}>{message.text}</p>

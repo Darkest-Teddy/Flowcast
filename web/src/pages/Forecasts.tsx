@@ -41,7 +41,7 @@ export default function Forecasts() {
   const shown = selected === 'all' ? forecasts : forecasts.filter((f) => f.locationId === selected);
   const name = (id: string) => locationName(locations.data, id);
 
-  const header = <PageHeader title="Forecasts" description="Hourly crowd projections from the campus simulation. These are modeled counts, not live occupancy." />;
+  const header = <PageHeader title="Forecasts" description="Modeled crowds, not live occupancy." />;
 
   if (hourly.error) {
     return (
@@ -93,7 +93,7 @@ export default function Forecasts() {
                   <span className={styles.sep}>Quietest {describe(quiet.share)} at {formatHour(quiet.hour)}</span>
                 </p>
               </header>
-              {f.basis && <p>{f.basis}</p>}
+              {f.basis && <details><summary>About this projection</summary><p>{f.basis}</p></details>}
               <HourlyChart hours={f.hours} label={`Hourly forecast for ${full}`} tall={selected !== 'all'} />
               {selected !== 'all' && (
                 <div className={styles.hourList}>

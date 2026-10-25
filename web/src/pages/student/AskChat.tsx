@@ -111,14 +111,14 @@ export function AskChat({ data, visible, composer }: { data: CampusData; visible
           <h2>Ask Flowcast</h2>
           <Button variant="ghost" size="sm" onClick={newChat}>New chat</Button>
         </div>
-        {turns.length === 0 && <p className={styles.answer}>Ask about campus or your day, then follow up. Your personal schedule stays on this device.</p>}
+        {turns.length === 0 && <p className={styles.answer}>Your personal schedule stays on this device.</p>}
+        {turns.length > 0 && <p className={styles.note}>Answers reflect when you asked and don’t refresh automatically.</p>}
         <div role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text">
           {turns.map((turn) => (
             <article key={turn.id} className={styles.turn} aria-busy={!turn.answer && pending}>
-              <h3 className={styles.question}>You: {turn.question}</h3>
+              <h3 className={styles.question}>{turn.question}</h3>
               <p className={styles.note}>
                 <time dateTime={turn.at}>{new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(turn.at))} Boston time</time>
-                {' · Context when asked; earlier answers do not refresh.'}
               </p>
               <p className={styles.answer}>{turn.answer?.text ?? turn.status}</p>
               {turn.answer?.rows.map((row) => <ListRow key={row.id} title={row.title} detail={row.detail} />)}

@@ -21,7 +21,7 @@ import { Playback, formatClock, loadDay, occupancyShare, type BuildingFootprint,
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
-import { PublishedTransit, loadPublishedSchedule } from './transit/publishedSchedule';
+import { PublishedTransit, loadPublishedSchedule, scheduleCoversDate } from './transit/publishedSchedule';
 import { buildPopulation, loadPopulation, type PopulationBase } from './sim/population';
 import { advanceTime } from './sim/clock';
 import { dateForWeekday, loadCampusData, WEEKDAYS, type CampusData } from './data/campusData';
@@ -455,7 +455,9 @@ export default function App() {
       if (cancelled) return basemap.remove();
       const shuttleSchedule = await shuttleTimetable;
       observationsRef.current = await observationsLoad;
-      const timetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
+      const candidateTimetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
+      const timetable = candidateTimetable && Array.from({ length: 7 }, (_, weekday) => dateForWeekday(snapshot, weekday))
+        .every(date => scheduleCoversDate(candidateTimetable, date)) ? candidateTimetable : null;
       basemapRef.current = basemap;
       // The panels were laid out while the map loaded: start centred in what they leave.
       basemap.setViewPadding(paddingRef.current, false);
@@ -732,7 +734,7 @@ export default function App() {
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
           occupancy = playback.occupancyAt(t);
           lastOccupancy = now;
-          if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
+          if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t, !liveRef.current);
           const ridingByCampus = new Map<string, number>();
           for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
           setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length,
@@ -784,7 +786,7 @@ export default function App() {
         } else parkingState = null;
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
-        const source = transit ? transitSourceAt(transit, t, liveRef.current, weekdayRef.current) : null;
+        const source = transit ? transitSourceAt(transit, t, liveRef.current, weekdayRef.current, dateForWeekday(snapshot, weekdayRef.current)) : null;
         const showBikesNow = bikes && showBikesRef.current;
         // Shown time and day (0 = Sunday), for BU shuttle service hours.
         const serviceTime = liveRef.current ? wallClockSeconds() : t;
@@ -942,7 +944,7 @@ export default function App() {
     weatherRef.current = w;
     // The conditions engine only rebuilds when the weather's behaviour family or temperature band changes.
     const shown = dayWeather({ condition: w.condition, temperatureF: w.temperatureF });
-    setWeatherKey(`${shown.kind}|${shown.band}`);
+    setWeatherKey(`${w.source}|${w.reading?.observedAt.slice(0, 10) ?? ""}|${shown.kind}|${shown.band}`);
   }, []);
   const openWeather = useCallback(() => {
     setTab('weather');
@@ -1302,7 +1304,7 @@ export default function App() {
       <MemoPerfMonitor counts={getPerfCounts} />
       {mapKind && (
         <MemoWeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={onWeather}
-          panel={weatherPanel} chip={weatherChip} onOpen={openWeather} forceMode={scenarioLook} />
+          selectedDate={live ? wallClockDate() : conditionsInput?.date ?? (sourceData ? dateForWeekday(sourceData, weekday) : undefined)} panel={weatherPanel} chip={weatherChip} onOpen={openWeather} forceMode={scenarioLook} />
       )}
       <div className="sheet-dim" data-dim={dim} aria-hidden="true" />
 
@@ -1448,10 +1450,10 @@ export default function App() {
                       {new Date(`${bikes.data.month}-15T12:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' })}
                     </p>
                     <h3>
-                      {live ? 'Live docks' : `Docks at ${formatClock(hud.time)} (estimated)`}{' '}
+                      {live ? 'Current dock availability' : `Dock scenario at ${formatClock(hud.time)} (not historical availability)`}{' '}
                       <span className="muted">
                         {bikeFeedError ??
-                          (bikeFeedUpdatedAt ? `· updated ${new Date(bikeFeedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
+                          (bikeFeedUpdatedAt ? `· polled ${new Date(bikeFeedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
                       </span>
                     </h3>
                     <table className="arrivals">
@@ -1468,31 +1470,35 @@ export default function App() {
                         {docks.map((s) => {
                           // "Now" is the shown time: the live count in Live mode, else an estimate.
                           const shown = live ? wallClockSeconds() : hud.time;
-                          const at = (offset: number) => estimateDock(s, bikes.feed.status(s), bikes.data.binSeconds, wallClockSeconds(), shown + offset);
+                          const at = (offset: number) => {
+                            const estimate = estimateDock(s, bikes.feed.status(s), bikes.data.binSeconds, wallClockSeconds(), shown + offset);
+                            return estimate && !live ? { ...estimate, estimated: true } : estimate;
+                          };
                           const nowEst = at(0);
-                          const mark = (e: DockEstimate) => (e.estimated ? '≈' : '');
+                          const mark = (e: DockEstimate | undefined) => (e?.estimated ? '≈' : '');
                           return (
                             <tr key={s.id}>
                               <th scope="row">{s.short}</th>
                               <td>
                                 {mark(nowEst)}
-                                {nowEst.bikes}
-                                {nowEst.ebikes > 0 && <span className="muted"> ({nowEst.ebikes}⚡)</span>}
+                                {nowEst?.bikes ?? '—'}
+                                {nowEst?.ebikes != null && nowEst.ebikes > 0 && <span className="muted"> ({nowEst.ebikes}⚡)</span>}
                               </td>
                               <td>
                                 {mark(nowEst)}
-                                {nowEst.docks}
+                                {nowEst?.docks ?? '—'}
                               </td>
-                              <td>≈{at(3600).bikes}</td>
-                              <td>≈{at(3 * 3600).bikes}</td>
+                              <td>{mark(at(3600))}{at(3600)?.bikes ?? '—'}</td>
+                              <td>{mark(at(3 * 3600))}{at(3 * 3600)?.bikes ?? '—'}</td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                     <p className="muted source">
-                      ≈ estimated: today's live count plus a typical {bikes.data.weekday}'s arrivals and departures at each dock. Bluebikes'
-                      rebalancing vans aren't modelled. ⚡ = e-bikes.
+                      ≈ modeled scenario: a fresh GBFS count plus a typical {bikes.data.weekday}'s arrivals and departures.
+                      Playback applies this model to today's counts, not the reference date. Rebalancing vans aren't modeled.
+                      — = unavailable (missing, stale, or failed feed). Counts expire after 2 minutes. ⚡ = reported or modeled e-bikes; omitted when unknown.
                     </p>
                   </>
                 )}
@@ -1903,16 +1909,19 @@ function thinForZoom(walkers: WalkingAgent[], zoom: number): WalkingAgent[] {
  * Live mode draws the real MBTA and BU feeds. When the day is played back or fast-forwarded,
  * live vehicles can't keep up, so scheduled service on the simulation clock takes over.
  */
-function transitSourceAt(transit: Transit, t: number, live: boolean, weekday: number): TransitSource | null {
+function transitSourceAt(transit: Transit, t: number, live: boolean, weekday: number, date: string): TransitSource | null {
   if (live) return transit.feed;
-  transit.schedule?.setTime(t, weekday);
+  transit.schedule?.setTime(t, weekday, date);
   return transit.schedule;
 }
 
 /** Bikes and empty docks at every BU dock at `target` (sim seconds): live if that's now, else estimated. */
-function dockStatusAt({ data, feed }: Bikes, target: number): Map<string, DockEstimate> {
+function dockStatusAt({ data, feed }: Bikes, target: number, scenario = false): Map<string, DockEstimate> {
   const now = wallClockSeconds();
-  return new Map(data.stations.map((s) => [s.id, estimateDock(s, feed.status(s), data.binSeconds, now, target)]));
+  return new Map(data.stations.flatMap((s) => {
+    const estimate = estimateDock(s, feed.status(s), data.binSeconds, now, target);
+    return estimate ? [[s.id, scenario ? { ...estimate, estimated: true } : estimate] as const] : [];
+  }));
 }
 
 // Sailboats tack against the shown weather's wind, rounded to 15° so a slowly veering wind doesn't

@@ -55,12 +55,12 @@ export function DepartureCard({ items, locations, geo, homeLocationId, now, load
           {[0, 5, 10].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
         </SelectField>
     </div>
-    <p className={styles.muted}>{plan.originSource === 'schedule' ? 'From your schedule; confirm where you are.' : plan.originSource === 'home' ? 'From your profile home; change if needed.' : plan.originSource === 'selected' ? 'Using your selected starting building.' : 'Choose your starting building to calculate a departure.'}</p>
+    {plan.originSource !== 'selected' && <p className={styles.muted}>{plan.originSource === 'schedule' ? 'Starting point from your schedule. Change it if needed.' : plan.originSource === 'home' ? 'Starting from your saved home.' : 'Choose a starting building for a departure estimate.'}</p>}
     {plan.leaveBy !== null ? <div aria-live="polite">
       <p className={styles.departure}>Leave by {bostonDateTime(plan.leaveBy)}</p>
       <p>{plan.walkMinutes} min walk · {buffer} min buffer{mapLink && <> · <a href={mapLink}>View route area</a></>}</p>
       {now >= plan.leaveBy && <p>{plan.lateMinutes ? `Leave now · arriving ${plan.lateMinutes} min after your ${bostonTime(plan.arrivalTarget!)} arrival target.` : 'Leave now'}</p>}
-    </div> : <p>{plan.routeStatus === 'unmapped-destination' ? 'Class building is not mapped. No departure estimate is available.' : plan.routeStatus === 'no-route' ? 'No saved walking route between these buildings. No departure estimate is available.' : null}</p>}
+    </div> : <p>{plan.routeStatus === 'unmapped-destination' ? 'Departure unavailable: class building is not mapped.' : plan.routeStatus === 'no-route' ? 'Departure unavailable: no walking route between these buildings.' : null}</p>}
     {(plan.overlap || plan.ambiguousCurrent || (plan.connectionShortfallMinutes ?? 0) > 0) && <p role="alert" className={styles.warning}>
       {plan.overlap || plan.ambiguousCurrent ? 'Classes overlap. Confirm your starting building.' : `The previous class ends too late for this connection (${plan.connectionShortfallMinutes} min short, including buffer). Confirm your starting building.`}
     </p>}

@@ -20,7 +20,7 @@ export type Condition =
 /** What the control is set to: the real Boston weather, or a simulated regime. */
 export type WeatherMode = 'live' | 'clear' | 'rain' | 'snow' | 'fog' | 'thunderstorm' | 'heatwave';
 export const WEATHER_MODES: { mode: WeatherMode; label: string; title: string }[] = [
-  { mode: 'live', label: 'Live', title: "BU's real weather: now in Live, the hourly forecast when playing back" },
+  { mode: 'live', label: 'Source', title: 'Open-Meteo current conditions or hourly weather for the selected date, when available' },
   { mode: 'clear', label: 'Clear', title: 'Simulate a clear day' },
   { mode: 'rain', label: 'Rain', title: 'Simulate steady rain' },
   { mode: 'snow', label: 'Snow', title: 'Simulate snowfall' },
@@ -147,6 +147,12 @@ export function describeCode(code: number): [Condition, string] {
 
 /** One set of Open-Meteo values as a reading. `hours` is the period precipitation is summed over. */
 function toReading(v: Record<string, number>, time: string, hours: number): WeatherReading {
+  const required = ['weather_code', 'temperature_2m', 'apparent_temperature', 'precipitation', 'snowfall', 'cloud_cover', 'wind_speed_10m', 'wind_direction_10m', 'visibility', 'is_day'];
+  if (!required.every((key) => typeof v[key] === 'number' && Number.isFinite(v[key]))
+    || !WMO[v.weather_code] || !Number.isFinite(hours) || hours <= 0
+    || typeof time !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(time)) {
+    throw new Error('Open-Meteo: incomplete weather reading');
+  }
   const [condition, text] = describeCode(v.weather_code);
   const reading: WeatherReading = {
     code: v.weather_code,
@@ -154,12 +160,12 @@ function toReading(v: Record<string, number>, time: string, hours: number): Weat
     text,
     temperatureF: v.temperature_2m,
     feelsLikeF: v.apparent_temperature,
-    precipMmPerHour: (v.precipitation ?? 0) / hours,
-    snowCmPerHour: (v.snowfall ?? 0) / hours,
-    cloudCover: v.cloud_cover ?? 0,
-    windMph: v.wind_speed_10m ?? 0,
-    windFromDeg: v.wind_direction_10m ?? 0,
-    visibilityM: v.visibility ?? 50_000,
+    precipMmPerHour: v.precipitation / hours,
+    snowCmPerHour: v.snowfall / hours,
+    cloudCover: v.cloud_cover,
+    windMph: v.wind_speed_10m,
+    windFromDeg: v.wind_direction_10m,
+    visibilityM: v.visibility,
     isDay: v.is_day === 1,
     observedAt: time,
   };
@@ -203,21 +209,27 @@ export async function fetchForecast(signal?: AbortSignal): Promise<Forecast> {
   return out;
 }
 
-const bostonDate = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(d); // YYYY-MM-DD
-const bostonHour = (d = new Date()) => Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(d));
+export const bostonDate = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(d); // YYYY-MM-DD
+/** Current readings expire by their source time, even after a successful repeat poll. */
+export function freshWeather(reading: WeatherReading | null, now = new Date()): boolean {
+  if (!reading) return false;
+  const parts = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(now);
+  const age = Date.parse(parts.replace(' ', 'T') + 'Z') - Date.parse(reading.observedAt + 'Z');
+  return Number.isFinite(age) && age >= 0 && age <= 30 * 60_000;
+}
+const nextDate = (date: string, days = 1) => new Date(Date.parse(date + 'T12:00:00Z') + days * 86_400_000).toISOString().slice(0, 10);
 const hourKey = (date: string, hour: number) => `${date}T${String(hour).padStart(2, '0')}:00`;
 export const hourLabel = (hour: number) => `${hour % 12 || 12} ${hour < 12 ? 'AM' : 'PM'}`;
 
 /**
- * Today's forecast at a time of day (seconds since midnight). The condition switches at hour
+ * The selected date's forecast at a time of day (seconds since midnight). The condition switches at hour
  * boundaries; temperature and wind are interpolated between hours.
  */
-export function forecastAt(forecast: Forecast, seconds: number): WeatherReading | null {
-  const date = bostonDate();
+export function forecastAt(forecast: Forecast, seconds: number, date = bostonDate()): WeatherReading | null {
   const hour = Math.min(23, Math.max(0, Math.floor(seconds / 3600)));
   const at = forecast.get(hourKey(date, hour));
   if (!at) return null;
-  const next = hour < 23 ? forecast.get(hourKey(date, hour + 1)) : forecast.get(hourKey(bostonDate(new Date(Date.now() + 86_400_000)), 0));
+  const next = hour < 23 ? forecast.get(hourKey(date, hour + 1)) : forecast.get(hourKey(nextDate(date), 0));
   if (!next) return at;
   const f = Math.min(1, Math.max(0, seconds / 3600 - hour));
   const lerp = (a: number, b: number) => a + (b - a) * f;
@@ -232,12 +244,12 @@ export function forecastAt(forecast: Forecast, seconds: number): WeatherReading 
 }
 
 /** The forecast hours from a time of day on: for the hourly strip. */
-export function forecastHours(forecast: Forecast, seconds: number, count: number): { hour: number; reading: WeatherReading }[] {
+export function forecastHours(forecast: Forecast, seconds: number, count: number, selectedDate = bostonDate()): { hour: number; reading: WeatherReading }[] {
   const out: { hour: number; reading: WeatherReading }[] = [];
   const start = Math.floor(seconds / 3600);
   for (let i = 0; i < count; i++) {
     const h = start + i;
-    const date = h < 24 ? bostonDate() : bostonDate(new Date(Date.now() + 86_400_000));
+    const date = nextDate(selectedDate, Math.floor(h / 24));
     const reading = forecast.get(hourKey(date, h % 24));
     if (reading) out.push({ hour: h % 24, reading });
   }
@@ -248,7 +260,7 @@ export function forecastHours(forecast: Forecast, seconds: number, count: number
 export function cachedWeather(): { reading: WeatherReading; at: number } | null {
   try {
     const cached = JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null');
-    if (cached && Date.now() - cached.at < CACHE_MAX_AGE_MS) return cached;
+    if (cached && Number.isFinite(cached.at) && Date.now() >= cached.at && Date.now() - cached.at < CACHE_MAX_AGE_MS && freshWeather(cached.reading)) return cached;
   } catch {
     /* ignore */
   }
@@ -401,8 +413,9 @@ export function activeWeather(
   mode: WeatherMode,
   reading: WeatherReading | null,
   forecast: Forecast | null,
-  clock: { live: boolean; seconds: number | null },
+  clock: { live: boolean; seconds: number | null; date?: string },
 ): ActiveWeather {
+  if (!freshWeather(reading)) reading = null;
   if (mode !== 'live') {
     const sim = SIMULATED[mode];
     const wind = reading ? { fromDeg: reading.windFromDeg, mph: reading.windMph } : { fromDeg: 250, mph: 8 };
@@ -421,20 +434,11 @@ export function activeWeather(
       effect: effectFor(sim.condition, sim.strength, wind),
     };
   }
-  // Playing back or scrubbing: the forecast hour for the time on the clock.
-  let shown = reading;
-  let source: WeatherSource = reading ? 'live' : 'none';
-  let when: string | null = null;
-  if (!clock.live && clock.seconds != null && forecast) {
-    const hourly = forecastAt(forecast, clock.seconds);
-    if (hourly) {
-      shown = hourly;
-      source = 'forecast';
-      const hour = Math.floor(clock.seconds / 3600);
-      const nowHour = bostonHour();
-      when = hour < nowHour ? `Earlier today ${hourLabel(hour)}` : hour === nowHour ? `This hour, ${hourLabel(hour)}` : `Forecast ${hourLabel(hour)}`;
-    }
-  }
+  // A missing reference-date hour must not fall back to today's current conditions.
+  const date = clock.date ?? bostonDate();
+  const shown = clock.live ? reading : forecast && clock.seconds != null ? forecastAt(forecast, clock.seconds, date) : null;
+  const source: WeatherSource = shown ? clock.live ? 'live' : 'forecast' : 'none';
+  const when = source === 'forecast' ? `Hourly weather ${date} ${hourLabel(Math.floor(clock.seconds! / 3600))}` : null;
   if (!shown) {
     const wind = { fromDeg: 250, mph: 8 };
     return {
@@ -444,7 +448,7 @@ export function activeWeather(
       sourceLabel: 'No weather data',
       when: null,
       condition: 'clear',
-      text: 'Live weather unavailable',
+      text: clock.live ? 'Current weather unavailable' : `Weather unavailable for ${date}`,
       temperatureF: null,
       feelsLikeF: null,
       wind,
@@ -466,7 +470,7 @@ export function activeWeather(
     temperatureF: shown.temperatureF,
     feelsLikeF: shown.feelsLikeF,
     wind,
-    reading,
+    reading: shown,
     effect: effectFor(condition, liveStrength(shown), wind),
   };
 }
@@ -475,7 +479,7 @@ export function activeWeather(
 let currentWind: { fromDeg: number; mph: number } | null = null;
 /** Called by WeatherControls whenever the shown weather changes. */
 export function publishWeather(weather: ActiveWeather) {
-  currentWind = weather.wind;
+  currentWind = weather.source === 'none' ? null : weather.wind;
 }
 /** Where the shown weather's wind comes from (meteorological degrees, 0 = from the north), or null before any weather is known. */
 export const activeWindFromDegrees = (): number | null => currentWind?.fromDeg ?? null;

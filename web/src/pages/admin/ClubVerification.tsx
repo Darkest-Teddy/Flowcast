@@ -27,7 +27,7 @@ export default function ClubVerification() {
     message.show(`${verb}: ${app.clubName}`, status === 'rejected' ? 'off' : 'ok');
   };
 
-  const counts = (s: ApplicationStatus) => apps?.filter((a) => a.status === s).length ?? 0;
+  const counts = (s: ApplicationStatus) => apps?.filter((a) => a.status === s).length;
   const shown = (apps ?? [])
     .filter((a) => a.status === tab)
     .sort((a, b) => (tab === 'pending' ? a.submittedAt.localeCompare(b.submittedAt) : (b.reviewedAt ?? '').localeCompare(a.reviewedAt ?? '')));
@@ -37,7 +37,7 @@ export default function ClubVerification() {
       <PageHeader title="Club verification" description="Clubs asking to publish events on Flowcast. Check each one, then approve or reject it. Oldest requests are first." />
 
       <div className={styles.toolbar}>
-        <Segmented label="Show applications" value={tab} onChange={setTab} options={tabs.map((t) => ({ value: t.value, label: `${t.label} ${counts(t.value)}` }))} />
+        <Segmented label="Show applications" value={tab} onChange={setTab} options={tabs.map((t) => ({ value: t.value, label: apps ? `${t.label} ${counts(t.value)}` : t.label }))} />
         <StatusLine flash={message.flash} />
       </div>
 
@@ -72,16 +72,24 @@ function Application({
 }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const failed = app.checks.filter((c) => c.passed === false).length;
 
   const act = async (status: ApplicationStatus) => {
     setBusy(true);
-    await onDecide(app, status, note);
-    setBusy(false);
+    setError(null);
+    try {
+      await onDecide(app, status, note);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Application review was not saved.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <li className={styles.item}>
+      {error && <p role="alert">{error}</p>}
       <div className={styles.head}>
         <h2 className={styles.name}>{app.clubName}</h2>
         <span className={styles.when} title={formatDayTime(app.submittedAt)}>
@@ -111,7 +119,7 @@ function Application({
       <div className={styles.checks}>
         <h3 className={styles.checksTitle}>
           Automatic checks
-          <span className={styles.checksSummary}>{failed ? `${failed} failed` : app.checks.every((c) => c.passed) ? 'All passed' : 'Some not checked yet'}</span>
+          <span className={styles.checksSummary}>{failed ? `${failed} failed` : app.checks.length > 0 && app.checks.every((c) => c.passed) ? 'All passed' : 'Some not checked yet'}</span>
         </h3>
         <ul>
           {app.checks.map((c) => (

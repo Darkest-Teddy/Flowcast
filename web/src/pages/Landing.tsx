@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
-import { ArrowRight, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { motion, MotionConfig } from 'motion/react';
 import { crowdFor, crowdScale } from '@theme/tokens';
+import { loadCampusData, openingHoursForDate, type CampusData } from '@map/data/campusData';
 import { config } from '../config';
 import { Logo } from '../ui/Logo';
 import { api, useResource } from '../data/api';
@@ -22,7 +23,6 @@ import {
   longDate,
   peaks,
   shortDate,
-  weekdayName,
   type DayForecast,
   type EventExample,
 } from './landing/forecast';
@@ -73,6 +73,7 @@ function Dot({ share, size = 'md' }: { share: number; size?: 'sm' | 'md' | 'lg' 
 export default function Landing() {
   useSmoothScroll();
   const impact = useResource(api.getEventImpact);
+  const sources = useResource(loadCampusData);
   const day = useMemo(() => (impact.data ? dayForecast(impact.data) : null), [impact.data]);
   const event = useMemo(() => (impact.data ? eventExample(impact.data) : null), [impact.data]);
 
@@ -99,17 +100,17 @@ export default function Landing() {
         </a>
         <LandingNav />
         <main id="main" tabIndex={-1} className={styles.main}>
-          <Hero day={day} />
+          <Hero day={day} loading={impact.loading} />
           <Preview day={day} error={impact.error} reload={impact.reload} />
-          <HowItWorks />
+          <HowItWorks sources={sources.data} />
           <Features day={day} event={event} />
-          <Transparency day={day} />
+          <Transparency day={day} sources={sources.data} />
           <PrivacySection />
           <Closing day={day} />
         </main>
         <footer className={`${styles.dark} ${styles.footer}`} data-theme="dark">
           <div className={styles.footerRow}>
-            <span>Flowcast · Built at Hackachusetts, Civic Action track, by a team of 4.</span>
+            <span>Flowcast · Built at Hackachusetts, Civic Action track.</span>
             <a href={GITHUB_URL}>GitHub</a>
           </div>
         </footer>
@@ -190,7 +191,7 @@ interface TagSpot {
   y: number;
 }
 
-function Hero({ day }: { day: DayForecast | null }) {
+function Hero({ day, loading }: { day: DayForecast | null; loading: boolean }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [spots, setSpots] = useState<Record<string, TagSpot | null>>({});
@@ -289,7 +290,7 @@ function Hero({ day }: { day: DayForecast | null }) {
           {day && mugar != null ? (
             <>
               <p className={styles.heroCardWhen}>
-                Projected · {weekdayName(day.date)} {hourLabel(HERO_HOUR)}
+                Simulation · {day.date} · {hourLabel(HERO_HOUR)}
               </p>
               <p className={styles.heroCardPlace}>{day.place('mugar')?.name}</p>
               <p className={styles.heroCardNow}>
@@ -298,16 +299,16 @@ function Hero({ day }: { day: DayForecast | null }) {
               </p>
               <ol className={styles.heroNext} aria-label="Next four hours">
                 {next.map((hour) => {
-                  const share = day.share('mugar', hour) ?? 0;
+                  const share = day.share('mugar', hour);
                   return (
                     <li key={hour}>
                       <span className={styles.heroNextBar} aria-hidden>
-                        <span style={{ height: `${Math.max(3, Math.min(100, share * 100))}%`, background: crowdFor(share).color }} />
+                        {share != null && <span style={{ height: `${Math.max(3, Math.min(100, share * 100))}%`, background: crowdFor(share).color }} />}
                       </span>
                       <span className={styles.heroNextHour}>{hourLabel(hour)}</span>
                       <span className={styles.heroNextValue}>
-                        {formatPercent(share)}
-                        <span className="visually-hidden"> {crowdFor(share).label}</span>
+                        {share != null ? formatPercent(share) : 'Unavailable'}
+                        {share != null && <span className="visually-hidden"> {crowdFor(share).label}</span>}
                       </span>
                     </li>
                   );
@@ -315,7 +316,7 @@ function Hero({ day }: { day: DayForecast | null }) {
               </ol>
             </>
           ) : (
-            <p className={styles.heroCardWhen}>Loading the forecast…</p>
+            <p className={styles.heroCardWhen}>{loading ? 'Loading the forecast…' : 'Forecast unavailable. See the forecast panel below.'}</p>
           )}
         </div>
       </div>
@@ -336,7 +337,7 @@ function Preview({ day, error, reload }: { day: DayForecast | null; error: Error
           Plan around the rush.
         </motion.h2>
         <p className={styles.previewLede}>
-          Pick a place, then an hour, to see its forecast{day ? ` for ${longDate(day.date)}` : ''}.
+          Pick a place, then an hour, to see its simulation{day ? ` for ${longDate(day.date)} (${day.date})` : ''}. These are modeled crowds, not live measurements.
         </p>
         <div className={styles.previewCard}>
           {day ? (
@@ -375,10 +376,10 @@ function PreviewBody({
   const places = PREVIEW_PLACES.map((id) => day.place(id)).filter((p) => p != null);
   const place = places[Math.min(placeIndex, places.length - 1)];
   const barsRef = useRef<HTMLDivElement>(null);
-  const share = day.share(place.id, hour) ?? 0;
-  const level = crowdFor(share);
-  const { busiest, quietest } = peaks(day, place.id);
-  const at = (h: number) => day.share(place.id, h) ?? 0;
+  const share = place ? day.share(place.id, hour) : null;
+  const level = share == null ? null : crowdFor(share);
+  const { busiest, quietest } = peaks(day, place?.id ?? '');
+  const at = (h: number) => day.share(place.id, h);
 
   function hourFromPointer(e: PointerEvent<HTMLDivElement>) {
     const box = barsRef.current?.getBoundingClientRect();
@@ -398,6 +399,8 @@ function PreviewBody({
       setHour(next);
     }
   }
+
+  if (!place) return <p className={styles.previewStatus}>No forecast data is available for the preview places.</p>;
 
   return (
     <>
@@ -425,12 +428,14 @@ function PreviewBody({
           <p className={styles.previewName}>{place.name}</p>
           <p className={styles.previewHour}>{hourLabel(hour)}</p>
           <p className={styles.previewValue}>
-            <Dot share={share} size="lg" />
-            <span>{formatPercent(share)}</span>
+            {share != null && <Dot share={share} size="lg" />}
+            <span>{share != null ? formatPercent(share) : 'Unavailable'}</span>
           </p>
-          <p className={styles.previewLevel}>{level.label}</p>
+          <p className={styles.previewLevel}>{level?.label ?? 'No projection for this hour'}</p>
           <p className={styles.previewSummary}>
-            Busiest at {hourLabel(busiest)} ({formatPercent(at(busiest))}). Quietest at {hourLabel(quietest)} ({formatPercent(at(quietest))}).
+            {busiest != null && quietest != null
+              ? `Among available hours: busiest at ${hourLabel(busiest)} (${formatPercent(at(busiest)!)}). Quietest at ${hourLabel(quietest)} (${formatPercent(at(quietest)!)}).`
+              : 'No hourly projections available.'}
           </p>
         </div>
         <div className={styles.chart}>
@@ -449,7 +454,7 @@ function PreviewBody({
               aria-valuemin={FIRST_HOUR}
               aria-valuemax={LAST_HOUR}
               aria-valuenow={hour}
-              aria-valuetext={`${hourLabel(hour)}: ${level.label}, ${formatPercent(share)}`}
+              aria-valuetext={`${hourLabel(hour)}: ${share != null ? `${level?.label}, ${formatPercent(share)}` : 'Unavailable'}`}
               onKeyDown={onKeyDown}
               onPointerDown={hourFromPointer}
               onPointerMove={(e) => {
@@ -460,7 +465,7 @@ function PreviewBody({
                 const s = at(h);
                 return (
                   <span key={h} className={`${styles.barSlot} ${h === hour ? styles.barSelected : ''}`}>
-                    <span className={styles.bar} style={{ height: `${Math.max(2, Math.min(100, s * 100))}%`, background: crowdFor(s).color }} />
+                    {s != null && <span className={styles.bar} style={{ height: `${Math.max(2, Math.min(100, s * 100))}%`, background: crowdFor(s).color }} />}
                   </span>
                 );
               })}
@@ -498,7 +503,7 @@ function legendRange(i: number, long = false) {
 
 /* ---------- 03 How it works ---------- */
 
-function HowItWorks() {
+function HowItWorks({ sources }: { sources: CampusData | null }) {
   return (
     <section id="how" tabIndex={-1} className={`${styles.section} ${styles.howSection}`} aria-labelledby="how-title">
       <div className={styles.container}>
@@ -512,20 +517,20 @@ function HowItWorks() {
               <span className={styles.stepNumber} aria-hidden>
                 1
               </span>
-              <h3 className={styles.stepTitle}>Public BU data</h3>
+              <h3 className={styles.stepTitle}>Public BU data snapshot</h3>
             </div>
             <dl className={styles.facts}>
               <div>
-                <dt>Class meetings</dt>
-                <dd>5,904</dd>
+                <dt>Mapped class meeting records</dt>
+                <dd>{sources?.coverage.mappedMeetings.toLocaleString() ?? 'Unavailable'}</dd>
               </div>
               <div>
                 <dt>Classroom capacities</dt>
-                <dd>437</dd>
+                <dd className={styles.factWord}>Published seats</dd>
               </div>
               <div>
                 <dt>Campus events</dt>
-                <dd>88</dd>
+                <dd>{sources?.events.length.toLocaleString() ?? 'Unavailable'}</dd>
               </div>
               <div>
                 <dt>Dining, library and gym hours</dt>
@@ -541,12 +546,11 @@ function HowItWorks() {
               <h3 className={styles.stepTitle}>Schedule-driven simulation</h3>
             </div>
             <div className={styles.bigFact}>
-              <p className={styles.bigNumber}>36,977</p>
-              <p className={styles.muted}>simulated students</p>
+              <p className={styles.stepTitle}>Synthetic students</p>
+              <p className={styles.muted}>Modeled activity, not tracked people</p>
             </div>
             <p className={styles.muted}>
-              Each one follows a Fall 2026 class schedule and walks between buildings, and many eat, study and work out within posted
-              hours.
+              The model assigns class schedules and walking routes, with assumptions for meals, study and workouts within posted hours.
             </p>
           </motion.li>
           <motion.li {...item} className={styles.step}>
@@ -557,7 +561,7 @@ function HowItWorks() {
               <h3 className={styles.stepTitle}>Hourly forecasts on a map</h3>
             </div>
             <p className={`${styles.muted} ${styles.ruled}`}>
-              Each of 101 places gets a projected occupancy for every hour, as a share of its capacity, shown on one scale.
+              Places with simulation data show hourly projected occupancy as a share of capacity, on one scale. Missing data is unavailable.
             </p>
             <ul className={styles.levels}>
               {crowdScale.map((s, i) => (
@@ -584,15 +588,14 @@ function Features({ day, event }: { day: DayForecast | null; event: EventExample
   const row = (place: string, hour: number) => {
     const share = day?.share(place, hour);
     const p = day?.place(place);
-    if (share == null || !p) return null;
     return (
       <div className={styles.mockRow} key={`${place}-${hour}`}>
         <span>
-          {p.short} · {hourLabel(hour)}
+          {p?.short ?? place} · {hourLabel(hour)}
         </span>
         <span className={styles.mockReading}>
-          <Dot share={share} size="sm" />
-          {reading(share)}
+          {share != null && <Dot share={share} size="sm" />}
+          {share != null ? reading(share) : 'Unavailable'}
         </span>
       </div>
     );
@@ -629,9 +632,11 @@ function Features({ day, event }: { day: DayForecast | null; event: EventExample
             <div className={`${styles.dark} ${styles.featureVisual}`} data-theme="dark">
               <CampusScene shareOf={shareAt(HERO_HOUR)} scale={0.5} dx={-90} dy={10} />
               <div className={`${styles.mockCard} ${styles.mockList}`}>
+                <p className={styles.mockMuted}>Simulation · {day?.date ?? 'Date unavailable'}</p>
                 {row('pardee', 18)}
                 {row('mugar', 21)}
                 {row('fitrec', 7)}
+                {!day && <p className={styles.mockMuted}>Forecast unavailable until data loads.</p>}
               </div>
             </div>
             <div className={styles.featureText}>
@@ -644,8 +649,8 @@ function Features({ day, event }: { day: DayForecast | null; event: EventExample
 
           <motion.article {...item} className={styles.feature}>
             <div className={`${styles.dark} ${styles.featureVisual}`} data-theme="dark">
-              <CampusScene shareOf={shareAt(event?.hour ?? 19)} scale={0.5} dx={160} dy={20} />
-              {event && (
+              <CampusScene shareOf={(place) => place === event?.venue.id ? event.after : null} scale={0.5} dx={160} dy={20} />
+              {event ? (
                 <div className={`${styles.mockCard} ${styles.mockPad}`}>
                   <div className={styles.dateChips}>
                     <span>{shortDate(addDays(event.date, -1))}</span>
@@ -657,11 +662,11 @@ function Features({ day, event }: { day: DayForecast | null; event: EventExample
                       {event.name} at {event.venue.short}, {clockLabel(event.startSec)}
                     </p>
                     <p className={styles.mockMuted}>
-                      {event.venue.short} {formatPercent(event.before)} → {formatPercent(event.after)} at {hourLabel(event.hour)}
+                      Simulation · {event.date} · {event.venue.short} {formatPercent(event.before)} → {formatPercent(event.after)} at {hourLabel(event.hour)}
                     </p>
                   </div>
                 </div>
-              )}
+              ) : <p className={`${styles.mockCard} ${styles.mockPad}`}>Event projection unavailable.</p>}
             </div>
             <div className={styles.featureText}>
               <h3 className={styles.featureTitle}>Event impact by date</h3>
@@ -677,22 +682,22 @@ function Features({ day, event }: { day: DayForecast | null; event: EventExample
               <div className={`${styles.mockCard} ${styles.mockList}`}>
                 <div className={styles.mockRow}>
                   <span>Green Line B · BU Central</span>
-                  <b>3 min</b>
+                  <b>Check map</b>
                 </div>
                 <div className={styles.mockRow}>
                   <span>BU Shuttle · Marsh Plaza</span>
-                  <b>8 min</b>
+                  <b>Check map</b>
                 </div>
                 <div className={styles.mockRow}>
                   <span>Bluebikes · BU Central T</span>
-                  <b>5 bikes</b>
+                  <b>Check map</b>
                 </div>
               </div>
             </div>
             <div className={styles.featureText}>
               <h3 className={styles.featureTitle}>Live MBTA, BU Shuttle and Bluebikes</h3>
               <p className={styles.featureBody}>
-                Real-time arrivals and bike counts on the map, next to the forecast, so you can time the trip as well as the visit.
+                This preview has no live transit feed. Open the map to check available arrivals and bike counts; service data may be unavailable.
               </p>
             </div>
           </motion.article>
@@ -701,20 +706,8 @@ function Features({ day, event }: { day: DayForecast | null; event: EventExample
             <div className={`${styles.dark} ${styles.featureVisual}`} data-theme="dark">
               <CampusScene shareOf={shareAt(20)} scale={0.5} dx={-20} dy={30} />
               <div className={`${styles.mockCard} ${styles.mockPad}`}>
-                {/* A Tuesday run of map-client's simulation with this closure: Law Library 184 → 269 of 300 people at 8 PM. */}
-                <p className={styles.mockStrong}>Building closure · Mugar Library · 8 PM</p>
-                <p className={styles.mockChange}>
-                  <span className={styles.mockMuted}>Law Library</span>
-                  <span className={styles.mockReadingPlain}>
-                    <Dot share={0.61} size="sm" />
-                    {reading(0.61)}
-                  </span>
-                  <ArrowRight className={styles.mockArrow} aria-label="becomes" />
-                  <span className={styles.mockReading}>
-                    <Dot share={0.9} size="sm" />
-                    {reading(0.9)}
-                  </span>
-                </p>
+                <p className={styles.mockStrong}>Simulate a building closure</p>
+                <p className={styles.mockMuted}>Choose a building and time on the map to calculate a scenario. No incident scenario is running in this preview.</p>
               </div>
             </div>
             <div className={styles.featureText}>
@@ -732,16 +725,21 @@ function Features({ day, event }: { day: DayForecast | null; event: EventExample
 
 /* ---------- 05 Transparency ---------- */
 
-function Transparency({ day }: { day: DayForecast | null }) {
+function Transparency({ day, sources }: { day: DayForecast | null; sources: CampusData | null }) {
   const share = day?.share('mugar', HERO_HOUR) ?? null;
   const busiest = day ? peaks(day, 'mugar').busiest : null;
+  const location = sources?.locations.mugar;
+  const weekday = day ? (new Date(`${day.date}T12:00:00Z`).getUTCDay() + 6) % 7 : null;
+  const hours = day && weekday != null && location
+    ? openingHoursForDate(location.hours, day.date, weekday)
+    : [];
   return (
     <section id="transparency" tabIndex={-1} className={styles.section} aria-labelledby="transparency-title">
       <div className={`${styles.container} ${styles.transparencyGrid}`}>
         <div>
           <motion.p {...rise} className={styles.eyebrow}>Transparency</motion.p>
           <motion.h2 {...rise} id="transparency-title" className={styles.sectionTitle}>
-            Every number is a projection.
+            Crowd levels are projections.
           </motion.h2>
           <p className={styles.transparencyBody}>
             Flowcast’s crowd levels come from a simulation built on stated assumptions, such as students attending their scheduled classes
@@ -751,19 +749,24 @@ function Transparency({ day }: { day: DayForecast | null }) {
         </div>
         <div className={styles.evidence}>
           <p className={styles.evidenceTitle}>
-            Mugar Memorial Library · {day ? weekdayName(day.date) : 'Tuesday'} {hourLabel(HERO_HOUR)}
+            Mugar Memorial Library · {day ? day.date : 'Date unavailable'} · {hourLabel(HERO_HOUR)}
           </p>
           <dl className={styles.evidenceList}>
             <div>
               <dt>Opening hours</dt>
               <dd>
-                7 AM – 2 AM<span className={styles.published}>Published</span>
+                {hours.length ? hours.map((entry, i) => (
+                  <span key={i}>
+                    <a href={entry.sourceUrl}>{entry.text}</a>{entry.qualifier ? ` (${entry.qualifier})` : ''}
+                    <span className={styles.published}>Published</span>
+                  </span>
+                )) : 'Unavailable for this date'}
               </dd>
             </div>
             <div>
-              <dt>Class meetings in the building today</dt>
+              <dt>Class schedules and source coverage</dt>
               <dd>
-                5<span className={styles.published}>Published</span>
+                <a href={config.mapUrl}>Inspect published schedules in the map’s Data tab</a>
               </dd>
             </div>
             <div>
@@ -775,7 +778,7 @@ function Transparency({ day }: { day: DayForecast | null }) {
                     {reading(share)}
                   </span>
                 ) : (
-                  '…'
+                  'Unavailable'
                 )}
                 <span className={styles.modeled}>Modeled</span>
               </dd>
@@ -783,7 +786,7 @@ function Transparency({ day }: { day: DayForecast | null }) {
             <div>
               <dt>Busiest hour</dt>
               <dd>
-                {busiest != null ? hourLabel(busiest) : '…'}
+                {busiest != null ? hourLabel(busiest) : 'Unavailable'}
                 <span className={styles.modeled}>Modeled</span>
               </dd>
             </div>
@@ -811,7 +814,7 @@ function PrivacySection() {
           </motion.div>
           <motion.div {...item}>
             <h3>No personal data in the model</h3>
-            <p>The 36,977 students in the model are synthetic. No real student’s schedule, location or identity goes into it.</p>
+            <p>The students in the campus model are synthetic. The model does not track real students’ locations or identities.</p>
           </motion.div>
           <motion.div {...item}>
             <h3>Private events skipped</h3>
@@ -833,7 +836,7 @@ function Closing({ day }: { day: DayForecast | null }) {
         <motion.h2 {...rise} id="closing-title" className={styles.closingTitle}>
           Know before you go.
         </motion.h2>
-        <p className={styles.closingLede}>Check the next few hours for any of 101 places on campus.</p>
+        <p className={styles.closingLede}>Explore hourly crowd projections for the campus’s modeled places.</p>
         <div className={styles.closingActions}>
           <a href={config.mapUrl} className={`${styles.cta} ${styles.ctaLarge}`}>
             Open the map

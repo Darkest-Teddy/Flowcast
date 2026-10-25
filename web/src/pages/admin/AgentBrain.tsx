@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, useResource } from '../../data/api';
 import type { BrainRule, JevQuestion, SimulationSettings } from '../../data/types';
-import { Button, Grid, Loading, Page, PageHeader, Panel, SectionHeading, SelectField, StatCard, Table, Tag, Toggle, type Column } from '../../ui';
+import { Button, Loading, Page, PageHeader, Panel, SectionHeading, SelectField, Table, Tag, Toggle, type Column } from '../../ui';
 import { StatusLine, useFlash } from './components/StatusLine';
 import styles from './AgentBrain.module.css';
 
@@ -22,8 +22,8 @@ const questionColumns: Column<JevQuestion>[] = [
 ];
 
 export default function AgentBrain() {
-  const { data: brain } = useResource(api.getAgentBrain);
-  const { data: sim, setData: setSim } = useResource(api.getSimulation);
+  const { data: brain, error: brainError } = useResource(api.getAgentBrain);
+  const { data: sim, setData: setSim, error: simError } = useResource(api.getSimulation);
   const { data: sources } = useResource(api.getDataSources);
   const [draft, setDraft] = useState<SimulationSettings['brain'] | null>(null);
   const [saving, setSaving] = useState(false);
@@ -40,21 +40,28 @@ export default function AgentBrain() {
   const save = async () => {
     if (!draft) return;
     setSaving(true);
-    const updated = await api.updateSimulation({ brain: draft });
-    setSim(updated);
-    setDraft(updated.brain);
-    setSaving(false);
-    message.show('Saved');
+    try {
+      const updated = await api.updateSimulation({ brain: draft });
+      setSim(updated);
+      setDraft(updated.brain);
+      message.show('Saved');
+    } catch (error) {
+      message.show(error instanceof Error ? error.message : 'Agent settings were not saved.', 'bad', true);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <Page wide>
       <PageHeader
         title="Agent brain"
-        description="How simulated students decide where to go. Rules always run first. Judgment calls go to Jev, TypeSafe's decision model, which answers with a typed yes or no, or one choice from a fixed list, plus a probability for each answer."
+        description="Agent decision settings and diagnostics, when available from the server."
       />
 
-      {!brain || !draft ? (
+      {brainError || simError ? (
+        <p role="alert">{(brainError || simError)?.message}</p>
+      ) : !brain || !draft ? (
         <Loading label="Loading agent brain" />
       ) : (
         <>
@@ -67,8 +74,8 @@ export default function AgentBrain() {
             />
             {jevMissing && draft.useJev && (
               <p className={styles.warning}>
-                Jev has no API key yet, so every judgment call falls back to the rules.{' '}
-                <Button to="/admin/data-sources" variant="ghost" size="sm">Add the key in Data sources</Button>
+                Jev is not connected. Its runtime behavior is unavailable.{' '}
+                <Button to="/admin/data-sources" variant="ghost" size="sm">View data sources</Button>
               </p>
             )}
             <div className={styles.select}>
@@ -105,13 +112,8 @@ export default function AgentBrain() {
           <p className={styles.lead}>Asked only when no rule settles the decision. Jev picks from the listed choices, so answers are always valid.</p>
           <Table caption="Questions sent to Jev" columns={questionColumns} rows={brain.questions} rowKey={(q) => q.id} />
 
-          <SectionHeading actions={<Tag tone="warn">Estimates</Tag>}>Cost and usage</SectionHeading>
-          <p className={styles.lead}>Placeholder numbers worked out by hand, not measured. They'll be replaced by real counts once Jev is connected.</p>
-          <Grid columns={4} phoneColumns={2}>
-            {brain.usage.map((u) => (
-              <StatCard key={u.id} label={u.label} value={u.value} detail={`Estimate. ${u.detail}`} />
-            ))}
-          </Grid>
+          <SectionHeading>Cost and usage</SectionHeading>
+          <p className={styles.lead}>Unavailable. No measured agent usage or cost data is connected.</p>
         </>
       )}
     </Page>

@@ -53,7 +53,7 @@ export function ParkingPanel({ data, state, onSelect }: Props) {
       </p>
       <h3>Today’s events affecting parking</h3>
       {state.events.filter((e) => e.event.cars >= 20).length === 0 ? (
-        <p className="muted">No large events today: commuter and visitor parking only.</p>
+        <p className="muted">No large events in the saved calendar for this date. Calendar coverage may be incomplete.</p>
       ) : (
         <ul className="parking-events">
           {state.events.filter((e) => e.event.cars >= 20).map((e) => {
@@ -64,9 +64,9 @@ export function ParkingPanel({ data, state, onSelect }: Props) {
                   <b>{e.event.name}</b>
                   {e.event.sample && <> <span className="sample" title={e.event.source}>Sample</span></>}
                 </span>
-                <span className="when">{formatClock(e.event.start)}–{formatClock(e.event.end)}</span>
+                <span className="when">{formatClock(e.event.start)}–{formatClock(e.event.end)}{e.event.endBasis?.startsWith('modeled') ? ' (end estimated)' : ''}</span>
                 <span className="meta">
-                  {e.venue?.name ?? e.event.venue} · ~{e.event.cars.toLocaleString()} cars · lots fill from {formatClock(e.arriveFrom)}, clear by {formatClock(e.clearBy)}
+                  {e.venue?.name ?? e.event.venue} · ~{e.event.cars.toLocaleString()} modeled cars · lots fill from {formatClock(e.arriveFrom)}, clear by {formatClock(e.clearBy)}
                   {now ? ` · now ${e.parked.toLocaleString()} parked${e.unparked ? `, ${e.unparked.toLocaleString()} without a lot nearby` : ''}` : ''}
                 </span>
               </li>

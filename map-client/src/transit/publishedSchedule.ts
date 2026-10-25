@@ -20,12 +20,22 @@ interface Run {
 const DAY = 86400;
 const SNAP_METRES = 50;
 
+/** Only the collected service dates are valid; matching weekdays are not enough. */
+export function scheduleCoversDate(schedule: PublishedScheduleData, date: string): boolean {
+  const stamp = date.replaceAll('-', '');
+  return schedule.dates.includes(date) && /^\d{8}$/.test(stamp)
+    && schedule.feed.start <= stamp && stamp <= schedule.feed.end;
+}
+
 export async function loadPublishedSchedule(url = '/data/transit-schedule.json'): Promise<PublishedScheduleData> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Published timetable unavailable (${response.status})`);
   const data = await response.json();
   if (data.schemaVersion !== 1 || !Array.isArray(data.trips) || !data.stops || data.dates?.length !== 7) {
     throw new Error('Unsupported published timetable');
+  }
+  if (!data.dates.every((date: string) => scheduleCoversDate(data, date))) {
+    throw new Error('Timetable dates are outside its published feed coverage; historical baseline unavailable as current service');
   }
   return data;
 }
@@ -35,6 +45,7 @@ export class PublishedTransit implements TransitSource {
   readonly state: { arrivals: Arrival[] } = { arrivals: [] };
   readonly tracks: Track[];
   readonly coverage: { publishedTrips: number; mappedRuns: number; unmappedTrips: number };
+  readonly schedule: PublishedScheduleData;
   private readonly byDay = new Map<number, Run[]>();
   /** Per weekday and route: first published start and last published end (service-day seconds). */
   private readonly spans = new Map<string, [number, number]>();
@@ -47,6 +58,7 @@ export class PublishedTransit implements TransitSource {
   private pendingArrivals: { stop: string; route: string; direction: 0 | 1; at: number }[] = [];
 
   constructor(data: TransitData, tracks: Track[], schedule: PublishedScheduleData) {
+    this.schedule = schedule;
     this.tracks = tracks;
     this.routeNames = new Map(data.routes.map((route) => [route.id, route.name]));
     const byRoute = new Map<string, Track[]>();
@@ -104,9 +116,9 @@ export class PublishedTransit implements TransitSource {
     this.coverage = { publishedTrips: schedule.trips.length, mappedRuns: runCount, unmappedTrips: schedule.trips.length - mappedTrips };
   }
 
-  setTime(time: number, weekday = 2) {
-    if (!Number.isFinite(time) || time < 0 || time >= DAY || !Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
-      this.active = []; this.state.arrivals = []; this.activeKey = ''; return;
+  setTime(time: number, weekday = 2, date?: string) {
+    if ((date !== undefined && (!scheduleCoversDate(this.schedule, date) || this.schedule.dates[weekday] !== date)) || !Number.isFinite(time) || time < 0 || time >= DAY || !Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+      this.active = []; this.pendingArrivals = []; this.state.arrivals = []; this.activeKey = ''; return;
     }
     this.time = time; this.weekday = weekday;
     const key = `${weekday}:${Math.floor(time)}`;
@@ -166,9 +178,9 @@ export class PublishedTransit implements TransitSource {
   }
 
   inService(routeId: string): boolean | undefined {
-    if (!this.timetabledRoutes.has(routeId)) return undefined;
+    if (!this.activeKey || !this.timetabledRoutes.has(routeId)) return undefined;
     const within = (day: number, t: number) => { const span = this.spans.get(`${day}|${routeId}`); return !!span && span[0] <= t && t <= span[1]; };
-    return within(this.weekday, this.time) || within((this.weekday + 6) % 7, this.time + DAY);
+    return within(this.weekday, this.time) || within(this.weekday - 1, this.time + DAY);
   }
 
   nextArrivals(stopId: string, now = Date.now()): Arrival[] {

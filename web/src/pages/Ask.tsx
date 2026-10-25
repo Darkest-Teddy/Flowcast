@@ -15,9 +15,9 @@ import {
   type ChatContext,
   type ChatMessage,
 } from '../lib/chatHistory';
-import { parseChatBody, parseDirectoryResponse, type ChatError, type DirectoryResult } from '../lib/chatParse';
+import { parseChatBody, type ChatError, type DirectoryResult } from '../lib/chatParse';
 import { config } from '../config';
-import { Button, Page, PageHeader, Tag } from '../ui';
+import { Button, Page, PageHeader } from '../ui';
 import { Composer, ContextControls, MessageItem, PendingItem, QuestionChips } from './ask/Chat';
 import { Directory, StartServerHint } from './ask/Directory';
 import { answerQuestion, type CampusData } from './student/campusSearch';
@@ -65,9 +65,8 @@ function errorAnnouncement(error: ChatError): string {
 export default function Ask() {
   const { session } = useSession();
   const [params, setParams] = useSearchParams();
-  const sampleMode = import.meta.env.DEV && params.get('sample') === '1';
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => (sampleMode ? [] : loadStored()));
+  const [messages, setMessages] = useState<ChatMessage[]>(loadStored);
   const [context, setContext] = useState<ChatContext>(() => nowContext());
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<string | null>(null);
@@ -91,27 +90,10 @@ export default function Ask() {
     store(next);
   }, []);
 
-  // The directory (or, in development with ?sample=1, the sample conversation and directory).
   const loadDirectory = useCallback(() => {
     setDirectoryLoading(true);
-    const load = sampleMode
-      ? api.chatSample().then((sample) => {
-          if (!sample) return parseDirectoryResponse(404, null);
-          const seeded: ChatMessage[] = [];
-          for (const turn of sample.conversation) {
-            if (turn.role === 'user') seeded.push({ id: newId(), role: 'user', text: turn.text });
-            else {
-              const response = parseChatBody(turn.response, config.mapUrl);
-              if (response) seeded.push({ id: newId(), role: 'assistant', status: 'answer', response, sample: true });
-            }
-          }
-          messagesRef.current = seeded;
-          setMessages(seeded);
-          return parseDirectoryResponse(200, sample.directory);
-        })
-      : api.chatDirectory();
-    load.then(setDirectory).finally(() => setDirectoryLoading(false));
-  }, [sampleMode]);
+    api.chatDirectory().then(setDirectory).finally(() => setDirectoryLoading(false));
+  }, []);
 
   useEffect(loadDirectory, [loadDirectory]);
 
@@ -258,19 +240,13 @@ export default function Ask() {
         }
       />
 
-      {sampleMode && (
-        <p className={styles.banner} role="note">
-          <Tag tone="warn">Development sample</Tag>
-          This conversation is a sample response — not from the model. Its figures are made up to check the layout.
-        </p>
-      )}
       {chatOff && (
         <div className={styles.banner} role="note">
           <strong>Answers need the Ask server’s OpenAI key.</strong>
           <span>The directory still works, and questions about your own schedule are answered on this device.</span>
         </div>
       )}
-      {unreachable && !sampleMode && (
+      {unreachable && (
         <div className={styles.banner} role="note">
           <strong>The Ask server isn’t running.</strong>
           <StartServerHint />

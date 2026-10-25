@@ -39,9 +39,9 @@ function countChanges(a: Editable, b: Editable): number {
 }
 
 export default function Simulation() {
-  const { data: saved, setData: setSaved } = useResource(api.getSimulation);
-  const { data: speeds } = useResource(api.getPlaybackSpeeds);
-  const { data: locations } = useResource(api.getLocations);
+  const { data: saved, setData: setSaved, error: simError } = useResource(api.getSimulation);
+  const { data: speeds, error: speedsError } = useResource(api.getPlaybackSpeeds);
+  const { data: locations, error: locationsError } = useResource(api.getLocations);
   const [draft, setDraft] = useState<Editable | null>(null);
   const [applying, setApplying] = useState(false);
   const [agentsText, setAgentsText] = useState('');
@@ -54,6 +54,9 @@ export default function Simulation() {
       setAgentsText(String(saved.population.agents));
     }
   }, [saved, draft]);
+
+  const loadError = simError || speedsError;
+  if (loadError) return <Page><PageHeader title="Simulation" /><p role="alert">{loadError.message}</p></Page>;
 
   if (!saved || !draft || !speeds) {
     return (
@@ -85,11 +88,16 @@ export default function Simulation() {
 
   const apply = async () => {
     setApplying(true);
-    const updated = await api.updateSimulation(draft);
-    setSaved(updated);
-    setDraft(editable(updated));
-    setApplying(false);
-    message.show('Applied to the map');
+    try {
+      const updated = await api.updateSimulation(draft);
+      setSaved(updated);
+      setDraft(editable(updated));
+      message.show('Applied to the map');
+    } catch (error) {
+      message.show(error instanceof Error ? error.message : 'Simulation update failed.', 'bad', true);
+    } finally {
+      setApplying(false);
+    }
   };
 
   const scheduled = draft.events.filter((e) => e.kind === 'scheduled');
@@ -101,7 +109,8 @@ export default function Simulation() {
         description="Settings for the shared map. People on the map can only pick a day and a time; everything else is set here and reaches every screen when you apply it."
       />
 
-      <StatusLine flash={changes === 0 ? message.flash : null} className={styles.message} />
+      {locationsError && <p role="alert">Location names are unavailable: {locationsError.message}</p>}
+      <StatusLine flash={message.flash} className={styles.message} />
 
       <div className={styles.columns}>
         <Panel title="Playback" description="How fast the simulated clock runs.">

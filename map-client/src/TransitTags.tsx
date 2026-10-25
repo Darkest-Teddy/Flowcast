@@ -166,7 +166,7 @@ function dockSpec(s: BikeStation, e: DockEstimate): GlassTagSpec {
     `${e.ebikes ? `<span class="gtag-sep">·</span><span class="gtag-arr gtag-ebike">${BOLT}<b>${e.ebikes}</b>&nbsp;e-bike${e.ebikes === 1 ? '' : 's'}</span>` : ''}` +
     `</span></span>`;
   const compact = `<span class="gtag-picon gtag-icon--bike">${BIKE_ICON}</span><b>${e.bikes}</b>${word}`;
-  const label = `${s.name} Bluebikes: ${e.bikes} bikes, ${e.docks} empty docks, ${e.ebikes} e-bikes${e.estimated ? ' (estimated)' : ''}${state === 'ok' ? '' : `, ${state}`}.`;
+  const label = `${s.name} Bluebikes: ${e.bikes} bikes, ${e.docks} empty docks, ${e.ebikes === null ? 'e-bike count unknown' : `${e.ebikes} e-bikes`}${e.estimated ? ' (estimated)' : ''}${state === 'ok' ? '' : `, ${state}`}.`;
   return { id: s.id, key: html + compact, html, compact, label, className: `is-${state}` };
 }
 

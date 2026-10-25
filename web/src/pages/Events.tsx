@@ -16,7 +16,7 @@ export default function Events() {
   const header = (
     <PageHeader
       title="Events"
-      description="Saved public event listings from BU’s Terrier Central. Events at mapped places change how crowded they get in the simulation."
+      description="Public listings from BU’s Terrier Central."
       actions={<Button to="/event-impact">See crowd impact by date</Button>}
     />
   );
@@ -84,7 +84,7 @@ export default function Events() {
         ) : (
           <EmptyState
             title="No upcoming events here"
-            body={filter === 'map' ? 'None of the upcoming events are at places on the map.' : 'New events show up when the events data is refreshed.'}
+            body={filter === 'map' ? 'None of the upcoming events are at places on the map.' : 'No upcoming events in the saved listings.'}
             action={filter !== 'all' && <Button onClick={() => setFilter('all')}>Show all events</Button>}
           />
         )}
