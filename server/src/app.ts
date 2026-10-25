@@ -7,6 +7,7 @@ import type { PersonalSchedule } from '../../map-client/src/personalSchedule';
 import type pg from 'pg';
 import { dashboardRouter } from './dashboard/router';
 import { findEventSlots } from './eventSlots';
+import { conflictFacts } from './conflicts';
 import { walkBetween } from '../../map-client/src/insights';
 import { isIP } from 'node:net';
 import express, { type NextFunction, type Request, type Response } from 'express';
@@ -152,6 +153,7 @@ export function createApp(options: AppOptions) {
         return from && to ? walkBetween(from, to, campus.walkRoutes).minutes : null;
       },
     }) : undefined,
+    conflicts: (date, near) => conflictFacts(date, near, { venues: chatFacts?.venues ?? null, calendar: campus.facts?.data?.academicCalendar, locations: campus.locations }),
   }));
   let domains: DataDomain[] | undefined;
   const directory = () => (domains ??= options.directory?.() ?? buildDirectory(campus));

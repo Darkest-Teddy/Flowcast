@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { ORG_TABLES, ORG_TABLE_NAMES } from './orgs';
 
 export function database(url = process.env.DATABASE_URL): pg.Pool | undefined {
   if (!url) return undefined;
@@ -42,6 +43,7 @@ export async function migrate(pool: pg.Pool) {
         PRIMARY KEY (location_id, day, hour, answer)
       );
     `);
+    await client.query(ORG_TABLES);
     await client.query(`
       ALTER TABLE dashboard_accounts ADD COLUMN IF NOT EXISTS schedule jsonb NOT NULL DEFAULT '[]'::jsonb;
       ALTER TABLE dashboard_accounts ADD COLUMN IF NOT EXISTS schedule_import jsonb;
@@ -50,13 +52,14 @@ export async function migrate(pool: pg.Pool) {
       ALTER TABLE dashboard_current ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_guests ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_crowd_reports ENABLE ROW LEVEL SECURITY;
-      REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts, dashboard_crowd_reports FROM PUBLIC;
+      ${ORG_TABLE_NAMES.map((t) => `ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY;`).join('\n      ')}
+      REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts, dashboard_crowd_reports, ${ORG_TABLE_NAMES.join(', ')} FROM PUBLIC;
       DO $$ BEGIN
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts, dashboard_crowd_reports FROM anon;
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts, dashboard_crowd_reports, ${ORG_TABLE_NAMES.join(', ')} FROM anon;
         END IF;
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts, dashboard_crowd_reports FROM authenticated;
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts, dashboard_crowd_reports, ${ORG_TABLE_NAMES.join(', ')} FROM authenticated;
         END IF;
       END $$;
     `);
