@@ -4,11 +4,13 @@ import { Download } from 'lucide-react';
 import { useSession } from '../auth/session';
 import { api } from '../data/api';
 import { Button, ListRow, Page, PageHeader, SectionHeading, SectionList } from '../ui';
+import { PrivacyPolicy } from './account/PrivacyPolicy';
+import { Terms } from './account/Terms';
 import styles from './Privacy.module.css';
 
 const kept = [
   { title: 'Your imported schedule', detail: 'Saved to your account. Ask sends up to two weeks of classes, times and rooms to the AI with each question; they do not enter the campus simulation.' },
-  { title: 'Your profile', detail: 'The name, dorm, meal times, study spot and avatar colour you enter' },
+  { title: 'Your profile', detail: 'Your name (from Google until you change it), plus the dorm, meal times, study spot and avatar colour you choose' },
   { title: 'Your preferences', detail: 'Notification preferences and club follows saved to your Flowcast account' },
 ];
 
@@ -61,7 +63,7 @@ export default function Privacy() {
 
   return (
     <Page>
-      <PageHeader title="Privacy & data" description="Manage data saved to your Flowcast account." />
+      <PageHeader title="Privacy & data" description={<>Manage data saved to your Flowcast account. <a href="#privacy">Privacy policy</a> · <a href="#terms">Terms of service</a></>} />
 
       <div className={styles.columns}>
         <SectionList title="Flowcast account data">
@@ -94,7 +96,7 @@ export default function Privacy() {
           <div>
             <p className={styles.actionTitle}>Delete profile data</p>
             <p className={styles.actionBody}>
-              Clears your Flowcast profile, imported schedule, notification preferences and club follows, then signs you out. This does not delete your Google account.
+              Permanently removes your Flowcast profile, imported schedule, notification preferences and club follows, then signs you out. Your Google account, and your sign-in record with Supabase, are not deleted (<a href="#privacy-retention">how to remove it</a>).
             </p>
           </div>
           {!confirming && (
@@ -124,6 +126,9 @@ export default function Privacy() {
           {message}
         </p>
       )}
+
+      <PrivacyPolicy />
+      <Terms />
     </Page>
   );
 }

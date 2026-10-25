@@ -49,6 +49,9 @@ declare module 'lucide-react' {
   export const Map: LucideIcon;
   export const Menu: LucideIcon;
   export const MessagesSquare: LucideIcon;
+  export const Moon: LucideIcon;
+  export const PanelLeftClose: LucideIcon;
+  export const PanelLeftOpen: LucideIcon;
   export const Pause: LucideIcon;
   export const Play: LucideIcon;
   export const Radio: LucideIcon;
@@ -60,12 +63,14 @@ declare module 'lucide-react' {
   export const SlidersHorizontal: LucideIcon;
   export const Sparkles: LucideIcon;
   export const Square: LucideIcon;
+  export const Sun: LucideIcon;
   export const Table2: LucideIcon;
   export const Ticket: LucideIcon;
   export const Upload: LucideIcon;
   export const UserRound: LucideIcon;
   export const UserRoundCog: LucideIcon;
   export const Users: LucideIcon;
+  export const UtensilsCrossed: LucideIcon;
   export const X: LucideIcon;
   export const Zap: LucideIcon;
 }

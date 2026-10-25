@@ -68,3 +68,17 @@
     font-size: var(--text-xl);
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .bars i {
+    transform-origin: bottom;
+    animation: grow 560ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(300ms + var(--bar, 0) * 22ms);
+  }
+}
+
+@keyframes grow {
+  from {
+    transform: scaleY(0);
+  }
+}

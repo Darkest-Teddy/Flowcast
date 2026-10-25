@@ -3,9 +3,12 @@
   --tab-bar-height: 64px;
   --dock-gap: var(--space-3);
 
+  --rail-width: 64px;
+
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100%;
+  transition: grid-template-columns var(--duration-base) var(--ease-standard);
 }
 
 /* A floating glass panel inset from the window edge, over the bare canvas gradient. */
@@ -34,6 +37,23 @@
   font-weight: var(--weight-semibold);
   font-size: var(--text-lg);
   letter-spacing: var(--tracking-display);
+}
+
+.brandLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 calc(var(--space-2) * -1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: calc(var(--radius-card) / 2);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.brandLink:hover {
+  background: var(--color-surface-hover);
+  text-decoration: none;
 }
 
 .mark {
@@ -139,8 +159,16 @@
 }
 
 .footer {
+  padding-top: var(--space-2);
+}
+
+/* Theme and collapse, just above the footer: pinned to the bottom of the sidebar. */
+.tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
   margin-top: auto;
-  padding-top: var(--space-4);
+  padding: var(--space-4) var(--space-1) 0;
 }
 
 .main {
@@ -292,9 +320,115 @@
   color: var(--color-ink-secondary);
 }
 
+/* The theme and collapse toggles. */
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius-card) / 2);
+  background: transparent;
+  color: var(--color-ink-tertiary);
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-ink);
+}
+
+.tool svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Collapsed: an icon rail. Labels stay in the accessibility tree (visually hidden) and show as
+   tooltips; the footer keeps its avatar or icon and hides anything marked data-rail="hide". */
+.collapsed {
+  grid-template-columns: calc(var(--rail-width) + var(--space-3)) minmax(0, 1fr);
+}
+
+.collapsed .brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.collapsed .tools {
+  flex-direction: column;
+  align-items: center;
+  padding-inline: 0;
+}
+
+.collapsed .brandName,
+.collapsed .brandTag,
+.collapsed .groupLabel,
+.collapsed .footer [data-rail='hide'] {
+  display: none;
+}
+
+.collapsed .item {
+  justify-content: center;
+  padding: 0;
+}
+
+.collapsed .itemLabel,
+.collapsed .badge {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.collapsed .footer > * {
+  justify-content: center;
+}
+
 @media (max-width: 860px) {
-  .shell {
+  .shell,
+  .collapsed {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Phones: the collapse toggle has no rail to fold to; theme stays. */
+  .tool[aria-pressed] {
+    display: none;
+  }
+
+  /* The drawer is always full width: undo the rail. */
+  .collapsed .brand {
+    justify-content: flex-start;
+    padding: 0 var(--space-3);
+  }
+
+  .collapsed .tools {
+    flex-direction: row;
+    padding-inline: var(--space-1);
+  }
+
+  .collapsed .brandName,
+  .collapsed .brandTag,
+  .collapsed .groupLabel,
+  .collapsed .footer [data-rail='hide'] {
+    display: revert;
+  }
+
+  .collapsed .item {
+    justify-content: flex-start;
+    padding: 0 var(--space-3);
+  }
+
+  .collapsed .itemLabel,
+  .collapsed .badge {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
   }
 
   /* The admin drawer: a glass sheet that slides in from the left. While it's shut it's hidden

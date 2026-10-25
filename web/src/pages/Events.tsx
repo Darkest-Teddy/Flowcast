@@ -9,6 +9,8 @@ import styles from './Events.module.css';
 
 type Filter = 'all' | 'map' | 'offMap';
 
+const sinceDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
 export default function Events() {
   const events = useResource(api.getCampusEvents);
   const [filter, setFilter] = useState<Filter>('all');
@@ -41,7 +43,10 @@ export default function Events() {
   // Multi-day listings stay visible while they're still running.
   const upcoming = events.data.filter((e) => isUpcoming(e.end ?? e.start));
   const visible = upcoming.filter((e) => filter === 'all' || (filter === 'map') === (e.mapStatus === 'simulated'));
-  const groups = groupByDay(visible, (e) => e.start);
+  // Listings that began on an earlier day and are still running get their own group up top,
+  // rather than a stale "Wednesday, Sep 9" heading above today.
+  const running = visible.filter((e) => !isUpcoming(e.start)).sort((a, b) => a.start.localeCompare(b.start));
+  const groups = groupByDay(visible.filter((e) => isUpcoming(e.start)), (e) => e.start);
   const onMap = upcoming.filter((e) => e.mapStatus === 'simulated').length;
 
   return (
@@ -59,7 +64,21 @@ export default function Events() {
       />
 
       <div className={styles.days}>
-        {groups.length ? (
+        {running.length > 0 && (
+          <SectionList title="Still running" count={running.length}>
+            {running.map((e) => (
+              <AgendaRow
+                key={e.id}
+                start={e.start}
+                timeLabel={`Since ${sinceDate.format(new Date(e.start))}`}
+                title={e.sourceUrl ? <a href={e.sourceUrl} target="_blank" rel="noreferrer">{e.title}</a> : e.title}
+                meta={`${eventVenue(e)}${e.organizer ? `, hosted by ${e.organizer}` : ''}`}
+                note={mapStatusText(e)}
+              />
+            ))}
+          </SectionList>
+        )}
+        {groups.length || running.length ? (
           groups.map((g) => (
             <SectionList key={g.key} title={formatDayLabel(g.start)} count={g.items.length}>
               {g.items.map((e) => (
