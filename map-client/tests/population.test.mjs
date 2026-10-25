@@ -6,7 +6,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   try { return nextResolve(specifier, context); }
   catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
 } });
-const { buildPopulation, campusOfferingWeights, RESIDENCE_OCCUPANCY } = await import('../src/sim/population.ts');
+const { buildPopulation, campusOfferingWeights, RESIDENCE_OCCUPANCY, walkSpeedFor } = await import('../src/sim/population.ts');
 
 const population = JSON.parse(readFileSync(new URL('../public/data/population.json', import.meta.url)));
 const source = JSON.parse(readFileSync(new URL('../public/data/campus-data.json', import.meta.url)));
@@ -14,8 +14,11 @@ const base = JSON.parse(readFileSync(new URL('../public/data/demo-day.json', imp
 
 test('published roster conserves population with separate sourced and estimated housing', () => {
   const result = buildPopulation(base, source, population);
-  assert.equal(result.agents.length, 36977);
-  assert.equal(new Set(result.agents.map(a => a.id)).size, 36977);
+  // 36,977 students, then 11,140 modeled employees (sim/staff.ts; tests/staff.test.mjs).
+  assert.equal(result.populationSummary.total, 36977);
+  assert.equal(result.agents.filter(a => a.role !== 'staff').length, 36977);
+  assert.equal(result.agents.length, 36977 + 11140);
+  assert.equal(new Set(result.agents.map(a => a.id)).size, 36977 + 11140);
   assert.equal(result.agents.filter(a => a.studentLevel === 'undergraduate').length, 18289);
   assert.equal(result.agents.filter(a => a.residency === 'resident' && a.studentLevel === 'undergraduate').length, 10048);
   assert.equal(result.populationSummary.mappedResidents, 7257);
@@ -51,6 +54,19 @@ test('published roster conserves population with separate sourced and estimated 
   assert.equal(result.locations.find(l => l.id === 'agganis').estimatedProfile.capacity, 120);
   assert.equal(result.trips.length, 0);
   assert.deepEqual(result.agents, buildPopulation(base, source, population).agents);
+});
+
+test('each student has a stable personal walking speed from a realistic distribution', () => {
+  const roster = buildPopulation(base, source, population);
+  const speeds = roster.agents.map(agent => agent.walkSpeed);
+  assert.ok(roster.agents.every(agent => agent.walkSpeed === walkSpeedFor(agent.id)), 'a hash of the id, stable across builds');
+  assert.ok(speeds.every(speed => speed >= 1.1 && speed <= 1.6));
+  const mean = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+  const sd = Math.sqrt(speeds.reduce((sum, speed) => sum + (speed - mean) ** 2, 0) / speeds.length);
+  assert.ok(mean > 1.35 && mean < 1.39, `mean ${mean}`);
+  assert.ok(sd > 0.08 && sd < 0.12, `sd ${sd}`);
+  const slow = speeds.filter(speed => speed < 1.2).length / speeds.length, fast = speeds.filter(speed => speed > 1.5).length / speeds.length;
+  assert.ok(slow > 0.02 && slow < 0.1 && fast > 0.02 && fast < 0.15, `tails ${slow} ${fast}`);
 });
 
 test('invalid totals and housing estimates cannot silently truncate the roster', () => {

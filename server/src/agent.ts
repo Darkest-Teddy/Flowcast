@@ -33,6 +33,7 @@ function instructions(ctx: ServerAskContext): string {
     '',
     'Tools: rank_places_by_crowd (rank places by simulated crowding), place_day (one place over a day: hours, now, hourly table, quietest/busiest open hours), ' +
       'place_info (published hours, open now and next change, capacity basis, estimated profiles, evidence), campus_overview (whole-map totals, walkers, busiest places), ' +
+      'best_times (one place’s quietest and busiest open hours across the week), event_slots (rooms and evenings for a club event: seats, no class, no big venue event nearby, low modeled crowding, parking), ' +
       'list_events (published events), free_rooms (rooms with no published class), model_basis (how the model works, for "why" questions), ' +
       'published_counts (observed FitRec entries and pedestrian counts), walking_route, find_course, find_places.',
     '',
@@ -52,6 +53,8 @@ function instructions(ctx: ServerAskContext): string {
     personalScheduleInstructions(ctx.personalSchedule !== undefined),
     '- When a place name is ambiguous or unknown, call find_places before giving up.',
     '- Busier means a higher percent of stated capacity; compare simulated students only when a percent is null, and say so. Work out the comparison before you write the answer.',
+    '- For "when is X quietest this week" use best_times; for one day use place_day. Its figures are model-derived: say so. If it returns a note that hours aren’t published, say the hours can’t be ranked and never call an hour quiet.',
+    '- For planning an event ("which room and evening for 40 people"), use event_slots and always say a free room may still be in use or locked and that nothing is booked.',
     '- To compare places the user names ("is Mugar or SEL busier?"), call place_day for each of them rather than ranking a whole kind.',
     '- Reply in plain text, one to three short sentences, no markdown or lists. Use the names the tools return.',
     '- Only answer questions about the campus, its places, crowds, walks and classes. Politely decline anything else.',

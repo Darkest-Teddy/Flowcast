@@ -3,6 +3,7 @@
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
 import { drain, occupancyIndexSteps, type OccupancyIndex } from './occupancyIndex';
 import type { CasualtyEvent } from './casualties';
+import { abreastOffset, MAX_ABREAST } from './groups';
 
 export type LocationKind = 'dorm' | 'classroom' | 'library' | 'dining' | 'gym' | 'outdoor' | 'off-campus';
 
@@ -93,6 +94,8 @@ export interface BuildingOccupancy {
 }
 
 export interface Agent {
+  /** 'staff' marks a BU employee (faculty or staff, sim/staff.ts); students carry no role. */
+  role?: 'staff';
   academicCampus?: string;
   residency?: 'resident' | 'commuter';
   studentLevel?: 'undergraduate' | 'graduate';
@@ -116,6 +119,8 @@ export interface Trip {
 export type StayPurpose =
   | { kind: 'class'; fixed: true; meetingId: string; courseCode: string }
   | { kind: 'dining' | 'library' | 'gym' | 'outdoor'; fixed: false }
+  /** An employee at their workplace (sim/staff.ts). */
+  | { kind: 'work'; fixed: false }
   | { kind: 'estimated'; fixed: false; purpose: EstimatedActivityProfile['purpose'] }
   | { kind: 'off-campus-meal' | 'off-campus-outing' | 'unmapped-academic'; fixed: false }
   | { kind: 'gathering'; fixed: false; eventId: string }
@@ -242,6 +247,9 @@ export interface PlaybackIndex {
   waitingBuckets: Map<number, TransitRide[]>;
   casualties: CasualtyEvent[];
   casualtyByAgent: Map<string, CasualtyEvent>;
+  /** Walks shared with others (same places, route and times: friends going to a meal together,
+   * sim/groups.ts), in metres right of travel, so those walkers are drawn side by side. */
+  walkSides: Map<Trip, number>;
 }
 
 /** Index a day in resumable steps (yields every few thousand items), so a rebuilt day can be
@@ -281,6 +289,26 @@ export function* indexPlayback(data: DayData, chunk = 4096): Generator<void, Pla
     }
     if (++work % chunk === 0) yield;
   }
+  // People setting off from the same door at the same moment (friends leaving a meal, sim/groups.ts)
+  // would be drawn on top of each other for as long as their routes coincide: spread them abreast.
+  // A bigger crowd leaving at once walks in rows MAX_ABREAST wide, people on identical walks side by side.
+  const arrivalKey = (trip: Trip) => `${trip.to}|${trip.timestamps[trip.timestamps.length - 1]}|${trip.agent}`;
+  const departures = new Map<string, Trip[]>();
+  for (const trips of tripsByAgent.values()) for (const trip of trips) {
+    const key = `${trip.from}|${Math.round(trip.timestamps[0] * 100)}|${trip.path[0]}`;
+    const list = departures.get(key);
+    if (list) list.push(trip); else departures.set(key, [trip]);
+    if (++work % chunk === 0) yield;
+  }
+  const walkSides = new Map<Trip, number>();
+  for (const list of departures.values()) {
+    if (list.length < 2) continue;
+    const keys = new Map(list.map(trip => [trip, arrivalKey(trip)]));
+    list.sort((a, b) => keys.get(a)! < keys.get(b)! ? -1 : keys.get(a)! > keys.get(b)! ? 1 : 0);
+    const width = Math.min(list.length, MAX_ABREAST);
+    list.forEach((trip, rank) => walkSides.set(trip, abreastOffset(rank % MAX_ABREAST, width)));
+    if (++work % chunk === 0) yield;
+  }
   for (const ride of data.transitRides ?? []) {
     const list = ridesByTrip.get(ride.trip) ?? [];
     list.push(ride); ridesByTrip.set(ride.trip, list);
@@ -304,7 +332,7 @@ export function* indexPlayback(data: DayData, chunk = 4096): Generator<void, Pla
   }
   for (const list of staysByAgent.values()) { list.sort((a, b) => a.start - b.start); if (++work % chunk === 0) yield; }
   for (const list of tripsByAgent.values()) { list.sort((a, b) => a.timestamps[0] - b.timestamps[0]); if (++work % chunk === 0) yield; }
-  return { agents, tripsByAgent, staysByAgent, stayOccupancy, walkingBuckets, outdoorStays, ridesByTrip, waitingBuckets, casualties, casualtyByAgent };
+  return { agents, tripsByAgent, staysByAgent, stayOccupancy, walkingBuckets, outdoorStays, ridesByTrip, waitingBuckets, casualties, casualtyByAgent, walkSides };
 }
 
 export class Playback {
@@ -321,6 +349,7 @@ export class Playback {
   /** Sorted copy of data.casualties; the caller's array is never reordered. */
   private readonly casualties: CasualtyEvent[];
   private readonly casualtyByAgent: Map<string, CasualtyEvent>;
+  private readonly walkSides: Map<Trip, number>;
 
   readonly data: DayData;
 
@@ -345,6 +374,7 @@ export class Playback {
     this.waitingBuckets = built.waitingBuckets;
     this.casualties = built.casualties;
     this.casualtyByAgent = built.casualtyByAgent;
+    this.walkSides = built.walkSides;
   }
 
   // Computed once: the frame loop reads endTime every frame, and each read scanned all ~8,000 trips.
@@ -421,10 +451,17 @@ export class Playback {
       const a = trip.path[i - 1];
       const b = trip.path[i];
       const f = ts[i] === ts[i - 1] ? 0 : (t - ts[i - 1]) / (ts[i] - ts[i - 1]);
+      // Walking abreast with others on the same walk: shifted `side` metres right of travel.
+      const side = this.walkSides.get(trip) ?? 0;
+      let ox = 0, oy = 0;
+      if (side) {
+        const kx = 111320 * Math.cos(a[1] * Math.PI / 180), dx = (b[0] - a[0]) * kx, dy = (b[1] - a[1]) * 111320, length = Math.hypot(dx, dy);
+        if (length > 0) { ox = dy / length * side / kx; oy = -dx / length * side / 111320; }
+      }
       out.push({
         id: agentId,
         model: this.agents.get(agentId)!.model,
-        position: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0],
+        position: [a[0] + (b[0] - a[0]) * f + ox, a[1] + (b[1] - a[1]) * f + oy, 0],
         bearing: segmentBearing(trip.path, i),
         to: trip.to,
       });

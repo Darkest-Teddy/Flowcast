@@ -322,7 +322,11 @@ test('real Wednesday transit day: CDS earthquake 250 m and meteor 100 m at noon 
     const before = byAgent(original), after = byAgent(result.day);
     const changed = new Set((result.casualties ?? []).map(event => event.agentId));
     for (const [id, events] of after) if (JSON.stringify(events) !== JSON.stringify(before.get(id))) changed.add(id);
-    assert.equal(changed.size, result.affectedAgents);
+    // ...except occupants already on their way out (leaving class as the hazard starts), whose own
+    // scheduled walk precedes the exit slot and so stands unchanged.
+    const ownSchedule = result.participants.filter(p => !changed.has(p.agentId));
+    assert.ok(ownSchedule.every(p => p.decision?.reason === 'scheduled departure precedes the exit slot'), 'only scheduled departures are unchanged');
+    assert.equal(changed.size + ownSchedule.length, result.affectedAgents);
     summary[kind] = { buildings:hazard.affectedBuildingIds.length, locations:hazard.affectedLocationIds.length, agents:result.affectedAgents,
       outcomes:result.participants.reduce((m, p) => (m[p.outcome] = (m[p.outcome] ?? 0) + 1, m), {}) };
   }

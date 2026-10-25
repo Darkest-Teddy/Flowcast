@@ -284,9 +284,12 @@ test('visuals come from tool outputs: a day line with the asked time, a ranking,
 
 test('missing Sunday library hours produce no ranking visual instead of crashing on omitted counts', async () => {
   const sunday = await campus.playback(6);
+  // The reference Sunday's hours are in the data now (listings as a fallback); take them out to keep a day without hours.
+  const data = { ...ctx.data!, locations: Object.fromEntries(Object.entries(ctx.data!.locations).map(([id, location]) =>
+    [id, { ...location, hours: location.hours.filter((h) => h.date !== '2026-11-01' && h.date !== '2026-10-31') }])) };
   const { out, log } = await call('rank_places_by_crowd', {
     kind: 'library', weekday: null, time: '01:19', near: null, order: null, openOnly: null, campus: null,
-  }, { ...ctx, weekday: 6, time: 4740, occupancyAt: (t) => sunday.occupancyAt(t) });
+  }, { ...ctx, weekday: 6, time: 4740, occupancyAt: (t) => sunday.occupancyAt(t), data, facts: { ...ctx.facts!, data } });
   assert.ok(out.hoursNotInData);
   assert.equal(out.leastCrowded, null);
   assert.ok(out.places.length > 0);

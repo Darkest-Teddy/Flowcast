@@ -182,6 +182,14 @@ test('time parameters must be HH:MM, in the strict schema and at run time', asyn
 // ---------------------------------------------------------------- opening hours, other days and new tools
 
 const rank = (args: object) => call('rank_places_by_crowd', { kind: null, weekday: null, time: null, near: null, order: null, openOnly: null, campus: null, ...args });
+/** The reference weekend (31 Oct, 1 Nov). Its venue hours are in the data (Google listings as a fallback). */
+const WEEKEND = ['2026-10-31', '2026-11-01'];
+/** The context with every place's hours on `dates` removed: days whose hours aren't in the data. */
+const withoutHoursOn = (base: ServerAskContext, dates: string[]): ServerAskContext => {
+  const data = { ...base.data!, locations: Object.fromEntries(Object.entries(base.data!.locations).map(([id, location]) =>
+    [id, { ...location, hours: location.hours.filter((h) => !dates.includes(h.date ?? '')) }])) };
+  return { ...base, data, facts: { ...base.facts!, data } };
+};
 
 test('a closed dining hall is never the quietest: closed rows rank after open and unknown ones', async () => {
   const { out, map } = await rank({ kind: 'dining', time: '23:00' });
@@ -192,11 +200,8 @@ test('a closed dining hall is never the quietest: closed rows rank after open an
   assert.equal('capacity' in gsu, false);
   if (out.leastCrowded !== null) assert.equal(out.places.find((p: any) => p.name === out.leastCrowded).open, true);
   else assert.equal(map.show, null);
-  const afterHours = out.places.find((p: any) => p.id === 'after-hours-west');
-  assert.equal(afterHours.open, true);
-  assert.equal(afterHours.modeled, false);
-  assert.equal(afterHours.percent, null);
-  assert.notEqual(out.leastCrowded, afterHours.name);
+  // After Hours at West Campus, a late-night counter, is left off the map (playback.ts HIDDEN_LOCATIONS).
+  assert.equal(out.places.some((p: any) => p.id === 'after-hours-west'), false);
   const order = out.places.map((p: any) => (!p.modeled ? 4 : p.open === true ? 0 : p.open === null ? 2 : 3));
   assert.deepEqual(order, [...order].sort());
   const openOnly = await rank({ kind: 'dining', time: '23:00', openOnly: true, campus: null });
@@ -208,9 +213,14 @@ test('a closed dining hall is never the quietest: closed rows rank after open an
 });
 
 test('weekend dining: hours not in the data for the date give no ranking and name the days that have them', async () => {
-  // Saturday's hours with Wednesday's crowd (only the hours matter here). The dining halls' dated
-  // hours end on Friday 30 October, before the reference weekend.
-  const saturday: ServerAskContext = { ...ctx, weekday: 5, facts: { ...facts, day: () => ({ playback: wednesday }) } };
+  // Saturday's hours with Wednesday's crowd (only the hours matter here), with the weekend's hours
+  // taken out of the data, as before weekend listings were added.
+  const saturday = withoutHoursOn({ ...ctx, weekday: 5, facts: { ...facts, day: () => ({ playback: wednesday }) } }, WEEKEND);
+  // With the weekend's real (listed) hours, Saturday lunch is ranked like any other day.
+  const listed = (await call('rank_places_by_crowd', { kind: 'dining', weekday: null, time: '12:30', near: null, order: null, openOnly: null, campus: null },
+    { ...ctx, weekday: 5, facts: { ...facts, day: () => ({ playback: wednesday }) } })).out;
+  assert.ok(listed.leastCrowded);
+  assert.equal('hoursNotInData' in listed, false);
   const { out, map } = await call('rank_places_by_crowd', { kind: 'dining', weekday: null, time: '12:30', near: null, order: null, openOnly: null, campus: null }, saturday);
   assert.equal(out.leastCrowded, null);
   assert.equal(out.date, '2026-10-31');
@@ -319,10 +329,12 @@ test('place_info: hours and next change, capacity basis, estimated profiles, unk
   assert.equal(arena.estimatedProfile.confidence, 'low');
   assert.ok(arena.estimatedProfile.note.length <= 200);
   assert.equal(arena.confidence, 'low');
-  // Sunday has no published GSU hours in the reference week: unknown, not closed.
+  // Sunday GSU is open at noon by its listed hours (11 AM-7 PM); with no hours for that date in the data it's unknown, not closed.
   const sunday = (await call('place_info', { place: 'GSU', weekday: 6, time: '12:00' })).out;
-  assert.equal(sunday.openNow, null);
+  assert.equal(sunday.openNow, true);
   assert.equal(sunday.date, '2026-11-01');
+  const unknown = (await call('place_info', { place: 'GSU', weekday: 6, time: '12:00' }, withoutHoursOn(ctx, WEEKEND))).out;
+  assert.equal(unknown.openNow, null);
   assert.equal(nextHoursChange(ctx.data!, 'gsu', 2, 9 * 3600)?.to, 'open');
 });
 
@@ -337,9 +349,10 @@ test('branch libraries and cafés: found by common names, ranked, with published
   assert.equal(get('Music Library'), 'music-library');
   assert.equal(get('Saxbys'), 'saxbys');
   assert.equal(get('Breadwinners'), 'breadwinners');
+  // After Hours at West Campus is left off the map, so it isn't found.
   for (const nameContains of ['After Hours West', 'after-hours-west']) {
     const found = (await call('find_places', { kind: 'dining', campus: 'charles-river', nameContains })).out;
-    assert.deepEqual(found.places.map((place: any) => place.id), ['after-hours-west']);
+    assert.deepEqual(found.places.map((place: any) => place.id), []);
   }
   const found = (await call('find_places', { kind: 'library', campus: 'charles-river', nameContains: 'law' })).out;
   assert.deepEqual(found.places.map((p: any) => p.id), ['law-library']);
@@ -362,7 +375,7 @@ test('branch libraries and cafés: found by common names, ranked, with published
 test('campus_overview: whole-map totals from the playback, compact', async () => {
   const { out, log } = await call('campus_overview', { weekday: null, time: null, campus: null });
   const pop = wednesday.populationAt(ctx.time);
-  assert.deepEqual(out.simulated, { students: pop.total, indoorsOnMap: pop.indoors, walking: pop.walking, notOnMap: pop.offCampus });
+  assert.deepEqual(out.simulated, { people: pop.total, indoorsOnMap: pop.indoors, walking: pop.walking, notOnMap: pop.offCampus });
   assert.equal(Object.values(out.indoorsByCampus as Record<string, number>).reduce((a, b) => a + b, 0), pop.indoors);
   assert.equal(Object.values(out.walkingTo as Record<string, number>).reduce((a, b) => a + b, 0), pop.walking);
   assert.equal(out.enrollment.students, 36977);
@@ -448,6 +461,11 @@ async function everyOutput(): Promise<string[]> {
     ['campus_overview', { weekday: null, time: '17:00', campus: null }],
     ['list_events', { weekday: null, place: null }],
     ['free_rooms', { building: 'CAS', weekday: null, time: '10:00' }],
+    ...['FitRec', 'Mugar', 'Warren Towers dining', 'GSU', 'CAS'].map((place): [string, object] => ['best_times', { place, days: null, from: null, to: null }]),
+    ['best_times', { place: 'Mugar', days: [0, 1], from: '18:00', to: '23:00' }],
+    ['event_slots', { headcount: 40, days: null, from: null, to: null, durationMinutes: null, campus: null }],
+    ['event_slots', { headcount: 150, days: [4, 5], from: '17:00', to: '23:00', durationMinutes: 120, campus: null }],
+    ['event_slots', { headcount: 1500, days: null, from: null, to: null, durationMinutes: null, campus: null }],
     ...BASIS_TOPICS.map((topic): [string, object] => ['model_basis', { topic }]),
     ['published_counts', { source: 'fitrec_visits', weekday: 0 }],
     ['published_counts', { source: 'pedestrian_counts', weekday: null }],

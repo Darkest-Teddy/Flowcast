@@ -6,6 +6,7 @@ import type { CalendarImport } from '../../data/types';
 import { formatDateTime, formatDayLabel, formatRelative } from '../../lib/format';
 import { Button, CellStack, EmptyState, ListRow, Loading, Page, PageHeader, SectionHeading, SectionList, StatusBadge, Table, type Column } from '../../ui';
 import { parseIcs, type IcsEvent } from './ics';
+import { PlanEvent } from './PlanEvent';
 import styles from './ClubCalendar.module.css';
 
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -68,6 +69,7 @@ export default function ClubCalendar() {
       <Page>
         <PageHeader title="Preview club calendar" />
         <EmptyState title="You’re not an officer of a verified club" body="Officer access and club calendar publishing are unavailable." action={<Button to="/clubs/register">Register your club</Button>} />
+        <PlanEvent />
       </Page>
     );
   }
@@ -152,6 +154,8 @@ export default function ClubCalendar() {
       ) : (
         <Table caption="Past calendar imports" columns={importColumns} rows={imports.data} rowKey={(r) => r.id} />
       )}
+
+      <PlanEvent />
     </Page>
   );
 }

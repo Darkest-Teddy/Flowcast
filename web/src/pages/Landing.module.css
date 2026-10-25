@@ -449,6 +449,14 @@
   height: var(--space-4);
 }
 
+/* A hairline over an item, drawn in from the left as the item scrolls in (motion.ts `rule`). */
+.rule {
+  display: block;
+  height: 1px;
+  margin-bottom: var(--space-5);
+  background: var(--color-hairline);
+}
+
 /* ---------- 02 Live preview ---------- */
 
 .previewSection {
@@ -462,24 +470,16 @@
   text-wrap: pretty;
 }
 
-.previewCard {
-  composes: glass-strong from global;
-  border-radius: var(--radius-card);
-  overflow: hidden;
-}
-
 .previewStatus {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-8);
+  padding: var(--space-8) 0;
   color: var(--color-ink-secondary);
 }
 
 .previewBar {
-  padding: 14px clamp(var(--space-4), 3vw, var(--space-6));
-  border-bottom: 1px solid var(--color-hairline-soft);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -490,32 +490,36 @@
 .placeTabs {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  border-radius: var(--radius-capsule);
-  background: var(--color-surface-sunken);
+  gap: var(--space-6);
 }
 
 .placeTab {
-  min-height: 36px;
-  padding: 0 var(--space-4);
+  position: relative;
+  min-height: 44px;
+  padding: 0;
   border: 0;
-  border-radius: var(--radius-capsule);
   background: transparent;
-  color: var(--color-ink);
-  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-lg);
   font-weight: var(--weight-medium);
   cursor: pointer;
+  transition: color var(--duration-base) var(--ease-standard);
 }
 
-.placeTab:hover {
-  background: var(--color-surface-hover);
-}
-
+.placeTab:hover,
 .placeTab[aria-pressed='true'] {
-  background: var(--color-surface);
-  font-weight: var(--weight-semibold);
-  box-shadow: var(--shadow-raised), inset 0 0 0 1px var(--color-hairline-soft);
+  color: var(--color-ink);
+}
+
+/* The underline under the chosen place; it slides between tabs (a shared layoutId). */
+.placeTabMark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-ink);
 }
 
 .previewNote {
@@ -530,7 +534,7 @@
 
 .previewDetail {
   flex: 1 1 240px;
-  padding: clamp(var(--space-5), 3vw, var(--space-8));
+  padding: clamp(var(--space-6), 4vw, var(--space-10)) clamp(var(--space-6), 4vw, var(--space-12)) 0 0;
   display: flex;
   flex-direction: column;
 }
@@ -582,13 +586,17 @@
 .chart {
   flex: 3 1 460px;
   min-width: 0;
-  padding: clamp(var(--space-5), 3vw, var(--space-8)) clamp(var(--space-4), 3vw, var(--space-8)) clamp(var(--space-5), 3vw, 28px);
-  border-left: 1px solid var(--color-hairline-soft);
+  padding-top: clamp(var(--space-6), 4vw, var(--space-10));
 }
 
 .plot {
   position: relative;
   height: 208px;
+}
+
+.plotLayer {
+  position: absolute;
+  inset: 0;
 }
 
 .threshold {
@@ -696,39 +704,37 @@
 
 .steps {
   list-style: none;
-  margin: var(--space-12) 0 0;
+  margin: var(--space-16) 0 0;
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 264px), 1fr));
-  gap: var(--space-4);
+  gap: var(--space-12) var(--space-10);
 }
 
 .step {
-  background: var(--color-surface);
-  border-radius: var(--radius-card);
-  padding: 28px;
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
 }
 
+.step .rule {
+  margin-bottom: 0;
+}
+
 .stepHead {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-3);
 }
 
 .stepNumber {
-  width: 28px;
-  height: 28px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--color-strong);
-  color: var(--color-on-strong);
-  display: grid;
-  place-items: center;
-  font-size: var(--text-sm);
+  color: var(--color-ink-tertiary);
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
   font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .stepTitle {
@@ -782,35 +788,20 @@
   margin-top: var(--space-2);
 }
 
-.bigNumber {
-  font-family: var(--font-display);
-  font-size: var(--text-4xl);
-  line-height: 1;
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-display);
-}
-
-.ruled {
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--color-hairline-soft);
-}
-
 .levels {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
+  display: flex;
+  flex-direction: column;
 }
 
 .levels li {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3);
-  border-radius: var(--radius-tile);
-  background: var(--color-canvas);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
 }
 
 .levels .muted {
@@ -827,38 +818,18 @@
 
 /* ---------- 04 Features ---------- */
 
-.featureGrid {
-  margin-top: var(--space-12);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  gap: var(--space-4);
-}
-
-.feature {
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  background: var(--color-canvas);
+.featureLead {
+  margin-top: var(--space-16);
   display: flex;
-  flex-direction: column;
-}
-
-.featureWide {
-  grid-column: 1 / -1;
-  flex-direction: row;
   flex-wrap: wrap-reverse;
+  align-items: center;
+  gap: var(--space-8) clamp(var(--space-8), 5vw, var(--space-16));
 }
 
-.featureText {
-  padding: var(--space-6) 28px 28px;
+.featureLeadText {
+  flex: 1 1 280px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-}
-
-.featureWide .featureText {
-  flex: 1 1 320px;
-  padding: clamp(var(--space-6), 4vw, 44px);
-  justify-content: center;
   gap: var(--space-3);
 }
 
@@ -880,122 +851,34 @@
 }
 
 .featureVisual {
+  flex: 1.8 1 440px;
   position: relative;
-  height: 260px;
+  min-height: clamp(320px, 38vw, 460px);
+  border-radius: var(--radius-card); /* the 24px unveil(24) animates to */
   overflow: hidden;
 }
 
-.featureVisualWide {
-  flex: 1.6 1 420px;
-  height: auto;
-  min-height: 380px;
+.featureList {
+  margin-top: var(--space-20);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: var(--space-12) var(--space-8);
 }
 
-.campusPicker {
-  composes: glass-strong from global;
-  position: absolute;
-  left: 50%;
-  top: var(--space-5);
-  transform: translateX(-50%);
-  display: flex;
-  gap: 2px;
-  padding: var(--space-1);
-  border-radius: var(--radius-capsule);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  white-space: nowrap;
+.featureList .featureTitle {
+  margin-bottom: var(--space-2);
 }
 
-.campusPicker span {
-  padding: 6px 14px;
-  border-radius: var(--radius-capsule);
-}
-
-.campusPicker .campusPickerOn {
-  background: color-mix(in srgb, var(--color-ink) 18%, transparent);
-  font-weight: var(--weight-semibold);
-}
-
-.mockCard {
-  composes: glass-strong from global;
-  position: absolute;
-  left: var(--space-5);
-  right: var(--space-5);
-  bottom: var(--space-5);
-  border-radius: var(--radius-panel);
+.featureList .featureBody {
   font-size: var(--text-md);
 }
 
-.mockPad {
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.mockRow {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-}
-
-.mockRow + .mockRow {
-  border-top: 1px solid var(--color-hairline);
-}
-
-.mockRow b,
-.mockReading {
-  font-weight: var(--weight-semibold);
-  white-space: nowrap;
-}
-
-.mockReading,
 .mockReadingPlain {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.mockStrong {
   font-weight: var(--weight-semibold);
-}
-
-.mockMuted {
-  color: var(--color-ink-secondary);
-}
-
-.mockChange {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.mockArrow {
-  width: var(--space-4);
-  height: var(--space-4);
-  color: var(--color-ink-secondary);
-}
-
-.dateChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: var(--text-sm);
-}
-
-.dateChips span {
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-capsule);
-  border: 1px solid color-mix(in srgb, var(--color-ink) 20%, transparent);
-}
-
-.dateChips .dateChipOn {
-  border-color: var(--color-strong);
-  background: var(--color-strong);
-  color: var(--color-on-strong);
-  font-weight: var(--weight-semibold);
+  white-space: nowrap;
 }
 
 /* ---------- 05 Transparency ---------- */
@@ -1011,13 +894,6 @@
   margin-top: var(--space-5);
   color: var(--color-ink-secondary);
   text-wrap: pretty;
-}
-
-.evidence {
-  background: var(--color-surface);
-  border-radius: var(--radius-card);
-  padding: clamp(var(--space-5), 4vw, 28px);
-  box-shadow: var(--glass-shadow);
 }
 
 .evidenceTitle {
@@ -1059,23 +935,10 @@
   font-weight: var(--weight-semibold);
 }
 
-.published,
 .modeled {
-  border-radius: var(--radius-capsule);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-}
-
-.published {
-  padding: 2px 10px;
-  background: var(--color-strong);
-  color: var(--color-on-strong);
-}
-
-.modeled {
-  padding: 1px 9px;
-  border: 1px dashed var(--color-ink-secondary);
-  color: var(--color-ink);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
 }
 
 /* ---------- 06 Privacy ---------- */
@@ -1085,11 +948,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: var(--space-8);
-}
-
-.promises > div {
-  padding-top: var(--space-5);
-  border-top: 1px solid var(--color-hairline);
 }
 
 .promises h3 {
@@ -1160,11 +1018,6 @@
 @media (max-width: 759px) {
   .placeTab {
     min-height: var(--control-height-touch);
-  }
-
-  .chart {
-    border-left: 0;
-    border-top: 1px solid var(--color-hairline-soft);
   }
 
   .footerRow a {

@@ -115,6 +115,8 @@ Tests inject the voice handler or fetch transport and do not create paid session
 | `campus_overview` | Whole-map totals: indoors, walking, not on the map, by campus; busiest places. |
 | `list_events` | Published events in the reference week or on one day, in Boston time. |
 | `free_rooms` | Rooms in a building with no published class at a time. |
+| `best_times` | One place's quietest and busiest open hours across the reference week (optional days and window), model-derived from `event-impact.json`; only whole hours open by published hours are ranked, places without published hours are not. |
+| `event_slots` | Rooms and start times for a club event: published seats ≥ headcount, no published class or listed event in the room, no big venue event within 1 km (±1 h), ranked by nearby modeled crowding, parking spaces nearby, then room fit. Never books; a free room may still be in use or locked. |
 | `model_basis` | Short statements of the model's assumptions by topic. |
 | `published_counts` | Observed FitRec hourly entries and Commonwealth Avenue pedestrian counts, labelled as published counts. |
 | `walking_route` | Walking distance and time between two places or courses. |
@@ -190,8 +192,14 @@ tables or bypasses RLS; never expose that connection string to the browser.
 
 All routes are under `/api/dashboard` and return `Cache-Control: no-store`:
 
-- `GET /public`: `{locations, geo, events, impact, hourly, places, clubs}`. Public organizer records
+- `GET /public`: `{locations, geo, events, impact, hourly, places, bestTimes, clubs}`. Public organizer records
   are unverified; following is false here. Join the personal following IDs from `/me` in the client.
+  `bestTimes` is each place with published hours over the next seven Boston days (model-derived;
+  `map-client/src/bestTimes.ts`).
+- `GET /event-slots?headcount=40&days=0,2&from=18:00&to=22:00&duration=90&campus=charles-river&limit=10`:
+  public and database-free (answered from the Ask server's loaded campus model, `src/eventSlots.ts`).
+  Rooms and evenings in the reference week with the caveat that a free room may still be in use or
+  locked. It never books anything.
 - `GET /me`: `{session, profile, notificationPrefs, following: string[]}`. Creates an authenticated
   account keyed by the verified Supabase UUID on the first personal request. Session roles are `[]`,
   email comes from the verified Auth response, calendar connection is false, officer club is null,

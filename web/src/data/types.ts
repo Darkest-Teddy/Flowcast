@@ -1,5 +1,8 @@
 // Dashboard contracts shared by the HTTP client and server.
 
+// Relative, not @map: the server compiles this file too (dashboard router).
+import type { PlaceWeek } from '../../../map-client/src/bestTimes';
+
 export type Role = 'student' | 'clubOfficer' | 'admin';
 
 export interface User {
@@ -35,6 +38,16 @@ export interface CampusGeo {
   /** Meters along the bundled pedestrian route, keyed "a>b" with the two ids sorted. */
   walkMeters: Record<string, number>;
 }
+
+/** MBTA and BU Shuttle map stops (transitService mapStopId) with walks to nearby places. */
+export type CampusStops = Record<string, {
+  name: string;
+  /** Meters along the bundled pedestrian route from the stop to each place it has a route to. */
+  walkMeters: Record<string, number>;
+}>;
+
+/** MBTA route names and direction names (direction_id 0, 1), keyed by GTFS route id. */
+export type CampusRoutes = Record<string, { name: string; directions: [string, string] | null }>;
 
 export type EventSource = 'calendar' | 'club' | 'habit' | 'suggested';
 
@@ -320,6 +333,8 @@ export interface DashboardPublic {
   impact: EventImpactData;
   hourly: HourlyForecast[];
   places: PlaceForecast[];
+  /** Best times over the next seven days for places with published hours (model-derived); absent from older servers. */
+  bestTimes?: PlaceWeek[];
   clubs: Club[];
 }
 

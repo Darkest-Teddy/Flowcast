@@ -295,7 +295,8 @@ test('same-building classes permit a mapped resident home break before the locat
   base.stopRoutes={};for(const loc of Object.values(data.locations))loc.hours=[];
   data.locations.class.meetings=[meeting('morning',0,9*3600,10*3600),meeting('evening',0,18*3600,19*3600)];
   const day=buildSourceDay(base,data,0);validate(day);
-  assert.ok(day.stays.some(s=>s.location==='home'&&s.start===10*3600+100&&s.end<=18*3600-100-120&&s.end>=18*3600-100-720));
+  // Home within five minutes of leaving class (sourceDay.ts LEAVE_CLASS_MAX_SECONDS) plus the 100 s walk.
+  assert.ok(day.stays.some(s=>s.location==='home'&&s.start>=10*3600+100&&s.start<=10*3600+400&&s.end<=18*3600-100-120&&s.end>=18*3600-100-720));
   assert.ok(!day.stays.some(s=>s.location==='class'&&s.end-s.start>3600));
 });
 
@@ -318,14 +319,14 @@ test('unmapped residents retain their campus and can make physical daily visits 
   assert.ok(day.agents.every(a=>a.home==='off-campus'&&a.residency==='resident'&&a.campus==='main'));
 });
 
-test('unmapped residents leave classrooms immediately before later off-campus meals',()=>{
+test('unmapped residents leave classrooms within five minutes before later off-campus meals',()=>{
   const {base,data}=fixture();base.agents=Array.from({length:100},(_,i)=>({id:`meal-exit-${i}`,home:'off-campus',residency:'resident',campus:'main',model:0}));
   data.locations.class.meetings=[meeting('morning',0,9*3600,10*3600,{roomCapacity:100})];
   const day=buildSourceDay(base,data,0);validate(day);let checked=0;
   for(const agent of base.agents){
     const next=day.sourceActivities.filter(a=>a.agentId===agent.id&&a.startSec>=10*3600).sort((a,b)=>a.startSec-b.startSec)[0];
     if(next?.kind!=='off-campus-meal')continue;
-    assert.ok(day.trips.some(t=>t.agent===agent.id&&t.from==='class'&&t.to==='off-campus'&&t.timestamps[0]===10*3600));checked++;
+    assert.ok(day.trips.some(t=>t.agent===agent.id&&t.from==='class'&&t.to==='off-campus'&&t.timestamps[0]>=10*3600&&t.timestamps[0]<=10*3600+300));checked++;
   }
   assert.ok(checked>0);
 });
@@ -356,7 +357,7 @@ test('compatible saved gateways replace an unavailable preferred route instead o
   const day=buildSourceDay(base,data,0);validate(day);
   assert.equal(day.sourceAssignments.length,200);
   for(const agent of base.agents) {
-    assert.ok(day.trips.some(t=>t.agent===agent.id&&t.to==='off-campus'&&t.timestamps[0]===10*3600));
+    assert.ok(day.trips.some(t=>t.agent===agent.id&&t.to==='off-campus'&&t.timestamps[0]>=10*3600&&t.timestamps[0]<=10*3600+300));
     assert.ok(!day.stays.some(s=>s.agent===agent.id&&s.location==='class'&&s.start===10*3600&&s.end>11*3600));
   }
   for(const trip of day.trips.filter(t=>t.from==='off-campus'))assert.deepEqual(trip.path[0],gateB);
@@ -597,7 +598,7 @@ test('all configured estimated buildings receive weekly activity without adding 
   assert.ok(expected.length>0);
   for(let weekday=0;weekday<7;weekday++) {
     const day=buildSourceDay(base,source,weekday);validate(day);
-    assert.equal(day.agents.length,36977);
+    assert.equal(day.agents.length,36977+11140); // students, then modeled staff
     const kilachandResidents = new Set(base.agents.filter(a=>a.home==='kilachand').map(a=>a.id));
     assert.equal(kilachandResidents.size,495);
     for(const time of [0, 6*3600, 23*3600]) {
@@ -701,9 +702,12 @@ function assertStayPurposes(day) {
       assert.equal(stay.location, homes.get(stay.agent), `${key}: home stays are at home`); seen.home++;
     } else if (purpose.kind === 'wait') {
       const next = byAgent.get(stay.agent).filter(s => s.start >= stay.end && s.purpose.kind !== 'wait').sort((a, b) => a.start - b.start)[0];
-      // A wait followed by home is off-map gateway transfer time before heading home.
+      // A wait followed by home is off-map gateway transfer time, or leaving class (at most five
+      // minutes straight after a class there), before heading home.
+      const leavingClass = byAgent.get(stay.agent).some(s => s.purpose.kind === 'class' && s.location === stay.location && Math.abs(s.end - stay.start) < 1e-7)
+        && stay.end - stay.start <= 300 + 1e-7;
       if (next && next.purpose.kind !== 'home') assert.equal(next.purpose.kind === 'class', purpose.before === 'class', `${key}: wait precedes a ${purpose.before}`);
-      else assert.ok(stay.location === 'off-campus' && purpose.before === 'activity', `${key}: homeward wait is off-map transfer`);
+      else assert.ok((stay.location === 'off-campus' || leavingClass) && purpose.before === 'activity', `${key}: homeward wait is off-map transfer or leaving class`);
       seen.wait++;
     } else {
       const activity = activities.get(key);
@@ -837,7 +841,9 @@ test('weekend outings are resident-only off-campus stays with gateway walks and 
   assert.ok(outings.length>0);assert.equal(saturday.sourceStats.modeledOffCampusOutings,outings.length);
   for(const outing of outings){
     assert.ok(outing.agentId.startsWith('out-res-'),'commuters never get outings');
-    assert.equal(outing.locationId,'off-campus');assert.equal(outing.endSec-outing.startSec,150*60);
+    assert.equal(outing.locationId,'off-campus');
+    // Skewed visit lengths (sim/visitLength.ts): around the 150-minute mean, within the bounds.
+    assert.ok(outing.endSec-outing.startSec>=0.3*150*60-1e-7&&outing.endSec-outing.startSec<=3.5*150*60+1e-7,String(outing.endSec-outing.startSec));
     assert.ok(saturday.trips.some(t=>t.agent===outing.agentId&&t.to==='off-campus'&&t.timestamps.at(-1)<=outing.startSec+1e-7));
     assert.ok(saturday.trips.some(t=>t.agent===outing.agentId&&t.from==='off-campus'&&t.timestamps[0]>=outing.endSec-1e-7));
     assert.ok(saturday.stays.some(s=>s.agent===outing.agentId&&s.start===outing.startSec&&s.purpose.kind==='off-campus-outing'&&!s.purpose.fixed));
@@ -911,4 +917,70 @@ test('walk-in commuters mostly enter from the access point nearest their destina
   const nearShare=arrivals.filter(t=>t.path[0][1]===near.path[0][1]).length/arrivals.length;
   assert.ok(nearShare>0.9,`near-gate share ${nearShare}`);
   assert.ok(nearShare<1,'the farther access point still sees some use');
+});
+
+test('students leave class over 0-5 minutes, mostly within 1-2, and are never late for what comes next',()=>{
+  const {base,data}=fixture();for(const id of ['class','study'])base.locations.find(l=>l.id===id).capacity=1000;
+  for(const id of ['meal','study','gym'])data.locations[id].hours=[];
+  base.agents=Array.from({length:200},(_,i)=>({id:`leaver-${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  // A class with time to go home after it, then a tight connection: 3 minutes for a 100 s walk.
+  data.locations.class.meetings=[meeting('first',0,9*3600,10*3600,{roomCapacity:300}),meeting('tight',0,13*3600,14*3600,{roomCapacity:300})];
+  data.locations.study.meetings=[meeting('next',0,14*3600+180,15*3600,{roomCapacity:300})];
+  const day=buildSourceDay(base,data,0);validate(day);assertStayPurposes(day);
+  const delays=day.trips.filter(t=>t.from==='class'&&t.timestamps[0]>=10*3600&&t.timestamps[0]<11*3600).map(t=>t.timestamps[0]-10*3600);
+  assert.ok(delays.length>100,`${delays.length} left after the first class`);
+  assert.ok(delays.every(d=>d>=0&&d<=300),'everyone is out within five minutes');
+  assert.ok(new Set(delays.map(d=>Math.round(d))).size>50,'not in lockstep');
+  const within=(seconds)=>delays.filter(d=>d<=seconds).length/delays.length;
+  assert.ok(within(60)<0.4&&within(120)>0.5&&within(180)>0.75,`skewed early: ${within(60)} ${within(120)} ${within(180)}`);
+  const again=buildSourceDay(structuredClone(base),structuredClone(data),0);
+  assert.deepEqual(again.trips.map(t=>t.timestamps),day.trips.map(t=>t.timestamps),'deterministic');
+  let tight=0;
+  for(const assignment of day.sourceAssignments){
+    const arrivals=day.trips.filter(t=>t.agent===assignment.agentId&&t.to===assignment.locationId&&t.timestamps[0]<assignment.startSec&&t.timestamps.at(-1)>assignment.startSec-3600);
+    for(const trip of arrivals)assert.ok(trip.timestamps.at(-1)<=assignment.startSec+1e-6,`${assignment.agentId} reaches ${assignment.meetingId} on time`);
+    if(assignment.meetingId==='next'&&day.sourceAssignments.some(a=>a.agentId===assignment.agentId&&a.meetingId==='tight'))tight++;
+  }
+  assert.ok(tight>0,'the tight connection is still taken');
+});
+
+test('class arrival leads vary per student and meeting within the 2-12 minute window',()=>{
+  const {base,data}=fixture();base.locations.find(l=>l.id==='class').capacity=1000;
+  for(const id of ['meal','study','gym'])data.locations[id].hours=[];
+  base.agents=Array.from({length:200},(_,i)=>({id:`early-${i}`,home:'home',residency:'resident',campus:'main',model:0}));
+  data.locations.class.meetings=[meeting('first',0,9*3600,10*3600,{roomCapacity:300})];
+  const day=buildSourceDay(base,data,0);validate(day);
+  const leads=day.trips.filter(t=>t.to==='class').map(t=>9*3600-t.timestamps.at(-1));
+  assert.ok(leads.length>100&&leads.every(l=>l>=120-1e-6&&l<=720+1e-6));
+  assert.ok(new Set(leads.map(l=>Math.round(l/30))).size>=15,'leads spread over the window');
+});
+
+test('walkers choose stably among near-equal routes past other entrances, never ones over 10% longer',()=>{
+  const {base,data}=fixture();
+  // home and class 442 m apart north-south; the dining hall's door is 49 m east of the midpoint
+  // (a parallel way 2.5% longer); the library and gym are far off any useful line.
+  const place={home:[-71.1,42.35],class:[-71.1,42.354],meal:[-71.0994,42.352],study:[-71.11,42.36],gym:[-71.111,42.345]};
+  for(const loc of base.locations)loc.position=place[loc.id];
+  const metres=(a,b)=>Math.hypot((b[0]-a[0])*111320*Math.cos(42.35*Math.PI/180),(b[1]-a[1])*110540);
+  for(const key of Object.keys(base.walkRoutes)){const [from,to]=key.split('>');base.walkRoutes[key]={path:[place[from],place[to]],cumulative:[0,metres(place[from],place[to])]};}
+  base.stopRoutes={};base.locations.find(l=>l.id==='class').capacity=1000;
+  for(const id of ['meal','study','gym'])data.locations[id].hours=[];
+  base.agents=Array.from({length:200},(_,i)=>({id:`router-${i}`,home:'home',residency:'resident',campus:'main',model:0,walkSpeed:1.4}));
+  data.locations.class.meetings=[meeting('mon',0,9*3600,10*3600,{roomCapacity:300,intervals:[0,2].map(weekday=>({weekday,startSec:weekday*86400+9*3600,endSec:weekday*86400+10*3600}))})];
+  const direct=base.walkRoutes['home>class'].cumulative.at(-1);
+  const choices=(weekday)=>{
+    const day=buildSourceDay(base,data,weekday);validate(day);
+    const out=new Map();
+    for(const trip of day.trips.filter(t=>t.from==='home'&&t.to==='class')){
+      assert.ok((trip.timestamps.at(-1)-trip.timestamps[0])*1.4<=direct*1.1+1e-6,'within 10% of the shortest walk');
+      assert.ok(trip.path.length===2||(trip.path.length===3&&trip.path[1]===place.meal),'the shortest walk or past the dining hall');
+      out.set(trip.agent,trip.path.length===3?'via':'direct');
+    }
+    return out;
+  };
+  const monday=choices(0),wednesday=choices(2);
+  const via=[...monday.values()].filter(v=>v==='via').length/monday.size;
+  assert.ok(monday.size>100&&via>0.1&&via<0.5,`share on the parallel way ${via}`);
+  let both=0;for(const [agent,choice] of monday)if(wednesday.has(agent)){both++;assert.equal(wednesday.get(agent),choice,'a habitual route');}
+  assert.ok(both>100);
 });

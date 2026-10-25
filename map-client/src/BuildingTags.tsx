@@ -477,9 +477,13 @@ interface ActivityDisplayInput {
 }
 
 /** Labels refer to the modeled space and its denominator, not every use of its building. */
-/** Below these, a place shows "<N%" / "<N students" instead of a figure that rounds to zero. */
+/** Below these, a place shows "<N%" instead of a figure that rounds to zero, or "0 people". Counts are
+ * everyone simulated there: students and, in academic buildings, dining venues and gyms, modeled staff. */
 const NEAR_ZERO_PERCENT = 5;
 const NEAR_ZERO_STUDENTS = 3;
+/** At or above this, a residence shows "≥N%": halls are modeled just under full (sim/population.ts
+ * RESIDENCE_OCCUPANCY, estimated halls 0.95), and the real figure could be higher. */
+const NEAR_FULL_RESIDENCE_PERCENT = 95;
 
 export function activityDisplay({ count, capacity: total, modeled, capacityBasis, residentialBeds, kind, allowZero = false }: ActivityDisplayInput) {
   // A residence with classrooms reads as a residence: a percentage of its beds.
@@ -498,10 +502,12 @@ export function activityDisplay({ count, capacity: total, modeled, capacityBasis
   const band = countInterval(count, capacity);
   const unit = seats ? ' seats' : '';
   const nearZeroPct = Math.max(2, Math.min(NEAR_ZERO_PERCENT, Math.ceil((band.high / capacity) * 100)));
+  const nearFull = kind === 'dorm' && percent >= NEAR_FULL_RESIDENCE_PERCENT;
   const primary = modeled === false ? 'Not modeled'
     : hasPercentage
-      ? percent < NEAR_ZERO_PERCENT && !(allowZero && count === 0) ? `<${nearZeroPct}%${unit}` : `${percent}%${unit}`
-      : count < NEAR_ZERO_STUDENTS && !(allowZero && count === 0) ? `<${NEAR_ZERO_STUDENTS} students` : `${count.toLocaleString()} ${count === 1 ? 'student' : 'students'}`;
+      ? percent < NEAR_ZERO_PERCENT && !(allowZero && count === 0) ? `<${nearZeroPct}%${unit}` : `${nearFull ? '≥' : ''}${percent}%${unit}`
+      // Headcount-only places this quiet are special buildings few people can use: shown as 0.
+      : count < NEAR_ZERO_STUDENTS ? '0 people' : `${count.toLocaleString()} people`;
   const secondary = hasPercentage ? level.label : '';
   return {
     primary,
@@ -515,7 +521,7 @@ export function activityDisplay({ count, capacity: total, modeled, capacityBasis
     icon: hasPercentage ? PERSON_ICONS[level.icon] : '',
     // Not modeled: slate on the tags, plain secondary ink and a neutral bar on the panels.
     style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' },
-    description: hasPercentage ? `${primary} of ${seats ? 'classroom seats' : beds ? 'beds' : 'capacity'}, ${secondary}` : primary,
+    description: hasPercentage ? `${nearFull ? `${percent}% or more` : primary} of ${seats ? 'classroom seats' : beds ? 'beds' : 'capacity'}, ${secondary}` : primary,
   };
 }
 

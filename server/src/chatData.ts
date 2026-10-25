@@ -56,7 +56,7 @@ export interface VenueEvent {
 }
 export interface VenueCalendar {
   window: { from: string; to: string };
-  venues: { id: string; name: string; locationId: string | null; capacities: Record<string, number>; defaultSetup: string | null }[];
+  venues: { id: string; name: string; locationId: string | null; position: [number, number] | null; capacities: Record<string, number>; defaultSetup: string | null }[];
   events: VenueEvent[];
 }
 
@@ -225,7 +225,8 @@ export function loadChatFacts(read: Read, campus: CampusData, population: unknow
     }),
     venues: optional(read, 'map-client/public/data/event-calendar.json', (raw): VenueCalendar => ({
       window: raw.window,
-      venues: (raw.venues ?? []).map((v: any) => ({ id: v.id, name: v.name, locationId: v.locationId ?? null, capacities: v.capacities ?? {}, defaultSetup: v.defaultSetup ?? null })),
+      venues: (raw.venues ?? []).map((v: any) => ({ id: v.id, name: v.name, locationId: v.locationId ?? null,
+        position: Array.isArray(v.position) && v.position.length === 2 ? [Number(v.position[0]), Number(v.position[1])] as [number, number] : null, capacities: v.capacities ?? {}, defaultSetup: v.defaultSetup ?? null })),
       events: (raw.events ?? []).map((e: any): VenueEvent => ({
         name: String(e.name), venueId: String(e.venueId), kind: String(e.kind), setup: e.setup ?? null, start: String(e.start), end: e.end ?? null,
         attendance: typeof e.attendance === 'number' && e.status === 'final' ? e.attendance : null, status: e.status ?? null, soldOut: e.soldOut ?? null,

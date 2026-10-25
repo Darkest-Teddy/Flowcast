@@ -12,6 +12,7 @@ import { compareDays } from './compare';
 import type { DayInfo } from './explain';
 import { createTransitService, mergeSchedules, type TransitService } from './transitService';
 import { loadPublishedSchedule } from '../transit/publishedSchedule';
+import { isStaff } from './staff';
 
 /** The conditions (without the calendar, which the worker has) and the date whose campus events play. */
 export type DayRequestInput = Omit<ConditionsInput, 'calendar'> & { eventDate: string | null };
@@ -19,7 +20,7 @@ export type WorkerRequest =
   | { type: 'build'; id: number; weekday: number; input: DayRequestInput }
   | { type: 'compare'; id: number; weekday: number; input: DayRequestInput; baseline: DayRequestInput };
 export type WorkerReply =
-  | { type: 'ready'; students: number }
+  | { type: 'ready'; students: number; staff: number }
   | { type: 'day'; id: number; encoded: ReturnType<typeof encodeDay>; info: DayInfo }
   | { type: 'compare'; id: number; comparison: ReturnType<typeof compareDays> }
   | { type: 'skipped'; id: number }
@@ -39,10 +40,10 @@ const loading = (async () => {
   const transit = timetable ? createTransitService(timetable) : undefined;
   const base = buildPopulation(day, data, population);
   const counts = new Map<string, number>();
-  for (const agent of base.agents) { const persona = personaFor(agent, model.personas) ?? 'typical'; counts.set(persona, (counts.get(persona) ?? 0) + 1); }
+  for (const agent of base.agents) { if (isStaff(agent)) continue; const persona = personaFor(agent, model.personas) ?? 'typical'; counts.set(persona, (counts.get(persona) ?? 0) + 1); }
   const personaMix = [...counts].map(([id, students]) => ({ id, label: model.personas?.personas.find(row => row.id === id)?.label ?? id, students }));
   state = { base, data, model, personaMix, transit };
-  post({ type: 'ready', students: base.agents.length });
+  post({ type: 'ready', students: base.populationSummary.total, staff: base.populationSummary.staff });
 })().catch((error: Error) => post({ type: 'error', id: null, message: `Day worker could not load data: ${error.message}` }));
 
 function build(weekday: number, { eventDate, ...input }: DayRequestInput): { day: SourceDay; info: DayInfo; key: string } {
@@ -68,7 +69,7 @@ function build(weekday: number, { eventDate, ...input }: DayRequestInput): { day
     if (count > outdoorPeak.count) outdoorPeak = { count, hour };
   }
   const validation = model.behavior?.validation as DayInfo['validation'];
-  const info: DayInfo = { key: behavior.key, conditions, active: behavior.active, personaMix, students: base.agents.length, validation, buildMs, visits, outdoorPeak };
+  const info: DayInfo = { key: behavior.key, conditions, active: behavior.active, personaMix, students: base.populationSummary.total, staff: base.populationSummary.staff, validation, buildMs, visits, outdoorPeak };
   if (day.transitRides.length) visits['transit rides'] = day.transitRides.length;
   return { day, info, key: `${weekday}:${eventDate ?? 'baseline'}|${behavior.key}` };
 }
