@@ -1,9 +1,8 @@
-import type { ReactNode } from 'react';
-import styles from './Terms.module.css';
+import { Policy, type Clause } from './Policy';
 
 /** Shown at the top of the terms; change it whenever the text below changes. */
 export const TERMS_EFFECTIVE = 'October 25, 2026';
-const REPO = 'https://github.com/Darkest-Teddy/Flowcast';
+export const REPO = 'https://github.com/Darkest-Teddy/Flowcast';
 
 /** The four things worth knowing if nothing else is read. */
 const SUMMARY = [
@@ -13,7 +12,7 @@ const SUMMARY = [
   { title: 'Your data stays yours', body: 'Download or delete it on this page at any time.' },
 ];
 
-const CLAUSES: { id: string; title: string; body: ReactNode }[] = [
+const CLAUSES: Clause[] = [
   {
     id: 'about',
     title: 'What Flowcast is',
@@ -43,7 +42,7 @@ const CLAUSES: { id: string; title: string; body: ReactNode }[] = [
     title: 'Ask and voice',
     body: <>
       <p>Ask and voice answers are written by an AI model from OpenAI, working from Flowcast’s data. They can be wrong, incomplete or out of date even when they sound confident, so check anything important.</p>
-      <p>To answer, Flowcast sends your question, the conversation so far and, if you’ve imported a schedule, up to two weeks of your classes (titles, times and rooms) to OpenAI. Requests are sent with OpenAI’s response storage turned off. Voice sends your speech to OpenAI while voice is on. The Ask conversation itself is kept only in this browser tab.</p>
+      <p>To answer, Flowcast sends your question, the conversation so far and, if you’ve imported a schedule, up to two weeks of your classes (titles, times and rooms) to OpenAI. Requests are sent with OpenAI’s response storage turned off, though OpenAI may still keep them for a limited time to detect abuse (see the privacy policy above). Voice sends your speech to OpenAI while voice is on. The Ask conversation itself is kept only in this browser tab.</p>
       <p>Don’t put sensitive personal information, passwords or anything you wouldn’t want processed by a third party into Ask or voice.</p>
     </>,
   },
@@ -95,39 +94,11 @@ const CLAUSES: { id: string; title: string; body: ReactNode }[] = [
   {
     id: 'contact',
     title: 'Contact',
-    body: <p>Questions about these terms or your data? Open an issue on <a href={REPO} target="_blank" rel="noreferrer">Flowcast’s GitHub repository</a>.</p>,
+    body: <p>Questions about these terms? Open an issue on <a href={REPO} target="_blank" rel="noreferrer">Flowcast’s GitHub repository</a>. Issues are public, so never include personal details in one.</p>,
   },
 ];
 
 /** Terms of service: a short summary, then each clause as a collapsible section. */
 export function Terms() {
-  return (
-    <section id="terms" className={styles.terms} aria-labelledby="terms-title">
-      <header className={styles.head}>
-        <h2 id="terms-title">Terms of service</h2>
-        <p>Effective {TERMS_EFFECTIVE}</p>
-      </header>
-
-      <ul className={styles.summary} aria-label="In short">
-        {SUMMARY.map((s) => (
-          <li key={s.title} className={styles.point}>
-            <strong>{s.title}</strong>
-            <span>{s.body}</span>
-          </li>
-        ))}
-      </ul>
-
-      <div className={styles.clauses}>
-        {CLAUSES.map((c, i) => (
-          <details key={c.id} id={`terms-${c.id}`} className={styles.clause}>
-            <summary>
-              <span className={styles.number}>{i + 1}</span>
-              {c.title}
-            </summary>
-            <div className={styles.body}>{c.body}</div>
-          </details>
-        ))}
-      </div>
-    </section>
-  );
+  return <Policy id="terms" title="Terms of service" effective={TERMS_EFFECTIVE} summary={SUMMARY} clauses={CLAUSES} />;
 }
