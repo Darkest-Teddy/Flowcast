@@ -33,11 +33,8 @@ export default function ClubCalendar() {
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [picked, setPicked] = useState<Picked | null>(null);
-  const [publishing, setPublishing] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function read(file: File) {
-    setResult(null);
     if (!/\.ics$/i.test(file.name) && file.type !== 'text/calendar') {
       setPicked({ state: 'invalid', fileName: file.name, error: 'This isn’t an .ics file. Export your calendar as .ics (iCalendar) and choose that file.' });
       return;
@@ -46,8 +43,12 @@ export default function ClubCalendar() {
       setPicked({ state: 'invalid', fileName: file.name, error: 'This file is larger than 2 MB. Export only this semester’s events and try again.' });
       return;
     }
-    const parsed = parseIcs(await file.text());
-    setPicked(parsed.ok ? { state: 'ready', fileName: file.name, events: parsed.events } : { state: 'invalid', fileName: file.name, error: parsed.error });
+    try {
+      const parsed = parseIcs(await file.text());
+      setPicked(parsed.ok ? { state: 'ready', fileName: file.name, events: parsed.events } : { state: 'invalid', fileName: file.name, error: parsed.error });
+    } catch {
+      setPicked({ state: 'invalid', fileName: file.name, error: 'This file could not be read. Choose it again.' });
+    }
   }
 
   function onDrop(e: DragEvent) {
@@ -62,27 +63,11 @@ export default function ClubCalendar() {
     if (input.current) input.current.value = '';
   }
 
-  async function publish() {
-    if (picked?.state !== 'ready') return;
-    setPublishing(true);
-    try {
-      await api.uploadClubCalendar(clubId, picked.fileName, picked.events.length);
-      const n = picked.events.length;
-      setResult({ ok: true, text: `Published ${n} ${n === 1 ? 'event' : 'events'} from ${picked.fileName}. They’re in Flowcast now.` });
-      reset();
-      imports.reload();
-    } catch {
-      setResult({ ok: false, text: 'Your events weren’t published. Check your connection and try again.' });
-    } finally {
-      setPublishing(false);
-    }
-  }
-
   if (!clubId) {
     return (
       <Page>
-        <PageHeader title="Upload calendar" />
-        <EmptyState title="You’re not an officer of a verified club" body="Once the Flowcast team verifies your club, you can upload its calendar here." action={<Button to="/clubs/register">Register your club</Button>} />
+        <PageHeader title="Preview club calendar" />
+        <EmptyState title="You’re not an officer of a verified club" body="Officer access and club calendar publishing are unavailable." action={<Button to="/clubs/register">Register your club</Button>} />
       </Page>
     );
   }
@@ -90,8 +75,8 @@ export default function ClubCalendar() {
   return (
     <Page>
       <PageHeader
-        title="Upload calendar"
-        description="Add your club’s events from an .ics file. They appear in Flowcast for every student, not in anyone’s Google Calendar."
+        title="Preview club calendar"
+        description="Preview an .ics file locally. Publishing to Flowcast is unavailable because no calendar upload service is connected."
       />
 
       {picked?.state !== 'ready' && (
@@ -131,24 +116,14 @@ export default function ClubCalendar() {
         </div>
       )}
 
-      {result && (
-        <p className={result.ok ? styles.ok : styles.error} role="status">
-          {result.text}
-        </p>
-      )}
-
       {picked?.state === 'ready' && (
         <>
           <SectionList title={`Events in ${picked.fileName}`} count={picked.events.length}>
             {picked.events.slice(0, PREVIEW_LIMIT).map((ev) => (
               <ListRow
                 key={`${ev.line}`}
-                title={
-                  <span className={styles.event}>
-                    <span>{ev.title}</span>
-                    {ev.location && <span className={styles.eventPlace}>{ev.location}</span>}
-                  </span>
-                }
+                title={ev.title}
+                subtitle={ev.location || undefined}
                 detail={ev.allDay ? `${formatDayLabel(ev.start)}, all day` : formatDateTime(ev.start)}
               />
             ))}
@@ -157,10 +132,8 @@ export default function ClubCalendar() {
             <p className={styles.more}>And {picked.events.length - PREVIEW_LIMIT} more events.</p>
           )}
           <div className={styles.publish}>
-            <Button variant="accent" onClick={publish} disabled={publishing}>
-              {publishing ? 'Publishing…' : 'Publish to Flowcast'}
-            </Button>
-            <Button variant="ghost" onClick={reset} disabled={publishing}>
+            <p>Publishing is unavailable. This preview has not been saved or shared.</p>
+            <Button variant="ghost" onClick={reset}>
               Choose a different file
             </Button>
           </div>
@@ -170,7 +143,7 @@ export default function ClubCalendar() {
       <SectionHeading>Past imports</SectionHeading>
       {imports.error ? (
         <p className={styles.error} role="alert">
-          Past imports didn’t load. <Button variant="ghost" size="sm" onClick={imports.reload}>Try again</Button>
+          {imports.error.message} <Button variant="ghost" size="sm" onClick={imports.reload}>Try again</Button>
         </p>
       ) : !imports.data ? (
         <Loading label="Loading past imports" />

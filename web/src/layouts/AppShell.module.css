@@ -37,10 +37,9 @@
 }
 
 .mark {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-md);
-  background: var(--color-strong);
+  flex: none;
+  width: 24px;
+  height: 24px;
 }
 
 .brandTag {
@@ -145,40 +144,10 @@
 }
 
 .main {
+  padding-top: env(safe-area-inset-top);
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-
-/* Content scrolls under the bar, so it takes the more opaque glass. Only the bottom edge gets a
-   hairline: it spans the column, so a full ring would draw stray lines down its sides. */
-.topbar {
-  composes: glass-strong from global;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  height: calc(var(--topbar-height) + env(safe-area-inset-top));
-  padding: env(safe-area-inset-top) var(--space-6) 0;
-  box-shadow: inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 var(--glass-border);
-}
-
-.title {
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-md);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.topActions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 
 .menu {
@@ -187,7 +156,7 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin-left: calc(var(--space-3) * -1);
+  margin: var(--space-3) var(--space-4) 0;
   border: 0;
   border-radius: var(--radius-capsule);
   background: transparent;
@@ -366,9 +335,6 @@
     display: inline-flex;
   }
 
-  .topbar {
-    padding: env(safe-area-inset-top) calc(var(--space-4) + env(safe-area-inset-right)) 0 calc(var(--space-4) + env(safe-area-inset-left));
-  }
 
   /* Student app on phones: no sidebar at all, a floating tab bar instead, and room under the
      content so the bar never covers the end of a page. */

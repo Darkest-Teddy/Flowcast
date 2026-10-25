@@ -1,5 +1,5 @@
 // The landing page's numbers: one day of the simulation's hourly crowding, read from the same
-// event-impact data the Event impact page uses. No figure on the landing page is made up.
+// event-impact data the Event impact page uses.
 
 import type { EventImpactData, ImpactPlace } from '../../data/types';
 
@@ -55,19 +55,22 @@ export function dayForecast(data: EventImpactData, weekday = LANDING_WEEKDAY): D
     share(id, hour) {
       const place = places.get(id);
       const counts = changed[id] ?? baseline[id];
-      if (!place || !counts || place.capacity <= 0) return null;
-      return (counts[hour] ?? 0) / place.capacity;
+      const count = counts?.[hour];
+      if (!place || !Number.isFinite(place.capacity) || place.capacity <= 0 ||
+          count == null || !Number.isFinite(count) || count < 0) return null;
+      return count / place.capacity;
     },
   };
 }
 
 /** The busiest and quietest hours of a place's day (first one wins a tie). */
 export function peaks(day: DayForecast, id: string, hours = HOURS) {
-  let busiest = hours[0];
-  let quietest = hours[0];
-  for (const hour of hours) {
-    if ((day.share(id, hour) ?? 0) > (day.share(id, busiest) ?? 0)) busiest = hour;
-    if ((day.share(id, hour) ?? 0) < (day.share(id, quietest) ?? 0)) quietest = hour;
+  const available = hours.filter(hour => day.share(id, hour) != null);
+  let busiest: number | null = available[0] ?? null;
+  let quietest: number | null = available[0] ?? null;
+  for (const hour of available) {
+    if (busiest == null || day.share(id, hour)! > day.share(id, busiest)!) busiest = hour;
+    if (quietest == null || day.share(id, hour)! < day.share(id, quietest)!) quietest = hour;
   }
   return { busiest, quietest };
 }
@@ -107,9 +110,11 @@ export function eventExample(data: EventImpactData): EventExample | null {
   const venue = data.places.find((p) => p.id === best.gathering.locationId);
   const before = data.baseline[String(best.weekday)]?.[venue?.id ?? ''];
   const after = data.dates[best.date]?.occupancy[venue?.id ?? ''];
-  if (!venue || !before || !after || venue.capacity <= 0) return null;
-  let hour = HOURS[0];
-  for (const h of HOURS) if ((after[h] ?? 0) - (before[h] ?? 0) > (after[hour] ?? 0) - (before[hour] ?? 0)) hour = h;
+  if (!venue || !before || !after || !Number.isFinite(venue.capacity) || venue.capacity <= 0) return null;
+  const available = HOURS.filter(h => Number.isFinite(before[h]) && before[h] >= 0 && Number.isFinite(after[h]) && after[h] >= 0);
+  if (!available.length) return null;
+  let hour = available[0];
+  for (const h of available) if (after[h] - before[h] > after[hour] - before[hour]) hour = h;
   return {
     date: best.date,
     name: best.gathering.name,

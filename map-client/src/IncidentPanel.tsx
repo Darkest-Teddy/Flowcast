@@ -27,7 +27,7 @@ const descriptions: Record<IncidentKind, string> = {
   'building-closure': 'Students decide whether to wait, move elsewhere, or abandon the visit.',
   fire: 'A fire prompts a faster evacuation. The damaged building stays closed for the rest of the day.',
   earthquake: 'Students in affected buildings shelter through the modeled shaking, then leave damaged buildings, which remain closed for the rest of the day.',
-  meteor: 'An impact destroys nearby structures and displaces their occupants for the rest of the day. The radius sets the affected area.',
+  meteor: 'A meteor arrives after 45 simulated seconds, then destroys nearby structures and sends survivors fleeing. The radius sets the affected area. Damaged buildings stay closed for the day.',
 };
 
 export interface IncidentRun {

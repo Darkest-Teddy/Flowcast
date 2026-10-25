@@ -1,3 +1,14 @@
+.preview {
+  margin: 0;
+  min-width: 0;
+}
+
+.caption {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-strong);
+}
+
 .frame {
   display: grid;
   grid-template-columns: 22% minmax(0, 1fr);

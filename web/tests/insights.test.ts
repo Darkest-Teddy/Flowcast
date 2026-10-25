@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findPlaces, interpret, nextClass, parseTime, rankByCrowd, walkBetween, type InsightData } from '../src/lib/insights.ts';
+import { findPlaces, interpret, nextClass, parseTime, rankByCrowd, shareAt, walkBetween, type InsightData } from '../src/lib/insights.ts';
 import type { CampusGeo, CampusLocation, HourlyForecast, ScheduleItem } from '../src/data/types.ts';
 
 // Local-time dates so the tests pass in any timezone.
@@ -147,4 +147,11 @@ test('times parse in 12-hour form and common words', () => {
   assert.equal(parseTime('3:30 pm', at(9))!.getMinutes(), 30);
   assert.equal(parseTime('around noon', at(9))!.getHours(), 12);
   assert.equal(parseTime('right now', at(9)), null);
+});
+
+
+test('date-only campus projections use Boston date and hour, including after UTC midnight', () => {
+  const hourly: HourlyForecast[] = [{ locationId: 'mugar', day: '2026-10-26', hours: [{ hour: 22, share: 0.25 }] }];
+  assert.equal(shareAt(hourly, 'mugar', new Date('2026-10-27T02:30:00Z')), 0.25);
+  assert.equal(shareAt(hourly, 'mugar', new Date('2026-10-28T02:30:00Z')), null);
 });

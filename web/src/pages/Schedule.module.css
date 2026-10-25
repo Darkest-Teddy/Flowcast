@@ -1,5 +1,12 @@
+/* One glass card per day, a card gap apart. */
 .days {
   display: flex;
   flex-direction: column;
-  gap: var(--space-10);
+  gap: var(--space-5);
 }
+
+.row { display: flex; gap: var(--space-4); padding-block: var(--space-4); border-bottom: 1px solid var(--color-hairline); }
+.row:last-child { border-bottom: 0; }
+.time { flex-shrink: 0; display: flex; flex-direction: column; font-size: var(--text-sm); }
+.time time + time, .main p { color: var(--color-ink-secondary); }
+.main { min-width: 0; overflow-wrap: anywhere; }

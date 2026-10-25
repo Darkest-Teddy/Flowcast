@@ -13,12 +13,12 @@ npm run dev -- --host                # dashboard http://localhost:5174, map http
 
 Map keys (Mapbox, MBTA) are read from `map-client/.env.local` as before. `--host` lets other devices on the same network open it at this computer's address.
 
-Sign-in is mocked: "Continue with Google" signs you in as a sample user with student, club officer and admin roles.
+Sign-in uses Supabase Google authentication and the PostgreSQL dashboard API. No demo identity or admin role is assigned. See the root README for server environment and database setup.
 
 ## Rules for adding to it
 
 - **No hard-coded design values.** Colours, fonts, sizes, spacing, radii, shadows and motion come from `/theme/tokens.css` (shared by every app). `/theme/tokens.ts` exposes the same names and the crowd scale to code. The crowd scale itself (Quiet under 40%, Moderate from 40%, Busy from 65%, Packed from 85%, and its colours) is defined once in `/theme/crowd.ts`; `tokens.css` mirrors its colours and `map-client/tests/crowdScale.test.mjs` keeps them in step. Need something new? Add a token.
-- **Data only through `src/data/api.ts`.** It answers from `fixtures.ts` today; when `/server` exists each function becomes a request and pages don't change. Pages never import `fixtures.ts`.
+- **Data only through `src/data/api.ts`.** It reads the dashboard API and sourced campus bundle. Unsupported integrations fail explicitly; missing data is not replaced by fictional records.
 - **Reuse `src/ui`** (buttons, lists, tables, fields, status badges, page headers) and `src/lib/format.ts` for dates and percentages.
 - Each page keeps its CSS in a sibling `*.module.css`.
 - **Glass, not opaque boxes.** Pages sit on the canvas gradient. A card or bar that needs a surface writes `composes: glass from global;` (or `glass-strong` for big panels and anything content scrolls under) and `border-radius: var(--radius-card)`. Don't paint `--color-surface` or `--color-canvas` over the page. Reduce transparency (Settings, or the device setting) turns all glass solid by itself.
@@ -28,8 +28,8 @@ Sign-in is mocked: "Continue with Google" signs you in as a sample user with stu
 
 ```
 src/
-  auth/session.tsx     who is signed in, route guards (mock Google sign-in)
-  data/                types, sample data, the api
+  auth/session.tsx     who is signed in, route guards (Supabase Google sign-in)
+  data/                types, sourced study catalog, the api
   layouts/             sidebar shell, student and admin layouts
   pages/               student and account pages; club/ and admin/ subfolders
   ui/                  shared components

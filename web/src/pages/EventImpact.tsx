@@ -62,7 +62,7 @@ export default function EventImpact() {
   const header = (
     <PageHeader
       title="Event impact"
-      description="Pick a date to see BU’s events that day and how they change crowding at each place, compared with the same day without events."
+      description="Compare simulated crowds with and without campus events."
     />
   );
   const error = impact.error ?? events.error;
@@ -132,17 +132,22 @@ export default function EventImpact() {
       {header}
       <div className={styles.layout}>
         <aside className={styles.picker}>
-          <EventCalendar value={date} onChange={pick} days={calendarDays} min={today} max={max} />
-          {simulatedDates.length > 0 && (
-            <div className={styles.jump}>
-              <span>Dates with events on the map</span>
-              <div className={styles.chips}>
-                {simulatedDates.slice(0, 8).map((d) => (
-                  <button key={d} type="button" className={d === date ? styles.chipOn : styles.chip} aria-pressed={d === date} onClick={() => pick(d)}>{shortDate(d)}</button>
-                ))}
-              </div>
+          <details className={styles.datePicker}>
+            <summary>Change date <span>{shortDate(date)}</span></summary>
+            <div className={styles.dateOptions}>
+              <EventCalendar value={date} onChange={pick} days={calendarDays} min={today} max={max} />
+              {simulatedDates.length > 0 && (
+                <div className={styles.jump}>
+                  <span>Dates with events on the map</span>
+                  <div className={styles.chips}>
+                    {simulatedDates.slice(0, 8).map((d) => (
+                      <button key={d} type="button" className={d === date ? styles.chipOn : styles.chip} aria-pressed={d === date} onClick={() => pick(d)}>{shortDate(d)}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </details>
         </aside>
 
         <div className={styles.detail}>
@@ -162,17 +167,16 @@ export default function EventImpact() {
                 <ListRow
                   key={e.id}
                   title={e.sourceUrl ? <a href={e.sourceUrl} target="_blank" rel="noreferrer">{e.title}</a> : e.title}
-                  detail={`${formatTime(e.start)}${e.end && e.end.slice(0, 10) === date ? `–${formatTime(e.end)}` : ''} · ${eventVenue(e)}`}
-                  trailing={g ? <Tag tone="accent">{g.attendees.toLocaleString()} attending of {g.capacity.toLocaleString()}</Tag> : <Tag>{e.mapStatus === 'simulated' ? 'On the map' : 'Not on map'}</Tag>}
+                  subtitle={<>
+                    {`${formatTime(e.start)}${e.end && e.end.slice(0, 10) === date ? `–${formatTime(e.end)}` : ''} · ${eventVenue(e)}`}
+                    {g && <span className={styles.eventReason}>{g.attendees.toLocaleString()} simulated attendees · {g.capacity.toLocaleString()} capacity</span>}
+                    {e.mapStatus !== 'simulated' && <span className={styles.eventReason}>{mapStatusText(e)}.</span>}
+                  </>}
+                  trailing={!g && e.mapStatus === 'simulated' ? <Tag>On the map</Tag> : undefined}
                 />
               );
             })}
           </SectionList>
-          {dayEvents.some((e) => e.mapStatus !== 'simulated') && (
-            <ul className={styles.reasons}>
-              {dayEvents.filter((e) => e.mapStatus !== 'simulated').map((e) => <li key={e.id}><strong>{e.title}:</strong> {mapStatusText(e)}.</li>)}
-            </ul>
-          )}
 
           <SectionHeading>Places changed by events</SectionHeading>
           {affected.length ? (
@@ -199,13 +203,15 @@ export default function EventImpact() {
           ) : (
             <EmptyState
               title="No change to crowding on this date"
-              body={dayEvents.length ? 'None of this date’s events are at places on the map, so the forecast is the normal day.' : 'With no events, every place follows its normal forecast below.'}
+              body={dayEvents.length ? 'None of this date’s events are at places on the map, so the forecast is the normal day.' : 'With no events, every place follows its normal forecast. Expand the comparison below to see each place.'}
             />
           )}
 
-          <SectionHeading>Every place</SectionHeading>
-          <p className={styles.summary}>Percentages are of the whole place’s modeled capacity, so an event in one room can add many people without changing a large building’s level.</p>
-          <Table columns={columns} rows={table} rowKey={(r) => r.place.id} caption={`Busiest hour at each place on ${longDate(date)}, without and with events`} />
+          <details className={styles.allPlaces}>
+            <summary>Compare all {table.length} places</summary>
+            <p className={styles.summary}>Percentages are of the whole place’s modeled capacity, so an event in one room can add many people without changing a large building’s level.</p>
+            <Table columns={columns} rows={table} rowKey={(r) => r.place.id} caption={`Busiest hour at each place on ${longDate(date)}, without and with events`} />
+          </details>
 
           <details className={styles.assumptions}>
             <summary>How this is estimated</summary>

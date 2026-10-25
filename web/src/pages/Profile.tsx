@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { swatches } from '@theme/tokens';
+import { useSession } from '../auth/session';
 import { api, useResource } from '../data/api';
 import type { Profile as ProfileData } from '../data/types';
 import { Avatar, Button, Loading, Page, PageHeader, SectionHeading, SelectField, TextField } from '../ui';
@@ -11,9 +12,10 @@ type Errors = Partial<Record<'name' | 'lunchTime' | 'dinnerTime', string>>;
 
 function validate(p: ProfileData): Errors {
   const errors: Errors = {};
-  if (!p.name.trim()) errors.name = 'Enter the name you’d like to see in Flowcast.';
-  if (!p.lunchTime) errors.lunchTime = 'Enter a lunch time, like 12:15 PM.';
-  if (!p.dinnerTime) errors.dinnerTime = 'Enter a dinner time, like 6:30 PM.';
+  if (p.name.trim().length > 100) errors.name = 'Use 100 characters or fewer.';
+  const time = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (p.lunchTime && !time.test(p.lunchTime)) errors.lunchTime = 'Enter a valid lunch time.';
+  if (p.dinnerTime && !time.test(p.dinnerTime)) errors.dinnerTime = 'Enter a valid dinner time.';
   if (p.lunchTime && p.dinnerTime && p.lunchTime >= p.dinnerTime) {
     errors.dinnerTime = 'Dinner needs to be later than lunch. Check both times.';
   }
@@ -21,6 +23,7 @@ function validate(p: ProfileData): Errors {
 }
 
 export default function Profile() {
+  const { refreshSession } = useSession();
   const profile = useResource(() => api.getProfile());
   const locations = useResource(() => api.getLocations());
   const [draft, setDraft] = useState<ProfileData | null>(null);
@@ -32,12 +35,12 @@ export default function Profile() {
     if (profile.data && !draft) setDraft(profile.data);
   }, [profile.data, draft]);
 
-  if (profile.error) {
+  if (profile.error || locations.error) {
     return (
       <Page>
         <PageHeader title="Profile" />
         <p className={styles.error} role="alert">
-          Your profile didn’t load. <button type="button" className={styles.retry} onClick={profile.reload}>Try again</button>
+          Your profile or campus places didn’t load. <button type="button" className={styles.retry} onClick={() => { profile.reload(); locations.reload(); }}>Try again</button>
         </p>
       </Page>
     );
@@ -75,9 +78,10 @@ export default function Profile() {
       const saved = await api.updateProfile({ ...draft, name: draft.name.trim() });
       setDraft(saved);
       profile.setData(saved);
-      setMessage({ ok: true, text: 'Saved. Your agent on the map uses these from now on.' });
+      await refreshSession();
+      setMessage({ ok: true, text: 'Profile saved to your Flowcast account.' });
     } catch {
-      setMessage({ ok: false, text: 'Your changes weren’t saved. Check your connection and try again.' });
+      setMessage({ ok: false, text: 'Couldn’t finish saving your profile. Please try again.' });
     } finally {
       setSaving(false);
     }
@@ -85,30 +89,32 @@ export default function Profile() {
 
   return (
     <Page>
-      <PageHeader title="Profile" description="Your agent on the map uses these answers to fill in the parts of your day your calendar doesn’t cover." />
+      <PageHeader title="Your profile" description="Optional Flowcast preferences. They don’t affect the shared simulation." />
 
       <form className={styles.form} onSubmit={save} noValidate>
         <section className={styles.section}>
           <SectionHeading>About you</SectionHeading>
-          <TextField
-            label="Name"
-            value={draft.name}
-            onChange={(e) => update('name', e.target.value)}
-            error={errors.name}
-            autoComplete="name"
-          />
+          <div className={styles.card}>
+            <TextField
+              label="Name (optional)"
+              value={draft.name}
+              onChange={(e) => update('name', e.target.value)}
+              error={errors.name}
+              autoComplete="name"
+            />
+          </div>
         </section>
 
         <section className={styles.section}>
           <SectionHeading>Your habits</SectionHeading>
-          <div className={styles.fields}>
+          <div className={`${styles.card} ${styles.fields}`}>
             <SelectField
               label="Home dorm"
-              hint="Where your agent starts and ends each day."
+              hint="Optional profile preference."
               value={draft.homeLocationId ?? ''}
               onChange={(e) => update('homeLocationId', e.target.value || null)}
             >
-              <option value="">I don’t live on campus</option>
+              <option value="">Not specified</option>
               {dorms.map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
@@ -133,7 +139,7 @@ export default function Profile() {
 
             <SelectField
               label="Favourite study spot"
-              hint="Where your agent goes when you have free time to study."
+              hint="Optional profile preference."
               value={draft.studySpotId ?? ''}
               onChange={(e) => update('studySpotId', e.target.value || null)}
             >
@@ -147,7 +153,7 @@ export default function Profile() {
 
         <section className={styles.section}>
           <SectionHeading>Avatar</SectionHeading>
-          <div className={styles.avatarRow}>
+          <div className={`${styles.card} ${styles.avatarRow}`}>
             <Avatar name={draft.name || '?'} size={40} color={swatches[draft.avatarSwatch]} />
             <fieldset className={styles.swatches}>
               <legend className={styles.legend}>Avatar colour</legend>

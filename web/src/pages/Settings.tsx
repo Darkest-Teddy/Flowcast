@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSession } from '../auth/session';
 import { api, useResource } from '../data/api';
 import type { NotificationPrefs } from '../data/types';
 import { savedTheme, savedTransparency, setTheme, setTransparency, type ThemeChoice } from '../lib/theme';
@@ -8,28 +9,30 @@ import styles from './Settings.module.css';
 const notificationRows: { key: keyof NotificationPrefs; label: string; description: string }[] = [
   {
     key: 'packedRoute',
-    label: 'Warn me when a place on my route will be packed',
-    description: 'A heads-up before you leave, with a quieter option when there is one.',
+    label: 'Crowding alerts preference',
+    description: 'Saved with your Flowcast profile. Crowding alerts are not delivered in this version.',
   },
   {
     key: 'clubEvents',
     label: 'New events from clubs I follow',
-    description: 'When a club you follow publishes events in Flowcast.',
+    description: 'Saved with your Flowcast profile. Club event notifications are not delivered in this version.',
   },
   {
     key: 'scheduleChanges',
     label: 'Changes to my classes',
-    description: 'When a class in your synced calendar moves to a new time or room.',
+    description: 'Saved with your Flowcast profile. Calendar sync and class alerts are unavailable.',
   },
 ];
 
 export default function Settings() {
+  const { signOut } = useSession();
   const [theme, setThemeChoice] = useState<ThemeChoice>(savedTheme);
   const [reduced, setReduced] = useState(savedTransparency);
   // The device setting wins in tokens.css, so the switch shows it and can't turn it off.
   const [systemReduced] = useState(() => window.matchMedia?.('(prefers-reduced-transparency: reduce)').matches ?? false);
   const prefs = useResource(() => api.getNotificationPrefs());
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   function chooseTheme(choice: ThemeChoice) {
     setThemeChoice(choice);
@@ -44,19 +47,30 @@ export default function Settings() {
   async function togglePref(key: keyof NotificationPrefs, on: boolean) {
     if (!prefs.data) return;
     const before = prefs.data;
+    setSaving(true);
     prefs.setData({ ...before, [key]: on });
     setError(null);
     try {
       prefs.setData(await api.updateNotificationPrefs({ [key]: on }));
     } catch {
       prefs.setData(before);
-      setError('That change wasn’t saved. Check your connection and try again.');
+      setError('That preference wasn’t saved. Please try again.');
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <Page>
-      <PageHeader title="Settings" description="Appearance and notifications. Changes save as you make them." />
+      <PageHeader title="Settings" description="Appearance is saved on this browser. Flowcast saves notification preferences with your Flowcast profile; no notifications are sent." />
+
+      <SectionHeading>Account</SectionHeading>
+      <p>Signed in with Google. Signing out of Flowcast does not sign you out of Google.</p>
+      <Button onClick={async () => {
+        setSaving(true);
+        try { await signOut(); } catch (e) { setError(e instanceof Error ? e.message : 'Sign-out failed.'); }
+        finally { setSaving(false); }
+      }} disabled={saving}>Sign out of Flowcast</Button>
 
       <SectionHeading>Appearance</SectionHeading>
       <div className={styles.rows}>
@@ -104,6 +118,7 @@ export default function Settings() {
               label={r.label}
               description={r.description}
               checked={prefs.data![r.key]}
+              disabled={saving}
               onChange={(on) => togglePref(r.key, on)}
             />
           ))}

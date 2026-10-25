@@ -1,68 +1,60 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { useLocation, Navigate } from 'react-router';
 import { useSession } from '../auth/session';
+import { savedReturnRoute, safeReturnRoute } from '../auth/client';
+import { AuthFrame } from '../auth/AuthFrame';
 import { config } from '../config';
 import { Button } from '../ui';
 import styles from './SignIn.module.css';
 
 export default function SignIn() {
-  const { session, ready, signInWithGoogle } = useSession();
-  const navigate = useNavigate();
+  const { ready, session, signIn: googleSignIn, error: sessionError } = useSession();
   const location = useLocation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as { from?: string } | null)?.from;
-
-  // Once someone is signed in (just now, or already), send them on.
+  const from = safeReturnRoute((location.state as { from?: string } | null)?.from ?? savedReturnRoute());
   useEffect(() => {
-    if (!ready || !session) return;
-    const dest = !session.onboarded ? '/welcome' : from && from !== '/signin' ? from : '/';
-    navigate(dest, { replace: true });
-  }, [ready, session, from, navigate]);
+    const returned = () => setBusy(false);
+    window.addEventListener('pageshow', returned);
+    return () => window.removeEventListener('pageshow', returned);
+  }, []);
 
   async function signIn() {
     setBusy(true);
     setError(null);
     try {
-      await signInWithGoogle();
-    } catch {
-      setError('Couldn’t reach Google. Check your connection and try again.');
+      await googleSignIn(from);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Couldn’t start Google sign-in. Please try again.');
       setBusy(false);
     }
   }
 
+  if (ready && session) return <Navigate to={safeReturnRoute(from)} replace />;
+
   return (
-    <main className={styles.screen}>
-      <div className={styles.column}>
-        <div className={styles.brand}>
-          <span className={styles.mark} aria-hidden />
-          <span>{config.appName}</span>
-        </div>
-
-        <h1 className={styles.title}>Know how busy campus will be before you go</h1>
+    <AuthFrame title="Sign in to Flowcast">
         <p className={styles.lede}>
-          Flowcast is a 3D map of BU where simulated students follow real schedules, so it can predict how crowded dining halls,
-          libraries and classrooms will get.
+          Keep your schedule and followed clubs in one place.
         </p>
-
-        <Button variant="primary" size="lg" className={styles.google} onClick={signIn} disabled={busy || !ready}>
-          {busy ? 'Signing in…' : 'Continue with Google'}
+        <Button variant="accent" size="lg" className={styles.google} onClick={signIn} disabled={busy || !ready} aria-busy={busy || !ready}>
+          {!ready ? 'Checking your account…' : busy ? 'Opening Google…' : 'Continue with Google'}
         </Button>
-        {error && (
+        {!busy && (error || sessionError) && (
           <p className={styles.error} role="alert">
-            {error}
+            {error || sessionError}
           </p>
         )}
 
         <p className={styles.fine}>
-          Flowcast reads your Google Calendar to place your classes on the map. You can disconnect it or delete your data anytime.
+          Google Calendar stays private. Import your schedule after signing in.
         </p>
 
-        <p className={styles.footer}>
-          Run a club? <Link to="/clubs/register">Register your club</Link>
-        </p>
-      </div>
-    </main>
+        <div className={styles.browse}>
+          <p>No account needed for the campus map.</p>
+          <Button href={config.mapUrl} size="lg" className={styles.publicMap}>Explore the map</Button>
+        </div>
+    </AuthFrame>
   );
 }

@@ -10,7 +10,6 @@
   justify-content: space-between;
   height: var(--topbar-height);
   padding: 0 var(--space-6);
-  border-bottom: 1px solid var(--color-hairline-soft);
 }
 
 .brand {
@@ -29,10 +28,9 @@
 }
 
 .mark {
-  width: var(--space-5);
-  height: var(--space-5);
-  border-radius: var(--radius-sm);
-  background: var(--color-strong);
+  flex: none;
+  width: 24px;
+  height: 24px;
 }
 
 .column {
@@ -58,13 +56,15 @@
   line-height: var(--leading-snug);
 }
 
+/* The form is one glass card under the title, like the account pages. */
 .form {
+  composes: glass from global;
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
   margin-top: var(--space-8);
-  padding-top: var(--space-8);
-  border-top: 1px solid var(--color-hairline);
+  padding: var(--space-6);
+  border-radius: var(--radius-card);
 }
 
 .check {
@@ -101,23 +101,20 @@
 .actions {
   display: flex;
   gap: var(--space-2);
-  margin-top: var(--space-3);
+  margin-top: var(--space-1);
 }
 
 .subhead {
-  margin-top: var(--space-10);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--color-hairline);
-  color: var(--color-ink-secondary);
-  font-family: var(--font-text);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-regular);
-  letter-spacing: var(--tracking-text);
+  margin: var(--space-10) 0 var(--space-4);
+  font-size: var(--text-lg);
 }
 
+/* What happens next: numbered rows on one glass card. */
 .steps {
+  composes: glass from global;
   margin: 0 0 var(--space-8);
-  padding: 0;
+  padding: var(--space-1) var(--space-5);
+  border-radius: var(--radius-card);
   list-style: none;
   counter-reset: step;
 }
@@ -127,9 +124,12 @@
   grid-template-columns: var(--space-8) minmax(0, 1fr);
   row-gap: var(--space-1);
   padding: var(--space-4) 0;
-  border-bottom: 1px solid var(--color-hairline-soft);
   color: var(--color-ink-secondary);
   counter-increment: step;
+}
+
+.steps li + li {
+  border-top: 1px solid var(--color-hairline-soft);
 }
 
 .steps li::before {
@@ -157,5 +157,20 @@
 
   .title {
     font-size: var(--text-2xl);
+  }
+
+  .form {
+    padding: var(--space-5) var(--space-4);
+  }
+}
+
+@media (pointer: coarse) {
+  .checkLabel {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .checkLabel input {
+    margin-top: 0;
   }
 }

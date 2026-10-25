@@ -32,12 +32,18 @@ class TransitScheduleTests(unittest.TestCase):
 
     def test_extracts_published_times_and_rejects_nonmonotonic_trip(self):
         transit={'routes':[{'id':'57','kind':'bus'}], 'stops':[{'id':'parent','platforms':['b']}]}
-        result=parse_gtfs(self.fixture(),transit)
+        result=parse_gtfs(self.fixture(),transit, '2026-10-19')
         self.assertEqual(len(result['trips']),1)
         self.assertEqual(result['trips'][0]['stops'][0]['arrival'],90000)
         self.assertEqual(result['trips'][0]['weekdays'],[0,2,3,4])
         self.assertEqual(result['stops']['b']['mapStopId'],'parent')
         self.assertEqual(result['coverage']['rejectedTrips'],1)
+
+    def test_target_week_recomputes_calendar_exceptions(self):
+        transit={'routes':[{'id':'57','kind':'bus'}], 'stops':[]}
+        result=parse_gtfs(self.fixture(),transit, '2026-10-26')
+        self.assertEqual(result['dates'][0], '2026-10-26')
+        self.assertEqual(result['trips'][0]['weekdays'],[0,1,2,3,4])
 
     def test_refuses_uncovered_week_instead_of_shifting_schedule(self):
         with self.assertRaises(ScrapeError):

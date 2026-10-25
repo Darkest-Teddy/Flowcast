@@ -248,7 +248,7 @@ export function bikeTooltip(object: unknown, data: BikeData, feed: BluebikesFeed
     const typical = typicalAt([s], data.binSeconds, time);
     const lines = [`${s.name} (Bluebikes)`];
     if (live) {
-      lines.push(`Now: ${live.bikes} bikes (${live.ebikes} e-bikes) · ${live.docks} empty docks${live.renting ? '' : ' · not renting'}`);
+      lines.push(`Now: ${live.bikes} bikes (${live.ebikes === null ? 'e-bike count unknown' : `${live.ebikes} e-bikes`}) · ${live.docks} empty docks${live.renting ? '' : ' · not renting'}`);
     } else {
       lines.push(feed?.state.error ?? 'Live status loading…');
     }

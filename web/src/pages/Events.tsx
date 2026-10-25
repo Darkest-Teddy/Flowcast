@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, useResource } from '../data/api';
 import { formatDayLabel } from '../lib/format';
-import { Button, EmptyState, Loading, Page, PageHeader, SectionList, Segmented, Tag } from '../ui';
+import { Button, EmptyState, Loading, Page, PageHeader, SectionList, Segmented } from '../ui';
 import { AgendaRow } from './student/AgendaRow';
 import { groupByDay, isUpcoming } from './student/days';
 import { eventDate, eventVenue, mapStatusText } from './student/events';
@@ -16,7 +16,7 @@ export default function Events() {
   const header = (
     <PageHeader
       title="Events"
-      description="Public events on BU’s Terrier Central. Events at mapped places change how crowded they get in the simulation."
+      description="Public listings from BU’s Terrier Central."
       actions={<Button to="/event-impact">See crowd impact by date</Button>}
     />
   );
@@ -71,10 +71,8 @@ export default function Events() {
                   meta={`${eventVenue(e)}${e.organizer ? `, hosted by ${e.organizer}` : ''}`}
                   note={mapStatusText(e)}
                   aside={
-                    e.mapStatus === 'simulated' ? (
+                    e.mapStatus === 'simulated' && (
                       <Button size="sm" to={`/event-impact?date=${eventDate(e)}`}>Crowd impact</Button>
-                    ) : (
-                      <Tag>Not on map</Tag>
                     )
                   }
                 />
@@ -84,7 +82,7 @@ export default function Events() {
         ) : (
           <EmptyState
             title="No upcoming events here"
-            body={filter === 'map' ? 'None of the upcoming events are at places on the map.' : 'New events show up when the events data is refreshed.'}
+            body={filter === 'map' ? 'None of the upcoming events are at places on the map.' : 'No upcoming events in the saved listings.'}
             action={filter !== 'all' && <Button onClick={() => setFilter('all')}>Show all events</Button>}
           />
         )}

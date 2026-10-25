@@ -9,6 +9,7 @@ registerHooks({ resolve(specifier, context, next) {
 const { applyIncident } = await import('../src/sim/incidents.ts');
 const { computeCasualties, CASUALTY_ASSUMPTIONS, CASUALTY_LIMITATIONS } = await import('../src/sim/casualties.ts');
 const { DISASTER_LIMITATIONS } = await import('../src/sim/disasters.ts');
+const { Playback } = await import('../src/sim/playback.ts');
 const DAY = 86400;
 
 // Buildings along latitude 42 (0.001° longitude ≈ 82.7 m): A target, B ≈ 41 m, C ≈ 165 m, D ≈ 827 m.
@@ -80,11 +81,15 @@ test('meteor: exposed occupants and through-walker are harmed; safe, distant and
   const t = walker.at, f = (t - 900) / 200;
   assert.ok(Math.abs(walker.position[0] - (X.home + (X.d - X.home) * f)) < 1e-9 && Math.abs(walker.position[1] - 42) < 1e-12);
   for (const e of result.casualties.filter(e => e.agentId.startsWith('inA'))) { assert.deepEqual(e.position, pos('a')); assert.equal(e.buildingId, 'A'); }
-  // Casualty-only through-walker counts once in affectedAgents, without invented planning metadata.
-  assert.ok(!result.participants.some(p => p.agentId === 'walker'));
+  // A fleeing through-walker still counts once when impact stops its planned escape.
+  assert.ok(result.participants.some(p => p.agentId === 'walker'));
   assert.equal(result.affectedAgents, new Set([...result.participants.map(p => p.agentId), ...harmed]).size);
-  // Underlying schedules stay the planned paths: the walker's trip is untouched (playback stops it at the event).
-  assert.deepEqual(result.day.trips.filter(tr => tr.agent === 'walker'), day.trips.filter(tr => tr.agent === 'walker'));
+  const planned = result.day.trips.filter(tr => tr.agent === 'walker');
+  assert.equal(planned[0].timestamps.at(-1), incident('meteor').start);
+  assert.deepEqual(planned[1].path[0], planned[0].path.at(-1));
+  assert.equal(planned[1].timestamps[0], incident('meteor').start);
+  const playback = new Playback(result.day);
+  assert.ok(!playback.walkingAt(walker.at).some(agent => agent.id === 'walker'));
 });
 
 test('earthquake: indoor harm at building collapse; indoor locations in unaffected buildings are sheltered', () => {

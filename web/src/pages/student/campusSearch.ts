@@ -1,3 +1,4 @@
+import { departureAnswer } from '../../lib/departureAnswer';
 import { crowdFor } from '@theme/tokens';
 import { locationName } from '../../data/api';
 import type {
@@ -10,7 +11,7 @@ import type {
   PlaceForecast,
   ScheduleItem,
 } from '../../data/types';
-import { formatDayTime, formatHour, formatMeters, formatPercent, formatRelative, formatTime, isToday } from '../../lib/format';
+import { formatDayTime, formatHour, formatMeters, formatPercent, formatTime } from '../../lib/format';
 import { interpret, type InsightData, type Walk } from '../../lib/insights';
 import type { AgentAnswer } from '@map/askClient';
 
@@ -65,7 +66,7 @@ export function searchCampus(query: string, d: CampusData): SearchResult[] {
   }
   for (const club of d.clubs) {
     if (!club.verified || !has(club.name, club.description)) continue;
-    results.push({ id: `club-${club.id}`, kind: 'Club', title: club.name, detail: `${club.members} members`, to: '/clubs' });
+    results.push({ id: `club-${club.id}`, kind: 'Club', title: club.name, detail: club.members == null ? 'Published event organizer' : `${club.members} members`, to: '/clubs' });
   }
   return results;
 }
@@ -153,32 +154,21 @@ const walkText = (w: Walk) =>
 
 const walkShort = (w: Walk | null) => (!w ? 'no walking data' : w.meters === 0 ? 'you are here' : `${w.basis === 'route' ? '' : '~'}${w.minutes} min walk`);
 
-const whenText = (iso: string, now: Date) => (isToday(iso, now) ? `${formatTime(iso)} ${formatRelative(iso, now.getTime())}` : formatDayTime(iso));
 
 /** Ask Flowcast: next class, least crowded place of a kind, walking distance, or how busy a place gets. */
 export function answerQuestion(query: string, d: CampusData, now = new Date()): Answer {
   const data: InsightData = { locations: d.locations, schedule: d.schedule, hourly: d.hourly, geo: d.geo, homeLocationId: d.homeLocationId };
   const name = (id: string) => locationName(d.locations, id, false);
   const short = (id: string) => locationName(d.locations, id);
+  if (/\bwhen (?:should|must|can|do) i (?:need to )?(?:leave|depart|head out)\b|\bam i late\b|\bcan i make it\b|\bleave.by time\b/i.test(query)) {
+    return departureAnswer(d.schedule, d.locations, d.geo, d.homeLocationId, now.getTime());
+  }
   const insight = interpret(query, data, now);
 
   switch (insight.kind) {
-    case 'nextClass': {
-      const { item, inProgress, from, walk } = insight;
-      const parts: string[] = [];
-      if (inProgress) parts.push(`You're in ${inProgress.title} at ${short(inProgress.locationId)} until ${formatTime(inProgress.end)}.`);
-      parts.push(`Your next class is ${item.title} at ${name(item.locationId)}, ${whenText(item.start, now)}.`);
-      if (from && walk && walk.meters > 0) {
-        const leaveBy = new Date(Date.parse(item.start) - walk.minutes * 60_000).toISOString();
-        parts.push(`From ${from.label} it's a ${walkText(walk)}, so leave by ${formatTime(leaveBy)}.`);
-      } else if (from && !walk) {
-        parts.push(`Flowcast has no walking data between ${short(from.locationId)} and ${short(item.locationId)} yet.`);
-      }
-      const mapQuestion = from && from.locationId !== item.locationId ? `how far is ${from.locationId} from ${item.locationId}` : `when is ${item.locationId} quiet`;
-      return { text: parts.join(' '), rows: [], focus: [from?.locationId, item.locationId].filter((x): x is string => Boolean(x)), mapQuestion };
-    }
+    case 'nextClass':
     case 'noNextClass':
-      return { text: 'There are no more classes on your calendar this week.', rows: [], focus: [] };
+      return departureAnswer(d.schedule, d.locations, d.geo, d.homeLocationId, now.getTime());
     case 'leastCrowded': {
       const { placeKind, at, ranked, from } = insight;
       const when = Math.abs(at.getTime() - now.getTime()) < 60_000 ? 'right now' : `at ${formatTime(at.toISOString())}`;
@@ -193,7 +183,7 @@ export function answerQuestion(query: string, d: CampusData, now = new Date()): 
       const hhmm = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
       const mapQuestion = `least crowded ${mapKindWord[placeKind]}${when === 'right now' ? '' : ` at ${hhmm}`}`;
       if (best.share === null) {
-        return { text: `Flowcast has no crowd projection for ${kindPlural[placeKind]} ${when}. Projections cover 8 AM to 9 PM today.`, rows, focus: ranked.map((r) => r.locationId), mapQuestion };
+        return { text: `Flowcast has no crowd projection for ${kindPlural[placeKind]} ${when}. Only modeled hours with usable capacity and opening-hour data are compared.`, rows, focus: ranked.map((r) => r.locationId), mapQuestion };
       }
       const walk = best.walk && best.walk.meters > 0 && from ? `, a ${walkText(best.walk)} from ${from.label}` : '';
       return {

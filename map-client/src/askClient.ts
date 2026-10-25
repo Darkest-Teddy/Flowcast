@@ -3,10 +3,19 @@
 // which the Vite dev and preview servers proxy (see vite.config.ts). Parsing is separate from fetching
 // so it can be tested offline.
 
+import type { PersonalSchedule } from './personalSchedule';
+
 export type AskCampus = 'charles-river' | 'fenway' | 'medical';
 
+export interface AgentMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface AgentRequest {
+  personalSchedule?: PersonalSchedule;
   question: string;
+  history?: AgentMessage[];
   /** 0 = Monday … 6 = Sunday. */
   weekday: number;
   /** Seconds since midnight. */
@@ -57,7 +66,12 @@ export interface AgentError {
 
 export type AgentResult = { ok: true; value: AgentAnswer } | { ok: false; error: AgentError };
 
-export const ASK_TIMEOUT_MS = 30_000;
+/**
+ * The server allows the model 25 s once the request is handled, and a request can first wait behind
+ * a day build already running there (about 7 s; the server starts no new build while an answer
+ * runs), so the browser waits longer than both.
+ */
+export const ASK_TIMEOUT_MS = 40_000;
 const MAX_RETRY_AFTER_SEC = 30;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);

@@ -1,5 +1,5 @@
-// Light / dark / follow the system. The choice lives on <html data-theme> (read by theme/tokens.css)
-// and in localStorage so it survives reloads. Reduce transparency works the same way on
+// Light / dark / follow the system, light by default. The choice lives on <html data-theme> (read by
+// theme/tokens.css; System removes it so the device decides) and in localStorage so it survives reloads. Reduce transparency works the same way on
 // <html data-transparency="reduced">: tokens.css then turns every glass surface solid.
 
 export type ThemeChoice = 'system' | 'light' | 'dark';
@@ -10,9 +10,9 @@ const TRANSPARENCY_KEY = 'flowcast.transparency';
 export function savedTheme(): ThemeChoice {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
+    return value === 'system' || value === 'dark' ? value : 'light';
   } catch {
-    return 'system';
+    return 'light';
   }
 }
 
@@ -25,8 +25,7 @@ export function applyTheme(choice: ThemeChoice) {
 export function setTheme(choice: ThemeChoice) {
   applyTheme(choice);
   try {
-    if (choice === 'system') localStorage.removeItem(STORAGE_KEY);
-    else localStorage.setItem(STORAGE_KEY, choice);
+    localStorage.setItem(STORAGE_KEY, choice);
   } catch {
     // storage blocked: the choice lasts for this page load only
   }

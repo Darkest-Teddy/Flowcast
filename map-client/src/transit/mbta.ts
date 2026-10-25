@@ -150,7 +150,7 @@ interface ApiResource {
   relationships: Record<string, { data: { id: string } | null }>;
 }
 
-/** What the map draws transit from: the live feeds (MbtaFeed) or the schedule (ScheduledTransit). */
+/** What the map draws transit from: the live feeds (MbtaFeed) or the published schedule. */
 export interface TransitSource {
   readonly tracks: Track[];
   readonly state: { arrivals: Arrival[] };

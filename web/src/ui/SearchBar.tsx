@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, MessagesSquare } from 'lucide-react';
+import { Button } from './Button';
 import { Segmented } from './Controls';
 import styles from './SearchBar.module.css';
 
@@ -9,13 +10,28 @@ export type SearchMode = 'search' | 'ask';
 export function SearchBar({
   placeholder,
   onSubmit,
+  mode: controlledMode,
+  onModeChange,
+  pending = false,
+  resetToken = 0,
 }: {
   placeholder: string;
+  pending?: boolean;
+  resetToken?: number;
+  mode?: SearchMode;
+  onModeChange?: (mode: SearchMode) => void;
   onSubmit?: (query: string, mode: SearchMode) => void;
 }) {
-  const [mode, setMode] = useState<SearchMode>('search');
+  const [internalMode, setMode] = useState<SearchMode>('search');
+  const mode = controlledMode ?? internalMode;
   const [query, setQuery] = useState('');
   const input = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!resetToken) return;
+    setQuery('');
+    input.current?.focus();
+  }, [resetToken]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -31,30 +47,37 @@ export function SearchBar({
   return (
     <form
       className={styles.bar}
-      role="search"
+      role={mode === 'search' ? 'search' : undefined}
+      aria-label={mode === 'search' ? 'Campus search' : 'Ask Flowcast'}
       onSubmit={(e) => {
         e.preventDefault();
-        if (query.trim()) onSubmit?.(query.trim(), mode);
+        if (query.trim() && !pending) {
+          onSubmit?.(query.trim(), mode);
+          if (mode === 'ask') setQuery('');
+        }
       }}
     >
-      <Search aria-hidden className={styles.icon} />
+      {mode === 'search' ? <Search aria-hidden className={styles.icon} /> : <MessagesSquare aria-hidden className={styles.icon} />}
       <input
         ref={input}
         className={styles.input}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={mode === 'ask' ? 'Ask anything about campus, like “when is Mugar quiet?”' : placeholder}
+        placeholder={mode === 'ask' ? 'Ask about campus or your day…' : placeholder}
         aria-label={mode === 'ask' ? 'Ask Flowcast' : 'Search'}
+        maxLength={mode === 'ask' ? 300 : undefined}
       />
       <Segmented
+        animated
         label="Search mode"
         value={mode}
-        onChange={setMode}
+        onChange={(value) => { setMode(value); onModeChange?.(value); input.current?.focus(); }}
         options={[
           { value: 'search', label: 'Search' },
           { value: 'ask', label: 'Ask Flowcast' },
         ]}
       />
+      <Button type="submit" size="sm" className={styles.submit} disabled={pending || !query.trim()}>{pending ? 'Asking…' : mode === 'ask' ? 'Ask' : 'Search'}</Button>
       <span className={styles.keys} aria-hidden>
         <kbd>Ctrl</kbd>
         <kbd>K</kbd>

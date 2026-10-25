@@ -1,3 +1,8 @@
+/*
+ * Home sits on the same four-column rhythm as the stat cards: Today and Your places take two
+ * columns each, Happening on campus three and Your clubs one, so every card edge lines up with the
+ * cards above and below it. Cards are --space-5 apart; groups are --space-10 apart.
+ */
 .hero {
   padding-top: var(--space-8);
   text-align: center;
@@ -21,17 +26,23 @@
 }
 
 .columns {
+  align-items: start;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-8);
-  margin-top: var(--space-10);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-5);
 }
 
 .bottom {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: var(--space-8);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-5);
   margin-top: var(--space-10);
+}
+
+.bottom > :first-child {
+  grid-column: span 3;
 }
 
 .where {
@@ -47,24 +58,24 @@
   border-radius: var(--radius-xs);
 }
 
-.suggestion {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) 0;
-  font-size: var(--text-sm);
-  color: var(--color-ink-secondary);
+/* Narrow desktop windows: Your clubs needs more than a quarter of the column. */
+@media (max-width: 1100px) {
+  .bottom {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .bottom > :first-child {
+    grid-column: auto;
+  }
 }
 
-@media (max-width: 860px) {
-  .columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+@media (max-width: 720px) {
+  .columns,
   .bottom {
     grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
   }
+
 }
 
 @media (max-width: 560px) {
@@ -75,4 +86,27 @@
   .headline {
     font-size: var(--text-2xl);
   }
+
+  .bottom {
+    margin-top: var(--space-8);
+  }
+
+  .columns {
+  align-items: start;
+    margin-top: var(--space-4);
+  }
+
+  /* The place or venue goes on its own line under the name. */
+  .where {
+    display: block;
+    margin-left: 0;
+  }
 }
+
+.forecastNote {
+  padding-block: var(--space-3);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+.forecastNote summary { cursor: pointer; }
+.forecastNote p { margin-top: var(--space-2); }

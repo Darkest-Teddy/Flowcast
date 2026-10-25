@@ -27,6 +27,7 @@
   outline: none;
   background: transparent;
   font-size: var(--text-lg);
+  text-overflow: ellipsis;
 }
 
 .input::placeholder {
@@ -62,4 +63,14 @@
   .keys {
     display: none;
   }
+}
+
+/* The capsule shows focus (above); the input's own outline would draw a box inside it. */
+.input:focus-visible {
+  outline: none;
+}
+
+.submit {
+  min-width: var(--space-20);
+  flex-shrink: 0;
 }

@@ -24,6 +24,27 @@ test('walking buckets retain long trips, exclude endpoints, and support scrubbin
   assert.equal(playback.walkingAt(450)[0].position[0], -71.005);
 });
 
+test('walker positions and headings match a plain segment scan, including repeated timestamps', () => {
+  const path = [[-71, 42], [-71.001, 42.0005], [-71.001, 42.0005], [-71.003, 42.001], [-71.004, 42.0002], [-71.006, 42.0004]];
+  const timestamps = [100, 130, 130, 190, 240, 300];
+  const playback = new Playback({ day: 'Monday', buildings: [], locations: [], agents: [{ id: 'a', home: 'off-campus', model: 3 }], trips: [{ agent: 'a', from: 'home', to: 'class', path, timestamps }] });
+  const rad = Math.PI / 180;
+  const bearing = (a, b) => {
+    const dLon = (b[0] - a[0]) * rad, lat1 = a[1] * rad, lat2 = b[1] * rad;
+    return (Math.atan2(Math.sin(dLon) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon)) / rad + 360) % 360;
+  };
+  for (let t = 100; t < 300; t += 2.5) {
+    let i = 1;
+    while (timestamps[i] <= t) i++;
+    const a = path[i - 1], b = path[i];
+    const f = (t - timestamps[i - 1]) / (timestamps[i] - timestamps[i - 1]);
+    const [walker] = playback.walkingAt(t);
+    assert.deepEqual(walker.position, [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0], `position at ${t}`);
+    assert.equal(walker.bearing, bearing(a, b), `bearing at ${t}`);
+    assert.equal(walker.model, 3);
+  }
+});
+
 test('trail windows retain fading and long walks, cache candidates, and follow scrubbing and speed', () => {
   const trip = (start, end) => ({agent:'a', from:'home', to:'class', path:[[-71,42],[-71.01,42]], timestamps:[start,end]});
   const trips = [trip(10,50), trip(280,299), trip(100,1000), trip(600,650), trip(2000,2100)];

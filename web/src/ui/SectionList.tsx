@@ -37,16 +37,22 @@ export function SectionList({
   );
 }
 
-/** One row: text on the left, a quiet detail on the right, optional leading badge and link. */
+/**
+ * One row: text on the left, a quiet detail on the right, optional leading badge and link.
+ * `subtitle` puts a quieter second line under the title (a place, a time), so long rows wrap
+ * instead of pushing the detail off the card.
+ */
 export function ListRow({
   leading,
   title,
+  subtitle,
   detail,
   to,
   trailing,
 }: {
   leading?: ReactNode;
   title: ReactNode;
+  subtitle?: ReactNode;
   detail?: ReactNode;
   to?: string;
   trailing?: ReactNode;
@@ -54,7 +60,14 @@ export function ListRow({
   const content = (
     <>
       {leading && <span className={styles.leading}>{leading}</span>}
-      <span className={styles.rowTitle}>{title}</span>
+      {subtitle ? (
+        <span className={styles.rowText}>
+          <span className={styles.rowTitle}>{title}</span>
+          <span className={styles.subtitle}>{subtitle}</span>
+        </span>
+      ) : (
+        <span className={styles.rowTitle}>{title}</span>
+      )}
       {detail && <span className={styles.detail}>{detail}</span>}
       {trailing}
       {to && <ChevronRight aria-hidden className={styles.chev} />}

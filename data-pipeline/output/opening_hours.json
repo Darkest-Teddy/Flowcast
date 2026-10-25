@@ -4,7 +4,7 @@
   "generatedAt": "2026-10-24T23:33:33.249071+00:00",
   "timezone": "America/New_York",
   "status": "ok",
-  "collectedAt": "2026-10-24T23:33:33.419328+00:00",
+  "collectedAt": "2026-10-25T06:14:09.099668+00:00",
   "locations": [
     {
       "locationId": "mugar",
@@ -177,12 +177,25 @@
           "text": "10:00am – 11:00pm",
           "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
           "qualifier": null
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              36000,
+              93600
+            ]
+          ],
+          "text": "10:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+          "qualifier": null
         }
       ],
       "reason": null,
       "sources": [
         "https://www.bu.edu/library/visit-study/hours/",
-        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01"
       ]
     },
     {
@@ -356,12 +369,25 @@
           "text": "10:00am – 6:00pm",
           "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
           "qualifier": null
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              36000,
+              82800
+            ]
+          ],
+          "text": "10:00am – 11:00pm",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+          "qualifier": null
         }
       ],
       "reason": null,
       "sources": [
         "https://www.bu.edu/library/visit-study/hours/",
-        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01"
       ]
     },
     {
@@ -416,10 +442,10 @@
           "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
           "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
           "serviceSourceUrls": [
-            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
-            "https://www.bu.edu/dining/location/panda-express/",
             "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
-            "https://www.bu.edu/dining/location/the-halal-shack/"
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/the-halal-shack/",
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/"
           ]
         },
         {
@@ -434,10 +460,10 @@
           "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
           "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
           "serviceSourceUrls": [
-            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
-            "https://www.bu.edu/dining/location/panda-express/",
             "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
-            "https://www.bu.edu/dining/location/the-halal-shack/"
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/the-halal-shack/",
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/"
           ]
         },
         {
@@ -452,10 +478,10 @@
           "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
           "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
           "serviceSourceUrls": [
-            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
-            "https://www.bu.edu/dining/location/panda-express/",
             "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
-            "https://www.bu.edu/dining/location/the-halal-shack/"
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/the-halal-shack/",
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/"
           ]
         },
         {
@@ -470,10 +496,10 @@
           "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
           "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
           "serviceSourceUrls": [
-            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
-            "https://www.bu.edu/dining/location/panda-express/",
             "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
-            "https://www.bu.edu/dining/location/the-halal-shack/"
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/the-halal-shack/",
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/"
           ]
         },
         {
@@ -488,19 +514,50 @@
           "sourceUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
           "qualifier": "Union of four meal vendors; partial service coverage, not the entire food hall or full capacity.",
           "serviceSourceUrls": [
-            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
-            "https://www.bu.edu/dining/location/panda-express/",
             "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
-            "https://www.bu.edu/dining/location/the-halal-shack/"
+            "https://www.bu.edu/dining/location/panda-express/",
+            "https://www.bu.edu/dining/location/the-halal-shack/",
+            "https://www.bu.edu/dining/location/urban-table-at-the-gsu/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [
+            [
+              39600,
+              68400
+            ]
+          ],
+          "text": "11 AM to 7 PM",
+          "sourceUrl": "https://www.google.com/maps/place/Panda+Express/@42.3508603,-71.1089789,17z/data=!3m1!4b1!4m6!3m5!1s0x0:0x543245e44ddcd0fe!8m2!3d42.3508603!4d-71.1089789!16s%2Fg%2F1th45y1h?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:13:22.200Z",
+          "placeName": "Panda Express",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. Panda Express meal service only; other GSU vendors unverified. Not whole-building or full-food-hall hours."
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              39600,
+              68400
+            ]
+          ],
+          "text": "11 AM to 7 PM",
+          "sourceUrl": "https://www.google.com/maps/place/Panda+Express/@42.3508603,-71.1089789,17z/data=!3m1!4b1!4m6!3m5!1s0x0:0x543245e44ddcd0fe!8m2!3d42.3508603!4d-71.1089789!16s%2Fg%2F1th45y1h?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:13:22.200Z",
+          "placeName": "Panda Express",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. Panda Express meal service only; other GSU vendors unverified. Not whole-building or full-food-hall hours."
         }
       ],
       "reason": "Meal-vendor coverage only; no whole-hall capacity inference",
       "sources": [
-        "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
-        "https://www.bu.edu/dining/location/panda-express/",
         "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
-        "https://www.bu.edu/dining/location/the-halal-shack/"
+        "https://www.bu.edu/dining/location/panda-express/",
+        "https://www.bu.edu/dining/location/the-halal-shack/",
+        "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
+        "https://www.google.com/maps/place/Panda+Express/@42.3508603,-71.1089789,17z/data=!3m1!4b1!4m6!3m5!1s0x0:0x543245e44ddcd0fe!8m2!3d42.3508603!4d-71.1089789!16s%2Fg%2F1th45y1h?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D"
       ]
     },
     {
@@ -545,9 +602,9 @@
               79200
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "text": "07:00–22:00",
           "sourceUrl": "https://www.bu.edu/dining/location/warren/",
-          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/warren/"
           ]
@@ -560,9 +617,9 @@
               79200
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "text": "07:00–22:00",
           "sourceUrl": "https://www.bu.edu/dining/location/warren/",
-          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/warren/"
           ]
@@ -575,9 +632,9 @@
               79200
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "text": "07:00–22:00",
           "sourceUrl": "https://www.bu.edu/dining/location/warren/",
-          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/warren/"
           ]
@@ -590,9 +647,9 @@
               79200
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "text": "07:00–22:00",
           "sourceUrl": "https://www.bu.edu/dining/location/warren/",
-          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/warren/"
           ]
@@ -605,17 +662,48 @@
               75600
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "text": "07:00–21:00",
           "sourceUrl": "https://www.bu.edu/dining/location/warren/",
-          "qualifier": "Meal service: warren; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/warren/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [
+            [
+              32400,
+              75600
+            ]
+          ],
+          "text": "9 AM to 9 PM",
+          "sourceUrl": "https://www.google.com/maps/place/The+Fresh+Food+Company+at+Warren+Towers/@42.3493891,-71.1041538,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379f898f6d009:0x8495c97206d1921e!8m2!3d42.3493891!4d-71.1041538!16s%2Fg%2F11j4tzh0ny?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:13:01.942Z",
+          "placeName": "The Fresh Food Company at Warren Towers",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              36000,
+              75600
+            ]
+          ],
+          "text": "10 AM to 9 PM",
+          "sourceUrl": "https://www.google.com/maps/place/The+Fresh+Food+Company+at+Warren+Towers/@42.3493891,-71.1041538,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379f898f6d009:0x8495c97206d1921e!8m2!3d42.3493891!4d-71.1041538!16s%2Fg%2F11j4tzh0ny?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:13:01.942Z",
+          "placeName": "The Fresh Food Company at Warren Towers",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
         }
       ],
       "reason": null,
       "sources": [
-        "https://www.bu.edu/dining/location/warren/"
+        "https://www.bu.edu/dining/location/warren/",
+        "https://www.google.com/maps/place/The+Fresh+Food+Company+at+Warren+Towers/@42.3493891,-71.1041538,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379f898f6d009:0x8495c97206d1921e!8m2!3d42.3493891!4d-71.1041538!16s%2Fg%2F11j4tzh0ny?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D"
       ]
     },
     {
@@ -834,9 +922,9 @@
               79200
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "text": "07:00–22:00",
           "sourceUrl": "https://www.bu.edu/dining/location/west/",
-          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/west/"
           ]
@@ -849,9 +937,9 @@
               79200
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "text": "07:00–22:00",
           "sourceUrl": "https://www.bu.edu/dining/location/west/",
-          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/west/"
           ]
@@ -864,9 +952,9 @@
               79200
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "text": "07:00–22:00",
           "sourceUrl": "https://www.bu.edu/dining/location/west/",
-          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/west/"
           ]
@@ -879,9 +967,9 @@
               79200
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 10:00 PM",
+          "text": "07:00–22:00",
           "sourceUrl": "https://www.bu.edu/dining/location/west/",
-          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/west/"
           ]
@@ -894,17 +982,48 @@
               75600
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "text": "07:00–21:00",
           "sourceUrl": "https://www.bu.edu/dining/location/west/",
-          "qualifier": "Meal service: west; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/west/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [
+            [
+              32400,
+              75600
+            ]
+          ],
+          "text": "09:00–21:00",
+          "sourceUrl": "https://www.bu.edu/dining/location/west/",
+          "qualifier": "Published dated meal service hours.",
+          "serviceSourceUrls": [
+            "https://www.bu.edu/dining/location/west/"
+          ]
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              36000,
+              75600
+            ]
+          ],
+          "text": "10 AM to 9 PM",
+          "sourceUrl": "https://www.google.com/maps/place/The+Fresh+Food+Company+at+West+Campus/@42.3526692,-71.1202102,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37992800954a1:0xb174d9294cac8436!8m2!3d42.3526692!4d-71.1202102!16s%2Fg%2F11h71kf_sf?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:13:01.950Z",
+          "placeName": "The Fresh Food Company at West Campus",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
         }
       ],
       "reason": null,
       "sources": [
-        "https://www.bu.edu/dining/location/west/"
+        "https://www.bu.edu/dining/location/west/",
+        "https://www.google.com/maps/place/The+Fresh+Food+Company+at+West+Campus/@42.3526692,-71.1202102,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37992800954a1:0xb174d9294cac8436!8m2!3d42.3526692!4d-71.1202102!16s%2Fg%2F11h71kf_sf?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D"
       ]
     },
     {
@@ -949,9 +1068,9 @@
               75600
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "text": "07:00–21:00",
           "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
-          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/marciano/"
           ]
@@ -964,9 +1083,9 @@
               75600
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "text": "07:00–21:00",
           "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
-          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/marciano/"
           ]
@@ -979,9 +1098,9 @@
               75600
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "text": "07:00–21:00",
           "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
-          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/marciano/"
           ]
@@ -994,9 +1113,9 @@
               75600
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "text": "07:00–21:00",
           "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
-          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/marciano/"
           ]
@@ -1009,17 +1128,48 @@
               75600
             ]
           ],
-          "text": "Breakfast 7:00 AM - 11:00 AM Lunch 11:00 AM - 5:00 PM Dinner 5:00 PM - 9:00 PM",
+          "text": "07:00–21:00",
           "sourceUrl": "https://www.bu.edu/dining/location/marciano/",
-          "qualifier": "Meal service: marciano; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/marciano/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [
+            [
+              32400,
+              75600
+            ]
+          ],
+          "text": "9 AM to 9 PM",
+          "sourceUrl": "https://www.google.com/maps/place/Marciano+Dining+Hall/@42.3497666,-71.1024127,17z/data=!4m10!1m2!2m1!1sMarciano+Commons+Boston+University!3m6!1s0x89e379f80305afa5:0x884d543c5e9104f2!8m2!3d42.3497666!4d-71.0979066!15sCiJNYXJjaWFubyBDb21tb25zIEJvc3RvbiBVbml2ZXJzaXR5WiQiIm1hcmNpYW5vIGNvbW1vbnMgYm9zdG9uIHVuaXZlcnNpdHmSAQljYWZldGVyaWGaASNDaFpEU1VoTk1HOW5TMFZKUTBGblNVUnVOUzFVZDJOUkVBReABAPoBBAgAECo!16s%2Fg%2F11bwpz3w4p?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:13:01.950Z",
+          "placeName": "Marciano Dining Hall",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              36000,
+              75600
+            ]
+          ],
+          "text": "10 AM to 9 PM",
+          "sourceUrl": "https://www.google.com/maps/place/Marciano+Dining+Hall/@42.3497666,-71.1024127,17z/data=!4m10!1m2!2m1!1sMarciano+Commons+Boston+University!3m6!1s0x89e379f80305afa5:0x884d543c5e9104f2!8m2!3d42.3497666!4d-71.0979066!15sCiJNYXJjaWFubyBDb21tb25zIEJvc3RvbiBVbml2ZXJzaXR5WiQiIm1hcmNpYW5vIGNvbW1vbnMgYm9zdG9uIHVuaXZlcnNpdHmSAQljYWZldGVyaWGaASNDaFpEU1VoTk1HOW5TMFZKUTBGblNVUnVOUzFVZDJOUkVBReABAPoBBAgAECo!16s%2Fg%2F11bwpz3w4p?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:13:01.950Z",
+          "placeName": "Marciano Dining Hall",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
         }
       ],
       "reason": null,
       "sources": [
-        "https://www.bu.edu/dining/location/marciano/"
+        "https://www.bu.edu/dining/location/marciano/",
+        "https://www.google.com/maps/place/Marciano+Dining+Hall/@42.3497666,-71.1024127,17z/data=!4m10!1m2!2m1!1sMarciano+Commons+Boston+University!3m6!1s0x89e379f80305afa5:0x884d543c5e9104f2!8m2!3d42.3497666!4d-71.0979066!15sCiJNYXJjaWFubyBDb21tb25zIEJvc3RvbiBVbml2ZXJzaXR5WiQiIm1hcmNpYW5vIGNvbW1vbnMgYm9zdG9uIHVuaXZlcnNpdHmSAQljYWZldGVyaWGaASNDaFpEU1VoTk1HOW5TMFZKUTBGblNVUnVOUzFVZDJOUkVBReABAPoBBAgAECo!16s%2Fg%2F11bwpz3w4p?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D"
       ]
     },
     {
@@ -1173,12 +1323,20 @@
           "text": "Closed",
           "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
           "qualifier": null
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+          "qualifier": null
         }
       ],
       "reason": null,
       "sources": [
         "https://www.bu.edu/library/visit-study/hours/",
-        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01"
       ]
     },
     {
@@ -1332,12 +1490,20 @@
           "text": "Closed",
           "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
           "qualifier": null
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+          "qualifier": null
         }
       ],
       "reason": null,
       "sources": [
         "https://www.bu.edu/library/visit-study/hours/",
-        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01"
       ]
     },
     {
@@ -1491,12 +1657,20 @@
           "text": "Closed",
           "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
           "qualifier": null
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+          "qualifier": null
         }
       ],
       "reason": null,
       "sources": [
         "https://www.bu.edu/library/visit-study/hours/",
-        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01"
       ]
     },
     {
@@ -1650,12 +1824,20 @@
           "text": "Closed",
           "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
           "qualifier": null
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+          "qualifier": null
         }
       ],
       "reason": null,
       "sources": [
         "https://www.bu.edu/library/visit-study/hours/",
-        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01"
       ]
     },
     {
@@ -1829,12 +2011,25 @@
           "text": "10:00am – 11:00pm",
           "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
           "qualifier": null
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              36000,
+              93600
+            ]
+          ],
+          "text": "10:00am – 2:00am",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+          "qualifier": null
         }
       ],
       "reason": null,
       "sources": [
         "https://www.bu.edu/library/visit-study/hours/",
-        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01"
       ]
     },
     {
@@ -1988,12 +2183,20 @@
           "text": "Closed",
           "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
           "qualifier": null
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+          "qualifier": null
         }
       ],
       "reason": null,
       "sources": [
         "https://www.bu.edu/library/visit-study/hours/",
-        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01"
       ]
     },
     {
@@ -2147,12 +2350,20 @@
           "text": "Closed",
           "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
           "qualifier": null
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+          "qualifier": null
         }
       ],
       "reason": null,
       "sources": [
         "https://www.bu.edu/library/visit-study/hours/",
-        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25"
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-10-25",
+        "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01"
       ]
     },
     {
@@ -2407,9 +2618,9 @@
               66600
             ]
           ],
-          "text": "7:30 AM - 6:30 PM",
+          "text": "07:30–18:30",
           "sourceUrl": "https://www.bu.edu/dining/location/breadwinners/",
-          "qualifier": "Meal service: breadwinners; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/breadwinners/"
           ]
@@ -2422,9 +2633,9 @@
               66600
             ]
           ],
-          "text": "7:30 AM - 6:30 PM",
+          "text": "07:30–18:30",
           "sourceUrl": "https://www.bu.edu/dining/location/breadwinners/",
-          "qualifier": "Meal service: breadwinners; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/breadwinners/"
           ]
@@ -2437,9 +2648,9 @@
               66600
             ]
           ],
-          "text": "7:30 AM - 6:30 PM",
+          "text": "07:30–18:30",
           "sourceUrl": "https://www.bu.edu/dining/location/breadwinners/",
-          "qualifier": "Meal service: breadwinners; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/breadwinners/"
           ]
@@ -2452,9 +2663,9 @@
               66600
             ]
           ],
-          "text": "7:30 AM - 6:30 PM",
+          "text": "07:30–18:30",
           "sourceUrl": "https://www.bu.edu/dining/location/breadwinners/",
-          "qualifier": "Meal service: breadwinners; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/breadwinners/"
           ]
@@ -2467,9 +2678,9 @@
               52200
             ]
           ],
-          "text": "7:30 AM - 2:30 PM",
+          "text": "07:30–14:30",
           "sourceUrl": "https://www.bu.edu/dining/location/breadwinners/",
-          "qualifier": "Meal service: breadwinners; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/breadwinners/"
           ]
@@ -2522,9 +2733,9 @@
               68400
             ]
           ],
-          "text": "7:30 AM - 7:00 PM",
+          "text": "07:30–19:00",
           "sourceUrl": "https://www.bu.edu/dining/location/saxbys/",
-          "qualifier": "Meal service: saxbys; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/saxbys/"
           ]
@@ -2537,9 +2748,9 @@
               68400
             ]
           ],
-          "text": "7:30 AM - 7:00 PM",
+          "text": "07:30–19:00",
           "sourceUrl": "https://www.bu.edu/dining/location/saxbys/",
-          "qualifier": "Meal service: saxbys; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/saxbys/"
           ]
@@ -2552,9 +2763,9 @@
               68400
             ]
           ],
-          "text": "7:30 AM - 7:00 PM",
+          "text": "07:30–19:00",
           "sourceUrl": "https://www.bu.edu/dining/location/saxbys/",
-          "qualifier": "Meal service: saxbys; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/saxbys/"
           ]
@@ -2567,9 +2778,9 @@
               68400
             ]
           ],
-          "text": "7:30 AM - 7:00 PM",
+          "text": "07:30–19:00",
           "sourceUrl": "https://www.bu.edu/dining/location/saxbys/",
-          "qualifier": "Meal service: saxbys; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/saxbys/"
           ]
@@ -2582,17 +2793,48 @@
               61200
             ]
           ],
-          "text": "7:30 AM - 5:00 PM",
+          "text": "07:30–17:00",
           "sourceUrl": "https://www.bu.edu/dining/location/saxbys/",
-          "qualifier": "Meal service: saxbys; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/saxbys/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [
+            [
+              36000,
+              57600
+            ]
+          ],
+          "text": "10 AM to 4 PM",
+          "sourceUrl": "https://www.google.com/maps/place/Saxbys+at+Boston+University/@42.3498971,-71.1032301,17z/data=!3m1!4b1!4m6!3m5!1s0x89e3797d92f9da17:0x8f7b55b1f150485e!8m2!3d42.3498971!4d-71.1032301!16s%2Fg%2F11k5565zgn?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:12:39.191695+00:00",
+          "placeName": "Saxbys at Boston University",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              36000,
+              57600
+            ]
+          ],
+          "text": "10 AM to 4 PM",
+          "sourceUrl": "https://www.google.com/maps/place/Saxbys+at+Boston+University/@42.3498971,-71.1032301,17z/data=!3m1!4b1!4m6!3m5!1s0x89e3797d92f9da17:0x8f7b55b1f150485e!8m2!3d42.3498971!4d-71.1032301!16s%2Fg%2F11k5565zgn?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:12:39.191695+00:00",
+          "placeName": "Saxbys at Boston University",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
         }
       ],
       "reason": null,
       "sources": [
-        "https://www.bu.edu/dining/location/saxbys/"
+        "https://www.bu.edu/dining/location/saxbys/",
+        "https://www.google.com/maps/place/Saxbys+at+Boston+University/@42.3498971,-71.1032301,17z/data=!3m1!4b1!4m6!3m5!1s0x89e3797d92f9da17:0x8f7b55b1f150485e!8m2!3d42.3498971!4d-71.1032301!16s%2Fg%2F11k5565zgn?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D"
       ]
     },
     {
@@ -2627,9 +2869,9 @@
               66600
             ]
           ],
-          "text": "7:30 AM - 6:30 PM",
+          "text": "07:30–18:30",
           "sourceUrl": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/",
-          "qualifier": "Meal service: einsteins-brothers-bagels; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/einsteins-brothers-bagels/"
           ]
@@ -2642,9 +2884,9 @@
               66600
             ]
           ],
-          "text": "7:30 AM - 6:30 PM",
+          "text": "07:30–18:30",
           "sourceUrl": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/",
-          "qualifier": "Meal service: einsteins-brothers-bagels; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/einsteins-brothers-bagels/"
           ]
@@ -2657,9 +2899,9 @@
               66600
             ]
           ],
-          "text": "7:30 AM - 6:30 PM",
+          "text": "07:30–18:30",
           "sourceUrl": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/",
-          "qualifier": "Meal service: einsteins-brothers-bagels; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/einsteins-brothers-bagels/"
           ]
@@ -2672,9 +2914,9 @@
               66600
             ]
           ],
-          "text": "7:30 AM - 6:30 PM",
+          "text": "07:30–18:30",
           "sourceUrl": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/",
-          "qualifier": "Meal service: einsteins-brothers-bagels; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/einsteins-brothers-bagels/"
           ]
@@ -2687,9 +2929,9 @@
               54000
             ]
           ],
-          "text": "7:30 AM - 3:00 PM",
+          "text": "07:30–15:00",
           "sourceUrl": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/",
-          "qualifier": "Meal service: einsteins-brothers-bagels; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/einsteins-brothers-bagels/"
           ]
@@ -2742,9 +2984,9 @@
               86400
             ]
           ],
-          "text": "7:00 AM - 12:00 AM",
+          "text": "07:00–24:00",
           "sourceUrl": "https://www.bu.edu/dining/location/buick-street-market/",
-          "qualifier": "Meal service: buick-street-market; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/buick-street-market/"
           ]
@@ -2757,9 +2999,9 @@
               86400
             ]
           ],
-          "text": "7:00 AM - 12:00 AM",
+          "text": "07:00–24:00",
           "sourceUrl": "https://www.bu.edu/dining/location/buick-street-market/",
-          "qualifier": "Meal service: buick-street-market; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/buick-street-market/"
           ]
@@ -2772,9 +3014,9 @@
               86400
             ]
           ],
-          "text": "7:00 AM - 12:00 AM",
+          "text": "07:00–24:00",
           "sourceUrl": "https://www.bu.edu/dining/location/buick-street-market/",
-          "qualifier": "Meal service: buick-street-market; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/buick-street-market/"
           ]
@@ -2787,9 +3029,9 @@
               86400
             ]
           ],
-          "text": "7:00 AM - 12:00 AM",
+          "text": "07:00–24:00",
           "sourceUrl": "https://www.bu.edu/dining/location/buick-street-market/",
-          "qualifier": "Meal service: buick-street-market; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/buick-street-market/"
           ]
@@ -2802,17 +3044,38 @@
               86400
             ]
           ],
-          "text": "7:00 AM - 12:00 AM",
+          "text": "07:00–24:00",
           "sourceUrl": "https://www.bu.edu/dining/location/buick-street-market/",
-          "qualifier": "Meal service: buick-street-market; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/buick-street-market/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.google.com/maps/place/Buick+Street+Market+%26+Caf%C3%A9/@42.3520639,-71.1157191,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379e8a5931665:0x3ccc3ba81f709c13!8m2!3d42.3520639!4d-71.1157191!16s%2Fg%2F1yh5th7yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:12:39.191873+00:00",
+          "placeName": "Buick Street Market & Café",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.google.com/maps/place/Buick+Street+Market+%26+Caf%C3%A9/@42.3520639,-71.1157191,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379e8a5931665:0x3ccc3ba81f709c13!8m2!3d42.3520639!4d-71.1157191!16s%2Fg%2F1yh5th7yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:12:39.191873+00:00",
+          "placeName": "Buick Street Market & Café",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
         }
       ],
       "reason": null,
       "sources": [
-        "https://www.bu.edu/dining/location/buick-street-market/"
+        "https://www.bu.edu/dining/location/buick-street-market/",
+        "https://www.google.com/maps/place/Buick+Street+Market+%26+Caf%C3%A9/@42.3520639,-71.1157191,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379e8a5931665:0x3ccc3ba81f709c13!8m2!3d42.3520639!4d-71.1157191!16s%2Fg%2F1yh5th7yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D"
       ]
     },
     {
@@ -2847,9 +3110,9 @@
               57600
             ]
           ],
-          "text": "11:30 AM - 4:00 PM",
+          "text": "11:30–16:00",
           "sourceUrl": "https://www.bu.edu/dining/location/fullersbupub/",
-          "qualifier": "Meal service: fullersbupub; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/fullersbupub/"
           ]
@@ -2862,9 +3125,9 @@
               82800
             ]
           ],
-          "text": "11:30 AM - 11:00 PM",
+          "text": "11:30–23:00",
           "sourceUrl": "https://www.bu.edu/dining/location/fullersbupub/",
-          "qualifier": "Meal service: fullersbupub; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/fullersbupub/"
           ]
@@ -2877,9 +3140,9 @@
               82800
             ]
           ],
-          "text": "11:30 AM - 11:00 PM",
+          "text": "11:30–23:00",
           "sourceUrl": "https://www.bu.edu/dining/location/fullersbupub/",
-          "qualifier": "Meal service: fullersbupub; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/fullersbupub/"
           ]
@@ -2892,9 +3155,9 @@
               86400
             ]
           ],
-          "text": "11:30 AM - 12:00 AM",
+          "text": "11:30–24:00",
           "sourceUrl": "https://www.bu.edu/dining/location/fullersbupub/",
-          "qualifier": "Meal service: fullersbupub; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/fullersbupub/"
           ]
@@ -2907,17 +3170,38 @@
               86400
             ]
           ],
-          "text": "11:30 AM - 12:00 AM",
+          "text": "11:30–24:00",
           "sourceUrl": "https://www.bu.edu/dining/location/fullersbupub/",
-          "qualifier": "Meal service: fullersbupub; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/fullersbupub/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.google.com/maps/place/Fuller's+BU+Pub/@42.3508757,-71.1037545,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379fa06ac8abd:0x76b0cdbd9080f0df!8m2!3d42.3508757!4d-71.1037545!16s%2Fg%2F11b5zxw4yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:12:39.191877+00:00",
+          "placeName": "Fuller's BU Pub",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.google.com/maps/place/Fuller's+BU+Pub/@42.3508757,-71.1037545,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379fa06ac8abd:0x76b0cdbd9080f0df!8m2!3d42.3508757!4d-71.1037545!16s%2Fg%2F11b5zxw4yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:12:39.191877+00:00",
+          "placeName": "Fuller's BU Pub",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
         }
       ],
       "reason": null,
       "sources": [
-        "https://www.bu.edu/dining/location/fullersbupub/"
+        "https://www.bu.edu/dining/location/fullersbupub/",
+        "https://www.google.com/maps/place/Fuller's+BU+Pub/@42.3508757,-71.1037545,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379fa06ac8abd:0x76b0cdbd9080f0df!8m2!3d42.3508757!4d-71.1037545!16s%2Fg%2F11b5zxw4yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D"
       ]
     },
     {
@@ -2962,9 +3246,9 @@
               90000
             ]
           ],
-          "text": "10:30 PM - 1:00 AM",
+          "text": "22:30–25:00",
           "sourceUrl": "https://www.bu.edu/dining/location/afterhourswest/",
-          "qualifier": "Meal service: afterhourswest; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/afterhourswest/"
           ]
@@ -2977,9 +3261,9 @@
               90000
             ]
           ],
-          "text": "10:30 PM - 1:00 AM",
+          "text": "22:30–25:00",
           "sourceUrl": "https://www.bu.edu/dining/location/afterhourswest/",
-          "qualifier": "Meal service: afterhourswest; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/afterhourswest/"
           ]
@@ -2992,9 +3276,9 @@
               90000
             ]
           ],
-          "text": "10:30 PM - 1:00 AM",
+          "text": "22:30–25:00",
           "sourceUrl": "https://www.bu.edu/dining/location/afterhourswest/",
-          "qualifier": "Meal service: afterhourswest; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/afterhourswest/"
           ]
@@ -3007,9 +3291,9 @@
               90000
             ]
           ],
-          "text": "10:30 PM - 1:00 AM",
+          "text": "22:30–25:00",
           "sourceUrl": "https://www.bu.edu/dining/location/afterhourswest/",
-          "qualifier": "Meal service: afterhourswest; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/afterhourswest/"
           ]
@@ -3022,16 +3306,41 @@
               90000
             ]
           ],
-          "text": "9:30 PM - 1:00 AM",
+          "text": "21:30–25:00",
           "sourceUrl": "https://www.bu.edu/dining/location/afterhourswest/",
-          "qualifier": "Meal service: afterhourswest; hours are dated, not a recurring weekly schedule.",
+          "qualifier": "Published dated meal service hours.",
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/afterhourswest/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [
+            [
+              79200,
+              90000
+            ]
+          ],
+          "text": "10 pm to 1 am daily",
+          "sourceUrl": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+          "qualifier": "BU Today October 21, 2026 published daily schedule; reviewed for requested week. Dated location hours take precedence."
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [
+            [
+              79200,
+              90000
+            ]
+          ],
+          "text": "10 pm to 1 am daily",
+          "sourceUrl": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+          "qualifier": "BU Today October 21, 2026 published daily schedule; reviewed for requested week. Dated location hours take precedence."
         }
       ],
       "reason": null,
       "sources": [
+        "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
         "https://www.bu.edu/dining/location/afterhourswest/"
       ]
     },
@@ -3408,11 +3717,32 @@
           "weekday": 4,
           "validFrom": "2026-10-26",
           "validTo": "2026-11-01"
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.google.com/maps/place/Chequers+-+catering+-+Boston+MA/@42.3364013,-71.072408,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37a6abc98a9d5:0x6eb78ed2c6812399!8m2!3d42.3364013!4d-71.072408!16s%2Fg%2F11h4cgcqc3?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:13:01.950Z",
+          "placeName": "Chequers - catering - Boston MA",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.google.com/maps/place/Chequers+-+catering+-+Boston+MA/@42.3364013,-71.072408,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37a6abc98a9d5:0x6eb78ed2c6812399!8m2!3d42.3364013!4d-71.072408!16s%2Fg%2F11h4cgcqc3?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+          "sourceKind": "google_maps_regular_hours",
+          "observedAt": "2026-10-25T06:13:01.950Z",
+          "placeName": "Chequers - catering - Boston MA",
+          "qualifier": "Google Maps regular weekly listing used as a fallback for this scenario date; date-specific exceptions unverified. "
         }
       ],
       "reason": null,
       "sources": [
-        "https://www.bumc.bu.edu/chequers/"
+        "https://www.bumc.bu.edu/chequers/",
+        "https://www.google.com/maps/place/Chequers+-+catering+-+Boston+MA/@42.3364013,-71.072408,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37a6abc98a9d5:0x6eb78ed2c6812399!8m2!3d42.3364013!4d-71.072408!16s%2Fg%2F11h4cgcqc3?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D"
       ]
     },
     {
@@ -3873,7 +4203,7 @@
     {
       "url": "https://www.bu.edu/dining/location/warren/",
       "requestedUrl": "https://www.bu.edu/dining/location/warren/",
-      "retrievedAt": "2026-10-24T17:39:13.722292+00:00",
+      "retrievedAt": "2026-10-25T06:03:21.430439+00:00",
       "sha256": "5bfd0be5d784cba8492f3f668593e61cf72c1bfc904e65d9e653968d095611fc",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/6519c8af051d28473fbc5f13f1b75f1de1c69de41a94659e5b2c9adf14579086.body",
@@ -3891,7 +4221,7 @@
     {
       "url": "https://www.bu.edu/dining/location/marciano/",
       "requestedUrl": "https://www.bu.edu/dining/location/marciano/",
-      "retrievedAt": "2026-10-24T17:39:29.034905+00:00",
+      "retrievedAt": "2026-10-25T06:03:26.706032+00:00",
       "sha256": "8083144f09ffa92585b4497f932fe16beb0bd37b8ce64e151b8314e4e0e1c6e7",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/93d27f08646630561acbe2c38b10d5dd2968df9c26bdf57cdbde6c0fc9436dec.body",
@@ -3909,7 +4239,7 @@
     {
       "url": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
       "requestedUrl": "https://www.bu.edu/dining/location/urban-table-at-the-gsu/",
-      "retrievedAt": "2026-10-24T17:40:24.164938+00:00",
+      "retrievedAt": "2026-10-25T06:03:26.823708+00:00",
       "sha256": "67334ed12f29a30502fcd069db5c1958af0cf87b71131e0dbf11c0315c4d83eb",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/c0699b30117449c0f419f291e4fa705bd146c653d424f8b41703ad1db55cd4e8.body",
@@ -3918,7 +4248,7 @@
     {
       "url": "https://www.bu.edu/dining/location/panda-express/",
       "requestedUrl": "https://www.bu.edu/dining/location/panda-express/",
-      "retrievedAt": "2026-10-24T17:41:49.581366+00:00",
+      "retrievedAt": "2026-10-25T06:03:27.329783+00:00",
       "sha256": "0fc2264ce33788c72f43b82c25f3271474f73c0ab322b782b9da2a233e632cf1",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/8bee85e165219e4196eea093bd00a53d06c52cfde6a398e64d8b58b16c27b801.body",
@@ -3927,7 +4257,7 @@
     {
       "url": "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
       "requestedUrl": "https://www.bu.edu/dining/location/basho-sushi-at-the-gsu/",
-      "retrievedAt": "2026-10-24T17:41:50.445053+00:00",
+      "retrievedAt": "2026-10-25T06:03:27.843807+00:00",
       "sha256": "cbcebfcdf1b9c6c5566a7d65ce94247f523a0094f2dacc5dafa802abf964b6d5",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/2c3800965b7dc56b7a038c7e3d1f8649d93353a83606b26943e4e6ac474a0bbd.body",
@@ -3936,7 +4266,7 @@
     {
       "url": "https://www.bu.edu/dining/location/the-halal-shack/",
       "requestedUrl": "https://www.bu.edu/dining/location/the-halal-shack/",
-      "retrievedAt": "2026-10-24T17:41:51.357441+00:00",
+      "retrievedAt": "2026-10-25T06:03:28.357558+00:00",
       "sha256": "833cdcaeb3151f08e0ac9b208a4de83fba7ee8b0b0d89859c590773d3f127fd9",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/3406b22185906acebe32153292e5cc3d53444b47b27394a43ffb37b9c6f8deae.body",
@@ -3945,7 +4275,7 @@
     {
       "url": "https://www.bu.edu/dining/location/breadwinners/",
       "requestedUrl": "https://www.bu.edu/dining/location/breadwinners/",
-      "retrievedAt": "2026-10-24T23:27:21.853958+00:00",
+      "retrievedAt": "2026-10-25T06:03:28.849165+00:00",
       "sha256": "5caaf55732297ec5ee3ef1428cf572decb848b4246557fb8889c68b6668320d6",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/435511c21c2b9ea6bb3b073b8c5960eec9aedc7fe68a1fc9e6da458abd6997b3.body",
@@ -3954,7 +4284,7 @@
     {
       "url": "https://www.bu.edu/dining/location/saxbys/",
       "requestedUrl": "https://www.bu.edu/dining/location/saxbys/",
-      "retrievedAt": "2026-10-24T23:27:24.913458+00:00",
+      "retrievedAt": "2026-10-25T06:03:29.355345+00:00",
       "sha256": "05ec9ff6af4310572d4f331d4113d7997d53a428d7da5d7a585eca0d0761e063",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/0d9373384bced653cd3a438b909fc1e885f893858e18a8a9c89a71f917a24542.body",
@@ -3963,7 +4293,7 @@
     {
       "url": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/",
       "requestedUrl": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/",
-      "retrievedAt": "2026-10-24T23:27:26.332227+00:00",
+      "retrievedAt": "2026-10-25T06:03:29.859031+00:00",
       "sha256": "888f42c50c38174829f51eb2d24b96f2c0aaf97ac232cd5d925359c7d81758e5",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/de88f2b36fddcf92070263487cb01822c1152c40ef7c52a399d137bb88e4017e.body",
@@ -3972,7 +4302,7 @@
     {
       "url": "https://www.bu.edu/dining/location/buick-street-market/",
       "requestedUrl": "https://www.bu.edu/dining/location/buick-street-market/",
-      "retrievedAt": "2026-10-24T23:27:27.897790+00:00",
+      "retrievedAt": "2026-10-25T06:03:30.359850+00:00",
       "sha256": "7da565f3ebda861f104b70bb155ee0cae442daccec6d618d8c4294839355470e",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/d2925713c33cadc8f3653eecd9dc42af03ce892827fa3893093925b23e10c3e9.body",
@@ -3981,7 +4311,7 @@
     {
       "url": "https://www.bu.edu/dining/location/fullersbupub/",
       "requestedUrl": "https://www.bu.edu/dining/location/fullersbupub/",
-      "retrievedAt": "2026-10-24T23:27:34.041585+00:00",
+      "retrievedAt": "2026-10-25T06:03:30.869688+00:00",
       "sha256": "58fe815823780479c031c5da3aef7432c6957f4416f33b0c088f661a15215faf",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/d9968ef662264a6cb662ea80780aed35e4c7b493b3d08b6b0d62ad885a01fd76.body",
@@ -3990,7 +4320,7 @@
     {
       "url": "https://www.bu.edu/dining/location/afterhourswest/",
       "requestedUrl": "https://www.bu.edu/dining/location/afterhourswest/",
-      "retrievedAt": "2026-10-24T23:27:35.428265+00:00",
+      "retrievedAt": "2026-10-25T06:03:31.380119+00:00",
       "sha256": "a11e4da673fd0cbe59edae20b96a13fff41c5bee661d73125007d1fbe20196d5",
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/3ee27584929394cbd462e3b508d3b343e30478ecbb3390b4836d88eb69a381fc.body",
@@ -4058,6 +4388,113 @@
       "contentType": "text/html; charset=UTF-8",
       "rawPath": "data-pipeline/.cache/sources/8dfa59c819badf2d6db8ec9081be73650f8eea17e8e88c8c71d3e7a2762b60ac.body",
       "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+      "requestedUrl": "https://www.bu.edu/library/visit-study/hours/?week=2026-11-01",
+      "retrievedAt": "2026-10-25T06:01:03.855656+00:00",
+      "sha256": "aa633bdeff6c7e6c11b5e82df028edbc1211cd712515501a82ef73229d52dc52",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/1285f3ea550853135f9cc81d608a7f7edecada74ed9df85b9586bf51bb2b82da.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/dining/location/west/",
+      "requestedUrl": "https://www.bu.edu/dining/location/west/",
+      "retrievedAt": "2026-10-25T06:03:25.676531+00:00",
+      "sha256": "c32f1134173e99e97f3f269ebe48b320715965fa7022b9b908fd77c6388df14f",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/a1edf8cf1cbe116c97beba44754d118944771df542de153d150d2059cad5aea1.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+      "requestedUrl": "https://www.bu.edu/articles/2026/dining-services-expands-offerings/",
+      "retrievedAt": "2026-10-25T06:03:31.867205+00:00",
+      "sha256": "c5cc65c46c41d01e47f5c4f8b17b8706778670212487331e68ada52eafdfa8f4",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/67d645fffb7d13bc2b62fda6c7d26370f9754798d6dde785b895981075141332.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.google.com/maps/place/The+Fresh+Food+Company+at+Warren+Towers/@42.3493891,-71.1041538,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379f898f6d009:0x8495c97206d1921e!8m2!3d42.3493891!4d-71.1041538!16s%2Fg%2F11j4tzh0ny?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "requestedUrl": "https://www.google.com/maps/place/The+Fresh+Food+Company+at+Warren+Towers/@42.3493891,-71.1041538,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379f898f6d009:0x8495c97206d1921e!8m2!3d42.3493891!4d-71.1041538!16s%2Fg%2F11j4tzh0ny?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "retrievedAt": "2026-10-25T06:13:01.942Z",
+      "sha256": "e82f35c27c7d457dc9373a751e4330f03f4f052e602eb523f44cfc603beefcf9",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/google_maps_hours.json",
+      "cacheUsed": true,
+      "captureMethod": "Manually reviewed Google Maps listing; hash identifies saved observation records."
+    },
+    {
+      "url": "https://www.google.com/maps/place/The+Fresh+Food+Company+at+West+Campus/@42.3526692,-71.1202102,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37992800954a1:0xb174d9294cac8436!8m2!3d42.3526692!4d-71.1202102!16s%2Fg%2F11h71kf_sf?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "requestedUrl": "https://www.google.com/maps/place/The+Fresh+Food+Company+at+West+Campus/@42.3526692,-71.1202102,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37992800954a1:0xb174d9294cac8436!8m2!3d42.3526692!4d-71.1202102!16s%2Fg%2F11h71kf_sf?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "retrievedAt": "2026-10-25T06:13:01.950Z",
+      "sha256": "e82f35c27c7d457dc9373a751e4330f03f4f052e602eb523f44cfc603beefcf9",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/google_maps_hours.json",
+      "cacheUsed": true,
+      "captureMethod": "Manually reviewed Google Maps listing; hash identifies saved observation records."
+    },
+    {
+      "url": "https://www.google.com/maps/place/Marciano+Dining+Hall/@42.3497666,-71.1024127,17z/data=!4m10!1m2!2m1!1sMarciano+Commons+Boston+University!3m6!1s0x89e379f80305afa5:0x884d543c5e9104f2!8m2!3d42.3497666!4d-71.0979066!15sCiJNYXJjaWFubyBDb21tb25zIEJvc3RvbiBVbml2ZXJzaXR5WiQiIm1hcmNpYW5vIGNvbW1vbnMgYm9zdG9uIHVuaXZlcnNpdHmSAQljYWZldGVyaWGaASNDaFpEU1VoTk1HOW5TMFZKUTBGblNVUnVOUzFVZDJOUkVBReABAPoBBAgAECo!16s%2Fg%2F11bwpz3w4p?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "requestedUrl": "https://www.google.com/maps/place/Marciano+Dining+Hall/@42.3497666,-71.1024127,17z/data=!4m10!1m2!2m1!1sMarciano+Commons+Boston+University!3m6!1s0x89e379f80305afa5:0x884d543c5e9104f2!8m2!3d42.3497666!4d-71.0979066!15sCiJNYXJjaWFubyBDb21tb25zIEJvc3RvbiBVbml2ZXJzaXR5WiQiIm1hcmNpYW5vIGNvbW1vbnMgYm9zdG9uIHVuaXZlcnNpdHmSAQljYWZldGVyaWGaASNDaFpEU1VoTk1HOW5TMFZKUTBGblNVUnVOUzFVZDJOUkVBReABAPoBBAgAECo!16s%2Fg%2F11bwpz3w4p?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "retrievedAt": "2026-10-25T06:13:01.950Z",
+      "sha256": "e82f35c27c7d457dc9373a751e4330f03f4f052e602eb523f44cfc603beefcf9",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/google_maps_hours.json",
+      "cacheUsed": true,
+      "captureMethod": "Manually reviewed Google Maps listing; hash identifies saved observation records."
+    },
+    {
+      "url": "https://www.google.com/maps/place/Chequers+-+catering+-+Boston+MA/@42.3364013,-71.072408,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37a6abc98a9d5:0x6eb78ed2c6812399!8m2!3d42.3364013!4d-71.072408!16s%2Fg%2F11h4cgcqc3?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "requestedUrl": "https://www.google.com/maps/place/Chequers+-+catering+-+Boston+MA/@42.3364013,-71.072408,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37a6abc98a9d5:0x6eb78ed2c6812399!8m2!3d42.3364013!4d-71.072408!16s%2Fg%2F11h4cgcqc3?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "retrievedAt": "2026-10-25T06:13:01.950Z",
+      "sha256": "e82f35c27c7d457dc9373a751e4330f03f4f052e602eb523f44cfc603beefcf9",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/google_maps_hours.json",
+      "cacheUsed": true,
+      "captureMethod": "Manually reviewed Google Maps listing; hash identifies saved observation records."
+    },
+    {
+      "url": "https://www.google.com/maps/place/Saxbys+at+Boston+University/@42.3498971,-71.1032301,17z/data=!3m1!4b1!4m6!3m5!1s0x89e3797d92f9da17:0x8f7b55b1f150485e!8m2!3d42.3498971!4d-71.1032301!16s%2Fg%2F11k5565zgn?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "requestedUrl": "https://www.google.com/maps/place/Saxbys+at+Boston+University/@42.3498971,-71.1032301,17z/data=!3m1!4b1!4m6!3m5!1s0x89e3797d92f9da17:0x8f7b55b1f150485e!8m2!3d42.3498971!4d-71.1032301!16s%2Fg%2F11k5565zgn?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "retrievedAt": "2026-10-25T06:12:39.191695+00:00",
+      "sha256": "e82f35c27c7d457dc9373a751e4330f03f4f052e602eb523f44cfc603beefcf9",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/google_maps_hours.json",
+      "cacheUsed": true,
+      "captureMethod": "Manually reviewed Google Maps listing; hash identifies saved observation records."
+    },
+    {
+      "url": "https://www.google.com/maps/place/Buick+Street+Market+%26+Caf%C3%A9/@42.3520639,-71.1157191,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379e8a5931665:0x3ccc3ba81f709c13!8m2!3d42.3520639!4d-71.1157191!16s%2Fg%2F1yh5th7yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "requestedUrl": "https://www.google.com/maps/place/Buick+Street+Market+%26+Caf%C3%A9/@42.3520639,-71.1157191,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379e8a5931665:0x3ccc3ba81f709c13!8m2!3d42.3520639!4d-71.1157191!16s%2Fg%2F1yh5th7yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "retrievedAt": "2026-10-25T06:12:39.191873+00:00",
+      "sha256": "e82f35c27c7d457dc9373a751e4330f03f4f052e602eb523f44cfc603beefcf9",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/google_maps_hours.json",
+      "cacheUsed": true,
+      "captureMethod": "Manually reviewed Google Maps listing; hash identifies saved observation records."
+    },
+    {
+      "url": "https://www.google.com/maps/place/Fuller's+BU+Pub/@42.3508757,-71.1037545,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379fa06ac8abd:0x76b0cdbd9080f0df!8m2!3d42.3508757!4d-71.1037545!16s%2Fg%2F11b5zxw4yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "requestedUrl": "https://www.google.com/maps/place/Fuller's+BU+Pub/@42.3508757,-71.1037545,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379fa06ac8abd:0x76b0cdbd9080f0df!8m2!3d42.3508757!4d-71.1037545!16s%2Fg%2F11b5zxw4yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "retrievedAt": "2026-10-25T06:12:39.191877+00:00",
+      "sha256": "e82f35c27c7d457dc9373a751e4330f03f4f052e602eb523f44cfc603beefcf9",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/google_maps_hours.json",
+      "cacheUsed": true,
+      "captureMethod": "Manually reviewed Google Maps listing; hash identifies saved observation records."
+    },
+    {
+      "url": "https://www.google.com/maps/place/Panda+Express/@42.3508603,-71.1089789,17z/data=!3m1!4b1!4m6!3m5!1s0x0:0x543245e44ddcd0fe!8m2!3d42.3508603!4d-71.1089789!16s%2Fg%2F1th45y1h?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "requestedUrl": "https://www.google.com/maps/place/Panda+Express/@42.3508603,-71.1089789,17z/data=!3m1!4b1!4m6!3m5!1s0x0:0x543245e44ddcd0fe!8m2!3d42.3508603!4d-71.1089789!16s%2Fg%2F1th45y1h?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "retrievedAt": "2026-10-25T06:13:22.200Z",
+      "sha256": "e82f35c27c7d457dc9373a751e4330f03f4f052e602eb523f44cfc603beefcf9",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/google_maps_hours.json",
+      "cacheUsed": true,
+      "captureMethod": "Manually reviewed Google Maps listing; hash identifies saved observation records."
     }
   ],
   "coverage": {
@@ -4076,5 +4513,43 @@
       "bumc-library",
       "law-library"
     ]
+  },
+  "diningRefresh": {
+    "weekStart": "2026-10-26",
+    "weekEnd": "2026-11-01",
+    "errors": [],
+    "missingDates": {
+      "warren-dining": [],
+      "west-dining": [],
+      "marciano": [],
+      "gsu": [],
+      "breadwinners": [
+        "2026-10-31",
+        "2026-11-01"
+      ],
+      "saxbys": [],
+      "einstein-bagels": [
+        "2026-10-31",
+        "2026-11-01"
+      ],
+      "buick-street-market": [],
+      "fullers-pub": [],
+      "after-hours-west": []
+    }
+  },
+  "googleMapsFallback": {
+    "weekStart": "2026-10-26",
+    "weekEnd": "2026-11-01",
+    "basis": "Manually reviewed Google Maps regular weekend listings, used only to fill missing scenario hours. Date-specific exceptions unverified.",
+    "missingDates": {
+      "breadwinners": [
+        "2026-10-31",
+        "2026-11-01"
+      ],
+      "einstein-bagels": [
+        "2026-10-31",
+        "2026-11-01"
+      ]
+    }
   }
 }

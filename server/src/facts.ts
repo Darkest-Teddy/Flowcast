@@ -6,6 +6,7 @@
 // Never here: stays, trips, agent ids, source assignments or activities, bike rides, live
 // transit feeds, source URL lists, or the private bundle unless FLOWCAST_ASK_PRIVATE_BUNDLE=1.
 
+import type { PersonalSchedule } from '../../map-client/src/personalSchedule';
 import type { AskContext } from '../../map-client/src/insights';
 import { ASK_ASSUMPTIONS } from '../../map-client/src/insights';
 import { LEVELS } from '../../map-client/src/layers/crowdLevels';
@@ -13,6 +14,7 @@ import type { CampusLocation, Playback } from '../../map-client/src/sim/playback
 import type { PopulationSummary } from '../../map-client/src/sim/population';
 import { MODELED_OFF_CAMPUS_MEAL_SHARE } from '../../map-client/src/sim/sourceDay';
 import { WEEKDAYS, type CampusData } from '../../map-client/src/data/campusData';
+import type { ChatFacts } from './chatData';
 
 export const BASIS_TOPICS = ['capacity', 'crowding', 'walking', 'enrollment', 'hours', 'meals_study_gym', 'housing', 'estimated_places', 'population'] as const;
 export type BasisTopic = (typeof BASIS_TOPICS)[number];
@@ -46,10 +48,12 @@ export interface AskFacts {
   assumptions: Record<BasisTopic, string[]>;
   /** Every location the playback knows, including off-campus gateways (for walking destinations). */
   allLocations: CampusLocation[];
+  /** The extra datasets only the chat tools read (chatData.ts); absent in minimal fixtures. */
+  chat?: ChatFacts;
 }
 
 /** The Ask context on the server: the shared one plus the facts above. */
-export type ServerAskContext = AskContext & { facts?: AskFacts };
+export type ServerAskContext = AskContext & { facts?: AskFacts; personalSchedule?: PersonalSchedule };
 
 export const clip = (text: string | null | undefined, max = 200) =>
   !text ? null : text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;

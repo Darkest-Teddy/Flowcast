@@ -45,3 +45,15 @@
   font-size: var(--text-sm);
   color: var(--color-bad);
 }
+
+/* Touch screens: 44px fields (16px text also stops iOS zooming in on focus). */
+@media (pointer: coarse) {
+  .control {
+    height: 44px;
+    font-size: var(--text-lg);
+  }
+
+  .area {
+    height: auto;
+  }
+}

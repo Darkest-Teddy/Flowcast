@@ -1,5 +1,4 @@
-// Shapes the web app reads. The server will serve these same shapes; until it exists, api.ts answers
-// from fixtures.ts so pages can be built now and switched over without changes.
+// Dashboard contracts shared by the HTTP client and server.
 
 export type Role = 'student' | 'clubOfficer' | 'admin';
 
@@ -46,18 +45,37 @@ export interface ScheduleItem {
   start: string; // ISO
   end: string; // ISO
   source: EventSource;
+  locationText?: string; // Original calendar location, including room information.
   clubId?: string;
   note?: string;
   accepted?: boolean; // a suggested item the person added to their day
 }
 
+export interface ScheduleImportState {
+  items: ScheduleItem[];
+  fileName: string | null;
+  importedAt: string | null;
+  windowStart: string | null;
+  windowEnd: string | null;
+}
+
+export interface SchedulePreview {
+  items: ScheduleItem[];
+  fileName: string;
+  warnings: string[];
+  windowStart: string;
+  windowEnd: string;
+}
+
 export interface PlaceForecast {
+  basis?: string;
   locationId: string;
-  at: string; // ISO time the person will be there
-  share: number; // predicted occupancy / capacity
+  at: string; // ISO projection time
+  share: number; // projected (simulated) occupancy / capacity
 }
 
 export interface HourlyForecast {
+  basis?: string;
   locationId: string;
   day: string; // ISO date
   hours: { hour: number; share: number }[];
@@ -86,7 +104,7 @@ export interface Club {
   id: string;
   name: string;
   verified: boolean;
-  members: number;
+  members: number | null;
   following: boolean;
   description: string;
 }
@@ -102,7 +120,7 @@ export interface CampusEvent {
   start: string; // ISO
   end: string | null;
   organizer: string | null;
-  clubId: string | null; // null for events not uploaded by a Flowcast-verified club
+  clubId: string | null; // published organizer ID; null when no organizer is listed
   source: 'club-ics' | 'university' | 'manual' | 'terrier-central';
   sourceUrl?: string;
   mapStatus: EventMapStatus;
@@ -292,5 +310,22 @@ export interface ClubDetails extends Club {
   listingUrl: string;
   officers: string[];
   verifiedAt: string | null; // ISO
-  followers: number;
+  followers: number | null;
+}
+
+export interface DashboardPublic {
+  locations: CampusLocation[];
+  geo: CampusGeo;
+  events: CampusEvent[];
+  impact: EventImpactData;
+  hourly: HourlyForecast[];
+  places: PlaceForecast[];
+  clubs: Club[];
+}
+
+export interface DashboardMe {
+  session: Session;
+  profile: Profile;
+  notificationPrefs: NotificationPrefs;
+  following: string[];
 }

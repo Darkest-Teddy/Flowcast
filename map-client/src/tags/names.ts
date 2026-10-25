@@ -17,3 +17,18 @@ export function displayShort(short: string, name: string): string {
 
 /** Places that get their own tag when they share a building with something else. */
 export const AMENITY_KINDS = new Set(['dining', 'library', 'gym']);
+
+/**
+ * A shared building's places, split into the ones its own tag describes (`rest`) and the amenities
+ * that get a dot of their own. When every place is an amenity (Mugar Memorial Library holds the
+ * Music and African Studies libraries), the largest one is the building's own place, so the
+ * building's tag keeps its name instead of taking the name of whichever small library is busiest.
+ */
+export function sharedTagParts<T extends { location: { id: string; kind: string; capacity: number } }>(places: readonly T[]): { rest: T[]; amenities: T[] } {
+  const amenities = places.filter((o) => AMENITY_KINDS.has(o.location.kind));
+  const rest = places.filter((o) => !AMENITY_KINDS.has(o.location.kind));
+  if (rest.length || amenities.length < 2) return { rest, amenities };
+  const main = amenities.reduce((a, o) => (o.location.capacity > a.location.capacity
+    || (o.location.capacity === a.location.capacity && o.location.id < a.location.id) ? o : a));
+  return { rest: [main], amenities: amenities.filter((o) => o !== main) };
+}

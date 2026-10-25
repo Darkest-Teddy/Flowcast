@@ -1,0 +1,154 @@
+.directory {
+  border-top: 1px solid var(--color-hairline);
+  padding: var(--space-3) 0;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-text);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height-touch);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-capsule);
+  background: transparent;
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.toggle svg {
+  width: var(--space-4);
+  height: var(--space-4);
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.flip {
+  transform: rotate(180deg);
+}
+
+.body {
+  display: none;
+  margin-top: var(--space-3);
+}
+
+.body.open { display: block; }
+
+.hint {
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.hint code,
+.notice code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  white-space: nowrap;
+}
+
+.notice {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  font-size: var(--text-sm);
+}
+
+.domains {
+  display: grid;
+  gap: var(--space-5);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.domain + .domain {
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-hairline-soft);
+}
+
+.domainTitle {
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-text);
+}
+
+.description {
+  margin-top: var(--space-1);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.datasets {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dataset {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-sm);
+}
+
+.datasetHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+}
+
+.datasetName {
+  font-weight: var(--weight-medium);
+}
+
+.datasetMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-xs);
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.source svg {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+@media (max-width: 1080px) {
+  .toggle {
+    display: inline-flex;
+  }
+
+  .body {
+    display: none;
+  }
+
+  .body.open {
+    display: block;
+    margin-bottom: var(--space-2);
+  }
+}

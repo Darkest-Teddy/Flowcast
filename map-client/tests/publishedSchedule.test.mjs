@@ -19,7 +19,7 @@ test('published anchors determine dwell and travel time, not heuristic speed',()
  transit.setTime(32580,6);assert.equal(transit.positionsAt().length,0);
 });
 test('previous service-day 25-hour trips appear after midnight',()=>{
- const {transit}=fixture([-1],16*3600);transit.setTime(3600+120,0);assert.equal(transit.positionsAt().length,1);
+ const {transit}=fixture([-1],16*3600);transit.setTime(3600+120,0);assert.equal(transit.positionsAt().length,1);assert.equal(transit.inService('57'),true);
  transit.setTime(3600+120,1);assert.equal(transit.positionsAt().length,0);
 });
 test('off-route anchors break the run rather than bridging disconnected geometry',()=>{
@@ -30,4 +30,20 @@ test('off-route anchors break the run rather than bridging disconnected geometry
 test('paused simulation keeps arrival countdown tied to simulation time',()=>{
  const {transit}=fixture();const original=Date.now;let now=100000;Date.now=()=>now;
  try {transit.setTime(32430,0);const first=transit.nextArrivals('b')[0].time-now;now+=300000;transit.setTime(32430,0);assert.equal(transit.nextArrivals('b')[0].time-now,first);}finally{Date.now=original}
+});
+
+
+test('date-aware playback refuses weekday reuse outside the collected dates', () => {
+ const {transit, schedule}=fixture();
+ schedule.dates=['2026-10-19']; schedule.feed={start:'20261001',end:'20261031'};
+ transit.setTime(32430,0,'2026-10-19');assert.equal(transit.positionsAt().length,1);
+ transit.setTime(32430,0,'2026-10-26');assert.equal(transit.positionsAt().length,0);
+ assert.deepEqual(transit.state.arrivals,[]);assert.equal(transit.inService('57'),undefined);
+});
+
+test('historical shuttle baseline cannot load as a current published timetable', async () => {
+ const {loadPublishedSchedule}=await import('../src/transit/publishedSchedule.ts');
+ const original=globalThis.fetch;
+ globalThis.fetch=async()=>({ok:true,json:async()=>({schemaVersion:1,trips:[],stops:{},dates:Array(7).fill('2026-10-19'),feed:{start:'20240830',end:'20251231'}})});
+ try { await assert.rejects(loadPublishedSchedule(),/historical baseline/); } finally {globalThis.fetch=original;}
 });

@@ -127,8 +127,15 @@ const shortName = (d: InsightData, id: string) => d.locations.find((l) => l.id =
 
 /** Projected share at the hour containing `at`, from a forecast for that same local day. */
 export function shareAt(hourly: HourlyForecast[], locationId: string, at: Date): number | null {
-  const f = hourly.find((h) => h.locationId === locationId && sameDay(new Date(h.day), at));
-  return f?.hours.find((h) => h.hour === at.getHours())?.share ?? null;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
+  }).formatToParts(at).map((part) => [part.type, part.value]));
+  const day = `${parts.year}-${parts.month}-${parts.day}`;
+  const f = hourly.find((h) => h.locationId === locationId && (
+    /^\d{4}-\d{2}-\d{2}$/.test(h.day) ? h.day === day : sameDay(new Date(h.day), at)
+  ));
+  const hour = f && /^\d{4}-\d{2}-\d{2}$/.test(f.day) ? Number(parts.hour) : at.getHours();
+  return f?.hours.find((h) => h.hour === hour)?.share ?? null;
 }
 
 /** Places of one kind, quietest first; places without a projection go last. */

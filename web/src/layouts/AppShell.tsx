@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { Menu, X, type LucideIcon } from 'lucide-react';
 import styles from './AppShell.module.css';
+import { Logo } from '../ui/Logo';
 
 export interface NavItem {
   to: string;
@@ -9,6 +10,7 @@ export interface NavItem {
   icon: LucideIcon;
   badge?: number;
   end?: boolean;
+  external?: boolean;
 }
 
 export interface NavSection {
@@ -45,28 +47,23 @@ function moveFocus(e: KeyboardEvent, container: HTMLElement | null) {
 }
 
 /**
- * Sidebar + top bar frame shared by the student app and the admin area. The top bar title is the
- * label of whichever nav item matches the current route. On phones the sidebar becomes a slide-out
- * drawer, or, when `tabBar` is given, a floating tab bar at the bottom.
+ * Sidebar frame shared by the student app and admin area. On phones, use a menu button
+ * for the admin drawer or the student floating tab bar.
  */
 export function AppShell({
   sections,
   brandTag,
-  topbarActions,
   sidebarFooter,
   tabBar,
 }: {
   sections: NavSection[];
   brandTag?: string;
-  topbarActions?: ReactNode;
   sidebarFooter?: ReactNode;
   tabBar?: TabBarConfig;
 }) {
   const [open, setOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const { pathname } = useLocation();
-  const all = sections.flatMap((s) => s.items);
-  const current = all.filter((i) => isActive(i, pathname)).sort((a, b) => b.to.length - a.to.length)[0] ?? all[0];
 
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -131,7 +128,7 @@ export function AppShell({
     <div className={`${styles.shell} ${tabBar ? styles.withTabBar : ''}`}>
       <aside className={`${styles.sidebar} ${open ? styles.open : ''}`} aria-label="Main">
         <div className={styles.brand}>
-          <span className={styles.mark} aria-hidden />
+          <Logo className={styles.mark} />
           <span>Flowcast</span>
           {brandTag && <span className={styles.brandTag}>{brandTag}</span>}
           <button ref={closeButton} className={styles.close} onClick={() => setOpen(false)} aria-label="Close menu">
@@ -147,6 +144,7 @@ export function AppShell({
                   key={item.to}
                   to={item.to}
                   end={item.end}
+                  reloadDocument={item.external}
                   onClick={() => setOpen(false)}
                   className={({ isActive }) => `${styles.item} ${isActive ? styles.active : ''}`}
                 >
@@ -163,15 +161,9 @@ export function AppShell({
       {open && <div className={styles.scrim} onClick={() => setOpen(false)} aria-hidden />}
 
       <div className={styles.main} inert={open || undefined}>
-        <header className={styles.topbar}>
-          {!tabBar && (
-            <button ref={menuButton} className={styles.menu} onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}>
-              <Menu aria-hidden />
-            </button>
-          )}
-          <span className={styles.title}>{current?.label}</span>
-          <div className={styles.topActions}>{topbarActions}</div>
-        </header>
+        {!tabBar && <button ref={menuButton} className={styles.menu} onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}>
+          <Menu aria-hidden />
+        </button>}
         <main className={styles.content}>
           <Outlet />
         </main>
@@ -189,7 +181,7 @@ export function AppShell({
         >
           <nav className={styles.tabBar} aria-label="Tabs">
             {tabBar.tabs.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabOn : ''}`}>
+              <NavLink key={item.to} to={item.to} end={item.end} reloadDocument={item.external} className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabOn : ''}`}>
                 <item.icon aria-hidden className={styles.tabIcon} />
                 <span>{item.label}</span>
               </NavLink>
@@ -235,6 +227,7 @@ export function AppShell({
                     key={item.to}
                     to={item.to}
                     end={item.end}
+                  reloadDocument={item.external}
                     onClick={() => setMoreOpen(false)}
                     className={({ isActive }) => `${styles.sheetItem} ${isActive ? styles.active : ''}`}
                   >

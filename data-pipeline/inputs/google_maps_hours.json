@@ -1,0 +1,194 @@
+{
+  "weekStart": "2026-10-26",
+  "weekEnd": "2026-11-01",
+  "basis": "Manually reviewed Google Maps regular weekend listings, used only to fill missing scenario hours. Date-specific exceptions unverified.",
+  "locations": [
+    {
+      "locationId": "warren-dining",
+      "placeName": "The Fresh Food Company at Warren Towers",
+      "address": "Warren Towers, 700 Commonwealth Ave, Boston, MA 02115",
+      "sourceUrl": "https://www.google.com/maps/place/The+Fresh+Food+Company+at+Warren+Towers/@42.3493891,-71.1041538,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379f898f6d009:0x8495c97206d1921e!8m2!3d42.3493891!4d-71.1041538!16s%2Fg%2F11j4tzh0ny?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "observedAt": "2026-10-25T06:13:01.942Z",
+      "weekend": {
+        "5": {
+          "text": "9 AM to 9 PM",
+          "windows": [
+            [
+              32400,
+              75600
+            ]
+          ]
+        },
+        "6": {
+          "text": "10 AM to 9 PM",
+          "windows": [
+            [
+              36000,
+              75600
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "locationId": "west-dining",
+      "placeName": "The Fresh Food Company at West Campus",
+      "address": "275 Babcock St, Boston, MA 02215",
+      "sourceUrl": "https://www.google.com/maps/place/The+Fresh+Food+Company+at+West+Campus/@42.3526692,-71.1202102,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37992800954a1:0xb174d9294cac8436!8m2!3d42.3526692!4d-71.1202102!16s%2Fg%2F11h71kf_sf?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "observedAt": "2026-10-25T06:13:01.950Z",
+      "weekend": {
+        "5": {
+          "text": "9 AM to 10 PM",
+          "windows": [
+            [
+              32400,
+              79200
+            ]
+          ]
+        },
+        "6": {
+          "text": "10 AM to 9 PM",
+          "windows": [
+            [
+              36000,
+              75600
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "locationId": "marciano",
+      "placeName": "Marciano Dining Hall",
+      "address": "100 Bay State Rd, Boston, MA 02215",
+      "sourceUrl": "https://www.google.com/maps/place/Marciano+Dining+Hall/@42.3497666,-71.1024127,17z/data=!4m10!1m2!2m1!1sMarciano+Commons+Boston+University!3m6!1s0x89e379f80305afa5:0x884d543c5e9104f2!8m2!3d42.3497666!4d-71.0979066!15sCiJNYXJjaWFubyBDb21tb25zIEJvc3RvbiBVbml2ZXJzaXR5WiQiIm1hcmNpYW5vIGNvbW1vbnMgYm9zdG9uIHVuaXZlcnNpdHmSAQljYWZldGVyaWGaASNDaFpEU1VoTk1HOW5TMFZKUTBGblNVUnVOUzFVZDJOUkVBReABAPoBBAgAECo!16s%2Fg%2F11bwpz3w4p?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "observedAt": "2026-10-25T06:13:01.950Z",
+      "weekend": {
+        "5": {
+          "text": "9 AM to 9 PM",
+          "windows": [
+            [
+              32400,
+              75600
+            ]
+          ]
+        },
+        "6": {
+          "text": "10 AM to 9 PM",
+          "windows": [
+            [
+              36000,
+              75600
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "locationId": "bumc-chequers",
+      "placeName": "Chequers - catering - Boston MA",
+      "address": "72 E Concord St, Boston, MA 02118",
+      "sourceUrl": "https://www.google.com/maps/place/Chequers+-+catering+-+Boston+MA/@42.3364013,-71.072408,17z/data=!3m1!4b1!4m6!3m5!1s0x89e37a6abc98a9d5:0x6eb78ed2c6812399!8m2!3d42.3364013!4d-71.072408!16s%2Fg%2F11h4cgcqc3?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "observedAt": "2026-10-25T06:13:01.950Z",
+      "weekend": {
+        "5": {
+          "text": "Closed",
+          "windows": []
+        },
+        "6": {
+          "text": "Closed",
+          "windows": []
+        }
+      }
+    },
+    {
+      "locationId": "saxbys",
+      "placeName": "Saxbys at Boston University",
+      "address": "665 Commonwealth Ave, Boston, MA 02215",
+      "sourceUrl": "https://www.google.com/maps/place/Saxbys+at+Boston+University/@42.3498971,-71.1032301,17z/data=!3m1!4b1!4m6!3m5!1s0x89e3797d92f9da17:0x8f7b55b1f150485e!8m2!3d42.3498971!4d-71.1032301!16s%2Fg%2F11k5565zgn?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "observedAt": "2026-10-25T06:12:39.191695+00:00",
+      "weekend": {
+        "5": {
+          "text": "10 AM to 4 PM",
+          "windows": [
+            [
+              36000,
+              57600
+            ]
+          ]
+        },
+        "6": {
+          "text": "10 AM to 4 PM",
+          "windows": [
+            [
+              36000,
+              57600
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "locationId": "buick-street-market",
+      "placeName": "Buick Street Market & Caf\u00e9",
+      "address": "10 Buick St, Boston, MA 02215",
+      "sourceUrl": "https://www.google.com/maps/place/Buick+Street+Market+%26+Caf%C3%A9/@42.3520639,-71.1157191,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379e8a5931665:0x3ccc3ba81f709c13!8m2!3d42.3520639!4d-71.1157191!16s%2Fg%2F1yh5th7yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "observedAt": "2026-10-25T06:12:39.191873+00:00",
+      "weekend": {
+        "5": {
+          "text": "Closed",
+          "windows": []
+        },
+        "6": {
+          "text": "Closed",
+          "windows": []
+        }
+      }
+    },
+    {
+      "locationId": "fullers-pub",
+      "placeName": "Fuller's BU Pub",
+      "address": "225 Bay State Rd, Boston, MA 02215",
+      "sourceUrl": "https://www.google.com/maps/place/Fuller's+BU+Pub/@42.3508757,-71.1037545,17z/data=!3m1!4b1!4m6!3m5!1s0x89e379fa06ac8abd:0x76b0cdbd9080f0df!8m2!3d42.3508757!4d-71.1037545!16s%2Fg%2F11b5zxw4yv?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "observedAt": "2026-10-25T06:12:39.191877+00:00",
+      "weekend": {
+        "5": {
+          "text": "Closed",
+          "windows": []
+        },
+        "6": {
+          "text": "Closed",
+          "windows": []
+        }
+      }
+    },
+    {
+      "locationId": "gsu",
+      "placeName": "Panda Express",
+      "address": "George Sherman Union, 775 Commonwealth Ave DINING SERVICES, Boston, MA 02215",
+      "sourceUrl": "https://www.google.com/maps/place/Panda+Express/@42.3508603,-71.1089789,17z/data=!3m1!4b1!4m6!3m5!1s0x0:0x543245e44ddcd0fe!8m2!3d42.3508603!4d-71.1089789!16s%2Fg%2F1th45y1h?entry=ttu&g_ep=EgoyMDI2MTAyMC4wIKXMDSoASAFQAw%3D%3D",
+      "observedAt": "2026-10-25T06:13:22.200Z",
+      "scope": "Panda Express meal service only; other GSU vendors unverified. Not whole-building or full-food-hall hours.",
+      "weekend": {
+        "5": {
+          "text": "11 AM to 7 PM",
+          "windows": [
+            [
+              39600,
+              68400
+            ]
+          ]
+        },
+        "6": {
+          "text": "11 AM to 7 PM",
+          "windows": [
+            [
+              39600,
+              68400
+            ]
+          ]
+        }
+      }
+    }
+  ]
+}

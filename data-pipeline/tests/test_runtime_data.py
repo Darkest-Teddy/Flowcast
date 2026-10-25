@@ -73,6 +73,26 @@ class RuntimeDataTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Ambiguous building code'):
             build_population(population, campuses, source)
 
+    def test_estimated_housing_preserves_mixed_use_classroom_capacity(self):
+        population = {'students': {'total': 10, 'cohorts': [{'headcount': 10}]}}
+        campuses = [{'locations': [{'id': 'mixed', 'kind': 'dorm', 'capacity': 550}]}]
+        meeting = {'roomCode': '101', 'roomCapacity': 24}
+        source = {'referenceWeekStart': '2026-10-26', 'locations': {
+            'mixed': {'evidence': [], 'meetings': [meeting, meeting]}}}
+        profile = {'locationId': 'mixed', 'capacity': 550, 'occupancyRate': .9,
+                   'confidence': 'low', 'note': 'Estimated resident assignment', 'proxy': 'Configured size'}
+        estimates = {'referenceWeekStart': '2026-10-26', 'housing': [profile], 'activities': []}
+        actual = build_population(population, campuses, source, estimates=estimates)
+        self.assertEqual(actual['locationCapacities']['mixed'], 574)
+        self.assertEqual(actual['academicCapacities']['mixed']['value'], 24)
+        self.assertNotIn('mixed', actual['residentialCapacities'])
+        self.assertEqual(actual['estimatedHousingProfiles']['mixed'], profile)
+        basis = actual['locationCapacityBasis']['mixed']
+        self.assertEqual(basis['basis'], 'residential_beds_plus_classroom_seats')
+        self.assertEqual(basis['estimatedResidentialBeds'], 550)
+        self.assertEqual(basis['academicSeatReference'], 24)
+        self.assertEqual(basis['confidence'], 'low')
+
     def test_activity_quota_does_not_replace_building_reference_and_estimates_expire(self):
         population = {'students': {'total': 1, 'cohorts': [{'headcount': 1}]}}
         campuses = [{'locations': [{'id': 'arena', 'kind': 'gym', 'capacity': 1500}]}]
