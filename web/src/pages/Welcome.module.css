@@ -397,6 +397,172 @@
   }
 }
 
+/* ---------- Done mark ---------- */
+
+.doneMark {
+  display: block;
+  width: 52px;
+  height: 52px;
+  margin-bottom: var(--space-4);
+  fill: none;
+  stroke: var(--color-ok);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.doneMark circle {
+  stroke-opacity: 0.35;
+}
+
+/* ---------- More motion ---------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A slow glow drifting behind the card, in the accent. */
+  .flow {
+    position: relative;
+  }
+
+  .flow::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    top: 40px;
+    left: 50%;
+    width: 520px;
+    height: 360px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--color-accent) 22%, transparent), transparent);
+    filter: blur(20px);
+    transform: translateX(-50%);
+    animation: drift 14s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+
+  /* The card's parts arrive one after another. */
+  .card > * {
+    animation: rise 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .card > :nth-child(2) { animation-delay: 60ms; }
+  .card > :nth-child(3) { animation-delay: 120ms; }
+  .card > :nth-child(4) { animation-delay: 180ms; }
+  .card > :nth-child(5) { animation-delay: 240ms; }
+  .card > :nth-child(6) { animation-delay: 300ms; }
+  .card > :nth-child(n + 7) { animation-delay: 360ms; }
+
+  /* Step rail: the current dot breathes; a finished one pops in with its check. */
+  .current .dot {
+    animation: pulse 2.4s ease-out infinite;
+  }
+
+  .passed .dot svg {
+    animation: pop 420ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  }
+
+  /* A sheen running along the progress line. */
+  .fill {
+    background: linear-gradient(90deg, var(--color-accent) 0%, color-mix(in srgb, var(--color-accent) 55%, white) 50%, var(--color-accent) 100%) 0 0 / 200% 100%;
+    animation: sheen 2.8s linear infinite;
+  }
+
+  /* Intro: the three icons pop as their rows rise. */
+  .points svg {
+    animation: pop 480ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  }
+
+  .points li:nth-child(1) svg { animation-delay: 260ms; }
+  .points li:nth-child(2) svg { animation-delay: 330ms; }
+  .points li:nth-child(3) svg { animation-delay: 400ms; }
+
+  /* Classes: the icon bobs when the zone is pointed at; a dragged file sets the border marching. */
+  .drop:hover:not(:disabled) > svg,
+  .dragging > svg {
+    animation: bob 900ms ease-in-out infinite;
+  }
+
+  .dragging {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+    box-shadow: 0 0 0 4px var(--color-accent-soft);
+  }
+
+  /* Clubs: rows cascade in; Follow pops when pressed. */
+  .clubs li {
+    animation: rise 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--i, 0) * 35ms + 200ms);
+  }
+
+  .followed {
+    animation: pop 380ms cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+
+  /* Done: the ring and the check draw themselves, then the summary rows tick in. */
+  .doneMark circle,
+  .doneMark path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 600ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  .doneMark path {
+    animation-delay: 450ms;
+  }
+
+  .summary li svg {
+    animation: pop 420ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  }
+
+  .summary li:nth-child(1) svg { animation-delay: 700ms; }
+  .summary li:nth-child(2) svg { animation-delay: 780ms; }
+  .summary li:nth-child(3) svg { animation-delay: 860ms; }
+  .summary li:nth-child(4) svg { animation-delay: 940ms; }
+}
+
+@keyframes drift {
+  from {
+    transform: translate(-58%, -10px) scale(1);
+  }
+  to {
+    transform: translate(-42%, 20px) scale(1.08);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@keyframes sheen {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 /* ---------- Phones ---------- */
 
 @media (max-width: 560px) {

@@ -250,6 +250,7 @@ export default function Home() {
             series={curve.length ? curve.map((h) => h.share) : undefined}
             axis={curve.length ? [formatHour(curve[0].hour), formatHour(curve[curve.length - 1].hour)] : undefined}
             highlightIndex={campusPeak ? curve.indexOf(campusPeak) : undefined}
+            format={(share, i) => `${formatHour(curve[i].hour)} · ${formatPercent(share)}`}
           />
           <StatCard
             label="Events today"

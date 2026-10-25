@@ -32,8 +32,8 @@ export function CrowdMeter({ share, showBar = true }: { share: number; showBar?:
   return (
     <span className={styles.crowd}>
       {showBar && (
-        <span className={styles.meter} aria-hidden>
-          <b style={{ width: `${Math.min(100, share * 100)}%`, background: level.color }} />
+        <span className={styles.meter} style={{ ['--c' as string]: level.color }} aria-hidden>
+          <b style={{ width: `${Math.max(4, Math.min(100, share * 100))}%` }} />
         </span>
       )}
       <span className={styles.crowdText}>

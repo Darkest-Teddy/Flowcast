@@ -51,17 +51,33 @@
   gap: var(--space-2);
 }
 
+/* The track is a pale step of the level's own colour, so the state reads across the whole bar. */
 .meter {
   width: 72px;
   height: 6px;
   border-radius: var(--radius-capsule);
-  background: var(--color-surface-sunken);
+  background: color-mix(in srgb, var(--c) 16%, transparent);
   overflow: hidden;
 }
 
 .meter b {
   display: block;
   height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(to right, color-mix(in srgb, var(--c) 72%, white), var(--c));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .meter b {
+    transform-origin: left;
+    animation: fill 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+
+@keyframes fill {
+  from {
+    transform: scaleX(0);
+  }
 }
 
 .crowdText {
