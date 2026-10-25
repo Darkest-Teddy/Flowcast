@@ -305,10 +305,91 @@
   backdrop-filter: none;
 }
 
+/*
+ * Explicit order rather than column-reverse: AskPanel's markup grew a heading, a
+ * note and a transcript when multi-turn chat landed, and relying on DOM order
+ * put all of it in the wrong place. `order` says what goes where no matter what
+ * the panel adds next.
+ */
 .hud-ask .ask {
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   gap: 8px;
+}
+
+.hud-ask .ask-transcript {
+  order: 1;
+}
+
+.hud-ask .ask-examples {
+  order: 2;
+}
+
+.hud-ask .ask-form {
+  order: 3;
+}
+
+/*
+ * Panel furniture, hidden in the bar. The heading names a panel the bar does not
+ * have, and both notes explain Ask at length; a bar over a map is the wrong place
+ * for either. The same copy still reads in full on the dashboard's /ask page.
+ *
+ * `.ask-clear` ("New chat") is kept: it is a control, not an explanation.
+ */
+.hud-ask .ask-heading h2,
+.hud-ask > .ask > .muted:not(.ask-status),
+.hud-ask .ask > .ask-note {
+  display: none;
+}
+
+.hud-ask .ask-heading {
+  order: 0;
+  display: flex;
+  justify-content: flex-end;
+  /* Collapses to nothing when there is no conversation to clear. */
+  min-height: 0;
+}
+
+.hud-ask .ask-clear {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--glass-fill-strong, rgb(28 32 38 / 0.72));
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  font-size: 12px;
+}
+
+/* The conversation: a card above the pill, scrolling, never taller than the view. */
+.hud-ask .ask-transcript {
+  margin: 0;
+  padding: 10px 12px;
+  list-style: none;
+  max-height: 42vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 14px;
+  background: var(--glass-fill-strong, rgb(28 32 38 / 0.72));
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.34);
+}
+
+.hud-ask .ask-transcript:empty {
+  display: none;
+}
+
+/* The answer is inside the transcript card now; it needs no card of its own. */
+.hud-ask .ask-answer:not(:empty) {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  max-height: none;
+  overflow: visible;
 }
 
 /* The pill. */
