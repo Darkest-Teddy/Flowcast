@@ -45,7 +45,11 @@ if (!env.DATABASE_URL) {
       await client.query('SELECT 1');
       ok('DATABASE_URL connects', '(tables and data are set up automatically when the server starts)');
     } catch {
-      fail('DATABASE_URL is set but the database could not be reached', 'Check the URL, that the database is running, and that this machine is allowed to connect. Railway\'s internal URL only works inside Railway: use the public one from here.');
+      let internal = false;
+      try { internal = new URL(env.DATABASE_URL).hostname.endsWith('.railway.internal'); } catch { /* not a URL */ }
+      // `railway run` hands this machine the service's private address, which only resolves inside Railway.
+      if (internal) warn('DATABASE_URL is Railway\'s private address, which only works inside Railway', 'Not checked from here. The deploy log says "dashboard database ready" once it connects.');
+      else fail('DATABASE_URL is set but the database could not be reached', 'Check the URL, that the database is running, and that this machine is allowed to connect.');
     } finally { await client.end().catch(() => {}); }
   }
 }
@@ -101,7 +105,7 @@ lines.push(
   '  OAuth consent screen',
   `    App home page:        ${site}/`,
   `    Privacy policy:       ${site}/privacy`,
-  `    Authorized domains:   ${new URL(ref).hostname}${origin ? `, ${new URL(origin).hostname}` : ', <your-domain>'}`,
+  `    Authorized domains:   ${supabase ? new URL(supabase).hostname : '<project-ref>.supabase.co'}, ${origin ? new URL(origin).hostname : '<your-domain>'}`,
   '    Scopes:               openid, email, profile (nothing else, so no Google review)',
   '    Publishing status:    In production (in Testing only listed test users can sign in)',
   '  Credentials → OAuth client ID → Web application',
