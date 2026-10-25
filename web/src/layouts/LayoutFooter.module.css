@@ -15,6 +15,29 @@
   white-space: nowrap;
 }
 
+.profile {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: calc(var(--space-1) * -1) calc(var(--space-2) * -1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  color: inherit;
+}
+
+.profile:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.profile:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 .admin {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);

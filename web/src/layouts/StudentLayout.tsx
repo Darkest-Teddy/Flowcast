@@ -22,6 +22,7 @@ import { Link } from 'react-router';
 import { useSession } from '../auth/session';
 import { config } from '../config';
 import { Avatar } from '../ui';
+import { MapBackdrop } from './MapBackdrop';
 import { AppShell, type NavItem, type NavSection, type TabBarConfig } from './AppShell';
 import styles from './LayoutFooter.module.css';
 
@@ -66,10 +67,10 @@ export function StudentLayout() {
       label: 'More',
       icon: Menu,
       header: session && (
-        <div className={styles.footer}>
+        <Link to="/profile" className={`${styles.footer} ${styles.profile}`} title="Your profile">
           <Avatar name={session.user.name || 'Google user'} />
           <span className={styles.name}>{session.user.name || 'Google user'}</span>
-        </div>
+        </Link>
       ),
       sections: [
         account,
@@ -81,18 +82,23 @@ export function StudentLayout() {
   };
 
   return (
-    <AppShell
-      sections={sections}
-      tabBar={tabBar}
-      sidebarFooter={
-        session && (
-          <div className={styles.footer}>
-            <Avatar name={session.user.name || 'Google user'} />
-            <span className={styles.name}>{session.user.name || 'Google user'}</span>
-            {hasRole('admin') && <Link to="/admin" className={styles.admin}>Admin</Link>}
-          </div>
-        )
-      }
-    />
+    <>
+      <MapBackdrop />
+      <AppShell
+        sections={sections}
+        tabBar={tabBar}
+        sidebarFooter={
+          session && (
+            <div className={styles.footer}>
+              <Link to="/profile" className={styles.profile} title="Your profile">
+                <Avatar name={session.user.name || 'Google user'} />
+                <span className={styles.name}>{session.user.name || 'Google user'}</span>
+              </Link>
+              {hasRole('admin') && <Link to="/admin" className={styles.admin}>Admin</Link>}
+            </div>
+          )
+        }
+      />
+    </>
   );
 }
