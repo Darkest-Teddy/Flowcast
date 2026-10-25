@@ -89,6 +89,9 @@ import { ParkingTags, type ParkingTagsHandle } from './ParkingTags';
 import { ParkingPanel } from './ParkingPanel';
 import { parkingLayers, parkingUnder } from './layers/parking';
 import { campusParkingEvents, createParkingModel, loadParking, parkingAt, parkingDayKind, type LotState, type ParkingData, type ParkingEvent, type ParkingModel, type ParkingState } from './sim/parking';
+import { loadEventSources, type EventSources } from './data/eventCalendar';
+import { eventLoadAt, eventLoadLabel, NO_EVENT_DAY, planEventDay, setCurrentEventDay, type EventDay } from './sim/eventAttendance';
+import { NO_VISITORS, planVisitors, setCurrentVisitorPlan, visitorFromId, visitorsAt, type VisitorPlan } from './sim/visitors';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -245,6 +248,22 @@ export default function App() {
   const eventsOnRef = useRef(START_EVENTS);
   const pinnedDateRef = useRef<string | null>(URL_DATE);
   const [simDay, setSimDay] = useState<Pick<SourceDay, 'eventDate' | 'gatherings'> | null>(null);
+  // Venue events (Agganis, Fenway...): calendar, Trends popularity and visitor walks, loaded once.
+  // Visitors are their own population, drawn with the walkers but never counted as students.
+  const eventSourcesRef = useRef<EventSources>({ calendar: null, popularity: null, routes: null });
+  const eventDayRef = useRef<EventDay>(NO_EVENT_DAY);
+  const visitorPlanRef = useRef<VisitorPlan>(NO_VISITORS);
+  const [eventDay, setEventDay] = useState<EventDay>(NO_EVENT_DAY);
+  /** Plan the venue events (and their visitors) for the date whose events are playing. */
+  const planVenueEvents = (date: string | null) => {
+    const planned = planEventDay(eventSourcesRef.current, date);
+    eventDayRef.current = planned;
+    visitorPlanRef.current = planVisitors(planned);
+    // Other features read these by time alone (currentEventLoadAt, eventVisitorsAt).
+    setCurrentEventDay(planned);
+    setCurrentVisitorPlan(visitorPlanRef.current);
+    setEventDay(planned);
+  };
   /**
    * The Boston date whose events run on this weekday: a date picked in the URL or panel when it
    * falls on this weekday, today's date in Clock mode, else that weekday of the representative week.
@@ -263,6 +282,7 @@ export default function App() {
     if (engineActiveRef.current && playbackRef.current) { setDayRequest((n) => n + 1); return playbackRef.current; }
     const built = buildSourceDay(base, data, day, transitServiceRef.current, { eventDate: eventDateFor(data, day) });
     setSimDay(built);
+    planVenueEvents(built.eventDate);
     return new Playback(built);
   };
   const [campuses, setCampuses] = useState<Campus[]>([]);
@@ -319,6 +339,8 @@ export default function App() {
       const track = loadProgress.track;
       // BU Shuttle timetable (recorded TransLoc schedules + BU's GTFS baseline); MBTA-only without it.
       const shuttleTimetable = loadPublishedSchedule('/data/shuttle-schedule.json').catch(() => null);
+      // Venue events are an extra: fetched alongside, never holding up the map.
+      const venueEvents = loadEventSources();
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields] = await Promise.all([
         track('Drawing the map', createBasemap(mapElement, shownLight)),
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
@@ -412,6 +434,11 @@ export default function App() {
       } catch (error) { setEngineStatus('unavailable'); setEngineError((error as Error).message); }
       void loadScenarios().then((file) => { if (!cancelled) setScenarioFile(file ?? null); });
       void loadOutdoor().then((file) => { outdoorRef.current = { file: file ?? null, index: null, of: null }; });
+      void venueEvents.then((sources) => {
+        if (cancelled) return;
+        eventSourcesRef.current = sources;
+        planVenueEvents(eventDayRef.current.date ?? (playbackRef.current?.data as SourceDay | undefined)?.eventDate ?? null);
+      });
       setRange([0, 86400]);
       setCampuses(day.campuses ?? []);
 
@@ -485,6 +512,13 @@ export default function App() {
           if (text) return text;
           if (!object || !('bearing' in object) || 'receivedAt' in object) return null;
           const agent = object as WalkingAgent;
+          const visitor = visitorFromId(visitorPlanRef.current, agent.id);
+          if (visitor) {
+            const { estimate, origin } = visitor;
+            return agent.to === estimate.venue.id
+              ? `Event visitor → ${estimate.venue.name} (${estimate.event.name}) from ${origin.name}`
+              : `Event visitor leaving ${estimate.venue.name} → ${origin.name}`;
+          }
           // Riders walking to a stop are headed for a transit stop, not a building.
           const where = playbackRef.current?.locations.find((l) => l.id === agent.to)?.name ?? transit?.data.stops.find((s) => s.id === agent.to)?.short;
           const who = namesRef.current?.get(agent.id) ?? 'Student';
@@ -621,7 +655,7 @@ export default function App() {
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
         if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
           buildingOccupancy = playback.byBuilding(occupancy);
-          buildings = splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights);
+          buildings = withVenueEvents(splitSharedTags(buildingOccupancy, occupancy, day.buildings, roofHeights), eventDayRef.current, t, populationBase.locations);
           buildingsFrom = occupancy;
           buildingsPlayback = playback;
         }
@@ -681,6 +715,8 @@ export default function App() {
         for (const d of deferred) {
           if (!detailedBuildings!.models[d.id] && (camera.zoom < 14.5 || metresToBox(camera.center, d.bounds) < DEFERRED_LOAD_METRES)) loadDeferredRef.current?.(d.id);
         }
+        // Event visitors near the camera (none, at no cost, when no venue event is on).
+        const visitorFrame = visitorsAt(visitorPlanRef.current, t, camera.center, q.walkerRadius, ([x, y]) => x >= view[0] && x <= view[2] && y >= view[1] && y <= view[3]);
         const frameLayers = [
           ...fallbackDamageLayers(damage, new Set(detailedBuildings?.manifest.campuses
             .filter(campus => detailedBuildings.models[campus.id])
@@ -710,7 +746,8 @@ export default function App() {
           ...(showBikesNow
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
-          ...agentLayers(thinForZoom(inView(nearView(outside?.moving.length ? walking.concat(outside.moving) : walking, basemap.getCamera().center, q.walkerRadius), view), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
+          // Students walking, plus river walkers/runners (conditions engine), plus event visitors.
+          ...agentLayers(thinForZoom(withVisitors(inView(nearView(walking, camera.center, q.walkerRadius).concat(nearView(outside?.moving ?? [], camera.center, q.walkerRadius)), view), visitorFrame.drawn), basemap.getZoom()), models, t, { zoom: basemap.getZoom() }),
           ...(outside && drawSitters ? outdoorLayers(outside.sitting, models, t, basemap.getZoom()) : []),
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
@@ -727,7 +764,7 @@ export default function App() {
         // Siren (off unless switched on): only while apparatus run lights-and-siren and the clock runs.
         sirenRef.current?.set(playingRef.current ? FireSiren.levelAt(nearestResponding(incidentRunRef.current?.response ?? null, basemap.getCamera().center)) : 0);
         perfRef.current = {
-          walkers: walking.length,
+          walkers: walking.length + visitorFrame.drawn.length,
           vehicles: source ? source.positionsAt(now).length : 0,
           layers: frameLayers.length,
         };
@@ -957,6 +994,13 @@ export default function App() {
   };
   const scenarioLook = activeScenario?.overrides.weather ? SCENARIO_LOOK[activeScenario.overrides.weather.condition] ?? null : null;
 
+  /** Play a venue event's date from an hour before it starts, and fly to the venue. */
+  const jumpToVenueEvent = (date: string, startSec: number) => {
+    pickEventDate(date);
+    scrub(Math.max(0, startSec - 3600));
+    const venue = eventDayRef.current.events.find((e) => e.startSec === startSec)?.venue;
+    if (venue) basemapRef.current?.flyTo(venue.position, 16.6);
+  };
   const selectSource = (location: CampusLocation) => {
     setCampus(location.campus ?? 'charles-river');
     selectedRef.current = location.kind === 'outdoor' ? null : location.building;
@@ -1179,7 +1223,9 @@ export default function App() {
                 info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
               {sourceData && baseDayRef.current && (
                 <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
-                  onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource} />
+                  onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
+                  venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
+                  time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
               )}
 
               <h2>Campus activity</h2>
@@ -1545,6 +1591,32 @@ function waitingByStop(waiting: { stop: string }[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const rider of waiting) counts.set(rider.stop, (counts.get(rider.stop) ?? 0) + 1);
   return counts;
+}
+
+/** Students drawn plus event visitors drawn (the same character layers; visitors are never counted as students). */
+function withVisitors(students: WalkingAgent[], visitors: WalkingAgent[]): WalkingAgent[] {
+  return visitors.length ? students.concat(visitors) : students;
+}
+
+const VENUE_TAG_ROOF_M = 24;
+/**
+ * Building tags with each venue event's crowd: on the venue's own tag when it's a simulated place
+ * (Agganis Arena), else a tag of its own (Fenway Park). Student figures on the tag are untouched.
+ */
+function withVenueEvents(buildings: BuildingOccupancy[], day: EventDay, t: number, locations: CampusLocation[]): BuildingOccupancy[] {
+  if (!day.events.length) return buildings;
+  let out = buildings;
+  for (const venueId of new Set(day.events.map((e) => e.venue.id))) {
+    const event = eventLoadLabel(eventLoadAt(day, venueId, t));
+    if (!event) continue;
+    const venue = day.events.find((e) => e.venue.id === venueId)!.venue;
+    const building = venue.locationId ? locations.find((l) => l.id === venue.locationId)?.building : undefined;
+    const index = building ? out.findIndex((b) => b.id === building) : -1;
+    if (out === buildings) out = buildings.slice();
+    if (index >= 0) out[index] = { ...out[index], event };
+    else out.push({ id: `venue:${venueId}`, name: venue.name, short: venue.name, position: venue.position, count: 0, capacity: 0, share: 0, roof: VENUE_TAG_ROOF_M, eventOnly: true, event });
+  }
+  return out;
 }
 
 /** Walkers within `radius` metres of the view centre (all of them when radius is null). */

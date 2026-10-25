@@ -83,6 +83,10 @@ export interface BuildingOccupancy {
   share: number;
   /** Tag height in metres when it isn't the building's roof (a dining hall in a tower's podium). */
   roof?: number;
+  /** A venue event under way here: its crowd, shown beside (never inside) the student figures. */
+  event?: { text: string; description: string };
+  /** A venue that isn't a simulated place (Fenway Park): its tag shows only the event. */
+  eventOnly?: boolean;
 }
 
 export interface Agent {
