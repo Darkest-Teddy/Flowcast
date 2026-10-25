@@ -6,7 +6,7 @@ import { bostonDate, clubsFromBundle, forecastsFromBundle, locationsFromBundle, 
 import type { Profile, NotificationPrefs } from '../../../web/src/data/types';
 import type { Snapshot } from './import';
 import { authConfig, createUserVerifier, DashboardAuthError, type AuthConfig, type VerifiedUser, type VerifyUser } from './auth';
-import { emptySchedule, MAX_SCHEDULE_ITEMS, previewSchedule, ScheduleError, scheduleState, validateSchedule } from './schedule';
+import { MAX_SCHEDULE_ITEMS, previewSchedule, ScheduleError, scheduleState, validateSchedule } from './schedule';
 import { buildCourseIndex, courseSelectionRequest, coursesForKeys, expandSections, MAX_SECTIONS, searchCourses, type CourseIndex } from './courses';
 import type { ScheduleImportState } from '../../../web/src/data/types';
 
@@ -89,10 +89,21 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   });
   router.put('/schedule', async (req, res) => {
     const { impact } = await snapshot();
-    const { items, ...metadata } = validateSchedule(req.body, locationsFromBundle(impact));
+    const { items: imported, ...metadata } = validateSchedule(req.body, locationsFromBundle(impact));
     const g = await account(res);
+    // An import replaces what the last import left, not classes picked from the catalog. The two
+    // ways of telling Flowcast your schedule have to survive each other.
+    const picked = (g.schedule ?? []).filter((item) => item.source === 'course');
+    const items = [...picked, ...imported].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+    if (items.length > MAX_SCHEDULE_ITEMS) throw new ScheduleError('Your picked classes and this file together make too many meetings to store. Import fewer, or remove some classes.');
+    const kept = g.schedule_import;
     const result = await pool!.query('UPDATE dashboard_accounts SET schedule=$1::jsonb, schedule_import=$2::jsonb, updated_at=now() WHERE id=$3 RETURNING schedule,schedule_import',
-      [JSON.stringify(items), JSON.stringify({ ...metadata, importedAt: new Date().toISOString() }), g.id]);
+      [JSON.stringify(items), JSON.stringify({
+        ...metadata,
+        importedAt: new Date().toISOString(),
+        courseSections: kept?.courseSections ?? [],
+        coursesSavedAt: kept?.coursesSavedAt ?? null,
+      }), g.id]);
     if (!result.rows[0]) { res.status(409).json({ error: 'Account profile was deleted.' }); return; }
     res.json(scheduleState(result.rows[0]));
   });
@@ -131,11 +142,24 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     if (!result.rows[0]) { res.status(409).json({ error: 'Account profile was deleted.' }); return; }
     res.json(scheduleState(result.rows[0]));
   });
+  // Removes the imported calendar only. Classes picked from the catalog are kept, with the keys
+  // that produced them, so removing an import never silently empties the schedule.
+  // `DELETE /me` is what erases everything.
   router.delete('/schedule', async (_req, res) => {
     const g = await account(res);
-    const result = await pool!.query("UPDATE dashboard_accounts SET schedule='[]'::jsonb, schedule_import=NULL, updated_at=now() WHERE id=$1 RETURNING id", [g.id]);
+    const picked = (g.schedule ?? []).filter((item) => item.source === 'course');
+    const before = g.schedule_import;
+    const sections = before?.courseSections ?? [];
+    // Nothing picked and nothing remembered: the account is back to having no schedule at all.
+    const metadata = picked.length || sections.length ? {
+      fileName: null, importedAt: null,
+      windowStart: before?.windowStart ?? null, windowEnd: before?.windowEnd ?? null,
+      courseSections: sections, coursesSavedAt: before?.coursesSavedAt ?? null,
+    } : null;
+    const result = await pool!.query('UPDATE dashboard_accounts SET schedule=$1::jsonb, schedule_import=$2::jsonb, updated_at=now() WHERE id=$3 RETURNING schedule,schedule_import',
+      [JSON.stringify(picked), metadata && JSON.stringify(metadata), g.id]);
     if (!result.rows[0]) { res.status(409).json({ error: 'Account profile was deleted.' }); return; }
-    res.json(emptySchedule());
+    res.json(scheduleState(result.rows[0]));
   });
   router.patch('/profile', async (req, res) => {
     const parsed = profilePatch.safeParse(req.body);

@@ -210,8 +210,12 @@ All routes are under `/api/dashboard` and return `Cache-Control: no-store`:
   Returns `{items, fileName, warnings, windowStart, windowEnd}`. The frontend can select rows and
   remap their `locationId` before saving. Unknown/ambiguous buildings use `locationId: ''`.
 - `PUT /schedule`: `{fileName, items}` replaces the account's imported schedule and returns the
-  complete schedule state, with server-generated import time and window metadata.
-- `DELETE /schedule`: clears items and metadata, returning the empty schedule state.
+  complete schedule state, with server-generated import time and window metadata. Classes picked
+  from the catalog (`source: 'course'`) are kept, as is the record of which sections produced them,
+  so importing a file never silently discards them. The combined total still obeys the 2,000-item cap.
+- `DELETE /schedule`: removes the imported calendar only — items it owns, the file name and the
+  import time. Picked classes and their `courseSections` survive, so this returns the empty schedule
+  state only when there were no picks. `DELETE /me` is what erases everything.
 - `GET /courses`: the published catalog as pickable sections, `{term, total, courses}` where each
   course carries its sections and each section its weekly `slots` (`weekday` with Monday = 0,
   `startSec`/`endSec` from local midnight, `locationId`, `buildingCode`, `roomCode`, `roomCapacity`)

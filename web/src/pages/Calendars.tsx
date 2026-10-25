@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { api } from '../data/api';
 import type { CampusLocation, ScheduleImportState, SchedulePreview } from '../data/types';
 import { Button, Page, PageHeader } from '../ui';
 import styles from './Calendars.module.css';
 
 const PAGE_SIZE = 25;
+// A schedule can hold meetings from an .ics import and from the catalog picker at once, so this page
+// counts only the ones an import put there.
+const importedCount = (state: ScheduleImportState) => state.items.filter((item) => item.source !== 'course').length;
+const pickedCount = (state: ScheduleImportState) => state.items.filter((item) => item.source === 'course').length;
 const date = (value: string) => new Date(value).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' });
 const time = (value: string) => new Date(value).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
 const message = (error: unknown) => error instanceof Error ? error.message : 'The schedule could not be updated. Try again.';
@@ -78,7 +83,7 @@ export default function Calendars() {
       setSaved(result);
       setPreview(null);
       if (fileInput.current) fileInput.current.value = '';
-      setStatus(clear ? 'Imported schedule removed.' : `${result.items.length} classes imported.`);
+      setStatus(clear ? 'Imported schedule removed.' : `${importedCount(result)} classes imported.`);
     } catch (e) {
       if (version === revision.current) setError(message(e));
     } finally {
@@ -88,20 +93,22 @@ export default function Calendars() {
 
   return (
     <Page>
-      <PageHeader title="Calendars" description="Import your class schedule from an .ics file." />
+      <PageHeader title="Calendars" description="Import your class schedule from an .ics file."
+        actions={<Button to="/courses">Pick classes instead</Button>} />
       {error && <p className={styles.error} role="alert">{error}</p>}
       {!saved && (error ? <Button onClick={() => setAttempt((value) => value + 1)}>Retry</Button> : <p role="status">Loading schedule…</p>)}
       {saved && <div className={styles.content}>
         <section className={styles.card} aria-label="Imported schedule">
-          {saved.items.length > 0 ? <>
-            <h2>{saved.items.length} imported classes</h2>
+          {importedCount(saved) > 0 ? <>
+            <h2>{importedCount(saved)} imported {importedCount(saved) === 1 ? 'class' : 'classes'}</h2>
             <p className={styles.detail}>{saved.fileName}{saved.windowStart && saved.windowEnd && <> · {date(saved.windowStart)} – {date(saved.windowEnd)}</>}</p>
             {saved.importedAt && <p className={styles.detail}>Imported {date(saved.importedAt)} at {time(saved.importedAt)} Boston time</p>}
+            {pickedCount(saved) > 0 && <p className={styles.detail}>{pickedCount(saved)} more meetings come from the classes you picked. Removing this import keeps them.</p>}
             <div className={styles.actions}>
               <Button to="/schedule">View schedule</Button>
               <Button variant="danger" disabled={busy} onClick={() => void save(true)}>Remove imported schedule</Button>
             </div>
-          </> : <p>No schedule imported.</p>}
+          </> : <p>No schedule imported.{pickedCount(saved) > 0 && <> You have {pickedCount(saved)} meetings from <Link to="/courses">classes you picked</Link>.</>}</p>}
         </section>
         <div className={styles.file}>
           <Button variant="secondary" disabled={busy} onClick={() => fileInput.current?.click()}>Choose schedule file</Button>
