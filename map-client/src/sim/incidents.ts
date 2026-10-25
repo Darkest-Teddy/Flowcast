@@ -11,7 +11,7 @@ export { DISASTER_ASSUMPTIONS, DISASTER_LIMITATIONS, isDisasterKind, type Disast
 import { computeCasualties, type CasualtyEvent } from './casualties';
 export { CASUALTY_ASSUMPTIONS, CASUALTY_LIMITATIONS, computeCasualties, type CasualtyEvent } from './casualties';
 import { fireGeometry, concat, polyline, type FireGeometry, type LngLat, type Polyline, type Tree } from './fireEvacuation';
-import { meteorEscape, METEOR_RUN_SPEED_MULTIPLIER } from './meteorFlee';
+import { meteorEscape } from './meteorFlee';
 import { cutPolyline, FIRE_CROWD_ASSUMPTIONS, planSpot, turnBackDistance, type CrowdPlan, type FireCrowd, type FireDispersal } from './fireCrowd';
 export { FIRE_CROWD_ASSUMPTIONS, FIRE_CROWD_LIMITATIONS, type FireCrowd, type FireDispersal } from './fireCrowd';
 
@@ -60,6 +60,9 @@ export interface IncidentParticipant {
   /** When the incident stops constraining this person (assembly release, closure reopening, or early departure). */
   releaseAt: number;
   resumedAt: number;
+  /** Disasters: end of the leg they run rather than walk, from `departAt` (DISASTER_LIMITATIONS).
+   *  Absent for a drill or a closure, and for anyone who never has to get clear. */
+  fleesUntil?: number;
   outcome?: IncidentOutcome;
   /** Existing location where an interrupted closure occupant waits. */
   waitLocationId?: string;
@@ -331,6 +334,9 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
     if (!Number.isFinite(speed) || speed <= 0) fail(`invalid walking speed for ${id}`);
     return speed;
   };
+  // Getting clear of a fire, the shaking or an impact is run, not walked (DISASTER_LIMITATIONS);
+  // a drill or a closure is walked throughout.
+  const fleeSpeed = (id: string) => speedOf(id) * (disaster ? DISASTER_ASSUMPTIONS.runSpeedMultiplier : 1);
   const meteorWalkers = new Map<string, { event: Event; route: WalkRoute; destination: string; approach: WalkRoute }>();
   if (incident.kind === 'meteor') for (const [id, events] of byAgent) {
     const event = events.find(e => e.trip && e.start <= incident.start && incident.start < e.end);
@@ -505,11 +511,12 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       const heading = next >= 0 ? tripLine(occupant.id, events[next].trip!)
         : home !== 'off-campus' && !blocked.has(home) ? routesOf(occupant.event.to).get(home) : undefined;
       const from = events.slice(0, index).filter(e => e.trip).at(-1)?.trip!.path.at(-1);
-      const plan = planSpot(geometry, incident.id, occupant.id, queued, speedOf(occupant.id), incident.start, { heading, from, ready: occupant.ready });
+      // Out of the building and over to the crowd at a run; they stand still from plan.arriveAt.
+      const plan = planSpot(geometry, incident.id, occupant.id, queued, fleeSpeed(occupant.id), incident.start, { heading, from, ready: occupant.ready });
       if (plan.leaveAt >= DAY) throw new Error(`Invalid incident: the ${incident.kind} response and recovery must fit within the day (crowd past midnight)`);
       crowdPlans.set(occupant.id, plan);
       participants.push({ agentId: occupant.id, role: 'occupant', departAt: plan.departAt, assemblyAt: plan.arriveAt, releaseAt: plan.leaveAt, resumedAt: 0,
-        outcome: 'cancelled', crowdLocationId: crowdLocations[plan.area.index].id });
+        fleesUntil: plan.arriveAt, outcome: 'cancelled', crowdLocationId: crowdLocations[plan.area.index].id });
       continue;
     }
     if (drill) {
@@ -791,8 +798,8 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       const trip = event.trip!;
       if (at > event.start) trips.push({ ...trip, path: meteorPlan.approach.path,
         timestamps: meteorPlan.approach.cumulative.map(t => event.start + t) });
-      availableAt = walk(id, at > event.start ? trip.to : trip.from, meteorPlan.destination, meteorPlan.route, at,
-        speedOf(id) * METEOR_RUN_SPEED_MULTIPLIER);
+      availableAt = walk(id, at > event.start ? trip.to : trip.from, meteorPlan.destination, meteorPlan.route, at, fleeSpeed(id));
+      participant.fleesUntil = availableAt;
       location = meteorPlan.destination;
       if (location === trip.to) cursor++;
       else ({ location, availableAt, cursor } = continueOutside(id, events, cursor, location, meteorPlan.route.path.at(-1)!, availableAt));
@@ -802,7 +809,8 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       // Out by the chosen exit to a standing spot, wait there, then move on.
       const plan = crowdPlans.get(id)!, label = crowdLocations[plan.area.index].id;
       remain(id, event, at, participant.departAt);
-      walk(id, event.to, label, plan.path, participant.departAt);
+      // Same pace planSpot timed the arrival at, or the stay outside would start mid-walk.
+      walk(id, event.to, label, plan.path, participant.departAt, fleeSpeed(id));
       stay(id, label, plan.arriveAt, plan.leaveAt);
       const origin = { label, lead: plan.lead, tree: plan.tree };
       let placed = moveOn(id, events, cursor, event.to, origin, plan.leaveAt, participant, true);
@@ -846,7 +854,9 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
         let back = turnAt;
         if (approach.path.length >= 2) {
           const reversed = { path: [...approach.path].reverse(), cumulative: [...approach.cumulative].reverse().map(d => approach.cumulative.at(-1)! - d) };
-          back = walk(id, trip.to, trip.from, reversed, turnAt);
+          // They walked up to the fire; they run back the way they came.
+          back = walk(id, trip.to, trip.from, reversed, turnAt, fleeSpeed(id));
+          participant.fleesUntil = back;
         }
         participant.decision = { activity: events[cursor + 1]?.stay ? activityAt(events, cursor + 1).kind : 'unknown', action: 'cancel', at: turnAt,
           destinationId: trip.from, reason: 'turns back short of the fire; visit cancelled' };
@@ -864,7 +874,8 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       const origin = event.trip ? event.from : event.to;
       if (!event.trip) remain(id, event, at, participant.departAt);
       const arrived = walk(id, origin, plan.venue.id, plan.toVenue, participant.departAt,
-        speedOf(id) * (incident.kind === 'meteor' && participant.role === 'occupant' ? METEOR_RUN_SPEED_MULTIPLIER : 1));
+        participant.role === 'occupant' ? fleeSpeed(id) : speedOf(id));
+      if (participant.role === 'occupant' && disaster) participant.fleesUntil = arrived;
       stay(id, plan.venue.id, arrived, plan.arrive, waitPurpose(kind));
       stay(id, plan.venue.id, plan.arrive, plan.activityEnd, { kind, fixed: false });
       location = events[plan.leaveIndex].to;
@@ -875,8 +886,8 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       // Damaged building: wait outside the zone, then rejoin the schedule outside it. No return walk.
       const [waitId, route] = waitFor(id, event)!;
       remain(id, event, at, participant.departAt);
-      const arrived = walk(id, event.to, waitId, route, participant.departAt,
-        speedOf(id) * (incident.kind === 'meteor' ? METEOR_RUN_SPEED_MULTIPLIER : 1));
+      const arrived = walk(id, event.to, waitId, route, participant.departAt, fleeSpeed(id));
+      participant.fleesUntil = arrived;
       participant.releaseAt = participant.departAt;
       ({ location, availableAt, cursor } = continueOutside(id, events, cursor, waitId, route.path.at(-1)!, arrived,
         waitPurpose(participant.decision!.activity)));
@@ -888,11 +899,12 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       for (let i = cursor + 1; i <= leaveIndex; i++) {
         const trip = events[i].trip;
         if (!trip) continue;
-        const factor = incident.kind === 'meteor' ? METEOR_RUN_SPEED_MULTIPLIER : 1;
+        const factor = disaster ? DISASTER_ASSUMPTIONS.runSpeedMultiplier : 1;
         const timestamps = trip.timestamps.map(t => availableAt + (t - events[i].start) / factor);
         trips.push(factor === 1 && availableAt === events[i].start ? trip : { ...trip, timestamps });
         availableAt = timestamps.at(-1)!;
       }
+      if (disaster) participant.fleesUntil = availableAt;
       location = events[leaveIndex].to;
       cursor = leaveIndex + 1;
       participant.releaseAt = participant.departAt;

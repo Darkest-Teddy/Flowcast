@@ -11,6 +11,7 @@ import type { WalkingAgent } from '../sim/playback';
 import { boxAround, setCullBox } from './culling';
 import { headingsKey, stableList } from './stable';
 import { mergeSkinnedMeshes } from './gltf-merge';
+import { addPanicClip, PANIC_CLIP, PANIC_CYCLE_SECONDS } from './gltf-panic';
 
 export const CHARACTER_MODELS = [
   'female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f',
@@ -27,9 +28,10 @@ const YAW_OFFSET = 180;
 export type LoadedModels = unknown[];
 
 /** Fetch and parse every character once; each layer then builds its own GPU copy and clock.
- *  Body and head are merged into one primitive (one draw per layer instead of two). */
+ *  Body and head are merged into one primitive (one draw per layer instead of two), and the
+ *  `panic` clip Kenney has no equivalent of is appended (layers/gltf-panic.ts). */
 export function loadCharacterModels(): Promise<LoadedModels> {
-  return Promise.all(CHARACTER_MODELS.map((url) => load(url, GLTFLoader).then(mergeSkinnedMeshes)));
+  return Promise.all(CHARACTER_MODELS.map((url) => load(url, GLTFLoader).then(mergeSkinnedMeshes).then(addPanicClip)));
 }
 
 const phaseCache = new Map<string, number>();
@@ -62,8 +64,8 @@ export interface AgentLayerOptions {
   runningIds?: ReadonlySet<string>;
 }
 
-/** Kenney clips for walking, standing, and fleeing. */
-export type CharacterClip = 'walk' | 'idle' | 'sprint';
+/** Clips for walking, standing, fleeing, and standing in fright (gltf-panic.ts). */
+export type CharacterClip = 'walk' | 'idle' | 'sprint' | 'panic';
 
 export interface CharacterLayerOptions extends AgentLayerOptions {
   /** Layer id prefix; one layer per model and phase, `${id}-${model}-${phase}`. */
@@ -130,7 +132,8 @@ export function characterLayers(items: Character[], models: LoadedModels, time: 
   // layers stay in the list, empty and hidden, so zooming back in re-uploads nothing.
   const usedPhases = clip === 'walk' && zoom < PHASED_FROM_ZOOM ? 1 : phases;
   const animationFor = (model: number, phase: number) => (clip === 'walk' ? WALK_ANIMATIONS[model % WALK_ANIMATIONS.length][phase]
-    : clip === 'sprint' ? SPRINT_ANIMATIONS[model % SPRINT_ANIMATIONS.length] : IDLE_ANIMATIONS[model % IDLE_ANIMATIONS.length]);
+    : clip === 'sprint' ? SPRINT_ANIMATIONS[model % SPRINT_ANIMATIONS.length]
+    : clip === 'panic' ? PANIC_ANIMATIONS[model % PANIC_ANIMATIONS.length] : IDLE_ANIMATIONS[model % IDLE_ANIMATIONS.length]);
   const sizeScale = walkerScale(zoom);
   // Bucket index model * phases + phase (the phase is a hash of the id, remembered per id).
   const buckets: Character[][] = [];
@@ -178,10 +181,17 @@ export function characterLayers(items: Character[], models: LoadedModels, time: 
   return layers;
 }
 
+/** Everyone whose id is in `ids`, then everyone else; each list keeps its order. One clip plays
+ *  per layer, so a crowd doing two things has to be split before it is drawn. */
+export function splitOut<T extends { id: string }>(people: T[], ids: ReadonlySet<string>): [T[], T[]] {
+  const inside: T[] = [], outside: T[] = [];
+  for (const person of people) (ids.has(person.id) ? inside : outside).push(person);
+  return [inside, outside];
+}
+
 export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time: number, options: AgentLayerOptions) {
   if (options.runningIds?.size) {
-    const runners: WalkingAgent[] = [], others: WalkingAgent[] = [];
-    for (const person of walking) (options.runningIds.has(person.id) ? runners : others).push(person);
+    const [runners, others] = splitOut(walking, options.runningIds);
     return [...characterLayers(others, models, time, { ...options, id: 'agents', clip: 'walk' }),
       ...characterLayers(runners, models, time, { ...options, id: 'agents-running', clip: 'sprint' })];
   }
@@ -191,6 +201,17 @@ export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time:
 const SPRINT_ANIMATIONS = CHARACTER_MODELS.map((_, model) => ({
   '*': { playing: false },
   sprint: { playing: true, startTime: model * 0.047, speed: 1 + (model % 4) * 0.06 },
+}));
+
+// Frightened and rooted to the spot (layers/gltf-panic.ts). Offset and paced per character model,
+// like the other clips, so a crowd outside a fire doesn't flail in unison.
+const PANIC_ANIMATIONS = CHARACTER_MODELS.map((_, model) => ({
+  '*': { playing: false },
+  [PANIC_CLIP]: {
+    playing: true,
+    startTime: (((model * 7) % CHARACTER_MODELS.length) / CHARACTER_MODELS.length) * PANIC_CYCLE_SECONDS,
+    speed: 0.95 + (model % 5) * 0.07,
+  },
 }));
 
 // Per model and phase: phases a third of a stride apart, and each model offset and paced a little

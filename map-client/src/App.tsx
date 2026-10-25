@@ -108,6 +108,7 @@ import type { DayData, Stay, WalkRoute } from './sim/playback';
 import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireModels } from './layers/fireTrucks';
 import { loadFireNetwork, planFireResponse, roadsNear, signalOracle, type FireNetwork } from './sim/fireResponse';
 import { crowdCharacters } from './layers/fireCrowd';
+import { panickingIds } from './layers/panic';
 import { segmentsNear } from './sim/fireEvacuation';
 import { registeredSignals } from './sim/signals';
 import { FireSiren } from './fireSiren';
@@ -1012,7 +1013,8 @@ export default function App() {
       let parkingState: ParkingState | null = null; // only while the Parking toggle is on
       let lastParking = 0;
       let runnersFor: IncidentRun | null = null;
-      let meteorRunners = new Map<string, IncidentRun['participants'][number]>();
+      // Everyone with a leg to run (sim/incidents.ts, `fleesUntil`), rebuilt only when the scenario changes.
+      let fleeing = new Map<string, IncidentRun['participants'][number]>();
       const tick = (now: number) => {
         // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
         if (!pacer.shouldRender(now)) {
@@ -1071,13 +1073,12 @@ export default function App() {
         const walking = playback.walkingAt(t);
         if (runnersFor !== impact) {
           runnersFor = impact;
-          meteorRunners = new Map(impact?.incident.kind === 'meteor'
-            ? impact.participants.map(p => [p.agentId, p]) : []);
+          fleeing = new Map(impact?.participants.filter(p => p.fleesUntil !== undefined).map(p => [p.agentId, p]) ?? []);
         }
         const runningIds = new Set<string>();
         for (const person of walking) {
-          const p = meteorRunners.get(person.id);
-          if (p && t >= p.departAt && t < p.resumedAt && person.to === p.decision?.destinationId) runningIds.add(person.id);
+          const p = fleeing.get(person.id);
+          if (p && t >= p.departAt && t < p.fleesUntil!) runningIds.add(person.id);
         }
         const publicWalking = publicCrowdRef.current?.walkingAt(t) ?? [];
         const waitingRiders = playback.waitingAt(t);
@@ -1211,6 +1212,17 @@ export default function App() {
         // Fans a meteor hit stop walking from that moment (the dead are drawn as ragdolls).
         const harmedFans = incidentRunRef.current?.fans?.harmed;
         if (harmedFans?.size) visitorFrame.drawn = visitorFrame.drawn.filter((fan) => !((harmedFans.get(fan.id) ?? Infinity) <= t));
+        // People standing about: riders waiting at stops, a fire's evacuees in their crowds, and
+        // people sitting by the river. The frightened ones among them (layers/panic.ts) are drawn
+        // with the panic clip instead of idling.
+        const standingPeople: Character[] = transit || standing.length || sitters.length
+          ? withSitters(transit || standing.length
+            ? nearView(standing.length
+              ? [...(transit ? waitingCharacters(allWaiting, transit.feed.tracks) : []), ...standing]
+              : waitingCharacters(allWaiting, transit!.feed.tracks), camera.center, q.walkerRadius)
+            : [], sitters)
+          : [];
+        const panicIds = panickingIds(incidentRunRef.current, t, standingPeople);
         const frameLayers = [
           ...fallbackDamageLayers(damage, new Set(detailedBuildings?.manifest.campuses
             .filter(campus => detailedBuildings.models[campus.id])
@@ -1256,11 +1268,9 @@ export default function App() {
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
-          // People standing about: riders waiting at stops, a fire's evacuees in their crowds, and
-          // people sitting by the river (all in the same idle layers).
-          ...(transit || standing.length || sitters.length ? waitingRiderLayers(withSitters(transit || standing.length ? nearView(standing.length
-            ? [...(transit ? waitingCharacters(allWaiting, transit.feed.tracks) : []), ...standing]
-            : waitingCharacters(allWaiting, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius) : [], sitters), models, t, basemap.getZoom()) : []),
+          // People standing about, in the same idle layers (and panic layers while frightened).
+          ...(transit || standing.length || sitters.length
+            ? waitingRiderLayers(standingPeople, models, t, basemap.getZoom(), panicIds) : []),
           ...(cleanRef.current ? [] : askRouteLayers(askRouteRef.current)),
           ...(currentMobility && showCountsRef.current && !cleanRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...atmosphereLayers(weatherRef.current, basemap.getCamera(), now, lightRef.current),

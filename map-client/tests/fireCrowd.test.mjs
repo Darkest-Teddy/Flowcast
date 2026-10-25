@@ -9,7 +9,7 @@ registerHooks({ resolve(specifier, context, next) {
   try { return next(specifier, context); }
   catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return next(`${specifier}.ts`, context); throw error; }
 } });
-const { applyIncident, FIRE_CROWD_ASSUMPTIONS, FIRE_CROWD_LIMITATIONS } = await import('../src/sim/incidents.ts');
+const { applyIncident, DISASTER_ASSUMPTIONS, FIRE_CROWD_ASSUMPTIONS, FIRE_CROWD_LIMITATIONS } = await import('../src/sim/incidents.ts');
 const { Playback } = await import('../src/sim/playback.ts');
 const { crowdCharacters, crowdCount } = await import('../src/layers/fireCrowd.ts');
 const DAY = 86400, H = 3600, WEEKDAY = 2;
@@ -109,8 +109,11 @@ function toSegment(p, a, b) {
   const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy, t = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
   return Math.hypot(ax + t * dx, ay + t * dy);
 }
-/** Gap-free days, connected walks (a walk starts where the last one ended), walking at the person's own speed. */
+/** Gap-free days, connected walks (a walk starts where the last one ended), and every walk at the
+ *  person's own speed — or at their running speed, since getting clear of the fire is run, not
+ *  walked (DISASTER_ASSUMPTIONS.runSpeedMultiplier). Which legs those are is asserted separately. */
 function assertWalkable(day, { exactSpeed = true } = {}) {
+  const RUN = DISASTER_ASSUMPTIONS.runSpeedMultiplier;
   const speed = new Map(day.agents.map(a => [a.id, a.walkSpeed ?? 1.4]));
   const all = new Map(day.agents.map(a => [a.id, []]));
   for (const s of day.stays) all.get(s.agent).push({ start: s.start, end: s.end, stay: s });
@@ -127,7 +130,8 @@ function assertWalkable(day, { exactSpeed = true } = {}) {
         endpoint = e.trip.path.at(-1); where = e.trip.to;
         for (let i = 1; i < e.trip.path.length; i++) {
           const dt = e.trip.timestamps[i] - e.trip.timestamps[i - 1], d = metres(e.trip.path[i - 1], e.trip.path[i]);
-          assert.ok(dt >= 0 && (d < 0.05 || (exactSpeed ? Math.abs(d / dt - speed.get(agent.id)) < 0.05 * speed.get(agent.id) : d / dt > 0.3 && d / dt < 3)), `${agent.id}: walks at ${d / dt} m/s`);
+          const own = speed.get(agent.id), near = (v) => Math.abs(d / dt - v) < 0.05 * v;
+          assert.ok(dt >= 0 && (d < 0.05 || (exactSpeed ? near(own) || near(own * RUN) : d / dt > 0.3 && (d / dt < 3 || near(own * RUN)))), `${agent.id}: walks at ${d / dt} m/s`);
         }
       } else where = e.stay.location;
     }
@@ -187,6 +191,40 @@ test('nobody is inside the burning building after their exit, for the rest of th
   assert.equal(pop.outdoors, outside.length);
   assert.equal(crowdCount(playback.occupancyAt(t), result.crowd), outside.length);
   assert.ok(outside.every(person => result.crowd.areas.some(area => area.id === person.to) && result.participants.find(p => p.agentId === person.id)?.role === 'occupant'));
+});
+
+test('evacuees run clear of the fire, then walk: only the leg out to the crowd is at running speed', () => {
+  const day = fixture(), result = applyIncident(day, fire(), context());
+  const RUN = DISASTER_ASSUMPTIONS.runSpeedMultiplier;
+  const speed = new Map(day.agents.map(a => [a.id, a.walkSpeed ?? 1.4]));
+  const paceOf = (trip) => {
+    let d = 0;
+    for (let i = 1; i < trip.path.length; i++) d += metres(trip.path[i - 1], trip.path[i]);
+    return d / (trip.timestamps.at(-1) - trip.timestamps[0]);
+  };
+  const areas = new Set(result.crowd.areas.map(area => area.id));
+  const occupants = result.participants.filter(p => p.role === 'occupant');
+  assert.ok(occupants.length >= 2);
+  let ran = 0;
+  for (const p of occupants) {
+    // The walk out ends at the standing area, and fleesUntil marks where the running stops.
+    assert.equal(p.fleesUntil, p.assemblyAt, `${p.agentId}: fleesUntil should be the crowd arrival`);
+    for (const trip of result.day.trips.filter(t => t.agent === p.agentId)) {
+      const pace = paceOf(trip), own = speed.get(p.agentId);
+      const flees = areas.has(trip.to) && Math.abs(trip.timestamps.at(-1) - p.fleesUntil) < 1e-6;
+      assert.ok(Math.abs(pace - own * (flees ? RUN : 1)) < 0.05 * own,
+        `${p.agentId}: ${flees ? 'flees' : 'walks'} to ${trip.to} at ${pace} m/s, own speed ${own}`);
+      if (flees) ran++;
+    }
+  }
+  assert.equal(ran, occupants.length, 'every occupant runs exactly one leg, out to the crowd');
+});
+
+test('a fire drill walks throughout: no running and no panic', () => {
+  const result = applyIncident(fixture(), { ...fire(), kind: 'fire-drill', outdoorCrowd: undefined }, context());
+  assert.ok(result.participants.length > 0);
+  assert.ok(result.participants.every(p => p.fleesUntil === undefined), 'a drill is not a disaster: nobody runs');
+  assertWalkable(result.day);
 });
 
 test('exits are on the footprint edge; spots are 25-95 m out, outside every footprint, off the road and clear of the truck', () => {

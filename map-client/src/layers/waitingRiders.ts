@@ -4,7 +4,7 @@
 // Each waiting student stands beside the track their vehicle will use: on the right of travel
 // along a Green Line platform, or at the kerb of a bus stop. Spots are stable per student, so the
 // crowd doesn't shuffle from frame to frame.
-import { characterLayers, type LoadedModels } from './agents';
+import { characterLayers, splitOut, type Character, type LoadedModels } from './agents';
 import type { WaitingRider, WalkingAgent } from '../sim/playback';
 import { pointAlong, snapToTracks, type Track } from '../transit/tracks';
 
@@ -70,6 +70,12 @@ export function waitingCharacters(waiting: WaitingRider[], tracks: Track[]): Wal
   });
 }
 
-export function waitingRiderLayers(people: WalkingAgent[], models: LoadedModels, time: number, zoom: number) {
-  return characterLayers(people, models, time, { id: 'transit-waiting', zoom, clip: 'idle', pickable: true });
+/** The people in `panicIds` (layers/panic.ts) stand in fright instead of idling; with nobody
+ *  frightened the panic layers are never built, exactly as before. */
+export function waitingRiderLayers(people: Character[], models: LoadedModels, time: number, zoom: number,
+  panicIds?: ReadonlySet<string>) {
+  if (!panicIds?.size) return characterLayers(people, models, time, { id: 'transit-waiting', zoom, clip: 'idle', pickable: true });
+  const [afraid, calm] = splitOut(people, panicIds);
+  return [...characterLayers(calm, models, time, { id: 'transit-waiting', zoom, clip: 'idle', pickable: true }),
+    ...characterLayers(afraid, models, time, { id: 'transit-panic', zoom, clip: 'panic', pickable: true })];
 }

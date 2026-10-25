@@ -1,9 +1,6 @@
 import type { Trip, WalkRoute } from './playback';
 import { polyline } from './fireEvacuation';
 
-/** Illustrative running pace relative to each person's baseline walking speed. */
-export const METEOR_RUN_SPEED_MULTIPLIER = 2.4;
-
 /** Escape on the current saved path only when every segment leads away from impact. */
 export function meteorEscape(trip: Trip, at: number, center: [number, number], radius: number, blocked: Set<string>) {
   const times = trip.timestamps;
