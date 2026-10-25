@@ -1371,6 +1371,10 @@ for fam, band in FAMILY_BAND.items():
 PLAIN["wall_glass"] = (84, 104, 122)
 PLAIN["wall_modern"] = band_average(B_MODERN, 0, 128)
 PLAIN["grass"] = (92, 150, 66)  # ballpark turf (last, so the existing materials keep their order)
+# Fenway: the deep green of its seats, the foul poles' yellow, the scoreboards' black (appended for the same reason).
+PLAIN["seat_green"] = (34, 88, 60)
+PLAIN["pole_yellow"] = (230, 192, 46)
+PLAIN["board_black"] = (22, 26, 30)
 CORNICE_MAT = {"stone": "trim_stone", "brown": "trim_brown", "white": "trim_white", "metal": "trim_metal",
                "concrete": "trim_concrete"}
 # Textured facade materials share the atlas; small tints vary neighbouring buildings.
@@ -1843,6 +1847,9 @@ class Ctx:
         # A landmark with floodlights (Fenway Park) sets their glow points, schedule and the lit
         # field's outline (written to the manifest as `floodlights`, for the fields layer).
         self.floodlights = None
+        # A landmark with seats (Fenway Park) lists its seat rows (written to the manifest as
+        # `seating`, for the app to seat event crowds in).
+        self.seating = None
         # The building's shopfront, if it has one: top of the shop storey (m) and the edge carrying
         # its canopy, if any (written to the manifest as `storefront`, for make_signs.py).
         self.storefront = None
@@ -3824,6 +3831,18 @@ def _ballpark_field(mesh, F, hp, ax):
     flat("trim_white", [(0.0, 0.0), (0.216, -0.216), (0.432, -0.216), (0.432, 0.216), (0.216, 0.216)], Y_LINE + 0.06)
 
 
+def _complement(gaps):
+    """The spans of 0..1 outside the (sorted, possibly touching) gaps."""
+    out, f = [], 0.0
+    for g0, g1 in sorted(gaps):
+        if g0 > f:
+            out.append((f, g0))
+        f = max(f, g1)
+    if f < 1.0:
+        out.append((f, 1.0))
+    return out
+
+
 def landmark_ballpark(mesh, b, ctx, rng, vols):
     """Fenway Park (1912), modest. OSM maps the stands as one ring wrapped round the field (open to
     the outside through a narrow gap in right-centre). From the field's edge a raked seating bowl
@@ -3925,19 +3944,73 @@ def landmark_ballpark(mesh, b, ctx, rng, vols):
             vb, vt = band_v(band)
             mesh.wall(facade, a, c, ys[k], ys[k + 1], (u0, u1, vb, vt))
         mesh.wall("trim_stone", a, c, H - 0.7, H)
-    # 4. The bowl: padded wall, then seats (or the Monster) up to the concourse roof.
+    # 4. The bowl: padded wall, then NROWS rows of green seats on stepped terraces up to the
+    #    concourse roof, with a concrete cross-aisle walkway part way up and
+    #    stair aisles every AISLE_EVERY metres along the field. Where the stand is too thin for seats
+    #    (left field, along Lansdowne Street) the bowl is the Green Monster, with three rows of
+    #    Monster seats on its top. Every row of seats is kept (local metres) for the manifest.
+    NROWS, CROSS, AISLE_EVERY, AISLE_HALF, SEAT_W = 26, 15, 22.0, 0.7, 0.5
+    STEPS = (0, 3, 6, 9, 12, 15, 16, 19, 22, 26)  # terrace edges, in rows; row CROSS is the walkway
+    cum = [0.0]
+    for k in range(m - 1):
+        cum.append(cum[-1] + seg[k])
+    seat_rows = []  # (x0, y0, x1, y1, height, seats, facing (east, north), section)
+
+    def lerp(p, q, t):
+        return (p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t)
+
+    def seat_runs(p0, p1, gaps, y, facing, section):
+        """Seats along p0->p1 (fractions 0..1), skipping the aisle gaps."""
+        L = dist(p0, p1)
+        if L < SEAT_W * 2:
+            return
+        for f0, f1 in _complement(gaps):
+            n = int((f1 - f0) * L / SEAT_W)
+            if n >= 2:
+                q0, q1 = lerp(p0, p1, f0 + SEAT_W / 2 / L), lerp(p0, p1, f1 - SEAT_W / 2 / L)
+                seat_rows.append((q0[0], q0[1], q1[0], q1[1], y, n, facing, section))
+    monster = []
     for k in range(m - 1):
         a, c, sa, sc = F[k], F[k + 1], back[k], back[k + 1]
         mesh.wall("roof_green", a, c, -0.2, WALL_H)
+        facing = rn[k]  # seats look into the field
         if depth[k] < 1.0 and depth[k + 1] < 1.0:
             mesh.wall("roof_green", a, c, WALL_H, H)  # the Green Monster
-
+            mesh.wall("trim_metal", a, c, H, H + 1.0)  # the Monster seats' railing
+            monster.append(k)
+            u = ((into[k][0] + into[k + 1][0]) / 2, (into[k][1] + into[k + 1][1]) / 2)
+            for d in (1.4, 2.3, 3.2):
+                seat_runs((a[0] + u[0] * d, a[1] + u[1] * d), (c[0] + u[0] * d, c[1] + u[1] * d), [], H, facing, 1)
             continue
-
-        def at(t, p, q):
-            return (p[0] + (q[0] - p[0]) * t, WALL_H + (H - WALL_H) * t, -(p[1] + (q[1] - p[1]) * t))
-        for t0, t1, mat in ((0.0, 0.55, "copper_green"), (0.55, 0.6, "trim_concrete"), (0.6, 1.0, "copper_green")):
-            _face_up(mesh, mat, [at(t0, a, sa), at(t0, c, sc), at(t1, c, sc), at(t1, a, sa)])
+        # Stair aisles crossing this stretch of field edge, as fractions of it.
+        gaps = []
+        if seg[k] > 1.0:
+            first = math.ceil((cum[k] - AISLE_EVERY / 2) / AISLE_EVERY)
+            for j in range(first, int((cum[k + 1] - AISLE_EVERY / 2) / AISLE_EVERY) + 1):
+                f = (AISLE_EVERY / 2 + j * AISLE_EVERY - cum[k]) / seg[k]
+                hw = AISLE_HALF / seg[k]
+                if 0.0 < f < 1.0:
+                    gaps.append((max(0.0, f - hw), min(1.0, f + hw)))
+        # A few wide terraces, each a riser and a green tread a few rows deep, carry the seats:
+        # one quad per row (riser, tread, seat back, stairs) cost tens of thousands of faces and
+        # slowed the whole map. The seat rows themselves are kept for the fans.
+        for s0, s1 in zip(STEPS, STEPS[1:]):
+            t0, t1 = s0 / NROWS, s1 / NROWS
+            y0 = WALL_H + (H - WALL_H) * t0
+            y1 = WALL_H + (H - WALL_H) * t1
+            fa0, fc0, fa1, fc1 = lerp(a, sa, t0), lerp(c, sc, t0), lerp(a, sa, t1), lerp(c, sc, t1)
+            mesh.wall("trim_concrete", fa0, fc0, y0, y1)  # the riser
+            walk = s0 == CROSS
+            _face_up(mesh, "trim_concrete" if walk else "seat_green",
+                     [(fa0[0], y1, -fa0[1]), (fc0[0], y1, -fc0[1]), (fc1[0], y1, -fc1[1]), (fa1[0], y1, -fa1[1])])
+            if walk:
+                continue
+            for g0, g1 in gaps:  # concrete stair aisles across the terrace
+                _face_up(mesh, "trim_concrete", [(p[0], y1 + 0.03, -p[1]) for p in
+                         (lerp(fa0, fc0, g0), lerp(fa0, fc0, g1), lerp(fa1, fc1, g1), lerp(fa1, fc1, g0))])
+            for r in range(s0, s1):
+                tm = (r + 0.55) / NROWS  # where people sit
+                seat_runs(lerp(a, sa, tm), lerp(c, sc, tm), gaps, y1, facing, 0)
     mesh.flat("roof_gravel", [oriented(outline_o, True), oriented(back, False)], H, True)
     # 5. Upper deck: glazed suites and press box facing the field, brick behind, a metal roof
     #    overhanging the upper rows.
@@ -3954,6 +4027,23 @@ def landmark_ballpark(mesh, b, ctx, rng, vols):
         oc = (fc[0] + rn[k][0] * 4.0, fc[1] + rn[k][1] * 4.0)
         _face_up(mesh, "roof_metal", [(oa[0], H_UP, -oa[1]), (oc[0], H_UP, -oc[1]), (fc[0], H_UP, -fc[1]), (fa[0], H_UP, -fa[1])])
         mesh.wall("trim_metal", oa, oc, H_UP - 0.4, H_UP)
+        # Roof box seats on top of the deck, stepped up away from the field (Fenway's roof
+        # seating above the suites), behind a railing at the deck's front edge.
+        wd = min(width[k], width[k + 1])
+        rows_up = int(max(0.0, wd - 1.5) / 0.9)
+        if rows_up >= 2:
+            mesh.wall("trim_metal", fa, fc, H_UP, H_UP + 1.0)
+            for r in range(rows_up):
+                t0, t1 = (0.6 + r * 0.9) / wd, (0.6 + (r + 1) * 0.9) / wd
+                y0, y1 = H_UP + 0.32 * r, H_UP + 0.32 * (r + 1)
+                p0a, p0c = lerp(fa, ba, t0), lerp(fc, bc, t0)
+                p1a, p1c = lerp(fa, ba, t1), lerp(fc, bc, t1)
+                mesh.wall("trim_concrete", p0a, p0c, y0, y1)
+                _face_up(mesh, "seat_green", [(p0a[0], y1, -p0a[1]), (p0c[0], y1, -p0c[1]), (p1c[0], y1, -p1c[1]), (p1a[0], y1, -p1a[1])])
+                tm = t0 + (t1 - t0) * 0.55
+                seat_runs(lerp(fa, ba, tm), lerp(fc, bc, tm), [], y1, rn[k], 2)
+            back_y = H_UP + 0.32 * rows_up
+            mesh.wall(facade, lerp(fc, bc, (0.6 + rows_up * 0.9) / wd), lerp(fa, ba, (0.6 + rows_up * 0.9) / wd), H_UP, back_y)
         for j, other in ((k, k - 1), (k + 1, k + 1)):  # end walls where the deck stops
             if not (0 <= other < m - 1 and width[other] and width[other + 1]):
                 mesh.wall(facade, back[j], rear[j], H, H_UP)
@@ -3974,9 +4064,60 @@ def landmark_ballpark(mesh, b, ctx, rng, vols):
         top = max(top, mast_top)
     # 7. The field: a real-size diamond (see _ballpark_field).
     _ballpark_field(mesh, F, hp, ax)
+    # 8. Dugouts along both baselines, the yellow foul poles (Pesky's Pole in right), the
+    #    centre-field video board (lit after dark) and the manual scoreboard on the Monster.
+    pp = (-ax[1], ax[0])
+    r2 = math.sqrt(2.0)
+    field_ring = oriented(F, True)
+    for side in (1, -1):  # third base, first base
+        u = ((ax[0] + side * pp[0]) / r2, (ax[1] + side * pp[1]) / r2)
+        away = ((side * pp[0] - ax[0]) / r2, (side * pp[1] - ax[1]) / r2)  # into foul ground
+        for off in (10.0, 8.0, 6.0):
+            cen = (hp[0] + u[0] * 27.0 + away[0] * off, hp[1] + u[1] * 27.0 + away[1] * off)
+            if poly_contains([field_ring], cen):
+                mesh.box("glass_dark", cen, u, 7.5, 1.4, 0.0, 1.1, top_mat="roof_green")
+                break
+        reach = _ray_hit(field_ring, hp, u)
+        if reach < 200:
+            pole = (hp[0] + u[0] * (reach - 0.4), hp[1] + u[1] * (reach - 0.4))
+            mesh.box("pole_yellow", pole, u, 0.22, 0.22, 0.0, H + 7.0)
+    cf = _ray_hit(oriented(outline, True), hp, ax)
+    if cf < 300:
+        e = (-ax[1], ax[0])
+        cen = (hp[0] + ax[0] * (cf - 4.0), hp[1] + ax[1] * (cf - 4.0))
+        p1, p2 = (cen[0] + e[0] * 13.0, cen[1] + e[1] * 13.0), (cen[0] - e[0] * 13.0, cen[1] - e[1] * 13.0)
+        front = (p1, p2) if right_normal(p1, p2)[0] * -ax[0] + right_normal(p1, p2)[1] * -ax[1] > 0 else (p2, p1)
+        mesh.wall("board_black", front[0], front[1], H + 1.5, H + 10.5)  # the screen faces home plate
+        mesh.wall("trim_metal", front[1], front[0], H + 1.5, H + 10.5)
+        mesh.wall("trim_metal", front[0], front[1], H + 10.5, H + 11.2)
+        for p in front:
+            mesh.box("trim_metal", p, ax, 0.4, 0.4, H, H + 1.5)
+        if ctx.lit is not None:  # the screen glows when the floodlights are on
+            n_home = (-ax[0], 0.0, ax[1])
+            q = [(x, y, -z) for x, y, z in ((front[0][0] - ax[0] * 0.08, H + 2.2, front[0][1] - ax[1] * 0.08),
+                 (front[1][0] - ax[0] * 0.08, H + 2.2, front[1][1] - ax[1] * 0.08),
+                 (front[1][0] - ax[0] * 0.08, H + 9.8, front[1][1] - ax[1] * 0.08),
+                 (front[0][0] - ax[0] * 0.08, H + 9.8, front[0][1] - ax[1] * 0.08))]
+            _face_toward(ctx.lit, "lit_neutral", q, n_home, [FENWAY_LIGHTS_ON] * 4)
+    if monster:
+        k = max(monster, key=lambda j: seg[j])
+        a, c = F[k], F[k + 1]
+        shift = (rn[k][0] * 0.06, rn[k][1] * 0.06)
+        f0, f1 = 0.5 - min(0.45, 8.0 / max(seg[k], 1.0)), 0.5 + min(0.45, 8.0 / max(seg[k], 1.0))
+        pa, pc = lerp(a, c, f0), lerp(a, c, f1)
+        mesh.wall("board_black", (pa[0] + shift[0], pa[1] + shift[1]), (pc[0] + shift[0], pc[1] + shift[1]), 2.6, 8.6)
     ctx.floodlights = {"on": FENWAY_LIGHTS_ON[0], "off": FENWAY_LIGHTS_ON[1],
                        "lamps": [[*ctx.frame.to_lnglat(x, y), round(z, 1)] for x, y, z in lamps],
-                       "field": [ctx.frame.to_lnglat(*p) for p in oriented(F, True)]}
+                       "field": [ctx.frame.to_lnglat(*p) for p in oriented(F, True)],
+                       # The seating bowl (field edge out to the back of the seats), lit with the field.
+                       "stands": [ctx.frame.to_lnglat(*p) for p in oriented(F + back[::-1], True)],
+                       # The bowl's slope for the app's lit-stands overlay: its front edge at `low`
+                       # (the padded wall), its back edge at `high` (the concourse roof), per vertex.
+                       "bowl": {"front": [ctx.frame.to_lnglat(*p) for p in F], "back": [ctx.frame.to_lnglat(*p) for p in back],
+                                "low": WALL_H, "high": H}}
+    ctx.seating = {"rows": [(*ctx.frame.to_lnglat(x0, y0), *ctx.frame.to_lnglat(x1, y1), y, n,
+                             round(math.degrees(math.atan2(fx, fy)), 1), sec) for x0, y0, x1, y1, y, n, (fx, fy), sec in seat_rows],
+                   "total": sum(r[5] for r in seat_rows)}
     ctx.record(ring, 0.0, H)
     ctx.clip = offset_ring(convex_hull(ring), 3.0)
     return top
@@ -4260,6 +4401,8 @@ def manifest_json(manifest):
             e = {**e, "volumes": [stub(v) for v in e["volumes"]]}
         if "floodlights" in e:  # Fenway's lamps and field, one line too
             e = {**e, "floodlights": stub(e["floodlights"])}
+        if "seating" in e:  # Fenway's seat rows, one line
+            e = {**e, "seating": stub(e["seating"])}
         if "storefront" in e:
             e = {**e, "storefront": stub(e["storefront"])}
         return e
@@ -4478,8 +4621,18 @@ def main():
                 fl = ctx.floodlights
                 entries[-1]["floodlights"] = {"on": fl["on"], "off": fl["off"],
                                               "lamps": [[round(lng, 7), round(lat, 7), z] for lng, lat, z in fl["lamps"]],
-                                              "field": [[round(lng, 7), round(lat, 7)] for lng, lat in fl["field"]]}
+                                              "field": [[round(lng, 7), round(lat, 7)] for lng, lat in fl["field"]],
+                                              "stands": [[round(lng, 7), round(lat, 7)] for lng, lat in fl["stands"]],
+                                              "bowl": {"front": [[round(lng, 7), round(lat, 7)] for lng, lat in fl["bowl"]["front"]],
+                                                       "back": [[round(lng, 7), round(lat, 7)] for lng, lat in fl["bowl"]["back"]],
+                                                       "low": fl["bowl"]["low"], "high": fl["bowl"]["high"]}}
                 ctx.floodlights = None
+            if ctx.seating:
+                # Seat rows: [lng0, lat0, lng1, lat1, height of the tread (m), seats, facing (bearing), section (0 bowl, 1 Monster, 2 roof)]
+                entries[-1]["seating"] = {"total": ctx.seating["total"],
+                                          "rows": [[round(r[0], 7), round(r[1], 7), round(r[2], 7), round(r[3], 7), round(r[4], 2), r[5], r[6], r[7]]
+                                                   for r in ctx.seating["rows"]]}
+                ctx.seating = None
             # Pieces Mapbox's vector tiles carry as separate features: building:part ways and a
             # relation's member ways. Listed so the app's city layer leaves them out too.
             extra = [f"{p['type']}/{p['id']}" for p in b.parts]

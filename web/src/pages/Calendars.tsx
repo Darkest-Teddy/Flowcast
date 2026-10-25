@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { api } from '../data/api';
 import type { CampusLocation, ScheduleImportState, ScheduleItem, SchedulePreview } from '../data/types';
 import { firstClassDay, summarizeScheduleCheck, weekOfLabel } from '../lib/scheduleCheck';
-import { Button, Page, PageHeader } from '../ui';
+import { Button, Page, PageHeader, Select } from '../ui';
 import { runScheduleCheck, useScheduleCheckContext } from './student/ScheduleCheck';
 import styles from './Calendars.module.css';
 
@@ -155,16 +155,16 @@ export default function Calendars() {
             <h3>Campus locations</h3>
             <p className={styles.detail}>Match each room to a campus place. Unmapped classes stay in your schedule without leave-by times.</p>
             <div className={styles.rooms}>
-              {rooms.slice(roomPage * PAGE_SIZE, (roomPage + 1) * PAGE_SIZE).map((room) => <label className={styles.room} key={room}>
+              {rooms.slice(roomPage * PAGE_SIZE, (roomPage + 1) * PAGE_SIZE).map((room) => <div className={styles.room} key={room}>
                 <span>{room || 'No location supplied'}</span>
-                <select value={mapping.get(room) ?? ''} disabled={busy} onChange={(event) => {
+                <Select aria-label={`Campus place for ${room || 'classes with no location'}`} value={mapping.get(room) ?? ''} disabled={busy} onChange={(event) => {
                   const value = event.target.value;
                   setMapping((current) => new Map(current).set(room, value));
                 }}>
                   <option value="">Unmapped</option>
                   {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-                </select>
-              </label>)}
+                </Select>
+              </div>)}
             </div>
             <Pagination page={roomPage} count={rooms.length} setPage={setRoomPage} disabled={busy} label="Locations" />
             {saved.items.length > 0 && <p className={styles.detail}>Replaces your {saved.items.length} imported classes.</p>}

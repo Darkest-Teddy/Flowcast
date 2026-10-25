@@ -13,7 +13,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Pointer
 
 export type Detent = 'peek' | 'half' | 'full';
 
-export const PHONE_QUERY = '(max-width: 800px)';
+/*
+ * Phones, landscape phones and portrait tablets. Below about 980px the wide layout's pieces meet:
+ * the centred tabs run under the 380px clock card, and the join card covers the ask bar. Media
+ * queries can't share a constant, so hud.css, styles.css, mobility.css, conditions.css and
+ * persona/persona.css repeat the number.
+ */
+export const PHONE_QUERY = '(max-width: 980px)';
 const ORDER: Detent[] = ['peek', 'half', 'full'];
 const NAMES: Record<Detent, string> = { peek: 'collapsed', half: 'half height', full: 'full height' };
 /** Below this a press on the grabber is a press, not a drag (px). */

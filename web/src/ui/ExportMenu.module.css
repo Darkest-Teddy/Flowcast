@@ -1,0 +1,93 @@
+/* Matches the secondary Button: a glass capsule with an icon. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-capsule);
+  background: var(--glass-fill-strong);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+.button[aria-expanded='true'] {
+  border-color: var(--color-accent);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.menu {
+  composes: glass-strong from global;
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  min-width: 240px;
+  padding: var(--space-1);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: var(--glass-inner-shadow), var(--shadow-overlay);
+  transform-origin: top right;
+  animation: drop 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.item {
+  display: grid;
+  gap: 1px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-card) / 2 - 2px);
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.item:hover,
+.item:focus-visible,
+.item:focus {
+  background: var(--color-surface-hover);
+}
+
+.item strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.item span {
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-xs);
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation: none;
+  }
+}

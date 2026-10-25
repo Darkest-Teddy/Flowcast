@@ -5,3 +5,8 @@
   gap: var(--space-5);
   margin-top: var(--space-6);
 }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); }
+.filters label { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 40px; font-size: var(--text-sm); }
+.filters input { accent-color: var(--color-accent); }
+.tags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.note { margin-top: var(--space-5); color: var(--color-ink-secondary); font-size: var(--text-sm); }

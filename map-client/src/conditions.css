@@ -33,4 +33,4 @@
 .explain ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.45; }
 .explain li { margin-bottom: 4px; }
 .explain-source { display: block; color: var(--map-ink-secondary); }
-@media (max-width: 800px) { .conditions-actions button { min-height: 44px; } }
+@media (max-width: 980px) { .conditions-actions button { min-height: 44px; } }

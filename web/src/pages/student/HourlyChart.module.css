@@ -1,74 +1,274 @@
+/*
+ * Hourly crowd chart. Columns share one grid with the axis, so labels sit under their bars; bars
+ * are capped at 22px and centred in their column (the rest is air), with 4px rounded tops and
+ * square bases on a hairline baseline. Gridlines are solid hairlines, one step off the surface.
+ */
 .chart {
-  --chart-height: calc(var(--space-16) + var(--space-8));
+  --chart-height: calc(var(--space-16) + var(--space-12));
+  --gutter: 34px; /* room for the gridline labels on the right */
+  margin: 0;
 }
 
 .tall {
   --chart-height: calc(var(--space-16) * 3);
 }
 
-.bars {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-1);
+.plot {
+  position: relative;
   height: var(--chart-height);
+  margin-top: var(--space-5); /* room for the peak label and "Now" above the tallest bar */
+  padding-right: var(--gutter);
+}
+
+/* ---------- Grid ---------- */
+
+.grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.grid span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--color-hairline-soft);
+}
+
+.grid em {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  color: var(--color-ink-tertiary);
+  font-size: 10px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* ---------- Bars ---------- */
+
+.bars {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  align-items: end;
+  height: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
-  position: relative;
-  z-index: 0;
   border-bottom: 1px solid var(--color-hairline);
 }
 
-.bar {
+.col {
   position: relative;
-  flex: 1;
   display: flex;
+  justify-content: center;
   align-items: flex-end;
   height: 100%;
+  outline: none;
+  cursor: default;
 }
 
 .fill {
+  position: relative;
   display: block;
-  width: 100%;
-  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  width: min(72%, 22px);
+  border-radius: 4px 4px 0 0;
+  /* The level colour, a touch lighter at the top: depth without a second hue. */
+  background: linear-gradient(to top, var(--c), color-mix(in srgb, var(--c) 78%, white));
+  transition: opacity var(--duration-base) var(--ease-standard), filter var(--duration-base) var(--ease-standard);
 }
+
+/* Hover or focus one column: the rest step back, the chosen one brightens. */
+.bars:hover .col:not(:hover) .fill,
+.bars:focus-within .col:not(:focus-visible):not(:hover) .fill {
+  opacity: 0.35;
+}
+
+.col:hover .fill,
+.col:focus-visible .fill {
+  filter: brightness(1.08) saturate(1.1);
+}
+
+.col:focus-visible .fill {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* The busiest hour's value rides on its cap, in text ink. */
+.peak {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  color: var(--color-ink-secondary);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- Now ---------- */
 
 .now::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-sunken);
-  z-index: -1;
+  top: calc(var(--space-4) * -1);
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--color-accent);
+  opacity: 0.55;
 }
 
-.axis {
+.nowTag {
+  position: absolute;
+  top: calc(var(--space-5) * -1);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: var(--radius-capsule);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+/* With "Now" on the peak, the tag wins and the value moves to the tooltip. */
+.now .peak {
+  display: none;
+}
+
+/* ---------- Tooltip ---------- */
+
+.tip {
+  composes: glass-strong from global;
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: calc(var(--radius-card) / 2);
+  box-shadow: var(--glass-inner-shadow), var(--shadow-overlay);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition: opacity var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+}
+
+.left {
+  left: 0;
+  transform: translate(0, 4px);
+}
+
+.right {
+  left: auto;
+  right: 0;
+  transform: translate(0, 4px);
+}
+
+.col:hover .tip,
+.col:focus-visible .tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.col:hover .left,
+.col:focus-visible .left,
+.col:hover .right,
+.col:focus-visible .right {
+  transform: translate(0, 0);
+}
+
+.tip strong {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.tip span {
   display: flex;
-  gap: var(--space-1);
-  margin-top: var(--space-1);
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ink-secondary);
   font-size: var(--text-xs);
+}
+
+/* A short line key, not a box. */
+.tip i {
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+/* ---------- Axis ---------- */
+
+.axis {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  margin-top: var(--space-2);
+  padding-right: var(--gutter);
   color: var(--color-ink-tertiary);
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
 
 .axis span {
-  flex: 1;
   min-width: 0;
-  white-space: nowrap;
   overflow: visible;
+  white-space: nowrap;
 }
+
+/* A whole day in a narrow chart (a phone): every third hour gives "12 AM" about 40px and the labels
+   run together, so only every sixth is kept. Measured on the chart, not the screen. */
+.dense {
+  container-type: inline-size;
+}
+
+@container (max-width: 480px) {
+  .dense .axis span:not([data-major]) {
+    visibility: hidden;
+  }
+}
+
+/* ---------- Motion ---------- */
 
 /* Bars grow up from the axis, left to right, when the chart mounts (Home replays it per place). */
 @media (prefers-reduced-motion: no-preference) {
   .fill {
     transform-origin: bottom;
-    animation: grow 560ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation: grow 620ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
     animation-delay: calc(var(--bar, 0) * 18ms);
+  }
+
+  .peak,
+  .nowTag {
+    animation: fade 300ms ease-out both;
+    animation-delay: calc(var(--bar, 0) * 18ms + 560ms);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip,
+  .fill {
+    transition: none;
   }
 }
 
 @keyframes grow {
   from {
     transform: scaleY(0);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
   }
 }

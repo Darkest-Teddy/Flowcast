@@ -5,6 +5,8 @@ export { StatCard } from './StatCard';
 export { StatusBadge, HealthBadge, Tag, CrowdMeter, Avatar } from './Status';
 export { Segmented, Toggle } from './Controls';
 export { TextField, TextArea, SelectField } from './Field';
+export { Select } from './Select';
+export { ExportMenu, type ExportOption } from './ExportMenu';
 export { Table, CellStack, type Column } from './Table';
 export { SearchBar, type SearchMode } from './SearchBar';
 export { Page, PageHeader, SectionHeading, EmptyState, Grid, Loading } from './Page';

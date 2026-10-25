@@ -16,6 +16,8 @@ import Events from './pages/Events';
 import EventImpact from './pages/EventImpact';
 import Clubs from './pages/Clubs';
 import Meetings from './pages/Meetings';
+import ClubDetail from './pages/ClubDetail';
+import CheckIn from './pages/CheckIn';
 import Profile from './pages/Profile';
 import Calendars from './pages/Calendars';
 import Privacy from './pages/Privacy';
@@ -44,10 +46,11 @@ const Join = lazy(() => import('./pages/Join'));
  * every page under it still sends them to /signin. Signed-in people get Home in the student layout.
  */
 function StudentArea() {
-  const { session, ready } = useSession();
+  const { session, ready, profileFailed } = useSession();
   const atIndex = useMatch('/') !== null;
   // Signed out: no stored sign-in means the landing page right away, without waiting for the check.
-  if (atIndex && !session && (ready || !mayBeSignedIn())) return <Landing />;
+  // Signed in with a profile that didn't load: RequireAuth shows AccountError instead.
+  if (atIndex && !session && !profileFailed && (ready || !mayBeSignedIn())) return <Landing />;
   return (
     <RequireAuth>
       <StudentLayout />
@@ -72,6 +75,8 @@ const router = createBrowserRouter([
   },
   { path: '/welcome', element: <RequireAuth><Welcome /></RequireAuth> },
   { path: '/clubs/register', element: <RequireAuth><ClubApply /></RequireAuth> },
+  // Scanned at a meeting's door: works signed out too, keeping the code across Google sign-in (CheckIn.tsx).
+  { path: '/checkin/:meetingId?', element: <CheckIn /> },
   {
     path: '/',
     element: <StudentArea />,
@@ -85,6 +90,7 @@ const router = createBrowserRouter([
       { path: 'event-impact', element: <EventImpact /> },
       { path: 'clubs', element: <Clubs /> },
       { path: 'meetings', element: <Meetings /> },
+      { path: 'clubs/:clubId', element: <ClubDetail /> },
       { path: 'profile', element: <Profile /> },
       { path: 'calendars', element: <Calendars /> },
       { path: 'privacy', element: <Privacy /> },

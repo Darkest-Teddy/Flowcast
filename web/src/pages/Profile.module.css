@@ -1,14 +1,38 @@
-/* A form column: each group is a section heading over a glass card. */
-.form {
-  max-width: var(--content-form);
+/* A centred bento: About you and Avatar side by side, Your habits across both, then Save. Each
+   group is a section heading over a glass card; cards in a row stretch to the same height. */
+.wrap {
+  max-width: 920px;
+  margin-inline: auto;
 }
 
-.section:first-child > :first-child {
+.form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    'about avatar'
+    'habits habits'
+    'footer footer';
+  gap: var(--space-5) var(--space-5);
+  align-items: stretch;
+}
+
+.about { grid-area: about; }
+.avatar { grid-area: avatar; }
+.habits { grid-area: habits; }
+
+.section {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.section > :first-child {
   margin-top: 0;
 }
 
 .card {
   composes: glass from global;
+  flex: 1;
   padding: var(--space-5);
   border-radius: var(--radius-card);
 }
@@ -94,11 +118,12 @@
 }
 
 .footer {
+  grid-area: footer;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-4);
-  margin-top: var(--space-8);
+  margin-top: var(--space-3);
 }
 
 .saved,
@@ -120,6 +145,13 @@
   background: none;
   color: var(--color-accent);
   cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .form {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'about' 'avatar' 'habits' 'footer';
+  }
 }
 
 @media (max-width: 560px) {

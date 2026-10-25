@@ -89,10 +89,11 @@ export default function Profile() {
 
   return (
     <Page>
+      <div className={styles.wrap}>
       <PageHeader title="Your profile" description="Optional Flowcast preferences. They don’t affect the shared simulation." />
 
       <form className={styles.form} onSubmit={save} noValidate>
-        <section className={styles.section}>
+        <section className={`${styles.section} ${styles.about}`}>
           <SectionHeading>About you</SectionHeading>
           <div className={styles.card}>
             <TextField
@@ -105,7 +106,7 @@ export default function Profile() {
           </div>
         </section>
 
-        <section className={styles.section}>
+        <section className={`${styles.section} ${styles.habits}`}>
           <SectionHeading>Your habits</SectionHeading>
           <div className={`${styles.card} ${styles.fields}`}>
             <SelectField
@@ -151,7 +152,7 @@ export default function Profile() {
           </div>
         </section>
 
-        <section className={styles.section}>
+        <section className={`${styles.section} ${styles.avatar}`}>
           <SectionHeading>Avatar</SectionHeading>
           <div className={`${styles.card} ${styles.avatarRow}`}>
             <Avatar name={draft.name || '?'} size={40} color={swatches[draft.avatarSwatch]} />
@@ -183,6 +184,7 @@ export default function Profile() {
           </p>
         </div>
       </form>
+      </div>
     </Page>
   );
 }

@@ -26,6 +26,7 @@ import { followLight } from './theme';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadSigns, signLayers, signTooltip } from './layers/signs';
 import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
+import { fenwayFanLayers } from './layers/seatedFans';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
@@ -251,11 +252,16 @@ const CHROME_REFRESH_MS = 400;
 function measureChrome(): Box[] {
   const boxes: Box[] = [];
   // The dock only groups the tabs and the rail for phones (display: contents elsewhere), so its
-  // children are measured instead of it.
-  for (const el of document.querySelectorAll('.hud > :not(.hud-dock), .hud-dock > *, .join-slot, .perf')) {
+  // children are measured instead of it. An open panel is chrome too: on a phone it covers most of
+  // the map, and tags placed under it showed through the glass.
+  for (const el of document.querySelectorAll('.hud > :not(.hud-dock), .hud-dock > *, .join-slot, .perf, .sheet.is-open')) {
     const r = el.getBoundingClientRect();
     if (r.width > 0 && r.height > 0) boxes.push({ x0: r.left, x1: r.right, y0: r.top, y1: r.bottom });
   }
+  // Past the screen's sides counts as taken too: a tag that would hang off the edge lifts or drops
+  // out like one under the chrome, rather than being cut in half (most often on a phone).
+  const { innerWidth: w, innerHeight: h } = window;
+  boxes.push({ x0: -w, x1: 0, y0: -h, y1: 2 * h }, { x0: w, x1: 2 * w, y0: -h, y1: 2 * h });
   return boxes;
 }
 /** ?ask=least+crowded+library opens the Ask tab with that question answered. */
@@ -985,12 +991,29 @@ export default function App() {
       let lastParking = 0;
       let runnersFor: IncidentRun | null = null;
       let meteorRunners = new Map<string, IncidentRun['participants'][number]>();
+      /*
+       * The HTML over the map (tags, roof dots, the what-if ring) is positioned
+       * after the map draws, not in the tick. This loop runs before the map's in
+       * each display frame, and the map applies a drag or an ease inside its own
+       * frame: positioned here, every dot sat one camera behind the glow it marks
+       * while the view moved. The tick queues the updates; the map's render runs
+       * them with the camera it just drew. A frame the map skipped hands them to
+       * the next tick instead, so none are lost.
+       */
+      let overlays: (() => void)[] = [];
+      const positionOverlays = () => {
+        const queued = overlays;
+        overlays = [];
+        for (const update of queued) update();
+      };
+      basemap.onRender(positionOverlays);
       const tick = (now: number) => {
         // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
         if (!pacer.shouldRender(now)) {
           frame = requestAnimationFrame(tick);
           return;
         }
+        positionOverlays();
         const elapsed = now - last;
         last = now;
         let nextDay = weekdayRef.current;
@@ -1110,26 +1133,31 @@ export default function App() {
           buildingsFrom = occupancy;
           buildingsPlayback = playback;
         }
-        if (!cleanRef.current) tagsRef.current?.update({
-          buildings: buildings.filter(building => !damagedIds.has(building.id.split('#')[0])),
-          footprints: day.buildings,
-          locations: populationBase.locations,
-          selectedId: selectedRef.current,
-          placer,
-          project: basemap.project,
-          camera: basemap.getCamera(),
-          roofHeights,
-        });
+        if (!cleanRef.current) {
+          const tagBuildings = buildings.filter(building => !damagedIds.has(building.id.split('#')[0]));
+          const frameSelected = selectedRef.current;
+          overlays.push(() => tagsRef.current?.update({
+            buildings: tagBuildings,
+            footprints: day.buildings,
+            locations: populationBase.locations,
+            selectedId: frameSelected,
+            placer,
+            project: basemap.project,
+            camera: basemap.getCamera(),
+            roofHeights,
+          }));
+        }
         // The what-if's area, re-projected every frame: its shape depends on the
         // camera, and a circle that lagged the map would be describing a different
         // piece of ground from the one the engine is using.
-        circleRef.current?.update({
-          centre: circleFrameRef.current.centre,
-          radiusMetres: circleFrameRef.current.radius,
-          rgb: circleFrameRef.current.rgb,
-          centreName: circleFrameRef.current.name,
+        const circleFrame = circleFrameRef.current;
+        overlays.push(() => circleRef.current?.update({
+          centre: circleFrame.centre,
+          radiusMetres: circleFrame.radius,
+          rgb: circleFrame.rgb,
+          centreName: circleFrame.name,
           project: basemap.project,
-        });
+        }));
         // Parking (toggle on only): the estimate is refreshed at most twice a second, then its tags
         // (with the toggle on, lots are what the user asked to see: placed before the transit tags).
         const parking = showParkingRef.current ? parkingRef.current : null;
@@ -1140,7 +1168,8 @@ export default function App() {
             parkingState = parkingAt(parking.model, parkingDay(snapshot, liveRef.current, weekdayRef.current), liveRef.current ? wallClockSeconds() : t, parking.campusEvents);
             setParkingView(parkingState);
           }
-          if (!cleanRef.current) parkingTagsRef.current?.update({ placer, project: basemap.project, camera: basemap.getCamera(), state: parkingState });
+          const state = parkingState;
+          if (!cleanRef.current) overlays.push(() => parkingTagsRef.current?.update({ placer, project: basemap.project, camera: basemap.getCamera(), state }));
         } else parkingState = null;
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
@@ -1150,24 +1179,28 @@ export default function App() {
         const serviceTime = liveRef.current ? wallClockSeconds() : t;
         const serviceDay = liveRef.current ? new Date().getDay() : (weekdayRef.current + 1) % 7;
         // Then station, stop and dock tags, through the same placer.
-        if (!cleanRef.current) transitTagsRef.current?.update({
-          placer,
-          project: basemap.project,
-          zoom: basemap.getZoom(),
-          transit: transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay,
+        if (!cleanRef.current) {
+          const frameTransit = transit && source && showTransitRef.current ? { data: transit.data, source, now, time: serviceTime, weekday: serviceDay,
             // Modeled BU students on a published trip; live vehicles have no matching trip id.
             aboard: (vehicleId: string) => aboardPublished(vehicleId, t, playback),
-            waiting: waitingByStop(waitingRiders) } : null,
-          bikes: showBikesNow ? { stations: bikes.data.stations, dockStatus } : null,
-        });
+            waiting: waitingByStop(waitingRiders) } : null;
+          const frameBikes = showBikesNow ? { stations: bikes.data.stations, dockStatus } : null;
+          overlays.push(() => transitTagsRef.current?.update({
+            placer,
+            project: basemap.project,
+            zoom: basemap.getZoom(),
+            transit: frameTransit,
+            bikes: frameBikes,
+          }));
+        }
         // Then monuments, artworks, open spaces and fields.
-        if (!cleanRef.current) placeTagsRef.current?.update({
+        if (!cleanRef.current) overlays.push(() => placeTagsRef.current?.update({
           placer,
           project: basemap.project,
           camera: basemap.getCamera(),
           monuments: monuments?.monuments ?? null,
           fields: fields?.fields ?? null,
-        });
+        }));
         // What's in view (with a margin): walkers outside it aren't drawn, and a deferred campus
         // starts loading when the view approaches it.
         const view = expandBounds(basemap.visibleBounds(), 0.25);
@@ -1205,6 +1238,7 @@ export default function App() {
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(signs ? signLayers(signs, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' }) : []),
+          ...(fields ? fenwayFanLayers(fields.seating, visitorPlanRef.current, t, basemap.getZoom()) : []),
           ...(cleanRef.current ? [] : [...(parking && parkingState ? parkingLayers(parking.data, parkingState) : [])]),
           ...placeHitLayers(monuments?.monuments ?? null, fields?.fields ?? null, basemap.getZoom()),
           ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
@@ -2061,20 +2095,19 @@ export default function App() {
       */}
       {hud && !clean && (
         <div className="hud">
-          <HudBrand
-            name="Flowcast"
-            campus={currentCampus?.name.replace(' Campus', '') ?? 'BU'}
-            weekday={WEEKDAYS[weekday]}
-            campuses={campuses}
-            onPickCampus={(id) => {
-              const next = campuses.find((c) => c.id === id);
-              if (next) goToCampus(next);
-            }}
-          />
+          <HudBrand name="Flowcast" dashboardHref="/" />
 
           {/* The views and the layers: two corners on a wide screen, one bottom sheet on a phone (hud.css). */}
           <div className="hud-dock">
-            <HudRail items={railItems} />
+            <HudRail items={railItems}
+              campus={currentCampus ? {
+                current: currentCampus.id,
+                options: campuses,
+                onPick: (id) => {
+                  const next = campuses.find((c) => c.id === id);
+                  if (next) goToCampus(next);
+                },
+              } : undefined} />
             <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
           </div>
 

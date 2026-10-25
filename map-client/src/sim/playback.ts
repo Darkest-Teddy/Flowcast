@@ -1,6 +1,7 @@
 // Turns a day of precomputed trips into "where is everyone at time t".
 // The server will eventually own this (plan Section 8.1); until then the client
 // plays the pipeline's JSON directly so the renderer can be built and tuned now.
+import { countedLocation, splitResidenceIds, splitResidences, splitResidenceStays } from './residenceSplit';
 import { drain, occupancyIndexSteps, type OccupancyIndex } from './occupancyIndex';
 import type { CasualtyEvent } from './casualties';
 import { abreastOffset, MAX_ABREAST } from './groups';
@@ -261,7 +262,8 @@ export interface PlaybackIndex {
  * prepared across frames without a hitch; `new Playback(data)` simply runs it to the end. */
 export function* indexPlayback(data: DayData, chunk = 4096): Generator<void, PlaybackIndex> {
   let work = 0;
-  const stayOccupancy = data.stays ? yield* occupancyIndexSteps(data.stays, chunk) : null;
+  // Counted with residences split into dorm and classrooms (sim/residenceSplit.ts); the stays themselves are unchanged.
+  const stayOccupancy = data.stays ? yield* occupancyIndexSteps(splitResidenceStays(data.stays, data.locations), chunk) : null;
   const agents = new Map<string, Agent>(), tripsByAgent = new Map<string, Trip[]>(), staysByAgent = new Map<string, Stay[]>();
   const walkingBuckets = new Map<number, Trip[]>(), ridesByTrip = new Map<string, TransitRide[]>(), waitingBuckets = new Map<number, TransitRide[]>();
   const outdoorStays: { stay: Stay; location: CampusLocation }[] = [];
@@ -346,6 +348,8 @@ export class Playback {
   private readonly tripsByAgent: Map<string, Trip[]>;
   private readonly staysByAgent: Map<string, Stay[]>;
   private readonly stayOccupancy: OccupancyIndex | null;
+  /** Residences reported as dorm + classrooms; stays there are counted with countedLocation. */
+  private readonly splitIds: ReadonlySet<string>;
   private readonly walkingBuckets: Map<number, Trip[]>;
   private readonly outdoorStays: { stay: Stay; location: CampusLocation }[];
   private trailWindow: { first: number; last: number; trips: Trip[] } | null = null;
@@ -367,7 +371,8 @@ export class Playback {
       }
     }
     this.data = data;
-    this.locations = data.locations;
+    this.locations = splitResidences(data.locations);
+    this.splitIds = splitResidenceIds(data.locations);
     const built = index ?? drain(indexPlayback(data));
     this.stayOccupancy = built.stayOccupancy;
     this.agents = built.agents;
@@ -551,15 +556,19 @@ export class Playback {
         for (const event of this.casualtiesAt(t)) {
           for (const stay of this.staysByAgent.get(event.agentId) ?? []) {
             if (stay.location === 'off-campus' || stay.start === stay.end || stay.start > t || t >= stay.end) continue;
-            const count = counts.get(stay.location) ?? 0;
-            if (count <= 1) counts.delete(stay.location); else counts.set(stay.location, count - 1);
+            const where = countedLocation(stay, this.splitIds);
+            const count = counts.get(where) ?? 0;
+            if (count <= 1) counts.delete(where); else counts.set(where, count - 1);
           }
         }
       } else {
         for (const [agentId, stays] of this.staysByAgent) {
           if (this.isCasualty(agentId, t)) continue;
           const stay = stays.find((entry) => entry.start <= t && t < entry.end);
-          if (stay && stay.location !== 'off-campus') counts.set(stay.location, (counts.get(stay.location) ?? 0) + 1);
+          if (stay && stay.location !== 'off-campus') {
+            const where = countedLocation(stay, this.splitIds);
+            counts.set(where, (counts.get(where) ?? 0) + 1);
+          }
         }
       }
       return this.locations.filter((location) => location.kind !== 'off-campus').map((location) => {

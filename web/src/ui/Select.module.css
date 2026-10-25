@@ -1,0 +1,212 @@
+/* The trigger: looks like the other fields, with a chevron that turns when open. */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: calc(var(--radius-card) / 2);
+  background: var(--glass-fill-strong);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-md);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-ink) 22%, var(--color-hairline));
+}
+
+.trigger:focus-visible,
+.trigger[aria-expanded='true'] {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-field-focus);
+}
+
+.trigger:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.trigger[aria-invalid='true'] {
+  border-color: var(--color-bad);
+}
+
+.value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--color-ink-tertiary);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.trigger[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+/* The menu: a strong glass sheet floating over the page. */
+.menu {
+  composes: glass-strong from global;
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  /* More solid than page glass: a menu sits over busy content and must read at a glance. */
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: var(--glass-inner-shadow), var(--shadow-overlay);
+  animation: drop 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transform-origin: top center;
+}
+
+.up {
+  transform-origin: bottom center;
+}
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) var(--space-2) 0;
+  padding: 0 var(--space-3);
+  height: 34px;
+  border-radius: calc(var(--radius-card) / 2);
+  background: var(--color-surface-sunken);
+  color: var(--color-ink-tertiary);
+}
+
+.filter svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.filter input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  outline: none;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 34px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: calc(var(--radius-card) / 2 - 2px);
+  color: var(--color-ink);
+  font-size: var(--text-md);
+  cursor: pointer;
+  user-select: none;
+}
+
+.option > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.active {
+  background: var(--color-surface-hover);
+}
+
+.selected {
+  font-weight: var(--weight-medium);
+}
+
+.option[aria-disabled='true'] {
+  color: var(--color-ink-tertiary);
+  cursor: default;
+}
+
+.check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--color-accent);
+}
+
+.empty {
+  padding: var(--space-3);
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+.up {
+  animation-name: rise;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation: none;
+  }
+
+  .chevron {
+    transition: none;
+  }
+}
+
+/* Touch: 44px targets, 16px text so iOS doesn't zoom. */
+@media (pointer: coarse) {
+  .trigger {
+    height: 44px;
+    font-size: var(--text-lg);
+  }
+
+  .option {
+    min-height: 44px;
+    font-size: var(--text-lg);
+  }
+}

@@ -27,4 +27,4 @@
 .mobility-sources ul { padding: 0; margin: 0; list-style: none; }
 .mobility-sources li { display: flex; flex-direction: column; gap: 3px; padding: 7px 0; }
 .mobility-sources li span { color: var(--map-ink-secondary); font-size: 12px; }
-@media (max-width: 800px) { .mobility-modes button { min-height: 40px; } }
+@media (max-width: 980px) { .mobility-modes button { min-height: 40px; } }

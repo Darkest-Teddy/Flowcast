@@ -137,6 +137,11 @@ export interface CampusEvent {
   source: 'club-ics' | 'university' | 'manual' | 'terrier-central';
   sourceUrl?: string;
   mapStatus: EventMapStatus;
+  /** Officer-posted meetings only: what's offered, outdoors, and a weekly series. */
+  perks?: Perk[];
+  perksNote?: string;
+  outdoor?: boolean;
+  seriesId?: string | null;
 }
 
 export interface ImpactPlace {
@@ -171,12 +176,101 @@ export interface EventImpactData {
   baseline: Record<string, Record<string, number[]>>;
   /** Date to that day's simulated events and the places they changed (24 hourly counts). */
   dates: Record<string, { weekday: number; projected: boolean; occupancy: Record<string, number[]>; gatherings: ImpactGathering[] }>;
+  /** Simulated walkers passing outdoor spots and building fronts per hour; absent from older builds. */
+  footTraffic?: FootTraffic;
+}
+
+export interface FootTrafficSpot {
+  id: string;
+  name: string;
+  kind: string;
+  position: [number, number];
+  radiusMetres: number;
+  /** For a building front, the building it surrounds. */
+  locationId?: string;
+}
+export interface FootTraffic {
+  measure: string;
+  spots: FootTrafficSpot[];
+  /** Weekday (Monday = 0) to spot id to 24 hourly counts of people walking in. */
+  baseline: Record<string, Record<string, number[]>>;
+}
+
+// ---------------------------------------------------------------- student organizations
+
+/** A meeting a verified officer posted on Flowcast (eventId "meeting:<id>"). */
+export interface OfficerMeeting {
+  id: string;
+  eventId: string;
+  clubId: string;
+  title: string;
+  locationId: string | null;
+  room: string;
+  start: string; // ISO
+  end: string; // ISO
+  notes: string;
+  cancelled: boolean;
+  updatedAt: string;
+  /** Meetings posted as one weekly series share this id. */
+  seriesId: string | null;
+  /** What's offered: food, drinks, swag, prizes, free-entry. */
+  perks: Perk[];
+  perksNote: string;
+  outdoor: boolean;
+  /** Clubs co-hosting (accepted invitations). */
+  cohosts: string[];
+}
+export type Perk = 'food' | 'drinks' | 'swag' | 'prizes' | 'free-entry';
+export interface MeetingInput { title: string; locationId: string | null; room: string; start: string; end: string; notes: string; perks: Perk[]; perksNote: string; outdoor: boolean }
+export interface CheckinCode { meetingId: string; code: string; path: string; count: number; opensAt: string; closesAt: string }
+export interface AttendanceReport { meetings: (OfficerMeeting & { checkins: number; rsvps: number; tracked: boolean })[]; recentAverage: number | null; basedOn: number }
+export interface ClubOfficer { accountId: string; name: string; email: string | null; title: string; since: string }
+export interface ClubMembers { followers: number; sharingFreeTime: number; visible: { name: string }[] }
+export interface ClubStats {
+  followers: number;
+  followerSeries: { date: string; followers: number }[];
+  trackingSince: string | null;
+  announcements: { body: string; at: string; aboutMeeting: boolean; rsvpsWithin48h: number | null }[];
+}
+export interface CohostInvite { id: string; status: 'pending' | 'accepted' | 'declined'; invited: boolean; hostClub: string; invitedClub: string; meeting: OfficerMeeting }
+export interface MeetingTask { id: string; label: string; daysBefore: number; due: string; done: boolean }
+export interface ClubProfile { tags: string[]; blurb: string }
+export interface Fair { id: string; name: string; date: string; locationId: string | null; starts: string; ends: string; tables: { clubId: string; table: string; note: string }[] }
+export interface VenueEvent { id: string; title: string; kind: string; venue: string; locationId: string | null; start: string; end: string | null }
+export interface MeetingWeather { available: boolean; reason?: string; periods: { name: string; start: string; end: string; temperatureF: number | null; rainChance: number | null; summary: string }[]; source: string }
+export interface ClubMeetingsPublic { meetings: OfficerMeeting[]; rsvps: Record<string, number> }
+export interface OrgMe {
+  admin: boolean;
+  officerOf: string[];
+  /** Clubs this person shares their free time with (counts only). */
+  sharing: string[];
+  /** Event ids this person said they're going to. */
+  rsvps: string[];
+  requests: { id: string; clubId: string; status: ApplicationStatus; submittedAt: string }[];
+}
+export interface ClubNotification { id: string; clubId: string; clubName: string; body: string; meetingEventId: string | null; at: string; unread: boolean }
+export interface ClubAnnouncement { id: string; body: string; meetingEventId: string | null; at: string }
+export interface MemberAvailability {
+  members: number;
+  minimum: number;
+  /** Null until at least `minimum` members share. */
+  days: { date: string; weekday: number; hours: { hour: number; free: number }[] }[] | null;
+}
+export interface ConflictReport {
+  date: string;
+  weekday: number;
+  academic: { period: string; label: string };
+  venueEvents: { name: string; venue: string; kind: string; start: string; end: string | null; metres: number | null; nearby: boolean }[];
+  near: string | null;
+  venueWindow: { from: string; to: string } | null;
+  clubEvents: { id: string; title: string; organizer: string | null; start: string; end: string | null; locationId: string | null; venue: string | null; source: 'terrier-central' | 'officer' }[];
 }
 
 export type ApplicationStatus = 'pending' | 'approved' | 'rejected';
 
 export interface ClubApplication {
   id: string;
+  clubId?: string;
   clubName: string;
   officerName: string;
   officerEmail: string;

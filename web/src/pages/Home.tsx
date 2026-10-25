@@ -11,7 +11,6 @@ import { findStudySpots } from '../lib/studyFinder';
 import {
   Avatar,
   Button,
-  Grid,
   ListRow,
   Page,
   SearchBar,
@@ -173,7 +172,7 @@ export default function Home() {
   );
 
   return (
-    <Page>
+    <Page wide>
       <div className={`${styles.hero} ${styles.reveal}`} style={order(0)}>
         <p className={styles.date}>{bostonLongDate(now)} · {bostonTime(now)} in Boston</p>
         <h1 className={styles.headline}>{greetingFor(hourNow)}{firstName ? `, ${firstName}` : ''}. Where are you headed?</h1>
@@ -229,8 +228,10 @@ export default function Home() {
         </section>
       )}
 
-      <section className={`${styles.glance} ${styles.reveal}`} style={order(3)} aria-label="At a glance">
-        <Grid columns={4} phoneColumns={2}>
+      {/* Bento: every card snaps to a four-column grid and stretches to fill its cell, so neighbours
+          line up and no gaps open; a card with nothing in it yet is simply an empty box. */}
+      <section className={styles.bento} aria-label="At a glance">
+        <div className={`${styles.cell} ${styles.w1} ${styles.reveal}`} style={order(3)}>
           <StatCard
             label={inClass ? 'In class until' : 'Next class'}
             value={departure.target ? bostonTime(inClass ? departure.target.end : departure.target.start) : '—'}
@@ -238,11 +239,15 @@ export default function Home() {
               ? `${departure.target.title}${!inClass && departure.leaveBy !== null ? ` · leave by ${bostonTime(departure.leaveBy)}` : ''}`
               : schedule.loading ? loadingText : 'No upcoming classes'}
           />
+        </div>
+        <div className={`${styles.cell} ${styles.w1} ${styles.reveal}`} style={order(4)}>
           <StatCard
             label="Classes today"
             value={schedule.data ? String(today.length) : '—'}
             detail={today.length ? `${bostonTime(today[0].start)} to ${bostonTime(today[today.length - 1].end)}` : schedule.loading ? loadingText : 'Nothing imported for today'}
           />
+        </div>
+        <div className={`${styles.cell} ${styles.w1} ${styles.reveal}`} style={order(5)}>
           <StatCard
             label="Campus peak"
             value={campusPeak ? formatHour(campusPeak.hour) : '—'}
@@ -250,7 +255,10 @@ export default function Home() {
             series={curve.length ? curve.map((h) => h.share) : undefined}
             axis={curve.length ? [formatHour(curve[0].hour), formatHour(curve[curve.length - 1].hour)] : undefined}
             highlightIndex={campusPeak ? curve.indexOf(campusPeak) : undefined}
+            format={(share, i) => `${formatHour(curve[i].hour)} · ${formatPercent(share)}`}
           />
+        </div>
+        <div className={`${styles.cell} ${styles.w1} ${styles.reveal}`} style={order(6)}>
           <StatCard
             label="Events today"
             value={events.data ? String(eventsToday.length) : '—'}
@@ -258,20 +266,16 @@ export default function Home() {
               ? `${eventsToday.filter((e) => e.mapStatus === 'simulated').length} change crowds on the map`
               : events.loading ? loadingText : 'Events unavailable'}
           />
-        </Grid>
+        </div>
       </section>
 
       <CrowdReportPrompt locations={locations.data ?? []} />
 
-      <div className={`${styles.now} ${styles.reveal}`} style={order(4)}>
+      <div className={`${styles.strip} ${styles.reveal}`} style={order(7)}>
         <GapCard schedule={schedule.data ?? []} locations={locations.data ?? []}
           geo={geoData} hours={hours.data ?? {}} forecasts={hourly.data ?? []}
           profile={profile.data ?? null} now={now} homeLocationId={homeLocationId}
           loading={schedule.loading || locations.loading || geo.loading || profile.loading || hours.loading} />
-
-        <DepartureCard items={schedule.data ?? []} locations={locations.data ?? []}
-          geo={geoData} now={now} homeLocationId={homeLocationId}
-          loading={schedule.loading || locations.loading || geo.loading || profile.loading} />
       </div>
 
       <TonightCard schedule={schedule.data ?? []} locations={locations.data ?? []}
@@ -279,102 +283,107 @@ export default function Home() {
         homeLocationId={homeLocationId} now={now} transit={transit.context}
         loading={schedule.loading || locations.loading || geo.loading || profile.loading || hours.loading || transit.loading} />
 
-      <div className={`${styles.columns} ${styles.reveal}`} style={order(5)}>
-        <SectionList
-          title="Today · Boston time"
-          count={schedule.data ? today.length : undefined}
-          to="/schedule"
-          empty={schedule.loading ? loadingText : 'No imported classes today.'}
-        >
-          {today.map((item) => (
-            <ListRow
-              key={item.id}
-              title={
-                <>
-                  {item.title}
-                  <span className={styles.where}>{item.locationText || (item.locationId ? place(item.locationId) : 'Building not mapped')}</span>
-                </>
-              }
-              detail={`${bostonTime(item.start)}${Date.parse(item.end) < now ? ' · done' : ''}`}
-            />
-          ))}
-        </SectionList>
-
-        <SectionList
-          title="Campus crowds today"
-          to={charted ? `/forecasts?place=${charted.locationId}` : '/forecasts'}
-          empty={hourly.loading ? loadingText : 'No comparable crowd projection is available today.'}
-        >
-          {charted && (
-            <div className={styles.chartBlock}>
-              <SelectField label="Place" value={charted.locationId} onChange={(event) => setChartPlace(event.target.value)}>
-                {forecasts.map((f) => <option key={f.locationId} value={f.locationId}>{place(f.locationId)}</option>)}
-              </SelectField>
-              <HourlyChart key={charted.locationId} hours={charted.hours} label={`Hourly forecast for ${place(charted.locationId)}`} />
-              <p className={styles.forecastNote}>
-                Peak {describe(peakOf(charted).share)} at {formatHour(peakOf(charted).hour)} · quietest {describe(quietestOf(charted).share)} at {formatHour(quietestOf(charted).hour)}
-              </p>
-            </div>
-          )}
-          {quietNow.map((f) => {
-            const level = crowdFor(shareAt(f, hourNow)!);
-            return (
+      <div className={styles.bento}>
+        <div className={`${styles.cell} ${styles.w2} ${styles.reveal}`} style={order(8)}>
+          <SectionList
+            title="Today · Boston time"
+            count={schedule.data ? today.length : undefined}
+            to="/schedule"
+            empty={schedule.loading ? loadingText : 'No imported classes today.'}
+          >
+            {today.map((item) => (
               <ListRow
-                key={f.locationId}
-                leading={<i className={styles.crowdDot} style={{ background: level.color }} aria-hidden />}
-                title={place(f.locationId)}
-                subtitle="Among the quietest this hour"
-                detail={`${formatPercent(shareAt(f, hourNow)!)} ${level.label}`}
+                key={item.id}
+                title={
+                  <>
+                    {item.title}
+                    <span className={styles.where}>{item.locationText || (item.locationId ? place(item.locationId) : 'Building not mapped')}</span>
+                  </>
+                }
+                detail={`${bostonTime(item.start)}${Date.parse(item.end) < now ? ' · done' : ''}`}
               />
-            );
-          })}
-          {charted?.basis && <details className={styles.forecastNote}><summary>About these projections</summary><p>{charted.basis}</p></details>}
-        </SectionList>
-      </div>
-
-      <div className={`${styles.columns} ${styles.reveal}`} style={order(6)}>
-        <SectionList
-          title="Study spots for the next hour"
-          to="/study"
-          empty={spots.loading || studyHours.loading ? loadingText : 'No study space is open right now by its published hours.'}
-        >
-          {!spots.loading && !studyHours.loading && study.map((r) => (
-            <ListRow
-              key={r.spot.id}
-              to="/study"
-              title={r.spot.name}
-              subtitle={[
-                r.walk !== null ? `${r.walk} min walk` : null,
-                r.usable !== null && r.usable > 0 ? `${r.usable} min to study` : r.open === null ? 'Hours unconfirmed' : null,
-              ].filter(Boolean).join(' · ') || r.spot.area}
-              detail={r.crowd !== null ? `${formatPercent(r.crowd)} ${crowdFor(r.crowd).label}` : undefined}
-            />
-          ))}
-          {!studyFrom && !studyHours.loading && study.length > 0 && <p className={styles.forecastNote}><Link to="/profile">Set your home building</Link> to rank by walk and study time.</p>}
-        </SectionList>
-
-        <SectionList
-          title="Best times this week"
-          to="/forecasts"
-          empty={bestTimes.loading ? loadingText : 'No published hours to rank this week.'}
-        >
-          {(bestTimes.data ?? []).filter((w) => w.quietest[0]).slice(0, 5).map((w) => {
-            const q = w.quietest[0];
-            return (
+            ))}
+          </SectionList>
+        </div>
+        <div className={`${styles.cell} ${styles.w2} ${styles.reveal}`} style={order(9)}>
+          <DepartureCard items={schedule.data ?? []} locations={locations.data ?? []}
+          geo={geoData} now={now} homeLocationId={homeLocationId}
+          loading={schedule.loading || locations.loading || geo.loading || profile.loading} />
+        </div>
+        <div className={`${styles.cell} ${styles.w2} ${styles.h2} ${styles.reveal}`} style={order(10)}>
+          <SectionList
+            title="Campus crowds today"
+            to={charted ? `/forecasts?place=${charted.locationId}` : '/forecasts'}
+            empty={hourly.loading ? loadingText : 'No comparable crowd projection is available today.'}
+          >
+            {charted && (
+              <div className={styles.chartBlock}>
+                <SelectField label="Place" value={charted.locationId} onChange={(event) => setChartPlace(event.target.value)}>
+                  {forecasts.map((f) => <option key={f.locationId} value={f.locationId}>{place(f.locationId)}</option>)}
+                </SelectField>
+                <HourlyChart key={charted.locationId} hours={charted.hours} label={`Hourly forecast for ${place(charted.locationId)}`} />
+                <p className={styles.forecastNote}>
+                  Peak {describe(peakOf(charted).share)} at {formatHour(peakOf(charted).hour)} · quietest {describe(quietestOf(charted).share)} at {formatHour(quietestOf(charted).hour)}
+                </p>
+              </div>
+            )}
+            {quietNow.map((f) => {
+              const level = crowdFor(shareAt(f, hourNow)!);
+              return (
+                <ListRow
+                  key={f.locationId}
+                  leading={<i className={styles.crowdDot} style={{ background: level.color }} aria-hidden />}
+                  title={place(f.locationId)}
+                  subtitle="Among the quietest this hour"
+                  detail={`${formatPercent(shareAt(f, hourNow)!)} ${level.label}`}
+                />
+              );
+            })}
+            {charted?.basis && <details className={styles.forecastNote}><summary>About these projections</summary><p>{charted.basis}</p></details>}
+          </SectionList>
+        </div>
+        <div className={`${styles.cell} ${styles.w2} ${styles.reveal}`} style={order(11)}>
+          <SectionList
+            title="Study spots for the next hour"
+            to="/study"
+            empty={spots.loading || studyHours.loading ? loadingText : 'No study space is open right now by its published hours.'}
+          >
+            {!spots.loading && !studyHours.loading && study.map((r) => (
               <ListRow
-                key={w.locationId}
-                to={`/forecasts?place=${w.locationId}`}
-                title={place(w.locationId)}
-                subtitle={w.busiest[0] ? `Busiest ${formatWeekday(`${w.busiest[0].date}T12:00:00`)} ${formatHour(w.busiest[0].hour)}` : undefined}
-                detail={`Quietest ${formatWeekday(`${q.date}T12:00:00`)} ${formatHour(q.hour)}`}
+                key={r.spot.id}
+                to="/study"
+                title={r.spot.name}
+                subtitle={[
+                  r.walk !== null ? `${r.walk} min walk` : null,
+                  r.usable !== null && r.usable > 0 ? `${r.usable} min to study` : r.open === null ? 'Hours unconfirmed' : null,
+                ].filter(Boolean).join(' · ') || r.spot.area}
+                detail={r.crowd !== null ? `${formatPercent(r.crowd)} ${crowdFor(r.crowd).label}` : undefined}
               />
-            );
-          })}
-        </SectionList>
-      </div>
-
-      <div className={`${styles.bottom} ${styles.reveal}`} style={order(7)}>
-        <div className={styles.stack}>
+            ))}
+            {!studyFrom && !studyHours.loading && study.length > 0 && <p className={styles.forecastNote}><Link to="/profile">Set your home building</Link> to rank by walk and study time.</p>}
+          </SectionList>
+        </div>
+        <div className={`${styles.cell} ${styles.w2} ${styles.reveal}`} style={order(12)}>
+          <SectionList
+            title="Best times this week"
+            to="/forecasts"
+            empty={bestTimes.loading ? loadingText : 'No published hours to rank this week.'}
+          >
+            {(bestTimes.data ?? []).filter((w) => w.quietest[0]).slice(0, 5).map((w) => {
+              const q = w.quietest[0];
+              return (
+                <ListRow
+                  key={w.locationId}
+                  to={`/forecasts?place=${w.locationId}`}
+                  title={place(w.locationId)}
+                  subtitle={w.busiest[0] ? `Busiest ${formatWeekday(`${w.busiest[0].date}T12:00:00`)} ${formatHour(w.busiest[0].hour)}` : undefined}
+                  detail={`Quietest ${formatWeekday(`${q.date}T12:00:00`)} ${formatHour(q.hour)}`}
+                />
+              );
+            })}
+          </SectionList>
+        </div>
+        <div className={`${styles.cell} ${styles.w2} ${styles.h2} ${styles.reveal}`} style={order(13)}>
           <SectionList
             title="Happening on campus"
             to="/events"
@@ -404,7 +413,8 @@ export default function Home() {
             {schedule.data?.length && !shownEvents.length && !events.loading ? <p className={styles.forecastNote}>{eventFilter === 'fits' ? 'No upcoming event this week fits your free time and walking range.' : 'No campus events coming up.'}</p> : null}
             {eventFilter === 'fits' && fits.size > 0 && <p className={styles.forecastNote}>Starts while you're free, within a {MAX_EVENT_WALK}-minute walk on saved routes, with time to stay and still make your next class (5 min buffer). Followed clubs first. Registration counts are never treated as attendance.</p>}
           </SectionList>
-
+        </div>
+        <div className={`${styles.cell} ${styles.w2} ${styles.reveal}`} style={order(14)}>
           <SectionList
             title={impactDate && impactDate !== todayKey
               ? `Event impact · ${formatWeekday(`${impactDate}T12:00:00`, true)}`
@@ -422,29 +432,30 @@ export default function Home() {
             ))}
           </SectionList>
         </div>
-
-        <SectionList
-          title="Your clubs"
-          count={clubs.data ? followed.length : undefined}
-          to="/clubs"
-          empty={
-            clubs.loading ? (
-              loadingText
-            ) : (
-              <>
-                You don't follow any clubs yet. <Link to="/clubs">Find clubs</Link>
-              </>
-            )
-          }
-        >
-          {followed.map((c) => (
-            <ListRow key={c.id} to="/clubs" leading={<Avatar name={c.name} />} title={c.name} />
-          ))}
-          {hasRole('clubOfficer') && <ListRow to="/club" title="Manage your club" subtitle="Club page and calendar upload" />}
-        </SectionList>
+        <div className={`${styles.cell} ${styles.w2} ${styles.reveal}`} style={order(15)}>
+          <SectionList
+            title="Your clubs"
+            count={clubs.data ? followed.length : undefined}
+            to="/clubs"
+            empty={
+              clubs.loading ? (
+                loadingText
+              ) : (
+                <>
+                  You don't follow any clubs yet. <Link to="/clubs">Find clubs</Link>
+                </>
+              )
+            }
+          >
+            {followed.map((c) => (
+              <ListRow key={c.id} to="/clubs" leading={<Avatar name={c.name} />} title={c.name} />
+            ))}
+            {hasRole('clubOfficer') && <ListRow to="/club" title="Manage your club" subtitle="Club page and calendar upload" />}
+          </SectionList>
+        </div>
       </div>
 
-      <FeatureGrid style={order(8)} clubOfficer={hasRole('clubOfficer')} admin={hasRole('admin')} />
+      <FeatureGrid style={order(16)} clubOfficer={hasRole('clubOfficer')} admin={hasRole('admin')} />
     </Page>
   );
 }

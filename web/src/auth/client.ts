@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export function safeReturnRoute(value: unknown): string {
   // Keep only known app paths; queries/fragments could contain credentials or redirect instructions.
-  return typeof value === 'string' && /^\/(?:ask|schedule|study|forecasts|events|event-impact|clubs(?:\/register)?|profile|calendars|privacy|settings|welcome|club(?:\/calendar)?|admin(?:\/(?:data-sources|simulation|live|clubs|users|agent-brain|settings))?)?$/.test(value) ? value : '/';
+  return typeof value === 'string' && /^\/(?:ask|schedule|study|forecasts|events|event-impact|meetings|checkin|clubs(?:\/register|\/organizer%3A[\w%.-]+)?|profile|calendars|privacy|settings|welcome|club(?:\/calendar)?|admin(?:\/(?:data-sources|simulation|live|clubs|users|agent-brain|settings))?)?$/.test(value) ? value : '/';
 }
 
 export function savedReturnRoute(): string {

@@ -123,6 +123,15 @@
   cursor: not-allowed;
 }
 
+/* Touch screens: 44px to the finger, as the buttons are (::after is the knob, so ::before). */
+@media (pointer: coarse) {
+  .switch::before {
+    content: '';
+    position: absolute;
+    inset: -11px -4px;
+  }
+}
+
 /* Equal slots keep the mode labels still while the selected surface travels beneath them. */
 .segmented.animated {
   position: relative;

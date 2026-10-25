@@ -33,6 +33,7 @@ declare module 'lucide-react' {
   export const CalendarRange: LucideIcon;
   export const CalendarSync: LucideIcon;
   export const ChartLine: LucideIcon;
+  export const Check: LucideIcon;
   export const ChevronDown: LucideIcon;
   export const ChevronLeft: LucideIcon;
   export const ChevronRight: LucideIcon;

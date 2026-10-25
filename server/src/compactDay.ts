@@ -6,6 +6,7 @@
 
 import { Playback, type CampusLocation, type Occupancy } from '../../map-client/src/sim/playback';
 import { createOccupancyIndex, type OccupancyIndex } from '../../map-client/src/sim/occupancyIndex';
+import { splitResidenceStays } from '../../map-client/src/sim/residenceSplit';
 
 /** What the server reads from a built day. Playback satisfies it too. */
 export interface DayView {
@@ -80,6 +81,7 @@ export class CompactDay implements DayView {
  */
 export function compactDay(playback: Playback): DayView {
   if (!playback.data.stays || playback.casualtiesAt(Number.MAX_VALUE).length > 0) return playback;
-  const index = createOccupancyIndex(playback.data.stays);
+  // Counted as Playback counts them: a residence with classrooms is two places (sim/residenceSplit.ts).
+  const index = createOccupancyIndex(splitResidenceStays(playback.data.stays, playback.data.locations));
   return index ? new CompactDay(playback, index) : playback;
 }

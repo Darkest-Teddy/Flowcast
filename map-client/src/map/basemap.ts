@@ -60,6 +60,12 @@ export interface Basemap {
    */
   onUserInteraction(cb: (kind: UserInteraction) => void): () => void;
   /**
+   * After each frame the map draws, with the camera that frame used. Returns an unsubscribe.
+   * HTML laid over the map is positioned here: the map applies a drag or an ease inside its own
+   * frame, so anything placed earlier in the same display frame is one camera behind the canvas.
+   */
+  onRender(cb: () => void): () => void;
+  /**
    * The screen insets the app's panels cover, so the camera centres in the map that's left. Eases
    * there (jumps with `animate: false` or under prefers-reduced-motion); while another camera move
    * is running, waits for it to end rather than cancel it.
@@ -189,6 +195,10 @@ function cameraApi(map: CameraMap, maxPitch: number) {
         window.removeEventListener('touchend', release, capture);
         for (const type of GESTURE_EVENTS) map.off(type, fromHandler);
       };
+    },
+    onRender: (cb: () => void) => {
+      map.on('render', cb);
+      return () => void map.off('render', cb);
     },
   };
 }

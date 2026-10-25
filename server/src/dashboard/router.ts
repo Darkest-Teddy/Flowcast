@@ -10,6 +10,10 @@ import type { Snapshot } from './import';
 import { authConfig, createUserVerifier, DashboardAuthError, type AuthConfig, type VerifiedUser, type VerifyUser } from './auth';
 import { emptySchedule, previewSchedule, ScheduleError, scheduleState, validateSchedule } from './schedule';
 import type { ScheduleImportState } from '../../../web/src/data/types';
+import type { ConflictFacts } from '../conflicts';
+import { adminEmails, orgExport, orgRoles, orgRoutes, PUBLIC_ORG_PATHS, type OrgDeps } from './orgs';
+import { clubToolExport, clubToolRoutes, type ClubToolDeps } from './clubTools';
+import type { VenueCalendar } from '../chatData';
 import { addCrowdReport, createCrowdThrottle, crowdReportBody, crowdReportQuery, readCrowdReports, reportBucket, type CrowdThrottle } from './crowdReports';
 
 const time = z.union([z.literal(''), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)]);
@@ -54,7 +58,7 @@ export function publicBestTimes(impact: Snapshot['impact'], campus: Snapshot['ca
   });
 }
 
-export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUser; authConfig?: () => AuthConfig; eventSlots?: (query: SlotQuery) => SlotResult; crowdThrottle?: CrowdThrottle; now?: () => Date } = {}) {
+export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUser; authConfig?: () => AuthConfig; eventSlots?: (query: SlotQuery) => SlotResult; crowdThrottle?: CrowdThrottle; now?: () => Date; admins?: OrgDeps['admins']; conflicts?: (date: string, near: string | null) => ConflictFacts; venues?: () => VenueCalendar | null; forecast?: ClubToolDeps['forecast'] } = {}) {
   const config = options.authConfig ?? authConfig;
   const verifyUser = options.verifyUser ?? createUserVerifier(config);
   const crowdThrottle = options.crowdThrottle ?? createCrowdThrottle();
@@ -78,7 +82,8 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   }
   async function account(res: Response): Promise<Account> {
     const user = res.locals.dashboardUser as VerifiedUser;
-    await pool!.query('INSERT INTO dashboard_accounts(id,profile,preferences) VALUES($1,$2,$3) ON CONFLICT (id) DO NOTHING', [user.id, { ...blankProfile, name: user.name }, blankPrefs]);
+    // The verified email is kept so officers can add co-officers by email (and only for that).
+    await pool!.query('INSERT INTO dashboard_accounts(id,profile,preferences,email) VALUES($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET email=EXCLUDED.email WHERE dashboard_accounts.email IS DISTINCT FROM EXCLUDED.email', [user.id, { ...blankProfile, name: user.name }, blankPrefs, user.email || null]);
     const result = await pool!.query('SELECT id,profile,preferences,following,schedule,schedule_import,created_at,updated_at FROM dashboard_accounts WHERE id=$1', [user.id]);
     return result.rows[0];
   }
@@ -86,7 +91,7 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   router.use(async (req, res, next) => {
     // Public reads: the snapshot, event slots (published schedules and model figures, nothing personal)
     // and anonymous crowd-report counts.
-    if ((req.method === 'GET' || req.method === 'HEAD') && /^\/(public|event-slots|crowd-reports)\/?$/i.test(req.path)) { next(); return; }
+    if ((req.method === 'GET' || req.method === 'HEAD') && (/^\/(public|event-slots|crowd-reports|conflicts|club-profiles|venue-events|fairs|weather)\/?$/i.test(req.path) || PUBLIC_ORG_PATHS.test(req.path))) { next(); return; }
     const token = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization ?? '')?.[1];
     if (!token) throw new DashboardAuthError(401);
     res.locals.dashboardUser = await verifyUser(token);
@@ -145,7 +150,8 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   });
   router.get('/me', async (req, res) => {
     const g = await account(res);
-    res.json({ session: session(g, res.locals.dashboardUser), profile: g.profile, notificationPrefs: g.preferences, following: g.following });
+    const user = res.locals.dashboardUser as VerifiedUser;
+    res.json({ session: { ...session(g, user), ...(await orgRoles(pool!, g.id, user.email, options.admins)) }, profile: g.profile, notificationPrefs: g.preferences, following: g.following });
   });
   router.get('/schedule', async (_req, res) => { res.json(scheduleState(await account(res))); });
   router.post('/schedule/preview', async (req, res) => {
@@ -195,16 +201,49 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     const g = await account(res);
     const result = await pool!.query(`UPDATE dashboard_accounts SET following=CASE WHEN $1 THEN array_append(array_remove(following,$2),$2) ELSE array_remove(following,$2) END, updated_at=now() WHERE id=$3 RETURNING following`, [parsed.data.following, req.params.id, g.id]);
     if (!result.rows[0]) { res.status(409).json({ error: 'Account profile was deleted.' }); return; }
+    // Follower history for club stats: a +1 or -1 with no account attached, only when it actually changed.
+    if (g.following.includes(req.params.id) !== parsed.data.following) await pool!.query('INSERT INTO dashboard_follow_events(club_id, delta) VALUES($1,$2)', [req.params.id, parsed.data.following ? 1 : -1]);
     res.json(result.rows[0].following);
   });
   router.get('/export', async (req, res) => {
     const g = await account(res);
-    res.json({ exportedAt: new Date().toISOString(), account: session(g, res.locals.dashboardUser).user, profile: g.profile, notificationPrefs: g.preferences, followedOrganizers: g.following, createdAt: g.created_at, updatedAt: g.updated_at, calendars: g.schedule_import ? [g.schedule_import] : [], events: g.schedule, scheduleImport: scheduleState(g) });
+    res.json({ exportedAt: new Date().toISOString(), account: session(g, res.locals.dashboardUser).user, profile: g.profile, notificationPrefs: g.preferences, followedOrganizers: g.following, createdAt: g.created_at, updatedAt: g.updated_at, calendars: g.schedule_import ? [g.schedule_import] : [], events: g.schedule, scheduleImport: scheduleState(g), organizations: { ...(await orgExport(pool!, g.id)), ...(await clubToolExport(pool!, g.id)) } });
   });
   router.delete('/me', async (req, res) => {
     await pool!.query('DELETE FROM dashboard_accounts WHERE id=$1', [res.locals.dashboardUser.id]);
     res.status(204).end();
   });
+  // Conflicts on a date: published venue events, the academic calendar, listed club events and officer-posted meetings.
+  router.get('/conflicts', async (req, res) => {
+    const parsed = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), near: z.string().regex(/^[a-z0-9-]+$/).optional() }).strict().safeParse(req.query);
+    if (!parsed.success) { res.status(400).json({ error: 'Send date (YYYY-MM-DD) and optionally near (a place id).' }); return; }
+    if (!options.conflicts) { res.status(503).json({ error: 'Conflict checks are unavailable on this server.' }); return; }
+    const { date, near } = parsed.data;
+    const facts = options.conflicts(date, near ?? null);
+    const { impact } = await snapshot();
+    // Listed events that start on the date; a listing spanning several days is a series without published weekdays.
+    const listed = impact.events.filter((e) => e.start.slice(0, 10) === date && (!e.end || e.end.slice(0, 10) === date))
+      .map((e) => ({ id: e.id, title: e.name, organizer: e.organizer, start: e.start, end: e.end, locationId: e.locationId, venue: e.locationName, source: 'terrier-central' as const }));
+    const posted = (await pool!.query(`SELECT * FROM dashboard_club_meetings WHERE NOT cancelled AND (starts_at AT TIME ZONE 'America/New_York')::date = $1::date ORDER BY starts_at`, [date])).rows;
+    const clubs = new Map(clubsFromBundle(impact).map((c) => [c.id, c.name]));
+    res.json({ ...facts, clubEvents: [...listed, ...posted.map((m) => ({ id: `meeting:${m.id}`, title: m.title, organizer: clubs.get(m.club_id) ?? null, start: new Date(m.starts_at).toISOString(), end: new Date(m.ends_at).toISOString(), locationId: m.location_id, venue: m.room || null, source: 'officer' as const }))] });
+  });
+  const admins = options.admins ?? adminEmails();
+  const orgDeps: OrgDeps = {
+    pool: pool!, admins, now,
+    account: (res) => account(res),
+    clubs: async () => new Map(clubsFromBundle((await snapshot()).impact).map((c) => [c.id, c])),
+    places: async () => new Map(locationsFromBundle((await snapshot()).impact).map((l) => [l.id, l])),
+    listedEvents: async (clubId) => (await snapshot()).impact.events
+      .filter((e) => e.organizer?.trim() && organizerId(e.organizer.trim()) === clubId && (!e.end || e.end.slice(0, 10) === e.start.slice(0, 10)))
+      .map((e) => ({ id: e.id, title: e.name, start: e.start, end: e.end, venue: e.locationName, locationId: e.locationId, url: e.sourceUrl })),
+  };
+  router.use(orgRoutes(orgDeps));
+  router.use(clubToolRoutes({
+    ...orgDeps, venues: options.venues, forecast: options.forecast,
+    isAdmin: (res) => { const email = (res.locals.dashboardUser as VerifiedUser | undefined)?.email; return !!email && admins.has(email.toLowerCase()); },
+    officerOf: async (accountId) => (await pool!.query('SELECT club_id FROM dashboard_officers WHERE account_id=$1', [accountId])).rows.map((r) => r.club_id),
+  }));
   router.use((_error: unknown, _req: Request, res: Response, _next: import('express').NextFunction) => {
     if (_error instanceof ScheduleError) { res.status(_error.status).json({ error: _error.message }); return; }
     if (_error instanceof DashboardAuthError) { res.status(_error.status).json({ error: _error.message }); return; }

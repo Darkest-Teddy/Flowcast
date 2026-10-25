@@ -138,6 +138,10 @@ export default function Welcome() {
 
           {step === 'done' && (
             <section className={styles.card}>
+              <svg className={styles.doneMark} viewBox="0 0 52 52" aria-hidden>
+                <circle cx="26" cy="26" r="23" pathLength={1} />
+                <path d="m16 27 7 7 13-15" pathLength={1} />
+              </svg>
               <p className={styles.eyebrow}>All set</p>
               <h1 tabIndex={-1}>You’re ready to go.</h1>
               <ul className={styles.summary}>
@@ -187,6 +191,7 @@ function ClassesStep({ state, onNext, onBack }: {
   const [preview, setPreview] = useState<SchedulePreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const saved = state.data?.items.length ?? 0;
   const mapped = preview?.items.filter((i) => i.locationId).length ?? 0;
 
@@ -222,8 +227,9 @@ function ClassesStep({ state, onNext, onBack }: {
       {state.error && <p role="alert" className={styles.error}>{state.error.message} <button type="button" className={styles.link} onClick={state.reload}>Try again</button></p>}
       {saved > 0 && !preview && <p className={styles.status}><CircleCheck aria-hidden /> {saved} classes imported{state.data?.fileName ? ` from ${state.data.fileName}` : ''}.</p>}
 
-      <button type="button" className={styles.drop} disabled={busy} onClick={() => file.current?.click()}
-        onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void choose(e.dataTransfer.files[0]); }}>
+      <button type="button" className={`${styles.drop} ${dragging ? styles.dragging : ''}`} disabled={busy} onClick={() => file.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); void choose(e.dataTransfer.files[0]); }}>
         <CalendarDays aria-hidden />
         <span><strong>{saved ? 'Replace with a new file' : 'Choose your schedule file'}</strong><span>or drop it here · .ics up to 1 MB</span></span>
       </button>
@@ -356,11 +362,12 @@ function ClubsStep({ clubs, error, onToggle, onNext, onBack }: {
       <TextField label="Search clubs" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Robotics, dance, debate…" />
       {!clubs ? <p role="status" className={styles.note}>Loading clubs…</p> : (
         <ul className={styles.clubs}>
-          {shown.map((c) => (
-            <li key={c.id}>
+          {shown.map((c, i) => (
+            <li key={c.id} style={{ ['--i' as string]: i }}>
               <Avatar name={c.name} />
               <span className={styles.clubName}>{c.name}{c.verified && <span className={styles.badge}>Verified</span>}</span>
-              <Button size="sm" variant={c.following ? 'secondary' : 'primary'} disabled={pending === c.id}
+              <Button key={`${c.id}-${c.following}`} className={c.following ? styles.followed : undefined}
+                size="sm" variant={c.following ? 'secondary' : 'primary'} disabled={pending === c.id}
                 aria-pressed={c.following} onClick={() => void toggle(c.id, !c.following)}>
                 {c.following ? 'Following' : 'Follow'}
               </Button>

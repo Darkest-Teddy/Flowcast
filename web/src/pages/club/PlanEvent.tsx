@@ -23,8 +23,8 @@ const day = (date: string) => formatDayLabel(`${date}T12:00:00`);
  * places members come from, the rooms with the shortest average walk for them come first. It only
  * reads schedules and model figures; nothing is booked.
  */
-export function PlanEvent({ title = 'Plan an event' }: { title?: string }) {
-  const [plan, setPlan] = useState<EventPlan>(DEFAULT_PLAN);
+export function PlanEvent({ title = 'Plan an event', initial }: { title?: string; initial?: Partial<EventPlan> }) {
+  const [plan, setPlan] = useState<EventPlan>({ ...DEFAULT_PLAN, ...initial });
   const locations = useResource(api.getLocations);
   // Members come from dorms and the buildings they have class in; libraries and dining are rarely a starting point.
   const places = (locations.data ?? []).filter((l) => l.kind === 'dorm' || l.kind === 'classroom').sort((a, b) => a.name.localeCompare(b.name));

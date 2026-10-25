@@ -59,6 +59,10 @@ export interface Floodlights {
   lamps: [number, number, number][];
   /** [lng, lat] ring of the playing field they light. */
   field: [number, number][];
+  /** [lng, lat] ring of the seating bowl round the field, lit with it (absent from older manifests). */
+  stands?: [number, number][];
+  /** The bowl's slope: its front edge (on the field) at `low` metres, its back edge at `high`, vertex by vertex. */
+  bowl?: { front: [number, number][]; back: [number, number][]; low: number; high: number };
 }
 
 /** The base map's own 3D models that our landmark models replace (see `clip`), as closed rings. */
