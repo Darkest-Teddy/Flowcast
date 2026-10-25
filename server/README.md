@@ -72,11 +72,15 @@ The adapter uses fetch with no automatic retries and posts to `https://api.opena
 The browser owns microphone access, the peer connection, and delegation events. It sends delegated
 campus questions through `/api/ask` with the current map context and applies returned UI actions.
 The voice prompt delegates campus facts/data/routes, prohibits invented occupancy, labels crowd
-information as modeled rather than sensor data, and says no personal schedule is available.
+information as modeled rather than sensor data, and delegates personal schedule questions too.
 The session-creation endpoint does not receive a personal schedule or run backend tools itself.
-Start voice from Home, Ask Flowcast, or the map panel. The shared controls provide microphone
-mute, end-call, playback recovery and in-memory captions. Map lookups use its selected campus/day/time;
-dashboard lookups use the current Boston clock. Calls close after ten minutes or when leaving the page.
+Each lookup reads the signed-in user's calendar through the authenticated dashboard endpoint and
+shares the same bounded two-week context as text Ask. Reads are not cached; account changes end the
+call and discard its local history. Signed-out users can still ask campus questions.
+Start voice from Home, Ask Flowcast, or the microphone beside the map's weather control. On the map,
+the microphone becomes a stop button during a call; errors and blocked playback appear only when needed.
+Dashboard controls also provide mute and in-memory captions. Map lookups use its selected campus/day/time;
+personal schedule questions use actual Boston dates. Calls close after ten minutes or when leaving the page.
 This browser duration limit is a usability guard, not a server-enforced spending limit.
 The production host forwards `/api/voice/session` to the API service; frontend development proxies
 must also forward that path. Use HTTPS or localhost for browser microphone access.

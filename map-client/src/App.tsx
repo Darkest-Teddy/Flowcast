@@ -1406,7 +1406,15 @@ export default function App() {
             {hud.outdoors ? <span><b>{hud.outdoors.toLocaleString()}</b> by the river</span> : null}
           </p>
         )}
-        actions={<span className="weather-chip-slot" ref={setWeatherChip} />}
+        actions={<>
+          {askContext && <LiveVoice compact context={{ weekday, time: askContext.time,
+            campus: campus === 'fenway' || campus === 'medical' ? campus : 'charles-river' }}
+            onAnswer={(answer) => {
+              if (answer.show) showAsk({ ...answer.show,
+                select: askContext.locations.find(location => location.id === answer.show?.select) ?? null });
+            }} />}
+          <span className="weather-chip-slot" ref={setWeatherChip} />
+        </>}
       >
         <div className="sheet-context">
           <p className="model-note">
@@ -1432,13 +1440,6 @@ export default function App() {
             </div>
           )}
         </div>
-
-        {askContext && <LiveVoice context={{ weekday, time: askContext.time,
-          campus: campus === 'fenway' || campus === 'medical' ? campus : 'charles-river' }}
-          onAnswer={(answer) => {
-            if (answer.show) showAsk({ ...answer.show,
-              select: askContext.locations.find(location => location.id === answer.show?.select) ?? null });
-          }} />}
 
         {hud && (
           <div className="tabs" role="tablist" aria-label="Panel" onKeyDown={onTabKey}>

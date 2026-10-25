@@ -1,4 +1,4 @@
-import type { PersonalSchedule } from '@map/personalSchedule';
+import type { PersonalSchedule } from '../../../map-client/src/personalSchedule';
 import type { ScheduleItem } from '../data/types';
 
 export function buildPersonalSchedule(schedule: ScheduleItem[], at = new Date()): PersonalSchedule {
