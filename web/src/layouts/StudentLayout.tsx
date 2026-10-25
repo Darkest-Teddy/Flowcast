@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Ticket,
   Upload,
-  UserRound,
   Menu,
   Users,
 } from 'lucide-react';
@@ -42,7 +41,6 @@ export function StudentLayout() {
   const account: NavSection = {
     label: 'Account',
     items: [
-      { to: '/profile', label: 'Profile', icon: UserRound },
       { to: '/calendars', label: 'Calendars', icon: CalendarSync },
       { to: '/privacy', label: 'Privacy & data', icon: ShieldCheck },
       { to: '/settings', label: 'Settings', icon: Settings },

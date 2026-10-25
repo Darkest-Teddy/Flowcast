@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { ChevronLeft, ChevronRight, Menu, X, type LucideIcon } from 'lucide-react';
+import { Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X, type LucideIcon } from 'lucide-react';
 import styles from './AppShell.module.css';
 import { Logo } from '../ui/Logo';
+import { setTheme } from '../lib/theme';
 
 export interface NavItem {
   to: string;
@@ -36,6 +37,12 @@ function savedCollapsed() {
   } catch {
     return false;
   }
+}
+
+/** Whether the page is dark right now: chosen in Settings or the toggle, or by the device under System. */
+function isDark() {
+  const chosen = document.documentElement.dataset.theme;
+  return chosen ? chosen === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
 /** Same width as the `max-width: 860px` breakpoint in AppShell.module.css. */
@@ -76,7 +83,15 @@ export function AppShell({
   const [moreOpen, setMoreOpen] = useState(false);
   // Desktop only: the phone layouts have their own drawer and tab bar, and ignore it.
   const [collapsed, setCollapsed] = useState(savedCollapsed);
+  const [dark, setDark] = useState(isDark);
   const { pathname } = useLocation();
+
+  // The quick toggle flips between explicit light and dark; Settings still offers System.
+  const toggleTheme = () => {
+    const next = !isDark();
+    setTheme(next ? 'dark' : 'light');
+    setDark(next);
+  };
 
   const toggleCollapsed = () => {
     setCollapsed((was) => {
@@ -155,10 +170,6 @@ export function AppShell({
           <Logo className={styles.mark} />
           <span className={styles.brandName}>Flowcast</span>
           {brandTag && <span className={styles.brandTag}>{brandTag}</span>}
-          <button type="button" className={styles.collapse} onClick={toggleCollapsed}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-pressed={collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-            {collapsed ? <ChevronRight aria-hidden /> : <ChevronLeft aria-hidden />}
-          </button>
           <button ref={closeButton} className={styles.close} onClick={() => setOpen(false)} aria-label="Close menu">
             <X aria-hidden />
           </button>
@@ -185,6 +196,16 @@ export function AppShell({
             </div>
           ))}
         </nav>
+        <div className={styles.tools}>
+          <button type="button" className={styles.tool} onClick={toggleTheme}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'}>
+            {dark ? <Sun aria-hidden /> : <Moon aria-hidden />}
+          </button>
+          <button type="button" className={styles.tool} onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-pressed={collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
+          </button>
+        </div>
         {sidebarFooter && <div className={styles.footer}>{sidebarFooter}</div>}
       </aside>
       {open && <div className={styles.scrim} onClick={() => setOpen(false)} aria-hidden />}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { CircleCheck } from 'lucide-react';
 import { crowdFor } from '@theme/tokens';
@@ -6,7 +6,7 @@ import { LiveVoice } from '@map/LiveVoice';
 import { useSession } from '../auth/session';
 import { api, locationName, useResource } from '../data/api';
 import type { HourlyForecast } from '../data/types';
-import { formatDayTime, formatHour, formatPercent, formatTime, formatWeekday, isToday } from '../lib/format';
+import { formatDayTime, formatHour, formatPercent, formatWeekday } from '../lib/format';
 import { findStudySpots } from '../lib/studyFinder';
 import {
   Avatar,
@@ -44,6 +44,8 @@ const shareAt = (f: HourlyForecast, hour: number) => f.hours.find((h) => h.hour 
 const peakOf = (f: HourlyForecast) => f.hours.reduce((a, b) => (b.share > a.share ? b : a));
 const quietestOf = (f: HourlyForecast) => f.hours.reduce((a, b) => (b.share < a.share ? b : a));
 const describe = (share: number) => `${formatPercent(share)} ${crowdFor(share).label}`;
+/** Stagger index for the entrance animation (Home.module.css .reveal). */
+const order = (i: number) => ({ '--i': i }) as CSSProperties;
 
 /** Mean projected share per waking hour across the places you'd go to: the campus-wide shape of the day. */
 function campusCurve(forecasts: HourlyForecast[]) {
@@ -90,8 +92,10 @@ export default function Home() {
   const today = (schedule.data ?? [])
     .filter((s) => Number.isFinite(Date.parse(s.start)) && bostonDay(s.start) === todayKey)
     .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+  // Today's and later events still to finish; a listing that started on an earlier day (a
+  // recurring or multi-day one) would sit at the top with a stale weekday.
   const upcomingEvents = (events.data ?? [])
-    .filter((e) => Date.parse(e.end ?? e.start) >= now)
+    .filter((e) => Date.parse(e.end ?? e.start) >= now && bostonDay(e.start) >= todayKey)
     .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
     .slice(0, 5);
   const eventsToday = (events.data ?? []).filter((e) => bostonDay(e.start) === todayKey);
@@ -99,6 +103,7 @@ export default function Home() {
 
   // At a glance.
   const departure = getDeparturePlan({ items: schedule.data ?? [], locations: locations.data ?? [], geo: geoData, now, homeLocationId });
+  const inClass = !!departure.current && departure.target?.id === departure.current.id;
   const forecasts = (hourly.data ?? []).filter((f) => f.hours.length);
   // Dorms are always full at night; leave them out of "where's busy" unless picked by hand.
   const kindOf = (id: string) => locations.data?.find((l) => l.id === id)?.kind;
@@ -146,7 +151,7 @@ export default function Home() {
 
   return (
     <Page>
-      <div className={styles.hero}>
+      <div className={`${styles.hero} ${styles.reveal}`} style={order(0)}>
         <p className={styles.date}>{bostonLongDate(now)} · {bostonTime(now)} in Boston</p>
         <h1 className={styles.headline}>{greetingFor(hourNow)}{firstName ? `, ${firstName}` : ''}. Where are you headed?</h1>
         <p className={styles.status}>{calendarStatus}</p>
@@ -163,7 +168,7 @@ export default function Home() {
         locations: locations.data ?? [], schedule: schedule.data ?? [],
         events: events.data ?? [], clubs: clubs.data ?? [],
         hourly: hourly.data ?? [], places: places.data ?? [],
-        geo: geoData, homeLocationId: session?.user.homeLocationId ?? null,
+        geo: geoData, homeLocationId,
         transit: transit.context,
       }} />
 
@@ -173,17 +178,18 @@ export default function Home() {
             locations: locations.data ?? [], schedule: schedule.data ?? [],
             events: events.data ?? [], clubs: clubs.data ?? [],
             hourly: hourly.data ?? [], places: places.data ?? [],
-            geo: geoData, homeLocationId: session?.user.homeLocationId ?? null,
+            geo: geoData, homeLocationId,
           }} />
       )}
 
-      {[locations, schedule, places, hourly, geo, profile, events, clubs, impact].filter((resource) => resource.error).map((resource, index) => (
+      {[locations, schedule, places, hourly, bestTimes, geo, profile, events, clubs, impact, hours, spots, studyHours].filter((resource) => resource.error).map((resource, index) => (
         <p role="alert" key={index}>{resource.error?.message} <Button variant="ghost" size="sm" onClick={resource.reload}>Try again</Button></p>
       ))}
 
       {setupKnown && setupDone < setup.length && (
-        <section className={styles.setup} aria-label="Get set up">
+        <section className={`${styles.setup} ${styles.reveal}`} style={order(2)} aria-label="Get set up">
           <p className={styles.setupTitle}>Get set up <span>{setupDone} of {setup.length} done</span></p>
+          <Link to="/welcome" className={styles.setupStart}>Start setup</Link>
           <ul>
             {setup.map((s) => (
               <li key={s.label} className={s.done ? styles.done : undefined}>
@@ -194,13 +200,13 @@ export default function Home() {
         </section>
       )}
 
-      <section className={styles.glance} aria-label="At a glance">
+      <section className={`${styles.glance} ${styles.reveal}`} style={order(3)} aria-label="At a glance">
         <Grid columns={4} phoneColumns={2}>
           <StatCard
-            label="Next class"
-            value={departure.target ? bostonTime(departure.target.start) : '—'}
+            label={inClass ? 'In class until' : 'Next class'}
+            value={departure.target ? bostonTime(inClass ? departure.target.end : departure.target.start) : '—'}
             detail={departure.target
-              ? `${departure.target.title}${departure.leaveBy !== null ? ` · leave by ${bostonTime(departure.leaveBy)}` : ''}`
+              ? `${departure.target.title}${!inClass && departure.leaveBy !== null ? ` · leave by ${bostonTime(departure.leaveBy)}` : ''}`
               : schedule.loading ? loadingText : 'No upcoming classes'}
           />
           <StatCard
@@ -226,7 +232,7 @@ export default function Home() {
         </Grid>
       </section>
 
-      <div className={styles.now}>
+      <div className={`${styles.now} ${styles.reveal}`} style={order(4)}>
         <GapCard schedule={schedule.data ?? []} locations={locations.data ?? []}
           geo={geoData} hours={hours.data ?? {}} forecasts={hourly.data ?? []}
           profile={profile.data ?? null} now={now} homeLocationId={homeLocationId}
@@ -237,7 +243,7 @@ export default function Home() {
           loading={schedule.loading || locations.loading || geo.loading || profile.loading} />
       </div>
 
-      <div className={styles.columns}>
+      <div className={`${styles.columns} ${styles.reveal}`} style={order(5)}>
         <SectionList
           title="Today · Boston time"
           count={schedule.data ? today.length : undefined}
@@ -268,7 +274,7 @@ export default function Home() {
               <SelectField label="Place" value={charted.locationId} onChange={(event) => setChartPlace(event.target.value)}>
                 {forecasts.map((f) => <option key={f.locationId} value={f.locationId}>{place(f.locationId)}</option>)}
               </SelectField>
-              <HourlyChart hours={charted.hours} label={`Hourly forecast for ${place(charted.locationId)}`} />
+              <HourlyChart key={charted.locationId} hours={charted.hours} label={`Hourly forecast for ${place(charted.locationId)}`} />
               <p className={styles.forecastNote}>
                 Peak {describe(peakOf(charted).share)} at {formatHour(peakOf(charted).hour)} · quietest {describe(quietestOf(charted).share)} at {formatHour(quietestOf(charted).hour)}
               </p>
@@ -290,7 +296,7 @@ export default function Home() {
         </SectionList>
       </div>
 
-      <div className={styles.columns}>
+      <div className={`${styles.columns} ${styles.reveal}`} style={order(6)}>
         <SectionList
           title="Study spots for the next hour"
           to="/study"
@@ -331,7 +337,7 @@ export default function Home() {
         </SectionList>
       </div>
 
-      <div className={styles.bottom}>
+      <div className={`${styles.bottom} ${styles.reveal}`} style={order(7)}>
         <div className={styles.stack}>
           <SectionList
             title="Happening on campus"
@@ -347,7 +353,7 @@ export default function Home() {
                     <span className={styles.where}>{eventVenue(e)}</span>
                   </>
                 }
-                detail={isToday(e.start) ? `Today ${formatTime(e.start)}` : formatDayTime(e.start)}
+                detail={bostonDay(e.start) === todayKey ? `Today ${bostonTime(e.start)}` : formatDayTime(e.start)}
               />
             ))}
           </SectionList>
@@ -391,7 +397,7 @@ export default function Home() {
         </SectionList>
       </div>
 
-      <FeatureGrid clubOfficer={hasRole('clubOfficer')} admin={hasRole('admin')} />
+      <FeatureGrid style={order(8)} clubOfficer={hasRole('clubOfficer')} admin={hasRole('admin')} />
     </Page>
   );
 }

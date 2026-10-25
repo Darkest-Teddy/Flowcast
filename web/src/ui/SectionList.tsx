@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ChevronRight } from 'lucide-react';
 import styles from './SectionList.module.css';
@@ -24,7 +24,9 @@ export function SectionList({
       {to && <ChevronRight aria-hidden className={styles.chev} />}
     </>
   );
-  const hasRows = Array.isArray(children) ? children.some(Boolean) : Boolean(children);
+  // Children.toArray flattens nested lists and drops false, null and undefined, so a list of
+  // `items.map(...)` beside a conditional row still counts as empty when nothing renders.
+  const hasRows = Children.toArray(children).length > 0;
   return (
     <section className={styles.section}>
       {to ? (
