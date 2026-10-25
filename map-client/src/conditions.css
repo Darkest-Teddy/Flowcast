@@ -1,34 +1,36 @@
-/* Conditions engine controls in the Crowds tab (ConditionsPanel.tsx). */
-.conditions { margin: 4px 0 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-.conditions h3 { margin: 12px 0 6px; font-size: 13px; color: var(--text); font-weight: 600; }
-.scenario-picker { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.scenario-picker select {
-  flex: 1; min-height: 32px; padding: 4px 8px; border-radius: 8px; font: inherit; font-size: 13px;
-  color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16);
-}
-.scenario-picker select:focus-visible { outline: 2px solid var(--accent); }
-.scenario-description { margin: 6px 0 0; }
-.conditions-status { margin: 6px 0 0; font-size: 13px; color: var(--text); }
-.conditions .muted { margin: 4px 0 0; }
-.conditions-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* Conditions engine controls at the top of the Crowds tab (ConditionsPanel.tsx): a card with the
+   scenario picker, the engine's status and two disclosure buttons. */
+.conditions { margin: 0 0 var(--space-4); padding: var(--space-3) var(--space-4) var(--space-4); border-radius: 16px; background: var(--map-card); box-shadow: var(--map-card-edge); }
+.conditions h2 { margin-top: var(--space-1); }
+.conditions h3 { margin: var(--space-4) 0 var(--space-2); }
+.scenario-picker { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--map-ink-secondary); }
+.scenario-picker select { flex: 1; min-width: 0; }
+.scenario-description { margin: var(--space-2) 0 0; }
+.conditions-status { margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--color-ink); }
+.conditions .muted { margin: var(--space-1) 0 0; }
+.conditions-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
 .conditions-actions button {
-  min-height: 32px; padding: 4px 10px; border-radius: 8px; font: inherit; font-size: 12px; cursor: pointer;
-  color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16);
+  min-height: 34px; padding: 0 14px; border: 1px solid transparent; border-radius: var(--radius-capsule);
+  background: var(--map-control); color: var(--color-ink); font: inherit; font-size: var(--text-sm); font-weight: var(--weight-medium); cursor: pointer;
 }
-.conditions-actions button[aria-expanded='true'] { border-color: var(--accent); }
-.conditions-actions button:disabled { opacity: 0.5; cursor: default; }
-.conditions-actions button:focus-visible { outline: 2px solid var(--accent); }
+.conditions-actions button:hover:not(:disabled) { background: var(--map-hover); }
+.conditions-actions button[aria-expanded='true'] { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); font-weight: var(--weight-semibold); }
 .compare svg { display: block; width: 100%; height: auto; }
-.compare .tick { fill: var(--muted); font-size: 10px; }
-.compare-legend { display: flex; gap: 12px; margin: 0 0 4px; font-size: 12px; color: var(--muted); }
+.compare .tick { fill: var(--map-ink-secondary); font-size: 10px; }
+.compare-base { stroke: var(--map-hairline); }
+.compare-hover { stroke: var(--map-ink-secondary); }
+.compare-baseline { stroke: var(--color-accent); }
+.compare-scenario { stroke: var(--color-warn); }
+.compare-legend { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0 0 var(--space-1); font-size: 12px; color: var(--map-ink-secondary); }
 .compare-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.compare-table caption { text-align: left; font-size: 12px; font-weight: 600; color: var(--text); padding: 6px 0 2px; }
+.compare-table caption { text-align: left; font-size: 12px; font-weight: 600; color: var(--color-ink); padding: var(--space-2) 0 2px; }
 .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
-.compare-table th, .compare-table td { padding: 3px 4px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
-.compare-table th[scope='row'], .compare-table thead th:first-child { text-align: left; font-weight: 400; color: var(--text); }
-.compare-table thead th { color: var(--muted); font-weight: 600; }
-.compare details { margin: 6px 0; font-size: 12px; color: var(--muted); }
+.compare-table th, .compare-table td { padding: 4px; text-align: right; border-bottom: 1px solid var(--map-hairline); }
+.compare-table th[scope='row'], .compare-table thead th:first-child { text-align: left; font-weight: 400; color: var(--color-ink); }
+.compare-table thead th { color: var(--map-ink-secondary); font-weight: 600; }
+.compare details { margin: var(--space-2) 0; font-size: 12px; color: var(--map-ink-secondary); }
 .compare summary { cursor: pointer; }
 .explain ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.45; }
 .explain li { margin-bottom: 4px; }
-.explain-source { display: block; color: var(--muted); }
+.explain-source { display: block; color: var(--map-ink-secondary); }
+@media (max-width: 800px) { .conditions-actions button { min-height: 44px; } }

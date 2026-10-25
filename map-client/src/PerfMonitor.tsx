@@ -1,9 +1,11 @@
 // Build-time performance readout: FPS, frame times, memory and what's being drawn.
-// On by default for now; `P` toggles it, ?perf=0 hides it.
+// On by default for now; `P` toggles it, ?perf=0 hides it. On phones it starts as just the FPS
+// figures (pressing them shows the rest), so it doesn't cover the map.
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { quality, type QualityMode } from './perf/quality';
 import { pacer } from './perf/pacer';
 import { mapGpuInfo, type GpuInfo } from './gpu';
+import { PHONE_QUERY } from './Sheet';
 
 // What each Auto level has turned off (perf/quality.ts).
 const AUTO_LEVELS = ['all on', 'no shadows', 'lighter map', 'lean map'];
@@ -38,6 +40,7 @@ export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
   const [tally, setTally] = useState<PerfCounts | null>(null);
   const [gpu, setGpu] = useState<GpuInfo | null>(null);
   const history = useRef<number[]>([]); // fps per second, for the sparkline
+  const [expanded, setExpanded] = useState(() => !window.matchMedia(PHONE_QUERY).matches);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -97,15 +100,16 @@ export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
   const points = history.current.map((f, i) => `${i * 3},${24 - Math.min(60, f) * 0.4}`).join(' ');
 
   return (
-    <div className="panel perf" role="status" aria-label="Performance monitor">
-      <div className="perf-head">
+    <div className={`panel perf${expanded ? '' : ' is-compact'}`} role="status" aria-label="Performance monitor">
+      <button className="perf-head" onClick={() => setExpanded((e) => !e)} aria-expanded={expanded} title={expanded ? 'Show less' : 'Show frame times, memory and the Performance setting'}>
         <div className={`perf-fps ${level}`}>
           {Math.round(sample.fps)} <span>FPS</span>
         </div>
         <div className={`perf-low ${sample.low1 >= 45 ? 'good' : sample.low1 >= 25 ? 'ok' : 'bad'}`}>
           {Math.round(sample.low1)} <span>1% low</span>
         </div>
-      </div>
+      </button>
+      {expanded && <>
       <svg className="perf-graph" viewBox="0 0 120 24" aria-hidden="true">
         <line x1="0" x2="120" y1={24 - 60 * 0.4} y2={24 - 60 * 0.4} />
         <line x1="0" x2="120" y1={24 - 30 * 0.4} y2={24 - 30 * 0.4} />
@@ -153,6 +157,7 @@ export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
         {quality.msaa ? ' · MSAA' : ''}
         {mode === 'auto' && ` · ${AUTO_LEVELS[perfSettings.level] ?? ''}`} · P to hide
       </p>
+      </>}
     </div>
   );
 }

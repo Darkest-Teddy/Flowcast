@@ -75,9 +75,9 @@ export function ParkingPanel({ data, state, onSelect }: Props) {
         </ul>
       )}
       <h3>BU lots and garages</h3>
-      <ol>{bu.map((s) => <LotRow key={s.lot.id} s={s} onSelect={onSelect} />)}</ol>
+      <ol className="rows">{bu.map((s) => <LotRow key={s.lot.id} s={s} onSelect={onSelect} />)}</ol>
       <h3>Public lots near Kenmore, Fenway and the Medical Campus</h3>
-      <ol>{pub.map((s) => <LotRow key={s.lot.id} s={s} onSelect={onSelect} />)}</ol>
+      <ol className="rows">{pub.map((s) => <LotRow key={s.lot.id} s={s} onSelect={onSelect} />)}</ol>
       <p className="muted source">
         Estimates, not counts: typical fill curves by kind of lot and day (BU holidays and breaks from the academic calendar), plus each
         event’s cars arriving over the 2 h before it starts and leaving over the hour after it ends, nearest lot first and spilling to the

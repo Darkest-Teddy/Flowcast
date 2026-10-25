@@ -63,7 +63,7 @@ export function ConditionsPanel({ scenarios, scenario, live, status, error, info
 }
 
 const W = 288, H = 96, TOP = 6, BASE = 76;
-const BASELINE = '#3987e5', SCENARIO = '#d95926';
+// Line colours come from conditions.css: the ordinary day dashed in the accent, the scenario in the warning hue.
 
 function Comparison({ data }: { data: DayComparison }) {
   const [hover, setHover] = useState<number | null>(null);
@@ -76,8 +76,8 @@ function Comparison({ data }: { data: DayComparison }) {
     <div className="compare">
       <h3>People walking, by hour</h3>
       <p className="compare-legend">
-        <span><svg width="18" height="6" aria-hidden="true"><line x1="0" x2="18" y1="3" y2="3" stroke={BASELINE} strokeWidth="2" strokeDasharray="4 3" /></svg> Ordinary day</span>
-        <span><svg width="18" height="6" aria-hidden="true"><line x1="0" x2="18" y1="3" y2="3" stroke={SCENARIO} strokeWidth="2" /></svg> This scenario</span>
+        <span><svg width="18" height="6" aria-hidden="true"><line x1="0" x2="18" y1="3" y2="3" className="compare-baseline" strokeWidth="2" strokeDasharray="4 3" /></svg> Ordinary day</span>
+        <span><svg width="18" height="6" aria-hidden="true"><line x1="0" x2="18" y1="3" y2="3" className="compare-scenario" strokeWidth="2" /></svg> This scenario</span>
       </p>
       <p className="activity-readout">
         <span>{hourLabel(shown.hour)}: <strong>{fmt(shown.scenario)}</strong> vs {fmt(shown.baseline)} ({signed(shown.scenario - shown.baseline)})</span>
@@ -86,10 +86,10 @@ function Comparison({ data }: { data: DayComparison }) {
         aria-label={`Average people walking each hour, scenario vs ordinary day. Biggest difference at ${hourLabel(shown.hour)}: ${fmt(shown.scenario)} vs ${fmt(shown.baseline)}.`}
         onPointerMove={(event) => { const box = event.currentTarget.getBoundingClientRect(); setHover(Math.min(23, Math.max(0, Math.floor((event.clientX - box.left) / box.width * 24)))); }}
         onPointerLeave={() => setHover(null)}>
-        <line x1={0} x2={W} y1={BASE} y2={BASE} stroke="rgba(255,255,255,0.18)" />
-        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={TOP} y2={BASE} stroke="rgba(255,255,255,0.35)" />}
-        <polyline points={line('baseline')} fill="none" stroke={BASELINE} strokeWidth={2} strokeDasharray="4 3" strokeLinejoin="round" />
-        <polyline points={line('scenario')} fill="none" stroke={SCENARIO} strokeWidth={2} strokeLinejoin="round" />
+        <line x1={0} x2={W} y1={BASE} y2={BASE} className="compare-base" />
+        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={TOP} y2={BASE} className="compare-hover" />}
+        <polyline points={line('baseline')} fill="none" className="compare-baseline" strokeWidth={2} strokeDasharray="4 3" strokeLinejoin="round" />
+        <polyline points={line('scenario')} fill="none" className="compare-scenario" strokeWidth={2} strokeLinejoin="round" />
         {[6, 12, 18].map(h => <text key={h} x={x(h)} y={H - 4} textAnchor="middle" className="tick">{h === 12 ? 'noon' : hourLabel(h)}</text>)}
       </svg>
       <details>

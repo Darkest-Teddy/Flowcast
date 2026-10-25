@@ -1,31 +1,37 @@
-.source-data { font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
-.source-data h2 { color: var(--text); }
-.source-data h3 { margin: 14px 0 6px; color: var(--text); font-size: 13px; }
+.source-data { font-size: var(--text-sm); line-height: 1.45; overflow-wrap: anywhere; }
+.source-data h2 { color: var(--color-ink); }
+.source-data h3 { margin: 14px 0 6px; color: var(--color-ink); font-size: var(--text-sm); }
 .source-data p { margin: 6px 0; }
-.source-data a { color: #ffe66a; text-underline-offset: 3px; }
-.source-data a:hover { color: #fff3b3; }
-.source-data a:focus-visible, .source-data summary:focus-visible, .source-data button:focus-visible, .source-data select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.source-data .source-caption { color: var(--muted); font-size: 12px; }
-.source-data .source-caution { padding: 7px 9px; border-left: 2px solid var(--accent); color: #ffe9a3; background: rgba(255,214,10,.06); font-size: 12px; }
-.source-data .source-now { color: #a4f1d5; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.source-data .source-building-picker { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; color: var(--muted); font-size: 12px; }
-.source-data .source-building-picker select { width: 100%; min-height: 40px; padding: 6px 8px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; background: #242832; color: var(--text); font: inherit; }
+.source-data a { color: var(--color-accent); text-underline-offset: 3px; }
+.source-data a:hover { color: var(--color-accent-hover); }
+.source-data .source-caption { color: var(--map-ink-secondary); font-size: 12px; }
+.source-data .source-caution { padding: 7px 9px; border-left: 2px solid var(--color-warn); border-radius: 0 var(--radius-md) var(--radius-md) 0; color: var(--color-ink); background: var(--color-warn-soft); font-size: 12px; }
+/* A class's status as a small capsule; In progress in the status green. */
+.source-data .source-status { flex: none; padding: 2px 8px; border-radius: var(--radius-capsule); background: var(--map-control); color: var(--map-ink-secondary); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.source-data .source-status.is-now { background: var(--color-ok-soft); color: var(--color-ok); }
+.source-data .source-building-picker { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; color: var(--map-ink-secondary); font-size: 12px; }
+.source-data .source-building-picker select { width: 100%; min-height: 40px; }
 .source-data .source-building-list, .source-data .source-evidence, .source-data .source-meetings, .source-data .source-events { list-style: none; padding: 0; margin: 0; }
-.source-data .source-building-list li + li { border-top: 1px solid rgba(255,255,255,.08); }
+.source-data .source-building-list { padding: var(--space-1); }
+.source-data .source-building-list li + li { border-top: 1px solid var(--map-hairline); }
 .source-data button { font: inherit; color: inherit; cursor: pointer; }
-.source-data .source-building-list button { display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 44px; padding: 8px; border: 0; border-radius: 6px; background: transparent; text-align: left; }
-.source-data .source-building-list button:hover { background: rgba(255,255,255,.06); }
-.source-data .source-meetings > li, .source-data .source-evidence > li, .source-data .source-events > li, .source-data .source-hours { display: flex; flex-direction: column; gap: 3px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.1); }
-.source-data .source-meeting-head { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.source-data .source-building-list button { display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 44px; padding: 8px; border: 0; border-radius: var(--radius-lg); background: transparent; text-align: left; }
+.source-data .source-building-list button:hover { background: var(--map-hover); }
+.source-data .source-meetings > li, .source-data .source-evidence > li, .source-data .source-events > li, .source-data .source-hours { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; }
+.source-data :is(.source-meetings, .source-evidence, .source-events) > li + li { border-top: 1px solid var(--map-hairline); }
+.source-data .source-hours { margin-bottom: var(--space-2); padding: 10px var(--space-3); border-radius: 16px; background: var(--map-card); box-shadow: var(--map-card-edge); }
+.source-data .source-hours h3 { margin-top: 0; padding: 0; }
+.source-data .source-meeting-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .source-data .source-meeting-head > a { font-weight: 650; }
 .source-data .source-evidence strong { font-variant-numeric: tabular-nums; font-size: 14px; }
-.source-data details { margin: 8px 0; }
-.source-data summary { min-height: 32px; padding: 5px 0; cursor: pointer; color: var(--text); font-size: 12px; }
+.source-data details { margin: 2px 0 0; }
+.source-data summary { min-height: 28px; padding: 4px 0; cursor: pointer; color: var(--color-ink); font-size: 12px; }
 .source-data details > p, .source-data details > ul { margin: 6px 0 8px; }
-.source-data .source-overview { margin-top: 16px; padding-top: 7px; border-top: 1px solid rgba(255,255,255,.16); }
-.source-data .source-overview > summary { font-size: 13px; font-weight: 650; }
-.source-data .source-events button { align-self: start; min-height: 36px; padding: 4px 10px; border: 1px solid rgba(255,255,255,.25); border-radius: 6px; background: rgba(255,255,255,.06); }
-.source-data .source-assumptions { padding-left: 18px; color: var(--muted); font-size: 12px; }
+.source-data .source-overview { margin-top: var(--space-4); padding: var(--space-2) var(--space-3); border-radius: 16px; background: var(--map-card); box-shadow: var(--map-card-edge); }
+.source-data .source-overview :is(.source-meetings, .source-evidence, .source-events) { padding: 0; background: none; }
+.source-data .source-overview > summary { font-size: var(--text-sm); font-weight: 650; }
+.source-data .source-events button { align-self: start; }
+.source-data .source-assumptions { padding-left: 18px; color: var(--map-ink-secondary); font-size: 12px; }
 .source-data .source-assumptions li + li { margin-top: 6px; }
 @media (max-width: 600px) {
   .source-data .source-meeting-head { flex-wrap: wrap; gap: 3px 8px; }

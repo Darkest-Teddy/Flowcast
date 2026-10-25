@@ -1,7 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
-import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset } from './map/basemap';
+import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
@@ -90,6 +90,8 @@ import { registeredSignals } from './sim/signals';
 import { FireSiren } from './fireSiren';
 import { ParkingTags, type ParkingTagsHandle } from './ParkingTags';
 import { ParkingPanel } from './ParkingPanel';
+import { PHONE_QUERY, Sheet, usePhone, type Detent, type SheetCover } from './Sheet';
+import { Popover } from './Popover';
 import { parkingLayers, parkingUnder } from './layers/parking';
 import { campusParkingEvents, createParkingModel, loadParking, parkingAt, parkingDayKind, type LotState, type ParkingData, type ParkingEvent, type ParkingModel, type ParkingState } from './sim/parking';
 import { loadEventSources, type EventSources } from './data/eventCalendar';
@@ -147,6 +149,13 @@ const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
 /** ?ask=least+crowded+library opens the Ask tab with that question answered. */
 const START_QUESTION = params.get('ask');
+
+type Tab = 'ask' | 'crowds' | 'data' | 'transit' | 'traffic' | 'bikes' | 'weather' | 'incidents';
+const TAB_LABELS: Record<Tab, string> = {
+  ask: 'Ask', crowds: 'Crowds', data: 'Data', transit: 'Transit', traffic: 'Traffic', bikes: 'Bikes', weather: 'Weather', incidents: 'Incidents',
+};
+/** Gap between the floating toolbar and what it sits on (the screen edge, or the phone sheet). */
+const TOOLBAR_GAP = 12;
 
 interface Hud {
   time: number;
@@ -221,7 +230,56 @@ export default function App() {
   const lightModeRef = useRef<LightPreset | 'auto'>('auto');
   const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<'ask' | 'crowds' | 'data' | 'transit' | 'bikes' | 'traffic' | 'incidents'>(START_QUESTION ? 'ask' : 'crowds');
+  const [tab, setTab] = useState<Tab>(START_QUESTION ? 'ask' : 'crowds');
+  // The sheet: open on wide screens, a peek on phones (half height when ?ask= has an answer to show).
+  const phone = usePhone();
+  const phoneRef = useRef(phone);
+  phoneRef.current = phone; // read by the sheet's layout callbacks, which run before this render's effects
+  const [detent, setDetent] = useState<Detent>(() => (window.matchMedia(PHONE_QUERY).matches ? (START_QUESTION ? 'half' : 'peek') : 'full'));
+  // Crossing the breakpoint (a rotated tablet, a resized window): each layout's own default.
+  const wasPhone = useRef(phone);
+  useEffect(() => {
+    if (wasPhone.current === phone) return;
+    wasPhone.current = phone;
+    setDetent(phone ? 'peek' : 'full');
+  }, [phone]);
+  /** Bring the sheet up (if it's down) so a tab the map just switched to can be seen. */
+  const expandSheet = useCallback(() => setDetent((d) => (d === 'peek' ? (phoneRef.current ? 'half' : 'full') : d)), []);
+  // The camera keeps the campus centred in the map the sheet and toolbar leave uncovered.
+  const coverRef = useRef<SheetCover>({ right: 0, bottom: 0 });
+  const [toolbarEl, setToolbarEl] = useState<HTMLElement | null>(null);
+  const toolbarHeightRef = useRef(0);
+  const paddingRef = useRef<ViewPadding>({ top: 0, bottom: 0, left: 0, right: 0 });
+  const updatePadding = useCallback(() => {
+    const cover = coverRef.current;
+    const toolbar = toolbarHeightRef.current ? toolbarHeightRef.current + 2 * TOOLBAR_GAP : 0;
+    // The clean view (H) hides the sheet and toolbar, so the whole screen is map.
+    const next = cleanRef.current ? { top: 0, left: 0, right: 0, bottom: 0 }
+      : phoneRef.current
+        ? { top: 0, left: 0, right: 0, bottom: cover.bottom + toolbar }
+        : { top: 0, left: 0, right: cover.right, bottom: toolbar };
+    const p = paddingRef.current;
+    if (next.top === p.top && next.bottom === p.bottom && next.left === p.left && next.right === p.right) return;
+    paddingRef.current = next;
+    basemapRef.current?.setViewPadding(next);
+  }, []);
+  const onSheetCover = useCallback((cover: SheetCover) => {
+    coverRef.current = cover;
+    updatePadding();
+  }, [updatePadding]);
+  useEffect(() => {
+    if (!toolbarEl) return;
+    const observer = new ResizeObserver(() => {
+      toolbarHeightRef.current = toolbarEl.offsetHeight;
+      toolbarEl.parentElement?.style.setProperty('--toolbar-h', `${toolbarEl.offsetHeight}px`);
+      updatePadding();
+    });
+    observer.observe(toolbarEl);
+    return () => observer.disconnect();
+  }, [toolbarEl, updatePadding]);
+  // Where WeatherControls draws its readout (the Weather tab) and its header chip.
+  const [weatherPanel, setWeatherPanel] = useState<HTMLElement | null>(null);
+  const [weatherChip, setWeatherChip] = useState<HTMLElement | null>(null);
   const [incidentRun, setIncidentRun] = useState<IncidentRun | null>(null);
   const incidentRunRef = useRef<IncidentRun | null>(null);
   const baselinePlaybackRef = useRef<Playback | null>(null);
@@ -395,6 +453,8 @@ export default function App() {
       observationsRef.current = await observationsLoad;
       const timetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
       basemapRef.current = basemap;
+      // The panels were laid out while the map loaded: start centred in what they leave.
+      basemap.setViewPadding(paddingRef.current, false);
       setMapKind(basemap.kind);
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
       // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
@@ -501,6 +561,7 @@ export default function App() {
             selectedMobilityRef.current = object.id;
             setSelectedMobility(object.id);
             setTab('traffic');
+            expandSheet();
             return;
           }
           // A vehicle pins its tag; anything else unpins it.
@@ -513,7 +574,10 @@ export default function App() {
           const id = isBuilding ? (object as { id: string }).id : null;
           selectedRef.current = id;
           setSelected(id);
-          if (id) setTab("data");
+          if (id) {
+            setTab('data');
+            expandSheet();
+          }
         },
         getTooltip: ({ object }: PickingInfo) => {
           const countTooltip = mobilityTooltip(object);
@@ -832,10 +896,11 @@ export default function App() {
       if (e.key !== 'h' && e.key !== 'H') return;
       cleanRef.current = !cleanRef.current;
       setClean(cleanRef.current);
+      updatePadding();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [updatePadding]);
 
   useEffect(() => {
     lightModeRef.current = light;
@@ -876,6 +941,10 @@ export default function App() {
     const shown = dayWeather({ condition: w.condition, temperatureF: w.temperatureF });
     setWeatherKey(`${shown.kind}|${shown.band}`);
   }, []);
+  const openWeather = useCallback(() => {
+    setTab('weather');
+    expandSheet();
+  }, [expandSheet]);
 
   const toggleTransit = () => {
     showTransitRef.current = !showTransitRef.current;
@@ -1185,395 +1254,481 @@ export default function App() {
   const docks = bikes?.data.stations.filter((s) => s.campus === campus) ?? [];
   const ridingHere = hud?.riding.get(campus) ?? 0;
 
+  // Tabs in the order shown (Bikes only with the Bluebikes data).
+  const tabs: Tab[] = ['ask', 'crowds', 'data', 'transit', 'traffic', ...(bikes ? ['bikes' as const] : []), 'weather', 'incidents'];
+  const onTabKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const at = tabs.indexOf(tab);
+    const next = e.key === 'ArrowRight' ? tabs[(at + 1) % tabs.length]
+      : e.key === 'ArrowLeft' ? tabs[(at - 1 + tabs.length) % tabs.length]
+      : e.key === 'Home' ? tabs[0]
+      : e.key === 'End' ? tabs[tabs.length - 1]
+      : null;
+    if (!next) return;
+    e.preventDefault();
+    setTab(next);
+    document.getElementById(`tab-${next}`)?.focus();
+  };
+  // The map dims a little behind an open sheet (styles.css, .sheet-dim).
+  const dim = detent === 'peek' ? 'off' : phone ? detent : 'open';
+  const hiddenNote = (what: string, show: () => void) => (
+    <p className="layer-note">
+      {what} hidden on the map. <button className="link" onClick={show}>Show</button>
+    </p>
+  );
+
   return (
     <div className={clean ? 'app is-clean' : 'app'}>
       {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
         // Auto lighting: a blue multiply veil darkens the chosen preset to the sun's brightness (set per frame).
-        <div ref={veilRef} aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'rgb(18, 24, 52)',
-          mixBlendMode: 'multiply', opacity: daylightAt(hud.time).veil }} />
+        <div ref={veilRef} className="light-veil" aria-hidden="true" style={{ opacity: daylightAt(hud.time).veil }} />
       )}
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
       <TransitTags ref={transitTagsRef} />
       <PlaceTags ref={placeTagsRef} />
       {showParking && <ParkingTags ref={parkingTagsRef} />}
 
-      <header className="panel title">
-        <h1>Flowcast</h1>
-        <p>
-          {currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]} {hud ? `· ${hud.walking} walking` : ''}{hud?.waiting ? ` · ${hud.waiting} at stops` : ''}
-          {hud?.public ? ` · ${hud.public} public on streets` : ''}
-          {bikes && showBikes && hud ? ` · ${ridingHere} on Bluebikes` : ''}
-          {hud?.outdoors ? ` · ${hud.outdoors.toLocaleString()} by the river` : ''}
-        </p>
-        <p className="model-note">{sourceData ? 'Campus simulation · Fall 2026' : 'Campus simulation · Demo'}</p>
-        {sourceData && <p className="model-note">{dateForWeekday(sourceData, weekday)} · Boston time</p>}
-        {!live && scheduleError && <p role="alert">Transit playback unavailable: {scheduleError}</p>}
-        {sourceData && <label className="day-picker">Simulation day <select aria-label="Simulation day" value={weekday} onChange={(event) => changeDay(Number(event.target.value))}>{WEEKDAYS.map((name, index) => <option key={name} value={index}>{name}</option>)}</select></label>}
-        {campuses.length > 1 && (
-          <div className="campuses" role="group" aria-label="Campus">
-            {campuses.map((c) => (
-              <button key={c.id} onClick={() => goToCampus(c)} aria-pressed={c.id === campus}>
-                {c.name.replace(' Campus', '')}
+      <LoadingScreen progress={loadProgress} />
+
+      <MemoPerfMonitor counts={getPerfCounts} />
+      {mapKind && (
+        <MemoWeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={onWeather}
+          panel={weatherPanel} chip={weatherChip} onOpen={openWeather} forceMode={scenarioLook} />
+      )}
+      <div className="sheet-dim" data-dim={dim} aria-hidden="true" />
+
+      <Sheet
+        phone={phone}
+        detent={detent}
+        onDetent={setDetent}
+        onCover={onSheetCover}
+        header={
+          <>
+            <h1>Flowcast</h1>
+            <p className="sheet-summary">{currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]}</p>
+          </>
+        }
+        subheader={hud && (
+          <p className="sheet-stats">
+            <span><b>{hud.walking.toLocaleString()}</b> walking</span>
+            {hud.waiting > 0 && <span><b>{hud.waiting.toLocaleString()}</b> at stops</span>}
+            {hud.public ? <span><b>{hud.public.toLocaleString()}</b> public on streets</span> : null}
+            {bikes && showBikes && <span><b>{ridingHere}</b> on Bluebikes</span>}
+            {hud.outdoors ? <span><b>{hud.outdoors.toLocaleString()}</b> by the river</span> : null}
+          </p>
+        )}
+        actions={<span className="weather-chip-slot" ref={setWeatherChip} />}
+      >
+        <div className="sheet-context">
+          <p className="model-note">
+            {sourceData ? 'Campus simulation · Fall 2026' : 'Campus simulation · Demo'}
+            {sourceData && ` · ${dateForWeekday(sourceData, weekday)} · Boston time`}
+          </p>
+          {!live && scheduleError && <p role="alert" className="alert">Transit playback unavailable: {scheduleError}</p>}
+          {sourceData && (
+            <label className="day-picker">
+              Simulation day
+              <select value={weekday} onChange={(event) => changeDay(Number(event.target.value))}>
+                {WEEKDAYS.map((name, index) => <option key={name} value={index}>{name}</option>)}
+              </select>
+            </label>
+          )}
+          {campuses.length > 1 && (
+            <div className="campuses" role="group" aria-label="Campus">
+              {campuses.map((c) => (
+                <button key={c.id} onClick={() => goToCampus(c)} aria-pressed={c.id === campus}>
+                  {c.name.replace(' Campus', '')}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {hud && (
+          <div className="tabs" role="tablist" aria-label="Panel" onKeyDown={onTabKey}>
+            {tabs.map((t) => (
+              <button key={t} role="tab" id={`tab-${t}`} aria-selected={tab === t} aria-controls={`panel-${t}`} tabIndex={tab === t ? 0 : -1} onClick={() => setTab(t)}>
+                {TAB_LABELS[t]}
               </button>
             ))}
           </div>
         )}
-      </header>
-
-      <LoadingScreen progress={loadProgress} />
-
-      <MemoPerfMonitor counts={getPerfCounts} />
-      {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}
-      {mapKind && <MemoWeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={onWeather} forceMode={scenarioLook} />}
-
-      {hud && (
-        <aside className="panel side">
-          <div className="tabs mobility-tabs" role="tablist" aria-label="Side panel">
-            <button role="tab" id="tab-ask" aria-selected={tab === 'ask'} aria-controls="panel-ask" onClick={() => setTab('ask')}>Ask</button>
-            <button role="tab" id="tab-crowds" aria-selected={tab === 'crowds'} aria-controls="panel-crowds" onClick={() => setTab('crowds')}>
-              Crowds
-            </button>
-            <button role="tab" id="tab-data" aria-selected={tab === 'data'} aria-controls="panel-data" onClick={() => setTab('data')}>Data</button>
-            <button role="tab" id="tab-incidents" aria-selected={tab === 'incidents'} aria-controls="panel-incidents" onClick={() => setTab('incidents')}>Incidents</button>
-            <button role="tab" id="tab-transit" aria-selected={tab === 'transit'} aria-controls="panel-transit" onClick={() => setTab('transit')}>
-              Transit
-            </button>
-            <button role="tab" id="tab-traffic" aria-selected={tab === 'traffic'} aria-controls="panel-traffic" onClick={() => setTab('traffic')}>Traffic</button>
-            {bikes && (
-              <button role="tab" id="tab-bikes" aria-selected={tab === 'bikes'} aria-controls="panel-bikes" onClick={() => setTab('bikes')}>
-                Bikes
-              </button>
+        {hud && tab === 'incidents' && (
+          <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
+            onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
+            siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
+        )}
+        {hud && tab === 'ask' && (
+          <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask">
+            {askContext
+              ? <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
+              : <p className="muted" role="status">Loading the day…</p>}
+          </section>
+        )}
+        {hud && tab === 'crowds' && (
+          <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
+            {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
+              info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
+            {sourceData && baseDayRef.current && (
+              <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
+                onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
+                venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
+                time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
             )}
-          </div>
-          {tab === 'incidents' ? (
-            <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
-              onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
-              siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
-          ) : tab === 'ask' && askContext ? (
-            <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask">
-              <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
-            </section>
-          ) : tab === 'crowds' ? (
-            <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
-              {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
-                info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
-              {sourceData && baseDayRef.current && (
-                <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
-                  onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
-                  venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
-                  time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
-              )}
 
-              <h2>Campus activity</h2>
-              {hud?.public ? (
-                <p className="muted">
-                  Students only. Streets: {hud.walking.toLocaleString()} students walking · {hud.public.toLocaleString()} public (non-students), from MBTA ridership and pedestrian counts.
+            <h2>Campus activity</h2>
+            {hud.public ? (
+              <p className="muted">
+                Students only. Streets: {hud.walking.toLocaleString()} students walking · {hud.public.toLocaleString()} public (non-students), from MBTA ridership and pedestrian counts.
+              </p>
+            ) : null}
+            <ol className="rows">
+              {ranked.slice(0, 8).map((o) => {
+                const display = activityDisplay({
+                  count: o.count, capacity: o.location.capacity, share: o.share,
+                  modeled: o.modeled ?? o.location.activityModeled,
+                  capacityBasis: o.location.capacityBasis, kind: o.location.kind,
+                  allowZero: o.location.estimatedProfile?.purpose === 'rowing',
+                });
+                return (
+                  <li key={o.location.id}>
+                    <button
+                      className={o.location.building === selected ? 'row selected' : 'row'}
+                      onClick={() => select(o)}
+                      aria-pressed={o.location.building === selected}
+                      style={display.style}
+                    >
+                      <span className="name">{displayName(o.location.name)}</span>
+                      {display.hasPercentage && <span className="bar" aria-hidden="true">
+                        <span style={{ width: `${Math.min(100, display.percent)}%` }} />
+                      </span>}
+                      <span className="value">
+                        <b>{display.primary}</b>{display.secondary && ` · ${display.secondary}`}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        )}
+        {hud && tab === 'bikes' && (
+          <section id="panel-bikes" role="tabpanel" aria-labelledby="tab-bikes">
+            {!bikes ? <p className="muted">Bluebikes data could not be loaded.</p> : (
+              <>
+                {!showBikes && hiddenNote('Bluebikes are', toggleBikes)}
+                <h2>
+                  Real Bluebikes rides <span className="muted">· {formatDate(bikes.data.replayDate)}</span>
+                </h2>
+                <p className="bike-summary">
+                  <strong>{ridingHere}</strong> riding to or from {currentCampus?.name.replace(' Campus', '') ?? 'BU'} docks now ·{' '}
+                  {bikes.replay.trips.filter((t) => bikes.campusOf(t) === campus).length.toLocaleString()} rides that day
                 </p>
-              ) : null}
-              <ol>
-                {ranked.slice(0, 8).map((o) => {
-                  const display = activityDisplay({
-                    count: o.count, capacity: o.location.capacity, share: o.share,
-                    modeled: o.modeled ?? o.location.activityModeled,
-                    capacityBasis: o.location.capacityBasis, kind: o.location.kind,
-                    allowZero: o.location.estimatedProfile?.purpose === 'rowing',
-                  });
-                  return (
-                    <li key={o.location.id}>
-                      <button
-                        className={o.location.building === selected ? 'row selected' : 'row'}
-                        onClick={() => select(o)}
-                        aria-pressed={o.location.building === selected}
-                        style={display.style}
-                      >
-                        <span className="name">{displayName(o.location.name)}</span>
-                        {display.hasPercentage && <span className="bar" aria-hidden="true">
-                          <span style={{ width: `${Math.min(100, display.percent)}%` }} />
-                        </span>}
-                        <span className="value">
-                          <b>{display.primary}</b>{display.secondary && ` · ${display.secondary}`}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          ) : tab === 'bikes' && bikes ? (
-            <section id="panel-bikes" role="tabpanel" aria-labelledby="tab-bikes">
-              <div className="toggles" role="group" aria-label="Map layers">
-                <button onClick={toggleBikes} aria-pressed={showBikes}>
-                  Bluebikes
-                </button>
-              </div>
-              <h2>
-                Real Bluebikes rides <span className="muted">· {formatDate(bikes.data.replayDate)}</span>
-              </h2>
-              <p className="bike-summary">
-                <strong>{ridingHere}</strong> riding to or from {currentCampus?.name.replace(' Campus', '') ?? 'BU'} docks now ·{' '}
-                {bikes.replay.trips.filter((t) => bikes.campusOf(t) === campus).length.toLocaleString()} rides that day
-              </p>
-              {docks.length > 0 && (
-                <>
-                  <h3>Typical {bikes.data.weekday} at these docks</h3>
-                  <ActivityChart
-                    values={activityCurve(docks, bikes.data.binSeconds)}
-                    binSeconds={bikes.data.binSeconds}
-                    time={hud.time}
-                    unit="rides/h"
-                    label={`Rides docked and undocked per hour at ${currentCampus?.name ?? 'BU'} Bluebikes docks on a typical ${bikes.data.weekday}`}
-                  />
-                  <p className="muted">
-                    Docked + undocked per hour, averaged over {bikes.data.profileDates.length} {bikes.data.weekday}s in{' '}
-                    {new Date(`${bikes.data.month}-15T12:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' })}
-                  </p>
-                  <h3>
-                    {live ? 'Live docks' : `Docks at ${hud ? formatClock(hud.time) : ''} (estimated)`}{' '}
-                    <span className="muted">
-                      {bikeFeedError ??
-                        (bikeFeedUpdatedAt ? `· updated ${new Date(bikeFeedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
-                    </span>
-                  </h3>
-                  <table className="arrivals">
-                    <thead>
-                      <tr>
-                        <th scope="col">Dock</th>
-                        <th scope="col">Bikes</th>
-                        <th scope="col">Empty</th>
-                        <th scope="col" title="Estimated bikes in 1 hour">+1 h</th>
-                        <th scope="col" title="Estimated bikes in 3 hours">+3 h</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {docks.map((s) => {
-                        // "Now" is the shown time: the live count in Live mode, else an estimate.
-                        const shown = hud ? (live ? wallClockSeconds() : hud.time) : wallClockSeconds();
-                        const at = (offset: number) => estimateDock(s, bikes.feed.status(s), bikes.data.binSeconds, wallClockSeconds(), shown + offset);
-                        const nowEst = at(0);
-                        const mark = (e: DockEstimate) => (e.estimated ? '≈' : '');
-                        return (
-                          <tr key={s.id}>
-                            <th scope="row">{s.short}</th>
-                            <td>
-                              {mark(nowEst)}
-                              {nowEst.bikes}
-                              {nowEst.ebikes > 0 && <span className="muted"> ({nowEst.ebikes}⚡)</span>}
-                            </td>
-                            <td>
-                              {mark(nowEst)}
-                              {nowEst.docks}
-                            </td>
-                            <td>≈{at(3600).bikes}</td>
-                            <td>≈{at(3 * 3600).bikes}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  <p className="muted source">
-                    ≈ estimated: today's live count plus a typical {bikes.data.weekday}'s arrivals and departures at each dock. Bluebikes'
-                    rebalancing vans aren't modelled. ⚡ = e-bikes.
-                  </p>
-                </>
-              )}
-              <p className="muted source">
-                Bluebikes System Data and live feed. Docks within {bikes.data.stationRadiusMetres} m of a BU building. Ride times at BU docks are real;
-                street routes are inferred.
-              </p>
-            </section>
-          ) : tab === 'traffic' ? (
-            <section id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic">
-              <div className="toggles" role="group" aria-label="Map layers">
-                <button onClick={toggleCounts} aria-pressed={showCounts}>
-                  Counts on map
-                </button>
-              </div>
-              <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday} selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
-            </section>
-          ) : tab === 'data' ? (
-            <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
-              {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
-              {publicCrowdRef.current && <p>Public (non-students): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
-              {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
-            </section>
-          ) : (
-            <section id="panel-transit" role="tabpanel" aria-labelledby="tab-transit">
-              <div className="toggles" role="group" aria-label="Map layers">
-                <button onClick={toggleTransit} aria-pressed={showTransit}>
-                  MBTA
-                </button>
-                {mapKind === 'mapbox' && (
-                  <button onClick={() => setShowTraffic((v) => !v)} aria-pressed={showTraffic}>
-                    Traffic
-                  </button>
+                {docks.length > 0 && (
+                  <>
+                    <h3>Typical {bikes.data.weekday} at these docks</h3>
+                    <ActivityChart
+                      values={activityCurve(docks, bikes.data.binSeconds)}
+                      binSeconds={bikes.data.binSeconds}
+                      time={hud.time}
+                      unit="rides/h"
+                      label={`Rides docked and undocked per hour at ${currentCampus?.name ?? 'BU'} Bluebikes docks on a typical ${bikes.data.weekday}`}
+                    />
+                    <p className="muted">
+                      Docked + undocked per hour, averaged over {bikes.data.profileDates.length} {bikes.data.weekday}s in{' '}
+                      {new Date(`${bikes.data.month}-15T12:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' })}
+                    </p>
+                    <h3>
+                      {live ? 'Live docks' : `Docks at ${formatClock(hud.time)} (estimated)`}{' '}
+                      <span className="muted">
+                        {bikeFeedError ??
+                          (bikeFeedUpdatedAt ? `· updated ${new Date(bikeFeedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
+                      </span>
+                    </h3>
+                    <table className="arrivals">
+                      <thead>
+                        <tr>
+                          <th scope="col">Dock</th>
+                          <th scope="col">Bikes</th>
+                          <th scope="col">Empty</th>
+                          <th scope="col" title="Estimated bikes in 1 hour">+1 h</th>
+                          <th scope="col" title="Estimated bikes in 3 hours">+3 h</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {docks.map((s) => {
+                          // "Now" is the shown time: the live count in Live mode, else an estimate.
+                          const shown = live ? wallClockSeconds() : hud.time;
+                          const at = (offset: number) => estimateDock(s, bikes.feed.status(s), bikes.data.binSeconds, wallClockSeconds(), shown + offset);
+                          const nowEst = at(0);
+                          const mark = (e: DockEstimate) => (e.estimated ? '≈' : '');
+                          return (
+                            <tr key={s.id}>
+                              <th scope="row">{s.short}</th>
+                              <td>
+                                {mark(nowEst)}
+                                {nowEst.bikes}
+                                {nowEst.ebikes > 0 && <span className="muted"> ({nowEst.ebikes}⚡)</span>}
+                              </td>
+                              <td>
+                                {mark(nowEst)}
+                                {nowEst.docks}
+                              </td>
+                              <td>≈{at(3600).bikes}</td>
+                              <td>≈{at(3 * 3600).bikes}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <p className="muted source">
+                      ≈ estimated: today's live count plus a typical {bikes.data.weekday}'s arrivals and departures at each dock. Bluebikes'
+                      rebalancing vans aren't modelled. ⚡ = e-bikes.
+                    </p>
+                  </>
                 )}
-                <button onClick={toggleParking} aria-pressed={showParking} title="Estimated parking at BU and event-area lots">
-                  Parking
-                </button>
-              </div>
-              {showParking && (parkingError
-                ? <p role="alert">Parking estimate unavailable: {parkingError}</p>
-                : parkingRef.current && <ParkingPanel data={parkingRef.current.data} state={parkingView} onSelect={selectLot} />)}
-              {transit && source && showTransit && (
-                <>
-                  <h2>
-                    {live ? 'Live MBTA' : 'Scheduled service'}{' '}
-                    <span className="muted">
-                      {live
-                        ? (feedError ?? (feedUpdatedAt ? `· updated ${new Date(feedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…'))
-                        : '· playback timetable'}
-                    </span>
-                  </h2>
-                  {stations.length > 0 && (
-                    <>
-                      <h3>
-                        {greenBranches(transit, stations).map((b) => (
-                          <span key={b} className="route-badge" style={{ background: '#00843D', color: '#fff' }}>
-                            {b}
+                <p className="muted source">
+                  Bluebikes System Data and live feed. Docks within {bikes.data.stationRadiusMetres} m of a BU building. Ride times at BU docks are real;
+                  street routes are inferred.
+                </p>
+              </>
+            )}
+          </section>
+        )}
+        {hud && tab === 'traffic' && (
+          <section id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic">
+            {!showCounts && hiddenNote('Count sites are', toggleCounts)}
+            <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday} selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
+          </section>
+        )}
+        {hud && tab === 'data' && (
+          <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
+            {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
+            {publicCrowdRef.current && <p>Public (non-students): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
+            {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
+          </section>
+        )}
+        {hud && tab === 'transit' && (
+          <section id="panel-transit" role="tabpanel" aria-labelledby="tab-transit">
+            {!showTransit && hiddenNote('MBTA service is', toggleTransit)}
+            {showParking && (parkingError
+              ? <p role="alert" className="alert">Parking estimate unavailable: {parkingError}</p>
+              : parkingRef.current && <ParkingPanel data={parkingRef.current.data} state={parkingView} onSelect={selectLot} />)}
+            {transit && source && showTransit && (
+              <>
+                <h2>
+                  {live ? 'Live MBTA' : 'Scheduled service'}{' '}
+                  <span className="muted">
+                    {live
+                      ? (feedError ?? (feedUpdatedAt ? `· updated ${new Date(feedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…'))
+                      : '· playback timetable'}
+                  </span>
+                </h2>
+                {stations.length > 0 && (
+                  <>
+                    <h3>
+                      {greenBranches(transit, stations).map((b) => (
+                        // MBTA Green Line green (white on it is 5.1:1).
+                        <span key={b} className="route-badge" style={{ background: '#00843D', color: '#fff' }}>
+                          {b}
+                        </span>
+                      ))}{' '}
+                      Green Line
+                    </h3>
+                    <table className="arrivals">
+                      <thead>
+                        <tr>
+                          <th scope="col">Station</th>
+                          <th scope="col">Inbound</th>
+                          <th scope="col">Outbound</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stations.map((s) => {
+                          // Trains only: Kenmore is also a stop for the 57 and other buses.
+                          const next: Partial<Record<0 | 1, { route: string; time: number }>> = {};
+                          for (const a of source!.nextArrivals(s.id)) {
+                            if (a.route.startsWith('Green-') && (!next[a.direction] || a.time < next[a.direction]!.time)) next[a.direction] = a;
+                          }
+                          // Name the branch where several stop (Kenmore: B, C, D).
+                          const cell = (direction: 0 | 1) => {
+                            const a = next[direction];
+                            if (!a) return '—';
+                            const branch = s.routes.filter((r) => r.startsWith('Green-')).length > 1 ? `${a.route.replace('Green-', '')} ` : '';
+                            return `${branch}${minutesUntil(a.time)}`;
+                          };
+                          return (
+                            <tr key={s.id}>
+                              <th scope="row">{s.short}</th>
+                              <td>{cell(1)}</td>
+                              <td>{cell(0)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+                {busArrivals.length > 0 && (
+                  <>
+                    <h3>Buses</h3>
+                    <ul className="buses">
+                      {busArrivals.map((b) => (
+                        <li key={`${b.route}-${b.direction}`}>
+                          <span className="route-badge" style={{ background: b.color, color: b.textColor }}>
+                            {b.name}
                           </span>
-                        ))}{' '}
-                        Green Line
-                      </h3>
-                      <table className="arrivals">
-                        <thead>
-                          <tr>
-                            <th scope="col">Station</th>
-                            <th scope="col">Inbound</th>
-                            <th scope="col">Outbound</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stations.map((s) => {
-                            // Trains only: Kenmore is also a stop for the 57 and other buses.
-                            const next: Partial<Record<0 | 1, { route: string; time: number }>> = {};
-                            for (const a of source!.nextArrivals(s.id)) {
-                              if (a.route.startsWith('Green-') && (!next[a.direction] || a.time < next[a.direction]!.time)) next[a.direction] = a;
-                            }
-                            // Name the branch where several stop (Kenmore: B, C, D).
-                            const cell = (direction: 0 | 1) => {
-                              const a = next[direction];
-                              if (!a) return '—';
-                              const branch = s.routes.filter((r) => r.startsWith('Green-')).length > 1 ? `${a.route.replace('Green-', '')} ` : '';
-                              return `${branch}${minutesUntil(a.time)}`;
-                            };
-                            return (
-                              <tr key={s.id}>
-                                <th scope="row">{s.short}</th>
-                                <td>{cell(1)}</td>
-                                <td>{cell(0)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </>
-                  )}
-                  {busArrivals.length > 0 && (
-                    <>
-                      <h3>Buses</h3>
-                      <ul className="buses">
-                        {busArrivals.map((b) => (
-                          <li key={`${b.route}-${b.direction}`}>
-                            <span className="route-badge" style={{ background: b.color, color: b.textColor }}>
-                              {b.name}
-                            </span>
-                            <span className="bus-text">
-                              {b.directionName} at {b.stop}
-                            </span>
-                            <strong>{minutesUntil(b.time)}</strong>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  {shuttleArrivals.length > 0 && (
-                    <>
-                      <h3>BU Shuttle</h3>
-                      <ul className="buses">
-                        {shuttleArrivals.map((b) => (
-                          <li key={b.route}>
-                            <span className="route-badge" style={{ background: b.color, color: readableOn(b.color) }} aria-hidden="true">
-                              BU
-                            </span>
-                            <span className="bus-text">
-                              {b.longName} at {b.stop}
-                            </span>
-                            <strong>{minutesUntil(b.time)}</strong>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                </>
-              )}
-              {mapKind === 'mapbox' && showTraffic && (
-                <>
-                  <h3>Traffic</h3>
-                  <ul className="legend" aria-label="Traffic legend">
-                    {TRAFFIC_LEVELS.map((l) => (
-                      <li key={l.key}>
-                        <span className="swatch" style={{ background: l.color, height: Math.round(3 * l.boost) }} aria-hidden="true" />
-                        {l.label}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </section>
-          )}
-        </aside>
-      )}
+                          <span className="bus-text">
+                            {b.directionName} at {b.stop}
+                          </span>
+                          <strong>{minutesUntil(b.time)}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {shuttleArrivals.length > 0 && (
+                  <>
+                    <h3>BU Shuttle</h3>
+                    <ul className="buses">
+                      {shuttleArrivals.map((b) => (
+                        <li key={b.route}>
+                          <span className="route-badge" style={{ background: b.color, color: readableOn(b.color) }} aria-hidden="true">
+                            BU
+                          </span>
+                          <span className="bus-text">
+                            {b.longName} at {b.stop}
+                          </span>
+                          <strong>{minutesUntil(b.time)}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </>
+            )}
+            {mapKind === 'mapbox' && showTraffic && (
+              <>
+                <h3>Traffic</h3>
+                <ul className="legend" aria-label="Traffic legend">
+                  {TRAFFIC_LEVELS.map((l) => (
+                    <li key={l.key}>
+                      <span className="swatch" style={{ background: l.color, height: Math.round(3 * l.boost) }} aria-hidden="true" />
+                      {l.label}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        )}
+        {/* Always there (hidden unless chosen): WeatherControls draws into it. */}
+        <section id="panel-weather" role="tabpanel" aria-labelledby="tab-weather" ref={setWeatherPanel} hidden={!hud || tab !== 'weather'} />
+      </Sheet>
 
       {hud && (
-        <footer className="panel timeline">
-          <button className="play" onClick={togglePlaying} aria-label={playing ? 'Pause' : 'Play'}>
-            {playing ? '❚❚' : '▶'}
-          </button>
-          <output className="clock" aria-live="off">
-            {formatClock(hud.time)}
-            {live && <span className="live-badge">CLOCK</span>}
-          </output>
-          <input
-            type="range"
-            min={range[0]}
-            max={range[1]}
-            step={60}
-            value={hud.time}
-            onInput={(e) => scrub(Number(e.currentTarget.value))}
-            aria-label="Time of day"
-            aria-valuetext={formatClock(hud.time)}
-          />
-          <div className="speeds" role="group" aria-label="Playback speed">
-            <button onClick={goLive} aria-pressed={live} title="Follow Boston time and live transit">
-              Clock
+        <div className="toolbar" ref={setToolbarEl} role="group" aria-label="Time and map controls">
+          <div className="toolbar-time">
+            <button className="tool tool-icon" onClick={togglePlaying} aria-label={playing ? 'Pause' : 'Play'} title={playing ? 'Pause' : 'Play'}>
+              <PlayIcon playing={playing} />
             </button>
-            {SPEEDS.map((s) => (
-              <button key={s} onClick={() => changeSpeed(s)} aria-pressed={!live && speed === s}>
-                {s}×
-              </button>
-            ))}
+            <output className="clock" aria-live="off">
+              {formatClock(hud.time)}
+              {live && <span className="badge live-badge">CLOCK</span>}
+            </output>
+            <input
+              type="range"
+              className="scrubber"
+              min={range[0]}
+              max={range[1]}
+              step={60}
+              value={hud.time}
+              onInput={(e) => scrub(Number(e.currentTarget.value))}
+              aria-label="Time of day"
+              aria-valuetext={formatClock(hud.time)}
+            />
           </div>
-          {mapKind === 'mapbox' && (
-            <select value={light} onChange={(e) => setLight(e.target.value as LightPreset | 'auto')} aria-label="Lighting">
-              <option value="auto">Auto</option>
-              <option value="dawn">Dawn</option>
-              <option value="day">Day</option>
-              <option value="dusk">Dusk</option>
-              <option value="night">Night</option>
+          <div className="toolbar-map">
+            <select
+              className="tool speed"
+              value={live ? 'live' : String(speed)}
+              onChange={(e) => (e.target.value === 'live' ? goLive() : changeSpeed(Number(e.target.value)))}
+              aria-label="Playback speed"
+              title="Clock follows Boston time and live transit; the others play the day back"
+            >
+              <option value="live">Clock</option>
+              {SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}
+              {!SPEEDS.includes(speed) && <option value={speed}>{speed}×</option>}
             </select>
-          )}
-          {mapKind === 'mapbox' && light === 'auto' && hud && (
-            <span className="light-status" style={{ fontSize: 12, opacity: 0.85, whiteSpace: 'nowrap' }} title={live ? 'Following Boston time' : 'Following the shown time'}>
-              Auto · {daylightLabel(hud.time)}
-            </span>
-          )}
-        </footer>
+            {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}
+            <Popover title="Layers" hint="Map layers and lighting" className="layers" label={<><LayersIcon /> <span className="tool-word">Layers</span></>}>
+              <ul className="layer-list">
+                <LayerSwitch label="MBTA" detail="Trains, buses and BU shuttles" on={showTransit} onToggle={toggleTransit} />
+                {mapKind === 'mapbox' && <LayerSwitch label="Traffic" detail="Live road congestion" on={showTraffic} onToggle={() => setShowTraffic((v) => !v)} />}
+                <LayerSwitch label="Parking" detail="Estimated, BU and event-area lots" on={showParking} onToggle={toggleParking} />
+                {bikes && <LayerSwitch label="Bluebikes" detail="Riders and docks" on={showBikes} onToggle={toggleBikes} />}
+                <LayerSwitch label="Traffic counts" detail="Vehicles, bikes and people per hour" on={showCounts} onToggle={toggleCounts} />
+                {sourceData && <LayerSwitch label="Campus events" detail="Their crowds, on the shown day" on={eventsOn} onToggle={() => toggleEvents(!eventsOn)} />}
+              </ul>
+              {mapKind === 'mapbox' && (
+                <div className="lighting">
+                  <label>
+                    Lighting
+                    <select value={light} onChange={(e) => setLight(e.target.value as LightPreset | 'auto')}>
+                      <option value="auto">Auto</option>
+                      <option value="dawn">Dawn</option>
+                      <option value="day">Day</option>
+                      <option value="dusk">Dusk</option>
+                      <option value="night">Night</option>
+                    </select>
+                  </label>
+                  {light === 'auto' && (
+                    <span className="light-status" title={live ? 'Following Boston time' : 'Following the shown time'}>
+                      Auto · {daylightLabel(hud.time)}
+                    </span>
+                  )}
+                </div>
+              )}
+            </Popover>
+          </div>
+        </div>
       )}
-
-
     </div>
+  );
+}
+
+/** An on/off row in the Layers popover. */
+function LayerSwitch({ label, detail, on, onToggle }: { label: string; detail: string; on: boolean; onToggle: () => void }) {
+  return (
+    <li>
+      <button className="layer-switch" role="switch" aria-checked={on} onClick={onToggle}>
+        <span className="layer-text">
+          <span className="layer-name">{label}</span>
+          <span className="layer-detail">{detail}</span>
+        </span>
+        <span className="switch" aria-hidden="true" />
+      </button>
+    </li>
+  );
+}
+
+const icon = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true } as const;
+
+function PlayIcon({ playing }: { playing: boolean }) {
+  return (
+    <svg {...icon}>
+      {playing ? <path d="M8 5v14M16 5v14" strokeWidth={3} /> : <path d="M7 4.5v15l12-7.5z" fill="currentColor" />}
+    </svg>
+  );
+}
+
+function LayersIcon() {
+  return (
+    <svg {...icon}>
+      <path d="M12 3l9 5-9 5-9-5z" />
+      <path d="M3 13l9 5 9-5" />
+    </svg>
   );
 }
 

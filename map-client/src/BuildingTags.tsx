@@ -330,7 +330,8 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind,
     percent,
     hasPercentage,
     level: hasPercentage ? level.key : 'unmodeled',
-    style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1' },
+    // Not modeled: slate on the tags, plain secondary ink and a neutral bar on the panels.
+    style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' },
     description: hasPercentage ? `${primary} of ${seats ? 'classroom seats' : 'capacity'}, ${secondary}` : primary,
   };
 }
@@ -338,7 +339,7 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind,
 /** Rewrites a tag's text when it has changed; returns whether it did. */
 function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null, allowZero = false): boolean {
   const display = b.eventOnly
-    ? { primary: '', secondary: '', percent: 0, hasPercentage: false, level: 'event', style: { '--lv': '167, 139, 250', '--lv-text': '#ddd6fe' }, description: '' }
+    ? { primary: '', secondary: '', percent: 0, hasPercentage: false, level: 'event', style: { '--lv': '167, 139, 250', '--lv-text': '#ddd6fe', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' }, description: '' }
     : activityDisplay({ ...b, kind, allowZero });
   const eventText = b.event?.text ?? '';
   const key = `${b.name}|${b.short}|${display.primary}|${display.level}|${kind}|${eventText}`;

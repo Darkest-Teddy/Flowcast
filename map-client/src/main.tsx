@@ -5,8 +5,10 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { cacheUniformBlockBindings, preferHighPerformanceGpu } from './gpu';
 import { installMapboxVaoCache } from './map/vaoCache';
+import { syncTheme } from './theme';
 import './styles.css';
 
+syncTheme();
 preferHighPerformanceGpu();
 cacheUniformBlockBindings();
 installMapboxVaoCache();

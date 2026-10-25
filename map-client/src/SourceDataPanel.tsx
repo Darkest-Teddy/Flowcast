@@ -127,7 +127,7 @@ export function SourceDataPanel({ data, locations, selectedBuilding, campus, wee
                   <li key={`${meeting.id}:${start}:${end}`}>
                     <div className="source-meeting-head">
                       <a href={meeting.sourceUrl} target="_blank" rel="noreferrer">{meeting.courseCode} {meeting.section}</a>
-                      <span className={status === 'In progress' ? 'source-now' : 'source-caption'}>{status}</span>
+                      <span className={status === 'In progress' ? 'source-status is-now' : 'source-status'}>{status}</span>
                     </div>
                     <span>{meeting.title}</span>
                     <span className="source-caption">{formatClock(start)}–{formatClock(end)} · {location.short} {meeting.roomCode}</span>

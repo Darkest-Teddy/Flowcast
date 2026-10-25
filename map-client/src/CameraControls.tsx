@@ -1,9 +1,11 @@
-// Spin, rotate, tilt, view presets and the landmark tour (logic in map/camera.ts).
+// Spin, rotate, tilt, view presets and the landmark tour (logic in map/camera.ts), in the floating
+// toolbar.
 // Keyboard, while focus isn't in a form control: R spin, [ ] rotate, , . tilt.
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { Basemap } from './map/basemap';
 import { CameraController, PRESETS, pickLandmarks, shouldAutoSpin, type CameraControllerState, type ViewPreset } from './map/camera';
 import type { CampusLocation } from './sim/playback';
+import { Popover } from './Popover';
 
 interface Props {
   basemap: Basemap | null;
@@ -61,50 +63,53 @@ export function CameraControls({ basemap, locations }: Props) {
 
   if (!camera) return null;
 
+  // In the floating toolbar: Spin on its own (the one people reach for), the rest in a popover.
   return (
-    <section className="panel camera" aria-label="Camera">
-      <div className="camera-grid">
-        <button className="span-3" onClick={() => camera.toggleSpin()} aria-pressed={state.spinning} aria-label="Spin the view" title="Spin (R)">
-          <SpinIcon /> Spin
-        </button>
-        <button
-          className="span-3"
-          onClick={() => camera.toggleTour()}
-          aria-pressed={state.touring}
-          aria-label="Tour campus landmarks"
-          disabled={!landmarks.length}
-          title="Fly between landmarks"
-        >
-          <TourIcon /> Tour
-        </button>
-
-        <button className="span-2" onClick={() => camera.rotateLeft()} aria-label="Rotate left 45 degrees" title="Rotate left ([)">
-          <RotateIcon flip />
-        </button>
-        <button className="span-2" onClick={() => camera.northUp()} aria-label="North up" title="North up">
-          <NorthIcon /> N
-        </button>
-        <button className="span-2" onClick={() => camera.rotateRight()} aria-label="Rotate right 45 degrees" title="Rotate right (])">
-          <RotateIcon />
-        </button>
-
-        <button className="span-3" onClick={() => camera.tiltDown()} aria-label="Tilt toward top-down" title="Tilt down (,)">
-          <TiltIcon down /> Less tilt
-        </button>
-        <button className="span-3" onClick={() => camera.tiltUp()} aria-label="Tilt toward the horizon" title="Tilt up (.)">
-          <TiltIcon /> More tilt
-        </button>
-
-        {(Object.keys(PRESETS) as ViewPreset[]).map((p) => (
-          <button key={p} className="span-2 preset" onClick={() => camera.applyPreset(p)} aria-pressed={state.preset === p} aria-label={`${PRESETS[p].label} view`}>
-            {p === 'top' ? 'Top' : p === '3d' ? '3D' : 'Street'}
+    <>
+      <button className="tool" onClick={() => camera.toggleSpin()} aria-pressed={state.spinning} aria-label="Spin the view" title="Spin (R)">
+        <SpinIcon /> <span className="tool-word">Spin</span>
+      </button>
+      <Popover title="View" hint="Rotate, tilt, view presets and the landmark tour" label={<><CameraIcon /> <span className="tool-word">View</span></>}>
+        <div className="camera-grid">
+          <button className="span-2" onClick={() => camera.rotateLeft()} aria-label="Rotate left 45 degrees" title="Rotate left ([)">
+            <RotateIcon flip />
           </button>
-        ))}
-      </div>
-      <p className="camera-status" aria-live="polite">
-        {state.touring ? `Touring · ${state.landmark ?? '…'}` : state.spinning ? 'Spinning · drag to stop' : 'R spin · [ ] rotate · , . tilt'}
-      </p>
-    </section>
+          <button className="span-2" onClick={() => camera.northUp()} aria-label="North up" title="North up">
+            <NorthIcon /> N
+          </button>
+          <button className="span-2" onClick={() => camera.rotateRight()} aria-label="Rotate right 45 degrees" title="Rotate right (])">
+            <RotateIcon />
+          </button>
+
+          <button className="span-3" onClick={() => camera.tiltDown()} aria-label="Tilt toward top-down" title="Tilt down (,)">
+            <TiltIcon down /> Less tilt
+          </button>
+          <button className="span-3" onClick={() => camera.tiltUp()} aria-label="Tilt toward the horizon" title="Tilt up (.)">
+            <TiltIcon /> More tilt
+          </button>
+
+          {(Object.keys(PRESETS) as ViewPreset[]).map((p) => (
+            <button key={p} className="span-2 preset" onClick={() => camera.applyPreset(p)} aria-pressed={state.preset === p} aria-label={`${PRESETS[p].label} view`}>
+              {p === 'top' ? 'Top' : p === '3d' ? '3D' : 'Street'}
+            </button>
+          ))}
+
+          <button
+            className="span-6"
+            onClick={() => camera.toggleTour()}
+            aria-pressed={state.touring}
+            aria-label="Tour campus landmarks"
+            disabled={!landmarks.length}
+            title="Fly between landmarks"
+          >
+            <TourIcon /> Tour landmarks
+          </button>
+        </div>
+        <p className="camera-status" aria-live="polite">
+          {state.touring ? `Touring · ${state.landmark ?? '…'}` : state.spinning ? 'Spinning · drag to stop' : 'R spin · [ ] rotate · , . tilt'}
+        </p>
+      </Popover>
+    </>
   );
 }
 
@@ -115,6 +120,16 @@ function SpinIcon() {
     <svg {...svg}>
       <ellipse cx="12" cy="12" rx="9" ry="4.5" />
       <path d="M17 6.5l3 1.5-1.5 3" />
+    </svg>
+  );
+}
+
+function CameraIcon() {
+  // A compass rose: the view's heading and tilt.
+  return (
+    <svg {...svg}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M14.8 9.2l-1.9 4.7-3.7 1.9 1.9-4.7z" fill="currentColor" fillOpacity="0.25" />
     </svg>
   );
 }

@@ -56,6 +56,19 @@ export interface Basemap {
    * 'gesture' (drag, scroll, pinch, rotate, tilt, keyboard pan). Returns an unsubscribe.
    */
   onUserInteraction(cb: (kind: UserInteraction) => void): () => void;
+  /**
+   * The screen insets the app's panels cover, so the camera centres in the map that's left. Eases
+   * there (jumps with `animate: false` or under prefers-reduced-motion); while another camera move
+   * is running, waits for it to end rather than cancel it.
+   */
+  setViewPadding(padding: ViewPadding, animate?: boolean): void;
+}
+
+export interface ViewPadding {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
 }
 
 export interface CameraState {
@@ -92,8 +105,31 @@ interface CameraMap {
 // them; the app's own flyTo/easeTo/jumpTo calls have none.
 const GESTURE_EVENTS = ['dragstart', 'rotatestart', 'pitchstart', 'zoomstart', 'movestart', 'boxzoomstart'];
 
+const PADDING_MS = 320;
+
 function cameraApi(map: CameraMap, maxPitch: number) {
+  let wanted: ViewPadding | null = null; // waiting for the running camera move to end
+  const applyPadding = (padding: ViewPadding, animate: boolean) => {
+    const still = !animate || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (still) map.jumpTo({ padding });
+    else map.easeTo({ padding, duration: PADDING_MS });
+  };
+  const afterMove = () => {
+    map.off('moveend', afterMove);
+    const padding = wanted;
+    wanted = null;
+    if (padding) applyPadding(padding, true);
+  };
   return {
+    setViewPadding: (padding: ViewPadding, animate = true) => {
+      // A jump or ease here would stop a fly-to (a tour leg, a campus button) half way.
+      if (map.isEasing()) {
+        if (!wanted) map.on('moveend', afterMove);
+        wanted = padding;
+        return;
+      }
+      applyPadding(padding, animate);
+    },
     getCamera: (): CameraState => {
       const c = map.getCenter();
       return { center: [c.lng, c.lat], zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
@@ -156,9 +192,6 @@ const DEFAULT_VIEW = {
   pitch: 58,
   bearing: 250,
 };
-
-// Keeps the campus centred in the area the dashboard panel doesn't cover.
-const VIEW_PADDING = { top: 0, bottom: 80, left: 0, right: 340 };
 
 function viewFromUrl() {
   const q = new URLSearchParams(window.location.search);
@@ -289,7 +322,6 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
         basemap: { lightPreset, showPointOfInterestLabels: false, showTransitLabels: false, show3dBuildings: false, show3dFacades: false },
       },
     });
-    map.setPadding(VIEW_PADDING);
     tameInteractions(map);
     paceMapRendering(map);
     skipSlotGroupMoves(map);
@@ -515,7 +547,6 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     canvasContextAttributes: { antialias: quality.msaa },
     renderWorldCopies: false,
   });
-  map.setPadding(VIEW_PADDING);
   tameInteractions(map);
   paceMapRendering(map);
   await new Promise<void>((resolve) => map.once('load', () => resolve()));

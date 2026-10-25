@@ -1,24 +1,34 @@
-.events-panel { margin-bottom: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-.events-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.events-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; min-height: 36px; }
-.events-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
-.events-date { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-.events-date input { background: #202530; color: var(--text); border: 1px solid #687080; border-radius: 6px; min-height: 36px; padding: 0 8px; color-scheme: dark; }
-.events-note { color: var(--muted); font-size: 12px; margin: 6px 0; }
+.events-panel { margin-bottom: var(--space-2); }
+.events-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.events-head h2 { margin-top: var(--space-1); }
+.events-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); min-height: 36px; }
+.events-toggle input { width: 18px; height: 18px; accent-color: var(--color-accent); }
+.events-date { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm); color: var(--map-ink-secondary); }
+.events-note { color: var(--map-ink-secondary); font-size: 12px; margin: 6px 0; }
 .events-list { list-style: none; margin: 0; padding: 0; }
-.events-list li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 13px; }
-.events-list a { color: var(--text); font-weight: 600; }
-.events-list span { color: var(--muted); }
-.events-list .events-count { color: var(--accent); font-variant-numeric: tabular-nums; }
-.events-list button { align-self: start; min-height: 36px; padding: 4px 10px; margin-top: 2px; color: var(--text); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 6px; background: rgba(255, 255, 255, 0.06); cursor: pointer; }
-.events-panel details summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 6px 0; }
-.venue-events h3 { margin: 12px 0 2px; font-size: 14px; }
-.events-list .events-visitors { color: #ddd6fe; font-variant-numeric: tabular-nums; }
-.events-list .events-now { color: var(--text); font-size: 12px; }
-.events-list .events-muted, .events-muted { color: var(--muted); }
-.events-pop { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text); }
-.events-spark { flex: none; color: #94a3b8; }
-.events-spark-end { fill: #ddd6fe; }
-.events-provenance { margin: 2px 0 0; padding-left: 16px; font-size: 12px; color: var(--muted); }
+/* An event: name, time and place, simulated attendance; "Show on map" at the right. */
+.events-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-3); row-gap: 2px; align-items: center; padding: 10px 0; font-size: var(--text-sm); }
+.events-list li + li { border-top: 1px solid var(--map-hairline); }
+.events-list li > * { grid-column: 1; }
+.events-list a { color: var(--color-ink); font-weight: 600; text-decoration: none; }
+.events-list a:hover { text-decoration: underline; }
+.events-list span { color: var(--map-ink-secondary); }
+.events-list .events-count { color: var(--color-accent); font-variant-numeric: tabular-nums; }
+.events-list li > button { grid-column: 2; grid-row: 1 / span 3; min-height: 32px; padding: 0 12px; font-size: 12px; white-space: nowrap; }
+.events-panel details summary { cursor: pointer; font-size: var(--text-sm); color: var(--map-ink-secondary); padding: 6px 0; }
+.events-panel details .events-list { margin-top: var(--space-1); }
+/* Venue events (Agganis, Fenway...): the same rows, with visitors, popularity and a live line. */
+.venue-events h3 { margin-top: var(--space-4); }
+.events-list .events-visitors { color: var(--color-ink); font-variant-numeric: tabular-nums; }
+.events-list .events-now { color: var(--color-ink); font-size: 12px; font-weight: 600; }
+.events-list .events-muted, .events-muted { color: var(--map-ink-secondary); }
+/* The popularity line and the estimate's provenance take the row's full width, under the button. */
+.events-list li > :is(.events-pop, details) { grid-column: 1 / -1; }
+.events-pop { display: flex; align-items: center; gap: var(--space-2); font-size: 12px; color: var(--color-ink); }
+.events-spark { flex: none; color: var(--map-ink-secondary); }
+.events-spark-end { fill: var(--color-accent); }
+.events-list details summary { padding: 2px 0; font-size: 12px; }
+.events-provenance { margin: 2px 0 0; padding-left: 16px; font-size: 12px; color: var(--map-ink-secondary); }
 .events-provenance li { display: list-item; padding: 2px 0; border: 0; font-size: 12px; }
-.venue-events select { background: #202530; color: var(--text); border: 1px solid #687080; border-radius: 6px; min-height: 36px; max-width: 220px; color-scheme: dark; }
+.venue-events .events-date { flex-wrap: wrap; margin: var(--space-2) 0; }
+.venue-events .events-date select { flex: 1; min-width: 0; max-width: 100%; }
