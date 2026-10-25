@@ -6,7 +6,8 @@
  * sit at its edges (hud.css lays them out):
  *
  *   brand   top left      what this is
- *   rail    under brand   what is drawn on the map, one icon per layer
+ *   rail    left, centred what is drawn on the map, one icon per layer, and
+ *                         the rotate buttons under them
  *   tabs    top centre    what you are reading: Analytics, Events, Log
  *   status  top right     the clock and the weather, and under them the day,
  *                         the drag bar, play, speed and whether the clock is live
@@ -17,7 +18,7 @@
  * simulation, and every control is a prop.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 /* Type only: the modes belong to the tag layer that implements them, and the
    rail's menu must offer exactly those three. No runtime dependency. */
 import { MARK_PATH, MARK_VIEWBOX } from '../../../theme/mark';
@@ -125,6 +126,19 @@ export const HudIcons = {
     </svg>
   ),
   /* A map pin: which campus the camera is on. */
+  /* Turning the view: an arc with its arrowhead at the end it turns towards. */
+  rotateLeft: () => (
+    <svg {...svg}>
+      <path d="M4 12a8 8 0 1 0 3-6.2" />
+      <path d="M4 4v5h5" />
+    </svg>
+  ),
+  rotateRight: () => (
+    <svg {...svg}>
+      <path d="M20 12a8 8 0 1 1-3-6.2" />
+      <path d="M20 4v5h-5" />
+    </svg>
+  ),
   pin: () => (
     <svg {...svg}>
       <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z" />
@@ -287,7 +301,48 @@ export interface RailItem {
    * it, so six active layers stay tellable apart; off is always grey.
    */
   hue?: 'teal' | 'green' | 'violet' | 'orange' | 'pink' | 'neutral';
+  /** Pressed and held: called with true on press and false on release (the rotate buttons keep turning). */
+  onHold?: (holding: boolean) => void;
   onSelect: () => void;
+}
+
+function RailButton({ item }: { item: RailItem }) {
+  const { onHold, onSelect } = item;
+  const holding = useRef(false);
+  const release = () => {
+    if (!holding.current) return;
+    holding.current = false;
+    onHold?.(false);
+  };
+  // Unmounted mid-press (the rail re-renders without it): let go rather than turn forever.
+  useEffect(() => release, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A held button acts on press and keeps acting until release; its click is then the keyboard's.
+  const hold = onHold ? {
+    onPointerDown: (e: ReactPointerEvent) => {
+      if (e.button !== 0) return;
+      onSelect();
+      holding.current = true;
+      onHold(true);
+    },
+    onPointerUp: release,
+    onPointerLeave: release,
+    onPointerCancel: release,
+    onClick: (e: ReactMouseEvent) => { if (e.detail === 0) onSelect(); },
+  } : { onClick: onSelect };
+  return (
+    <button
+      type="button"
+      className="hud-rail-button"
+      data-hue={item.hue}
+      aria-label={item.label}
+      aria-pressed={item.on}
+      disabled={item.disabled}
+      title={item.label}
+      {...hold}
+    >
+      {item.icon}
+    </button>
+  );
 }
 
 /** A rail button that opens a small radio menu beside the rail: the campus picker. */
@@ -354,30 +409,22 @@ function RailMenu<T extends string>({
  */
 export function HudRail({
   items,
+  actions = [],
   campus,
 }: {
   items: RailItem[];
+  /** Buttons that act on the view rather than the layers (rotate), under a divider. */
+  actions?: RailItem[];
   /** The campus picker, at the foot of the rail. Left out when there is only one campus. */
   campus?: { current: string; options: readonly { id: string; name: string }[]; onPick: (id: string) => void };
 }) {
   const pickCampus = campus && campus.options.length > 1;
   return (
     <nav className="hud-rail" aria-label="Map layers">
-      {items.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          className="hud-rail-button"
-          data-hue={item.hue}
-          aria-label={item.label}
-          aria-pressed={item.on}
-          disabled={item.disabled}
-          title={item.label}
-          onClick={item.onSelect}
-        >
-          {item.icon}
-        </button>
-      ))}
+      {items.map((item) => <RailButton key={item.id} item={item} />)}
+
+      {actions.length > 0 && <span className="hud-rail-divider" aria-hidden="true" />}
+      {actions.map((item) => <RailButton key={item.id} item={item} />)}
 
       {pickCampus && <span className="hud-rail-divider" aria-hidden="true" />}
 

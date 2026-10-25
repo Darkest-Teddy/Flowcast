@@ -13,24 +13,28 @@ interface Props {
   locations: CampusLocation[];
   /** The intro's camera moves are still running: the spin on load waits for them. */
   intro?: boolean;
+  /** Hands the camera to the HUD's rotate buttons (null when the map goes away). */
+  onController?: (controller: CameraController | null) => void;
 }
 
 const IDLE: CameraControllerState = { spinning: false, touring: false, preset: null, landmark: null };
 const noopSubscribe = () => () => {};
 
-export function CameraControls({ basemap, locations, intro = false }: Props) {
+export function CameraControls({ basemap, locations, intro = false, onController }: Props) {
   const [camera, setCamera] = useState<CameraController | null>(null);
 
   useEffect(() => {
     if (!basemap) return;
     const controller = new CameraController(basemap);
     setCamera(controller);
+    onController?.(controller);
     if (import.meta.env.DEV) Object.assign(window, { __flowcastCamera: controller });
     return () => {
       controller.dispose();
       setCamera(null);
+      onController?.(null);
     };
-  }, [basemap]);
+  }, [basemap, onController]);
 
   // Spin on load, once the intro has flown in (both would turn the camera).
   useEffect(() => {
