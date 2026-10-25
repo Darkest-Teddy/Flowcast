@@ -1,9 +1,10 @@
-/* A form column: each group is a heading over a glass card, groups --space-8 apart. */
+/* A form column: each group is a section heading over a glass card. */
 .form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
   max-width: var(--content-form);
+}
+
+.section:first-child > :first-child {
+  margin-top: 0;
 }
 
 .card {
@@ -97,6 +98,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-4);
+  margin-top: var(--space-8);
 }
 
 .saved,

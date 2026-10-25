@@ -47,7 +47,8 @@
   margin: var(--space-10) 0 var(--space-4);
 }
 
-.sectionHeading:first-child {
+/* Straight under the page header, the header's own margin is the gap. */
+.header + .sectionHeading {
   margin-top: 0;
 }
 

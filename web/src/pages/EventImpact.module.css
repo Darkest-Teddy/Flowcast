@@ -66,6 +66,11 @@
   min-width: 0;
 }
 
+/* The date heading lines up with the top of the calendar. */
+.detail > :first-child {
+  margin-top: 0;
+}
+
 .note,
 .summary {
   font-size: var(--text-sm);
