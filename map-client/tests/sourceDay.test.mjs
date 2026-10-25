@@ -837,7 +837,9 @@ test('weekend outings are resident-only off-campus stays with gateway walks and 
   assert.ok(outings.length>0);assert.equal(saturday.sourceStats.modeledOffCampusOutings,outings.length);
   for(const outing of outings){
     assert.ok(outing.agentId.startsWith('out-res-'),'commuters never get outings');
-    assert.equal(outing.locationId,'off-campus');assert.equal(outing.endSec-outing.startSec,150*60);
+    assert.equal(outing.locationId,'off-campus');
+    // Skewed visit lengths (sim/visitLength.ts): around the 150-minute mean, within the bounds.
+    assert.ok(outing.endSec-outing.startSec>=0.3*150*60-1e-7&&outing.endSec-outing.startSec<=3.5*150*60+1e-7,String(outing.endSec-outing.startSec));
     assert.ok(saturday.trips.some(t=>t.agent===outing.agentId&&t.to==='off-campus'&&t.timestamps.at(-1)<=outing.startSec+1e-7));
     assert.ok(saturday.trips.some(t=>t.agent===outing.agentId&&t.from==='off-campus'&&t.timestamps[0]>=outing.endSec-1e-7));
     assert.ok(saturday.stays.some(s=>s.agent===outing.agentId&&s.start===outing.startSec&&s.purpose.kind==='off-campus-outing'&&!s.purpose.fixed));
