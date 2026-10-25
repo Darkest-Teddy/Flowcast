@@ -6,6 +6,7 @@ import { crowdScale, swatches } from '@theme/tokens';
 import styles from './TourPreviews.module.css';
 
 const w = (percent: number): CSSProperties => ({ width: `${percent}%` });
+/** An index into the crowd scale: 0 Quiet, 1 Busy, 2 Packed (theme/crowd.ts). */
 const crowd = (level: number) => crowdScale[level].color;
 
 function Frame({ children, sidebar = true }: { children: ReactNode; sidebar?: boolean }) {
@@ -60,9 +61,9 @@ function HomePreview() {
 function SchedulePreview() {
   const rows = [
     { title: 38, share: 30, level: 0 },
-    { title: 30, share: 88, level: 3 },
+    { title: 30, share: 88, level: 2 },
     { title: 44, share: 55, level: 1 },
-    { title: 34, share: 74, level: 2 },
+    { title: 34, share: 74, level: 1 },
   ];
   return (
     <Frame>
@@ -97,8 +98,8 @@ function MapPreview() {
     { left: 72, top: 56, width: 18, height: 18 },
   ];
   const dots = [
-    [24, 40, 0], [28, 44, 0], [40, 42, 1], [44, 40, 1], [46, 46, 1], [60, 40, 2], [64, 44, 2], [62, 38, 2],
-    [66, 42, 3], [68, 46, 3], [70, 40, 3], [30, 80, 0], [56, 82, 1], [80, 50, 0], [12, 44, 0],
+    [24, 40, 0], [28, 44, 0], [40, 42, 1], [44, 40, 1], [46, 46, 1], [60, 40, 1], [64, 44, 1], [62, 38, 1],
+    [66, 42, 2], [68, 46, 2], [70, 40, 2], [30, 80, 0], [56, 82, 1], [80, 50, 0], [12, 44, 0],
   ];
   return (
     <Frame sidebar={false}>

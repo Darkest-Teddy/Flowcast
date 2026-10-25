@@ -130,8 +130,8 @@ Places open on hover of the model, outline or field itself too, through invisibl
 |---|---|
 | `src/map/basemap.ts` | Creates Mapbox or MapLibre; sets the camera, lighting and URL view params |
 | `src/layers/agents.ts` | Character models, facing direction, de-synchronised walk cycles |
-| `src/layers/crowd.ts` | Building glow and trails, plus the shared Quiet/Moderate/Busy/Packed scale (`crowdLevel`, `crowdLevelStyle`) |
-| `src/layers/crowdLevels.ts` | The map's view of `theme/crowd.ts`, the one crowd scale (Moderate from 40%, Busy from 65%, Packed from 85%; a share on a boundary takes the upper level, an unknown one is Quiet), also used by the Ask server |
+| `src/layers/crowd.ts` | Building glow and trails, plus the shared Quiet/Busy/Packed scale (`crowdLevel`, `crowdLevelStyle`) |
+| `src/layers/crowdLevels.ts` | The map's view of `theme/crowd.ts`, the one crowd scale (Busy from 40%, Packed from 85%; a share on a boundary takes the upper level, an unknown one is Quiet), also used by the Ask server |
 | `src/BuildingTags.tsx` | The HTML building tags over the map; clicking one selects the building |
 | `src/TransitTags.tsx`, `src/tags/glassTags.ts` | HTML tags for stations, bus and shuttle stops, Bluebikes docks and the hovered vehicle |
 | `src/PlaceTags.tsx` | HTML tags for monuments, landmarks, public art, open spaces and fields |
@@ -147,7 +147,7 @@ Places open on hover of the model, outline or field itself too, through invisibl
 
 **Panels.** Everything lives in one sheet: a header (campus, day, live counts, a weather chip), the simulation day and campus switch, and eight tabs (Ask, Crowds, Data, Transit, Traffic, Bikes, Weather, Incidents). A floating toolbar holds play/pause, the clock and scrubber, speed, Spin, a **View** popover (rotate, north up, tilt, Top / 3D / Street, tour) and a **Layers** popover (MBTA, Traffic, Parking, Bluebikes, traffic counts, campus events, Lighting). Panels follow the dashboard's light or dark theme and use `theme/tokens.css` (imported at the top of `styles.css`); the tags on the map stay dark in both. On phones the grabber drags the sheet and is also a button: press it to step through the sizes, or use ArrowUp / ArrowDown. The Crowds tab opens with the conditions engine's card (scenario, compare, explain), then campus and venue events. `H` hides the sheet, toolbar, tags and perf panel for a clean view (and back). On phones the perf panel starts as just its FPS figures; press them for the rest.
 
-**Accessibility.** Map glow, tags and dashboard bars all come from one four-step scale in `crowd.ts`. Every tag carries the percentage full and a word (never colour alone), and its level word keeps 4.5:1 contrast or better. All controls are real buttons with ARIA labels.
+**Accessibility.** Map glow, tags and dashboard bars all come from one three-step scale in `crowd.ts`. Every tag carries the percentage full, a word and a one/two/three-people icon (never colour alone), and its level word keeps 4.5:1 contrast or better. All controls are real buttons with ARIA labels.
 
 ## Live MBTA and traffic
 
@@ -204,7 +204,7 @@ The **Parking** switch in the toolbar's **Layers** popover (its estimates show i
 - **Lots** (`public/data/parking.json`, built by `python3 data-pipeline/fetch_parking.py`): BU's garages and lots (Agganis, Warren Towers, Langsam under New Balance Field, Buick Street, Lots F/H/R, the Medical Campus garages) and the public ones near Fenway Park, MGM Music Hall and Kenmore Square. Geometry and names from OpenStreetMap; capacity from a published figure, the OSM `capacity` tag, or footprint × levels ÷ 30 m² per space, and each lot says which (`capacityBasis`, `capacityNote`, `sourceUrl`).
 - **Demand** (`src/sim/parking.ts`, deterministic): a fill curve per kind of lot (BU commuter garages fill 7–9 AM, hold, drain 4–7 PM; medical garages run 24/7; public garages follow shops and restaurants), lower on weekends and on BU holidays and breaks (from the academic calendar). Events add cars: they arrive over the 2 h before the start, stay to the end and leave over the following hour, going to the nearest lot that sells event parking until it's FULL, then spilling to the next nearest within the venue's walking radius. Cars that find no lot are counted in the panel. Events: Red Sox home games, Agganis Arena, MGM Music Hall, Nickerson Field, commencement and move-in, and BU's own events from `campus-data.json` (small). Undated placeholders are labelled **Sample**.
 - **Which day:** Clock mode uses today's date in Boston; playback uses the chosen day of the simulated week.
-- **Drawing:** two deck.gl layers for every lot (`layers/parking.ts`: one `SolidPolygonLayer` of fills, one `PathLayer` of outlines) with data arrays built once; only the colour accessors re-run, when a lot changes level. The estimate is recomputed at most twice a second, like the HUD. Tags ("Agganis Garage · 82% · Busy", "FULL") go through the shared placer (`ParkingTags.tsx`), on the same four-step scale as the crowds.
+- **Drawing:** two deck.gl layers for every lot (`layers/parking.ts`: one `SolidPolygonLayer` of fills, one `PathLayer` of outlines) with data arrays built once; only the colour accessors re-run, when a lot changes level. The estimate is recomputed at most twice a second, like the HUD. Tags ("Agganis Garage · 82% · Busy", "FULL") go through the shared placer (`ParkingTags.tsx`), on the same three-step scale as the crowds.
 - **It's an estimate layer only.** Students in the simulation don't drive, and parking never changes timelines, occupancy or counts.
 
 ## Conditions engine: daily conditions, what-if scenarios, explanation

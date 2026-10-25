@@ -25,7 +25,7 @@ export interface AgentRow {
   name: string;
   /** Simulated students over stated capacity, rounded; null when not comparable or closed. */
   percent: number | null;
-  /** Quiet, Moderate, Busy or Packed; null when there is no percent. */
+  /** Quiet, Busy or Packed; null when there is no percent. */
   level: string | null;
   students: number;
   modeled: boolean;

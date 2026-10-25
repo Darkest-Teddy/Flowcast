@@ -209,7 +209,7 @@ All public, with no login: the BU course catalog and classroom directory, BU Din
 
 - No personal or login-only data is collected. The simulated students are synthetic and model no real person.
 - Dashboard sessions and saved preferences are stored by the PostgreSQL API. See **Privacy & data** for the available account controls.
-- Crowd levels use a 4-step scale (Quiet, Moderate, Busy, Packed) with words, percentages and 4.5:1 contrast. All controls are labelled buttons, the calendar is keyboard-navigable, and the map honors reduced-motion settings.
+- Crowd levels use a 3-step scale (Quiet, Busy, Packed) with words, percentages, a one/two/three-people icon and 4.5:1 contrast. All controls are labelled buttons, the calendar is keyboard-navigable, and the map honors reduced-motion settings.
 
 ## Roadmap
 

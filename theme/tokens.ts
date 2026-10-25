@@ -84,7 +84,7 @@ export const crowdScale: { level: CrowdLevel; label: string; upTo: number; color
   }),
 );
 
-/** The scale entry for a share; boundaries go up (0.40 is Moderate) and NaN is Quiet (crowd.ts). */
+/** The scale entry for a share; boundaries go up (0.40 is Busy) and NaN is Quiet (crowd.ts). */
 export function crowdFor(share: number) {
   const key = crowdLevel(share).key;
   return crowdScale.find((s) => s.level === key)!;

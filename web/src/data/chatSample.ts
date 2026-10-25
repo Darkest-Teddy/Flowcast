@@ -64,8 +64,8 @@ export const chatSample = {
             unit: '% full',
             bars: [
               { label: 'Mugar Memorial Library', value: 78, level: 'Busy', detail: '1,547 of 1,980 seats' },
-              { label: 'Pardee Management Library', value: 61, level: 'Moderate', detail: '152 of 250 seats' },
-              { label: 'Science & Engineering Library', value: 44, level: 'Moderate', detail: '132 of 300 seats' },
+              { label: 'Pardee Management Library', value: 61, level: 'Busy', detail: '152 of 250 seats' },
+              { label: 'Science & Engineering Library', value: 44, level: 'Busy', detail: '132 of 300 seats' },
               { label: 'Music Library', value: 12, level: 'Quiet', detail: null },
               { label: 'Stone Science Library', value: null, level: null, detail: 'Closed' },
             ],

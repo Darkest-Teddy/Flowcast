@@ -338,7 +338,11 @@ export function parkingAt(model: ParkingModel, day: ParkingDay, time: number, ex
   return { time, day, lots, events: eventStates, levelKey, totals: { cars: totalCars, capacity: totalCapacity, full: fullCount } };
 }
 
-/** The four-step scale's index (as layers/crowd.ts crowdLevel: Quiet < 0.3 <= Moderate < 0.6 <= Busy < 0.85 <= Packed). */
+/**
+ * A lot's bucket (0-3 at 0.3, 0.6 and 0.85), used only to build `levelKey`, the redraw trigger for
+ * the parking layers: its own steps, not the crowd scale's (theme/crowd.ts), so a change here
+ * costs a repaint and nothing more.
+ */
 export function levelIndex(share: number): 0 | 1 | 2 | 3 {
   return share >= 0.85 ? 3 : share >= 0.6 ? 2 : share >= 0.3 ? 1 : 0;
 }

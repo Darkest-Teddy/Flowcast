@@ -1,5 +1,5 @@
 // Glassy HTML tags floating over each tracked building, on a stem that stands on the roof. By
-// default a small pill: a level-coloured dot, the short name and the % (never colour alone).
+// default a small pill: the level's people icon, the short name and the % (never colour alone).
 // Hovering the pill, its roof dot or the building itself, focusing it, tapping it, or selecting
 // the building expands it into the full card: kind icon, name, "87% · Packed" and a fill bar.
 // HTML rather than a deck.gl TextLayer for real typography, hover/focus states and keyboard access.
@@ -14,7 +14,7 @@ import { countInterval } from './sim/uncertainty';
 import { TagProjection } from './tags/projection';
 import type { CameraState } from './map/basemap';
 import type { LabelPlacer, Projector } from './layers/placement';
-import { crowdLevel, crowdLevelStyle, ringTop, type RoofHeights } from './layers/crowd';
+import { crowdLevel, crowdLevelStyle, ringTop, type CrowdLevelInfo, type RoofHeights } from './layers/crowd';
 import type { BuildingFootprint, BuildingOccupancy, CampusLocation, LocationKind } from './sim/playback';
 import { occupancyShare } from './sim/playback';
 
@@ -32,7 +32,15 @@ const ICONS: Record<LocationKind, string> = {
   gym: svg('<path d="M6.5 6.5l11 11"/><path d="M21 21l-1-1"/><path d="M3 3l1 1"/><path d="M18 22l4-4"/><path d="M2 6l4-4"/><path d="M3 10l7-7"/><path d="M14 21l7-7"/>'),
 };
 
-const KIND_LABEL: Record<LocationKind, string> = { dorm: 'Residence', classroom: 'Academic', dining: 'Dining', library: 'Library', gym: 'Athletics', outdoor: 'Outdoors', 'off-campus': 'Off map' };
+// The crowd levels' marks: one, two or three people. The same paths as HudIcons person1/person2/
+// person3 (hud/Chrome.tsx); theme/crowd.ts says which level takes which.
+const PERSON_ICONS: Record<CrowdLevelInfo['icon'], string> = {
+  person1: svg('<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>'),
+  person2: svg('<circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.2a3 3 0 0 1 0 5.6M17.5 19a5.4 5.4 0 0 0-2-4.2"/>'),
+  person3: svg('<circle cx="12" cy="7.5" r="2.8"/><path d="M7 19.5a5 5 0 0 1 10 0"/><circle cx="5" cy="9.5" r="2.1"/><path d="M1.5 18.5a4 4 0 0 1 4.5-4"/><circle cx="19" cy="9.5" r="2.1"/><path d="M22.5 18.5a4 4 0 0 0-4.5-4"/>'),
+};
+
+const KIND_LABEL: Record<LocationKind, string> ={ dorm: 'Residence', classroom: 'Academic', dining: 'Dining', library: 'Library', gym: 'Athletics', outdoor: 'Outdoors', 'off-campus': 'Off map' };
 
 /** px from the roof to the bottom of the card (the stem). */
 const STEM = 16;
@@ -68,6 +76,9 @@ interface Tag {
   root: HTMLDivElement;
   /** The compact pill: the focusable button, and what the placer makes room for. */
   pill: HTMLButtonElement;
+  /** The pill's level mark: the people icon, or a plain dot where there is no level. */
+  pdot: HTMLElement;
+  pdotIcon: string;
   pname: HTMLElement;
   ppct: HTMLElement;
   /** A venue event's crowd (visitors included), beside the student figure, never in it. */
@@ -115,6 +126,8 @@ function createTag(id: string, layer: HTMLElement, onClick: () => void): Tag {
     id,
     root,
     pill,
+    pdot: q('.btag-pdot'),
+    pdotIcon: '',
     pname: q('.btag-pname'),
     ppct: q('.btag-ppct'),
     pevent: q('.btag-pevent'),
@@ -330,6 +343,8 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind,
     percent,
     hasPercentage,
     level: hasPercentage ? level.key : 'unmodeled',
+    /** One, two or three people for the level; empty where there is no level to show. */
+    icon: hasPercentage ? PERSON_ICONS[level.icon] : '',
     // Not modeled: slate on the tags, plain secondary ink and a neutral bar on the panels.
     style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' },
     description: hasPercentage ? `${primary} of ${seats ? 'classroom seats' : 'capacity'}, ${secondary}` : primary,
@@ -339,7 +354,7 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind,
 /** Rewrites a tag's text when it has changed; returns whether it did. */
 function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null, allowZero = false): boolean {
   const display = b.eventOnly
-    ? { primary: '', secondary: '', percent: 0, hasPercentage: false, level: 'event', style: { '--lv': '167, 139, 250', '--lv-text': '#ddd6fe', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' }, description: '' }
+    ? { primary: '', secondary: '', percent: 0, hasPercentage: false, level: 'event', icon: '', style:{ '--lv': '167, 139, 250', '--lv-text': '#ddd6fe', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' }, description: '' }
     : activityDisplay({ ...b, kind, allowZero });
   const eventText = b.event?.text ?? '';
   const key = `${b.name}|${b.short}|${display.primary}|${display.level}|${kind}|${eventText}`;
@@ -349,6 +364,11 @@ function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null,
     tag.kind = kind;
     tag.icon.innerHTML = kind ? ICONS[kind] : '';
     tag.icon.title = kind ? KIND_LABEL[kind] : '';
+  }
+  if (tag.pdotIcon !== display.icon) {
+    tag.pdotIcon = display.icon;
+    tag.pdot.innerHTML = display.icon;
+    tag.pdot.classList.toggle('is-icon', Boolean(display.icon));
   }
   tag.short.textContent = b.short;
   tag.pname.textContent = b.short;

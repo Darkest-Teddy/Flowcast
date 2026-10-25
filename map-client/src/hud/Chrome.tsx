@@ -34,6 +34,16 @@ const svg = {
   'aria-hidden': true,
 } as const;
 
+/* Two people: the crowds glyph the left rail has always used, and the Busy level's mark. One icon,
+   two names, so the rail and the crowd scale can never drift apart. */
+const Person2 = () => (
+  <svg {...svg}>
+    <circle cx="9" cy="8" r="3" />
+    <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+    <path d="M16 6.2a3 3 0 0 1 0 5.6M17.5 19a5.4 5.4 0 0 0-2-4.2" />
+  </svg>
+);
+
 export const HudIcons = {
   campus: () => (
     <svg {...svg}>
@@ -41,11 +51,23 @@ export const HudIcons = {
       <path d="M9 4v13M15 7v12.5" />
     </svg>
   ),
-  crowds: () => (
+  crowds: Person2,
+  /* The crowd levels' marks: Quiet, Busy, Packed (theme/crowd.ts names them). */
+  person1: () => (
     <svg {...svg}>
-      <circle cx="9" cy="8" r="3" />
-      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
-      <path d="M16 6.2a3 3 0 0 1 0 5.6M17.5 19a5.4 5.4 0 0 0-2-4.2" />
+      <circle cx="12" cy="8" r="3.6" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+    </svg>
+  ),
+  person2: Person2,
+  person3: () => (
+    <svg {...svg}>
+      <circle cx="12" cy="7.5" r="2.8" />
+      <path d="M7 19.5a5 5 0 0 1 10 0" />
+      <circle cx="5" cy="9.5" r="2.1" />
+      <path d="M1.5 18.5a4 4 0 0 1 4.5-4" />
+      <circle cx="19" cy="9.5" r="2.1" />
+      <path d="M22.5 18.5a4 4 0 0 0-4.5-4" />
     </svg>
   ),
   transit: () => (
