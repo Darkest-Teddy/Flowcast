@@ -9,10 +9,26 @@ export interface Column<T> {
   align?: 'left' | 'right';
 }
 
-/** Plain data table with hairline rows. Scrolls sideways on narrow screens instead of squashing. */
-export function Table<T>({ columns, rows, rowKey, caption }: { columns: Column<T>[]; rows: T[]; rowKey: (row: T) => string; caption?: string }) {
+/**
+ * Plain data table with hairline rows, on a glass card. On phones each row becomes a small block:
+ * the first column as its heading, then "Header  value" lines (`stack`, the default). Tables whose
+ * rows only make sense side by side pass `stack={false}` and scroll sideways inside the card.
+ */
+export function Table<T>({
+  columns,
+  rows,
+  rowKey,
+  caption,
+  stack = true,
+}: {
+  columns: Column<T>[];
+  rows: T[];
+  rowKey: (row: T) => string;
+  caption?: string;
+  stack?: boolean;
+}) {
   return (
-    <div className={styles.wrap}>
+    <div className={`${styles.wrap} ${stack ? styles.stacked : styles.scroll}`}>
       <table className={styles.table}>
         {caption && <caption className="visually-hidden">{caption}</caption>}
         <thead>
@@ -26,7 +42,7 @@ export function Table<T>({ columns, rows, rowKey, caption }: { columns: Column<T
           {rows.map((row) => (
             <tr key={rowKey(row)}>
               {columns.map((c) => (
-                <td key={c.key} style={{ textAlign: c.align }}>{c.render(row)}</td>
+                <td key={c.key} data-label={c.header} style={{ textAlign: c.align }}>{c.render(row)}</td>
               ))}
             </tr>
           ))}

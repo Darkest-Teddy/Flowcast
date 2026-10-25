@@ -27,6 +27,7 @@
   outline: none;
   background: transparent;
   font-size: var(--text-lg);
+  text-overflow: ellipsis;
 }
 
 .input::placeholder {

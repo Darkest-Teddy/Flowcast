@@ -40,10 +40,26 @@ export function EmptyState({ title, body, action }: { title: string; body?: Reac
   );
 }
 
-/** Responsive grid of equal columns that collapses on small screens. */
-export function Grid({ columns, children, gap = 'md' }: { columns: number; children: ReactNode; gap?: 'md' | 'lg' }) {
+/**
+ * Responsive grid of equal columns: at most two under 860px and one on phones, or two on phones
+ * with `phoneColumns={2}` (small stat cards).
+ */
+export function Grid({
+  columns,
+  children,
+  gap = 'md',
+  phoneColumns = 1,
+}: {
+  columns: number;
+  children: ReactNode;
+  gap?: 'md' | 'lg';
+  phoneColumns?: 1 | 2;
+}) {
   return (
-    <div className={`${styles.grid} ${gap === 'lg' ? styles.gapLg : ''}`} style={{ ['--cols' as string]: columns }}>
+    <div
+      className={[styles.grid, gap === 'lg' && styles.gapLg, phoneColumns === 2 && styles.phonePairs].filter(Boolean).join(' ')}
+      style={{ ['--cols' as string]: columns }}
+    >
       {children}
     </div>
   );

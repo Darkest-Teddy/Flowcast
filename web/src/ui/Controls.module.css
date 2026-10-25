@@ -1,15 +1,24 @@
-/* A capsule track with the selected option as a filled pill. */
+/* A capsule track with the selected option as a filled pill. It never wraps (a wrapped capsule
+   turns into a lumpy blob): when the options don't fit, the track scrolls sideways. */
 .segmented {
   display: inline-flex;
-  flex-wrap: wrap;
+  max-width: 100%;
   gap: 2px;
   padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
   background: var(--color-surface-sunken);
   border-radius: var(--radius-capsule);
 }
 
+.segmented::-webkit-scrollbar {
+  display: none;
+}
+
 .segmented button {
+  flex-shrink: 0;
   height: 26px;
+  white-space: nowrap;
   padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-capsule);
@@ -23,6 +32,23 @@
 
 .segmented button:hover {
   background: var(--color-surface-hover);
+}
+
+/* Inside a scrolling track the browser's outline would be clipped; draw the ring inside. */
+.segmented button:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Touch screens: a 44px track with 40px pills. */
+@media (pointer: coarse) {
+  .segmented {
+    padding: 2px;
+  }
+
+  .segmented button {
+    height: 40px;
+    padding: 0 var(--space-4);
+  }
 }
 
 /* The pill is the surface lit by the glass highlight: white in light mode, and a step lighter than

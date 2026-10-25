@@ -10,9 +10,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  min-height: 28px;
   padding: 0 0 var(--space-2);
   border-bottom: 1px solid var(--color-hairline);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   color: var(--color-ink-secondary);
   font-size: var(--text-sm);
   text-decoration: none;
@@ -55,6 +56,7 @@ a.head:hover {
 }
 
 .link {
+  min-height: 44px;
   text-decoration: none;
 }
 
@@ -63,23 +65,41 @@ a.head:hover {
   background: var(--color-surface-hover);
 }
 
+.link:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--radius-lg);
+}
+
 .leading {
   display: inline-flex;
   flex-shrink: 0;
 }
 
+/* Titles wrap rather than truncate: a card is never so narrow that a name can't fit on two lines. */
 .rowTitle {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.subtitle {
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
 }
 
 .detail {
   color: var(--color-ink-tertiary);
   font-size: var(--text-sm);
   white-space: nowrap;
+  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 

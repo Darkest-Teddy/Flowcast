@@ -12,9 +12,9 @@
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  align-items: flex-start;
+  gap: var(--space-4) var(--space-6);
+  margin-bottom: var(--space-8);
 }
 
 .title {
@@ -27,30 +27,41 @@
   max-width: 64ch;
 }
 
+/* Level with the title (its line box is 32px; controls are 30px), not with the end of a long
+   description. */
 .actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
+  min-height: calc(var(--text-2xl) * var(--leading-tight));
 }
 
 .sectionHeading {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: var(--space-8) 0 var(--space-3);
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-10) 0 var(--space-4);
 }
 
+.sectionHeading:first-child {
+  margin-top: 0;
+}
+
+/* Page title (28) > section heading (17) > card title (15 semibold) > body (15) > meta (13). */
 .sectionHeading h2 {
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-text);
 }
 
 .empty {
-  padding: var(--space-8) var(--space-6);
+  composes: glass from global;
+  padding: var(--space-10) var(--space-6);
   text-align: center;
-  border: 1px dashed var(--color-hairline);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .emptyTitle {
@@ -71,7 +82,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-5);
 }
 
 .gapLg {
@@ -98,9 +109,24 @@
   .header {
     flex-direction: column;
     align-items: flex-start;
+    margin-bottom: var(--space-6);
+  }
+
+  .actions {
+    min-height: 0;
   }
 
   .grid {
     grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .grid.phonePairs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  .sectionHeading {
+    margin-top: var(--space-8);
   }
 }
