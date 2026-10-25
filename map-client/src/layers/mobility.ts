@@ -2,6 +2,7 @@ import { ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import type { Color } from '@deck.gl/core';
 import { countText, type MobilityPoint, type MobilityView } from '../data/mobility';
 import { labelWidth, type LabelPlacer } from './placement';
+import { labelFont } from './labelFont';
 
 const ROAD: Color = [245, 180, 62, 220];
 const WALKING: Color = [232, 121, 163, 220];
@@ -63,7 +64,7 @@ export function mobilityLayers(view: MobilityView, { selectedId = null, placer }
       backgroundPadding: [5, 3],
       getTextAnchor: 'middle',
       getAlignmentBaseline: 'top',
-      fontFamily: 'Inter, system-ui, sans-serif',
+      fontFamily: labelFont(),
       fontWeight: 600,
       characterSet: 'auto',
       billboard: true,

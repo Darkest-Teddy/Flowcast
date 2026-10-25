@@ -1,0 +1,35 @@
+// The brand mark has one definition, theme/mark.ts. These tests keep what repeats it in step: the
+// favicon (a static file, so it can't import the path) and the --brand-mark token in each theme.
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
+
+const { MARK_PATH, MARK_COLOR, MARK_VIEWBOX } = await import('../../theme/mark.ts');
+
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+// Comments stripped, so only declarations are matched.
+const tokensCss = read('../../theme/tokens.css').replace(/\/\*[\s\S]*?\*\//g, '');
+
+test('the mark is one path on a 100 x 100 grid, straight edges only', () => {
+  assert.equal(MARK_VIEWBOX, '0 0 100 100');
+  assert.match(MARK_PATH, /^M[\d.\sHVZ]+$/, 'only moves, horizontal and vertical lines');
+});
+
+test('the favicon draws the same path in the same two colours', () => {
+  const favicon = read('../public/favicon.svg');
+  assert.ok(favicon.includes(`d="${MARK_PATH}"`));
+  assert.ok(favicon.includes(`fill:${MARK_COLOR.light}`));
+  assert.ok(favicon.includes(`fill:${MARK_COLOR.dark}`));
+});
+
+test('--brand-mark is the light colour once and the dark colour in every dark block', () => {
+  const values = [...tokensCss.matchAll(/--brand-mark:\s*([^;]+);/g)].map((m) => m[1].trim());
+  const darkBlocks = tokensCss.match(/data-theme="dark"\]\s*,|:root:not\(\[data-theme="light"\]\)\s*\{/g) ?? [];
+  assert.equal(values[0], MARK_COLOR.light);
+  assert.deepEqual(values.slice(1), Array(darkBlocks.length).fill(MARK_COLOR.dark));
+});
+
+test('nothing is left of the old tile mark', () => {
+  for (const old of ['--brand-start', '--brand-end', '--brand-ink', '#14b8a6']) assert.ok(!tokensCss.includes(old), old);
+  assert.ok(!read('../../web/src/ui/Logo.tsx').includes('M6.5 22.5'));
+});

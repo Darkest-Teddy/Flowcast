@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#0066cc"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#g)"/><path d="M6.5 22.5c4 0 5-11 9.5-11s5.5 11 9.5 11" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="11.5" r="1.9" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 108 108">
+  <!-- The Flowcast mark (Peak cutout). Light: the brand blue; dark: the same blue, lifted (the dark theme's accent). -->
+  <style>.m{fill:#0066cc}@media (prefers-color-scheme:dark){.m{fill:#2997ff}}</style>
+  <path class="m" d="M0 0H100V100H79.76V73.81H63.1V47.62H36.9V73.81H20.24V100H0Z"/>
+</svg>

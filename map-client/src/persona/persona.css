@@ -1,22 +1,23 @@
 /*
- * The join slot: the bottom-left corner of the map display.
+ * The join slot: the bottom-right corner of the map display, above the base map's attribution
+ * (hud.css places it).
  *
  * One slot holding either the join invitation or a clicked student's details, never both. Each card
- * declares its own fixed height, and hud.css offsets the performance readout per card, so the
- * readout never lands on whichever one is showing.
+ * has a fixed height, declared here once, so the panel above the slot can stop short of whichever
+ * one is showing.
  *
- * The column above the map's bottom-left corner reads, bottom-up: the crowd legend, this slot, then
- * the readout. The slot starts at 58px to clear the legend.
- *
- * Unlike the rest of the chrome these two cards are a solid surface rather than glass. The QR code
- * has to sit on white to scan reliably, and this card is aimed at the room rather than the operator,
- * so it reads as a printed invitation pinned to the corner.
+ * Both cards are the chrome's glass (--hud-fill, hud.css). Only the QR code keeps a white tile: a
+ * code on a dark tile does not scan.
  */
+.app {
+  --join-card-height: 92px;
+  --persona-card-height: 164px;
+}
 
 .join-slot {
   position: absolute;
-  left: 12px;
-  bottom: 58px;
+  right: var(--hud-inset);
+  bottom: calc(var(--hud-inset) + var(--hud-attribution));
   /* Each card sets its own height; the slot is only the anchor. */
   width: max-content;
   max-width: 340px;
@@ -37,22 +38,24 @@
  *
  * It used to be a 340x164 block in the corner, which is a lot of the map to
  * spend on a sign. A phone only needs enough modules to lock on, so the code
- * came down to 68px and the card to one line of type beside it. It is dark like
- * the rest of the chrome rather than following the theme: this sits on the map,
- * and the tile behind the code supplies the white the scan needs.
+ * came down to 68px and the card to one line of type beside it. Outer radius 20
+ * less the 8px padding gives the code tile's 12.
  */
+.join-card,
+.persona-card {
+  background: var(--hud-fill);
+  box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
+  color: var(--color-ink);
+  border-radius: var(--radius-panel);
+}
+
 .join-card {
   display: flex;
-  gap: 10px;
+  gap: var(--space-3);
   align-items: center;
   box-sizing: border-box;
-  height: 92px;
-  padding: 8px 14px 8px 8px;
-  border-radius: 14px;
-  background: rgb(28 28 30 / 0.96);
-  border: 1px solid rgb(255 255 255 / 0.1);
-  color: var(--color-ink);
-  box-shadow: 0 12px 34px rgb(0 0 0 / 0.42);
+  height: var(--join-card-height);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
 }
 
 /* Always white, in both themes: a dark QR tile does not scan. */
@@ -62,7 +65,7 @@
   width: 76px;
   height: 76px;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: #ffffff;
   display: grid;
   place-items: center;
@@ -98,9 +101,8 @@
 
 .join-card-title {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-text);
   line-height: 1.2;
   white-space: nowrap;
@@ -108,9 +110,9 @@
 
 .join-card-note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-sm);
   line-height: 1.3;
-  color: #b4b4b9;
+  color: var(--map-ink-secondary);
   white-space: nowrap;
 }
 
@@ -122,8 +124,8 @@
 .join-card-url {
   margin: auto 0 0;
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--crowd-quiet-text);
+  font-size: var(--text-sm);
+  color: var(--map-ink-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -140,12 +142,8 @@
   /* Its own height, now that the slot sizes to whichever card is in it. A
      student's details need the room the invitation no longer does. */
   width: 340px;
-  height: 164px;
+  height: var(--persona-card-height);
   padding: var(--space-4);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  color: var(--color-ink);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.28);
   /* Taller content scrolls rather than pushing the readout above it. */
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -186,16 +184,16 @@
   height: 26px;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-capsule);
   background: transparent;
-  color: var(--color-ink-tertiary);
+  color: var(--map-ink-secondary);
   cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 
 @media (hover: hover) {
   .persona-card-close:hover {
-    background: var(--color-surface-hover);
+    background: var(--map-hover);
     color: var(--color-ink);
   }
 }
@@ -209,7 +207,7 @@
   margin: 0;
   font-size: var(--text-sm);
   line-height: 1.4;
-  color: var(--color-ink-secondary);
+  color: var(--map-ink-secondary);
   text-wrap: pretty;
   /* Two lines, then an ellipsis: the slot is a fixed height. */
   display: -webkit-box;
@@ -219,7 +217,7 @@
 }
 
 .persona-card-bio.is-empty {
-  color: var(--color-ink-tertiary);
+  color: var(--map-ink-secondary);
 }
 
 .persona-card-rows {
@@ -242,7 +240,7 @@
   font-weight: var(--weight-semibold);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-ink-secondary);
+  color: var(--map-ink-secondary);
 }
 
 .persona-card-row dd {
@@ -268,7 +266,7 @@
   margin: auto 0 0;
   font-size: var(--text-xs);
   line-height: 1.35;
-  color: var(--color-ink-tertiary);
+  color: var(--map-ink-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -278,7 +276,7 @@
  * Narrow screens. The chrome already moves the rail and the panel at 860/560;
  * the slot would sit on top of both, so it stands down to a single line.
  * ------------------------------------------------------------------------- */
-@media (max-width: 860px) {
+@media (max-width: 800px) {
   .join-slot {
     display: none;
   }

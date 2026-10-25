@@ -18,6 +18,10 @@
   --map-hairline: color-mix(in srgb, var(--color-ink) 12%, transparent);
   --map-control: color-mix(in srgb, var(--color-ink) 6%, transparent); /* resting fill of a control on glass */
   --map-hover: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  --map-selected: color-mix(in srgb, var(--color-ink) 14%, transparent); /* a chosen tab, a lit toggle */
+  /* The floating chrome's one material (hud.css): the strong glass, which keeps ink ≥13:1 and
+     --map-ink-secondary ≥4.9:1 over a black map in light and a white one in dark. */
+  --hud-fill: var(--glass-fill-strong);
   /* Cards inside the sheet (grouped lists, tables, forms): opaque, so coloured text on them keeps
      the same contrast as on the plain surface whatever the map does. White with a hairline in
      light; the raised grey in dark (below). */
@@ -54,13 +58,10 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
 .app { --sheet-visible: 0px; --sheet-space: 0px; }
 
 /*
- * The map's own faces and hues, declared on .app rather than :root.
- *
- * Raleway and Merriweather are the map's type, loaded in index.html. They are
- * set here and not in theme/tokens.css because --font-text and --font-display
- * are shared: overriding them at :root would also restyle the dashboard and the
- * landing page, which this redesign does not touch. web/ never imports this
- * file, so .app reaches every piece of map chrome and nothing else.
+ * The map's own hues, declared on .app rather than :root (web/ never imports
+ * this file, so .app reaches every piece of map chrome and nothing else). The
+ * type is the shared token stack throughout: panels, chrome and the tags on the
+ * map all read in --font-text, the sans the base map's street names are close to.
  *
  * The hues label the chrome's icons: one per tab, per layer and per building
  * category, so a row of monochrome glyphs becomes scannable. They sit at
@@ -69,18 +70,8 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
  * them; labels stay ink.
  */
 .app {
-  --font-display: 'Raleway', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --font-text: 'Merriweather', Georgia, 'Times New Roman', serif;
-  /*
-   * What the map itself is labelled in, and deliberately not --font-text.
-   *
-   * Tags sit on the map beside the basemap's own street names, which are drawn
-   * in the tiles in a grid-like sans. A serif pill next to them reads as a
-   * different map. Labels also have to stay legible at 11px over moving
-   * geometry, which is not what a text face is shaped for. This is the stack the
-   * whole app used before Raleway and Merriweather arrived.
-   */
-  --font-label: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  /* What the map itself is labelled in: the same stack, under the name the tag styles use. */
+  --font-label: var(--font-text);
 
   --hue-teal: 95, 211, 195; /* Analytics, Places, Classes */
   --hue-green: 134, 211, 154; /* Transit, Dining */
@@ -608,17 +599,17 @@ select.tool { padding: 0 8px 0 12px; }
   padding: 10px 14px;
   min-width: 240px;
   max-width: min(340px, calc(100% - 24px));
-  font-family: var(--font-label);
-  font-size: 12px;
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
 /* The FPS figures are a button: on phones the panel starts as just them, and pressing shows the rest. */
 .perf-head { display: flex; align-items: baseline; gap: 14px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; pointer-events: auto; }
 .perf.is-compact { min-width: 0; padding: 8px 12px; }
-.perf-fps { font-size: 22px; font-weight: 800; line-height: 1; }
-.perf-low { font-size: 15px; font-weight: 700; line-height: 1; }
-.perf-fps span, .perf-low span { font-size: 11px; font-weight: 600; color: var(--map-ink-secondary); }
+.perf-fps { font-size: var(--text-xl); font-weight: var(--weight-bold); line-height: 1; }
+.perf-low { font-size: var(--text-md); font-weight: var(--weight-bold); line-height: 1; }
+.perf-fps span, .perf-low span { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--map-ink-secondary); }
 .perf-fps.good, .perf-low.good { color: var(--color-ok); }
 .perf-fps.ok, .perf-low.ok { color: var(--color-warn); }
 .perf-fps.bad, .perf-low.bad, .perf-warn { color: var(--map-bad-ink); }
@@ -629,11 +620,11 @@ select.tool { padding: 0 8px 0 12px; }
 .perf dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; }
 .perf dt { color: var(--map-ink-secondary); }
 .perf dd { margin: 0; overflow-wrap: anywhere; }
-.perf-hint { margin: 4px 0 0; color: var(--map-ink-secondary); font-size: 11px; }
+.perf-hint { margin: 4px 0 0; color: var(--map-ink-secondary); font-size: var(--text-sm); }
 /* Performance switch: the panel ignores the pointer, its buttons don't. */
 .perf-quality { display: flex; align-items: center; gap: 4px; margin-top: 6px; pointer-events: auto; }
 .perf-quality span { color: var(--map-ink-secondary); margin-right: 2px; }
-.perf-quality button { min-height: 26px; padding: 0 9px; font-size: 11px; }
+.perf-quality button { min-height: 28px; padding: 0 10px; border-radius: var(--radius-capsule); font-size: var(--text-sm); }
 
 /* The base map's corner controls (logo, attribution) stay in the uncovered map: left of the sheet
    on wide screens, above the sheet and toolbar on phones. */
@@ -766,7 +757,7 @@ select.tool { padding: 0 8px 0 12px; }
 }
 .btag:hover .btag-card, .btag:focus-within .btag-card, .btag.is-open .btag-card { opacity: 1; scale: 1; pointer-events: auto; }
 
-/* The compact pill: the level's people icon, the short name and the % (never colour alone). */
+/* The compact pill: the level's people icon, the short name, the level word and the % (never colour alone). */
 .btag-pill {
   position: absolute;
   left: 0;
@@ -806,6 +797,7 @@ select.tool { padding: 0 8px 0 12px; }
   color: rgb(var(--lv));
 }
 .btag-pdot.is-icon svg { display: block; width: 14px; height: 14px; stroke-width: 2; }
+.btag-pword { color: var(--lv-text); font-weight: 600; }
 .btag-ppct { color: var(--lv-text); font-variant-numeric: tabular-nums; font-weight: 700; }
 /* A venue event's crowd: its own colour (violet, 9:1 on the pill) and a separator, so visitors never
    read as the student %. */
@@ -1179,7 +1171,7 @@ select.tool { padding: 0 8px 0 12px; }
 @keyframes clean-hint { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .clean-hint { animation: none; opacity: 0.9; } }
 
-/* Brand mark beside the sheet title (the favicon art). */
+/* Brand mark beside the sheet title: the mark from theme/mark.ts, filled with var(--brand-mark). */
 .sheet-logo { width: 24px; height: 24px; margin-right: var(--space-2); vertical-align: -4px; }
 
 /* The intro (App.tsx): its sky (IntroSky, public/intro/sky.css) between the still and the progress

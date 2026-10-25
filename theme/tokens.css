@@ -102,10 +102,9 @@
   --color-on-swatch: #ffffff;
   --color-knob: #ffffff;
 
-  /* Brand mark (web/src/ui/Logo.tsx, favicon.svg): the same in both themes, like any logo. */
-  --brand-start: #14b8a6;
-  --brand-end: #0066cc;
-  --brand-ink: #ffffff;
+  /* The brand mark's one flat colour (theme/mark.ts, drawn by web/src/ui/Logo.tsx and the map's
+     brand): the theme's accent blue, lifted in dark like --color-accent. */
+  --brand-mark: #0066cc;
 
   /* Spacing (4 px grid) */
   --space-1: 4px;
@@ -129,6 +128,7 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-full: 999px;
+  --radius-control: 12px; /* buttons and chips inside a floating panel */
   --radius-tile: 16px; /* small tiles inside a card */
   --radius-panel: 20px; /* a card floating inside a card */
   --radius-card: 24px;
@@ -168,6 +168,14 @@
   --content-form: 600px; /* single-column forms and the welcome tour */
   --control-height-xl: 56px; /* presenter controls, legible at arm's length */
   --control-height-touch: 44px; /* minimum touch target on phones */
+  /* The map's floating chrome (map-client/src/hud.css): fixed zones, one inset, one gap. */
+  --hud-inset: 16px; /* from every edge of the map */
+  --hud-gap: 12px; /* between floating pieces */
+  --hud-bar-height: 44px; /* every single-row bar and pill */
+  --hud-button: 36px; /* icon buttons inside a bar */
+  --hud-icon: 18px;
+  --hud-card-width: 380px; /* the clock card, and the panel under it */
+  --hud-attribution: 24px; /* the base map's logo and attribution along the bottom edge */
   --content-max-landing: 1120px; /* landing page sections */
   --nav-capsule-max: 880px; /* landing page floating nav */
   /* The landing page: always dark (it sets data-theme="dark"), near-black and flat. */
@@ -203,6 +211,7 @@
     --color-hairline-soft: #2c2c2e;
     --color-accent: #2997ff;
     --color-accent-hover: #4aa8ff;
+    --brand-mark: #2997ff;
     --color-accent-soft: #0a2540;
     --color-strong: #f5f5f7;
     --color-on-strong: #1d1d1f;
@@ -257,6 +266,7 @@
   --color-hairline-soft: #2c2c2e;
   --color-accent: #2997ff;
   --color-accent-hover: #4aa8ff;
+  --brand-mark: #2997ff;
   --color-accent-soft: #0a2540;
   --color-strong: #f5f5f7;
   --color-on-strong: #1d1d1f;
