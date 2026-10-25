@@ -10,6 +10,9 @@ import { DISASTER_ASSUMPTIONS, hazardZone, isDisasterKind, type DisasterKind } f
 export { DISASTER_ASSUMPTIONS, DISASTER_LIMITATIONS, isDisasterKind, type DisasterKind } from './disasters';
 import { computeCasualties, type CasualtyEvent } from './casualties';
 export { CASUALTY_ASSUMPTIONS, CASUALTY_LIMITATIONS, computeCasualties, type CasualtyEvent } from './casualties';
+import { fireGeometry, concat, polyline, type FireGeometry, type LngLat, type Polyline, type Tree } from './fireEvacuation';
+import { cutPolyline, FIRE_CROWD_ASSUMPTIONS, planSpot, turnBackDistance, type CrowdPlan, type FireCrowd, type FireDispersal } from './fireCrowd';
+export { FIRE_CROWD_ASSUMPTIONS, FIRE_CROWD_LIMITATIONS, type FireCrowd, type FireDispersal } from './fireCrowd';
 
 export type IncidentKind = 'fire-drill' | 'fire-alarm' | 'building-closure' | 'fire' | 'earthquake' | 'meteor';
 export interface Incident {
@@ -22,6 +25,9 @@ export interface Incident {
   duration: number;
   /** Earthquake and meteor hazard radius around the target location (defaults 250 m and 100 m). Other kinds: 0 or omitted. */
   radiusMetres?: number;
+  /** Fire only: occupants first gather outside in loose crowds on nearby sidewalks (sim/fireCrowd.ts), then move on.
+   * Needs the building's mapped footprint and saved pedestrian geometry around it; otherwise the fire disperses directly. */
+  outdoorCrowd?: boolean;
 }
 /** Hazard zone of a fire, earthquake or meteor scenario. Model-derived and uncalibrated. */
 export interface IncidentHazard {
@@ -60,6 +66,12 @@ export interface IncidentParticipant {
   relocationId?: string;
   /** Activity-aware decision; always set. Reveal only once `decision.at` has passed. */
   decision?: IncidentDecision;
+  /** Fire outdoor crowd: the standing area (an outdoor location) the evacuee waited at. */
+  crowdLocationId?: string;
+  /** Fire outdoor crowd: how the person moved on (revealed with `decision`). */
+  dispersal?: FireDispersal;
+  /** Fire outdoor crowd: venue where a displaced resident shelters. */
+  shelterId?: string;
 }
 export interface IncidentResult {
   day: DayData;
@@ -77,6 +89,8 @@ export interface IncidentResult {
   /** Illustrative injuries and fatalities (disasters only; same array as day.casualties), sorted by at then agentId.
    * The day's stays and trips stay the planned paths; playback stops each person at their event. */
   casualties?: CasualtyEvent[];
+  /** Fire with an outdoor crowd: standing areas (also in day.locations), per-person spots and exits. */
+  crowd?: FireCrowd;
 }
 
 /** Illustrative, uncalibrated assumptions; not a building evacuation assessment. */
@@ -448,12 +462,48 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
     return { why: candidates.length && (closed || full || short) ? 'no usable alternative' : 'no alternative on saved walks' };
   };
 
+  // Fire with an outdoor crowd (sim/fireCrowd.ts): exits, standing areas and spots around the burning
+  // building. Without a mapped footprint or standing room the fire disperses directly, as below.
+  const tripLine = (id: string, trip: Trip): Polyline => ({ path: trip.path, cumulative: trip.timestamps.map(t => (t - trip.timestamps[0]) * speedOf(id)) });
+  const doorOf = (id: string) => {
+    for (const [key, route] of Object.entries(day.walkRoutes ?? {})) if (key.split('>')[0] === id) return route.path[0];
+    return undefined;
+  };
+  let geometry: FireGeometry | null = null;
+  if (incident.kind === 'fire' && incident.outdoorCrowd && target.building) {
+    const paths = new Set<readonly LngLat[]>();
+    for (const trip of day.trips) if (blocked.has(trip.to) || blocked.has(trip.from)) paths.add(trip.path);
+    geometry = fireGeometry(day, target.building, [...blocked].map(doorOf).filter((door): door is [number, number] => !!door),
+      occupants.length, context?.fireScene, [...paths]);
+  }
+  const crowdPrefix = `incident:${incident.id}:crowd:`;
+  if (geometry && day.locations.some(l => l.id.startsWith(crowdPrefix))) throw new Error('Incident crowd id already exists');
+  const crowdLocations: CampusLocation[] = geometry ? geometry.areas.map(area => ({ id: `${crowdPrefix}${area.index}`,
+    name: `Evacuated crowd outside ${target.short || target.name}`, short: 'Outside', kind: 'outdoor', position: area.centre,
+    capacity: 0, building: '', campus: target.campus })) : [];
+  const crowdPlans = new Map<string, CrowdPlan>();
+
   const participants: IncidentParticipant[] = [];
   const exits = new Map<string, number>();
   let endsAt = closedUntil;
   for (const occupant of occupants) {
     const key = flowKey(occupant.event.to);
     const queued = Math.max(occupant.ready, (exits.get(key) ?? incident.start) + 1 / INCIDENT_ASSUMPTIONS.exitPersonsPerSecond);
+    if (geometry) {
+      // Everyone evacuates through the exit queue, then stands outside; what they do next is decided when they leave the crowd.
+      exits.set(key, queued);
+      const events = byAgent.get(occupant.id)!, index = events.indexOf(occupant.event);
+      const next = zoneExit(events, index), home = agentHome.get(occupant.id)!;
+      const heading = next >= 0 ? tripLine(occupant.id, events[next].trip!)
+        : home !== 'off-campus' && !blocked.has(home) ? routesOf(occupant.event.to).get(home) : undefined;
+      const from = events.slice(0, index).filter(e => e.trip).at(-1)?.trip!.path.at(-1);
+      const plan = planSpot(geometry, incident.id, occupant.id, queued, speedOf(occupant.id), incident.start, { heading, from, ready: occupant.ready });
+      if (plan.leaveAt >= DAY) throw new Error(`Invalid incident: the ${incident.kind} response and recovery must fit within the day (crowd past midnight)`);
+      crowdPlans.set(occupant.id, plan);
+      participants.push({ agentId: occupant.id, role: 'occupant', departAt: plan.departAt, assemblyAt: plan.arriveAt, releaseAt: plan.leaveAt, resumedAt: 0,
+        outcome: 'cancelled', crowdLocationId: crowdLocations[plan.area.index].id });
+      continue;
+    }
     if (drill) {
       exits.set(key, queued); const exit = queued;
       const assemblyAt = exit + evacuation!.get(occupant.event.to)!.cumulative.at(-1)! / speedOf(occupant.id);
@@ -622,6 +672,96 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
     stay(id, location, availableAt, DAY, purpose);
     return { location, availableAt: DAY, cursor: events.length, rejoined: false };
   };
+  // Outdoor crowd: moving on from a standing spot (evacuees) or a turn-back point (arrivals), using the
+  // same rules as direct dispersal (relocation, then the next stop of the day outside the zone).
+  const treeCache = new Map<string, Tree | null>();
+  const treeAt = (point: LngLat) => {
+    const key = `${point[0]},${point[1]}`;
+    if (!treeCache.has(key)) treeCache.set(key, geometry!.treeFrom(point));
+    return treeCache.get(key)!;
+  };
+  type CrowdOrigin = { label: string; lead: Polyline; tree: Tree };
+  const joinFrom = (from: CrowdOrigin, route: WalkRoute) => { const joined = geometry!.join(from.tree, route); return joined ? concat([from.lead, joined]) : null; };
+  /** Nearest dining hall, library or gym by saved walk with room for the rest of the day: open now, else opened as an emergency shelter. */
+  const shelterFor = (location: string, arrive: number) => {
+    const candidates = [...routesOf(location).entries()].map(([venueId, route]) => ({ venue: locationById.get(venueId), route }))
+      .filter((c): c is { venue: CampusLocation; route: WalkRoute } => !!c.venue && FIRE_CROWD_ASSUMPTIONS.shelterKinds.includes(c.venue.kind)
+        && !blocked.has(c.venue.id) && c.route.cumulative.at(-1)! <= FIRE_CROWD_ASSUMPTIONS.maxShelterWalkMetres)
+      .sort((a, b) => a.route.cumulative.at(-1)! - b.route.cumulative.at(-1)! || a.venue.id.localeCompare(b.venue.id));
+    const open = context && candidates.find(c => venueOpenFor(context, c.venue, arrive, Math.min(DAY, arrive + 3600)) && ledger.fits(c.venue, arrive, DAY));
+    if (open) return { ...open, open: true };
+    const roomy = candidates.find(c => ledger.fits(c.venue, arrive, DAY)) ?? candidates[0];
+    return roomy ? { ...roomy, open: false } : undefined;
+  };
+  type Placed = { location: string; availableAt: number; cursor: number; offMap?: { at: number; point: [number, number] } };
+  const moveOn = (id: string, events: Event[], index: number, location: string, from: CrowdOrigin, at: number,
+    participant: IncidentParticipant, occupant: boolean): Placed | null => {
+    const speed = speedOf(id), home = agentHome.get(id)!;
+    const activity = occupant ? activityAt(events, index) : events[index + 1]?.stay ? activityAt(events, index + 1) : { kind: 'unknown' as const, start: at, end: at, index };
+    const decide = (action: IncidentDecision['action'], destinationId: string, reason: string, dispersal: FireDispersal) => {
+      participant.decision = { activity: activity.kind, action, destinationId, reason, at };
+      participant.dispersal = dispersal;
+    };
+    const next = zoneExit(events, index);
+    // An optional meal, study session or workout still worth doing moves to an open venue with room.
+    if (occupant && next >= 0 && RELOCATABLE_KINDS.has(activity.kind)) {
+      const eaten = activity.kind === 'dining' ? Math.max(0, incident.start - activity.start) / (activity.end - activity.start) : 0;
+      const plan = eaten < ACTIVITY_DECISION_ASSUMPTIONS.mealFinishedShare
+        ? findRelocation(id, events, index, activity.kind, at, activity.end - at, next).relocation : undefined;
+      const line = plan && joinFrom(from, plan.toVenue);
+      const arrive = line ? at + line.cumulative.at(-1)! / speed : Infinity;
+      if (plan && line && plan.activityEnd - arrive >= minimumUseful(activity.kind)) {
+        walk(id, from.label, plan.venue.id, line, at);
+        ledger.reserve(plan.venue.id, arrive, plan.activityEnd);
+        stay(id, plan.venue.id, arrive, plan.activityEnd, { kind: activity.kind as 'dining' | 'library' | 'gym', fixed: false });
+        const availableAt = walk(id, plan.venue.id, events[next].to, plan.toNext, plan.activityEnd);
+        participant.outcome = 'relocated'; participant.relocationId = plan.venue.id;
+        decide('relocate', plan.venue.id, 'moves the activity to an open venue with room', 'relocated');
+        return { location: events[next].to, availableAt, cursor: next + 1 };
+      }
+    }
+    if (next < 0) {
+      // Nothing more planned outside the building today: home when it is elsewhere, else shelter.
+      const homeRoute = home !== 'off-campus' && !blocked.has(home) ? routesOf(location).get(home) : undefined;
+      const toHome = homeRoute && joinFrom(from, homeRoute);
+      if (toHome) {
+        stay(id, home, walk(id, from.label, home, toHome, at), DAY, HOME_STAY);
+        decide('leave', home, 'nothing more planned today; goes home', 'home');
+        return { location: home, availableAt: DAY, cursor: events.length };
+      }
+      const shelter = shelterFor(location, at + 300), line = shelter && joinFrom(from, shelter.route);
+      if (!shelter || !line) return null;
+      const arrive = walk(id, from.label, shelter.venue.id, line, at);
+      ledger.reserve(shelter.venue.id, arrive, DAY);
+      stay(id, shelter.venue.id, arrive, DAY, { kind: 'wait', fixed: false, before: 'activity' });
+      participant.shelterId = shelter.venue.id;
+      decide('wait', shelter.venue.id, blocked.has(home)
+        ? (shelter.open ? 'home is the burning building; shelters at an open venue with room' : 'home is the burning building; nearest venue with room opened as an emergency shelter')
+        : 'nothing more planned outside the building; shelters at a venue nearby', 'shelter');
+      return { location: shelter.venue.id, availableAt: DAY, cursor: events.length };
+    }
+    const leave = events[next], destination = leave.to, direct = joinFrom(from, tripLine(id, leave.trip!));
+    if (!direct) return null;
+    if (destination === home || destination === 'off-campus') {
+      const availableAt = walk(id, from.label, destination, direct, at);
+      decide('leave', destination, destination === 'off-campus' ? 'heads for their usual stop or gateway and leaves campus' : 'next stop is home; goes home now',
+        destination === 'off-campus' ? 'transit' : 'home');
+      return { location: destination, availableAt, cursor: next + 1, offMap: destination === 'off-campus' ? { at: availableAt, point: direct.path.at(-1)! } : undefined };
+    }
+    const arrive = at + direct.cumulative.at(-1)! / speed;
+    if (leave.end - arrive > FIRE_CROWD_ASSUMPTIONS.nextActivityHorizonSeconds && home !== 'off-campus' && !blocked.has(home) && home !== destination) {
+      const homeRoute = routesOf(location).get(home), toHome = homeRoute && joinFrom(from, homeRoute), onward = routesOf(home).get(destination);
+      if (toHome && onward && samePoint(onward.path[0], toHome.path.at(-1)!) && samePoint(onward.path.at(-1)!, leave.trip!.path.at(-1)!)) {
+        const atHome = walk(id, from.label, home, toHome, at);
+        const depart = Math.max(atHome, leave.end - onward.cumulative.at(-1)! / speed);
+        stay(id, home, atHome, depart, HOME_STAY);
+        decide('leave', home, 'next activity is more than an hour away; goes home first', 'home');
+        return { location: destination, availableAt: walk(id, home, destination, onward, depart), cursor: next + 1 };
+      }
+    }
+    decide('leave', destination, leave.end - arrive > 600 ? 'goes on to the next activity and waits there' : 'goes on to the next activity', 'next-activity');
+    return { location: destination, availableAt: walk(id, from.label, destination, direct, at), cursor: next + 1 };
+  };
   for (const participant of participants) {
     const id = participant.agentId, { event, at } = affected.get(id)!;
     const events = byAgent.get(id)!;
@@ -630,7 +770,67 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       if (e.end <= at) { if (e.trip) trips.push(e.trip); else stays.push(e.stay!); }
       else if (e.stay && e.start < at) stay(id, e.from, e.start, at, e.stay.purpose);
     }
-    if (participant.outcome === 'relocated') {
+    let crowdHandled = false, crowdOffMap: { at: number; point: [number, number] } | undefined;
+    if (geometry && participant.role === 'occupant') {
+      // Out by the chosen exit to a standing spot, wait there, then move on.
+      const plan = crowdPlans.get(id)!, label = crowdLocations[plan.area.index].id;
+      remain(id, event, at, participant.departAt);
+      walk(id, event.to, label, plan.path, participant.departAt);
+      stay(id, label, plan.arriveAt, plan.leaveAt);
+      const origin = { label, lead: plan.lead, tree: plan.tree };
+      let placed = moveOn(id, events, cursor, event.to, origin, plan.leaveAt, participant, true);
+      if (!placed) {
+        // No joined walk onward: the nearest saved waiting place, then the schedule outside the zone, as without the crowd.
+        for (const [waitId, route] of waitRoutes.get(event.to)!.slice(0, 8)) {
+          const line = joinFrom(origin, route);
+          if (!line) continue;
+          const arrived = walk(id, label, waitId, line, plan.leaveAt);
+          participant.waitLocationId = waitId;
+          participant.decision = { activity: activityAt(events, cursor).kind, action: 'wait', at: plan.leaveAt, destinationId: waitId,
+            reason: 'building closed for the rest of the day; waits outside the zone' };
+          participant.dispersal = 'shelter';
+          placed = continueOutside(id, events, cursor, waitId, route.path.at(-1)!, arrived, waitPurpose(activityAt(events, cursor).kind));
+          break;
+        }
+      }
+      if (!placed) {
+        stays.pop(); stay(id, label, plan.arriveAt, DAY);
+        participant.releaseAt = DAY;
+        participant.decision = { activity: activityAt(events, cursor).kind, action: 'wait', at: plan.leaveAt, destinationId: label, reason: 'no saved walk onward; stays outside' };
+        participant.dispersal = 'shelter';
+        placed = { location: label, availableAt: DAY, cursor: events.length };
+      }
+      ({ location, availableAt, cursor } = placed);
+      crowdOffMap = placed.offMap ?? (location === 'off-campus' ? { at: availableAt, point: events[cursor - 1].trip!.path.at(-1)! } : undefined);
+      crowdHandled = true;
+    } else if (geometry && participant.role === 'arrival' && participant.outcome !== 'relocated' && event.start < requestedEndsAt
+      && !blocked.has(event.from)) {
+      // Walking toward the fire while it is active: turn back short of it, then the same choice as evacuees.
+      const trip = event.trip!, line = tripLine(id, trip), speed = speedOf(id);
+      let along = turnBackDistance(geometry, line, FIRE_CROWD_ASSUMPTIONS.turnBackMetres);
+      if (event.start + along / speed < incident.start) along = (incident.start - event.start) * speed;
+      const turnAt = event.start + along / speed, approach = cutPolyline(line, along), point = approach.path.at(-1)!;
+      if (approach.path.length >= 2) walk(id, trip.from, trip.to, approach, event.start);
+      participant.departAt = participant.releaseAt = turnAt;
+      const tree = treeAt(point);
+      let placed = tree ? moveOn(id, events, cursor, trip.to, { label: approach.path.length >= 2 ? trip.to : trip.from, lead: polyline([point]), tree }, turnAt, participant, false) : null;
+      if (!placed) {
+        // Retrace the approach and rejoin the schedule outside the zone from the origin.
+        let back = turnAt;
+        if (approach.path.length >= 2) {
+          const reversed = { path: [...approach.path].reverse(), cumulative: [...approach.cumulative].reverse().map(d => approach.cumulative.at(-1)! - d) };
+          back = walk(id, trip.to, trip.from, reversed, turnAt);
+        }
+        participant.decision = { activity: events[cursor + 1]?.stay ? activityAt(events, cursor + 1).kind : 'unknown', action: 'cancel', at: turnAt,
+          destinationId: trip.from, reason: 'turns back short of the fire; visit cancelled' };
+        participant.dispersal = trip.from === agentHome.get(id) ? 'home' : 'next-activity';
+        placed = continueOutside(id, events, cursor, trip.from, trip.path[0], back);
+      }
+      ({ location, availableAt, cursor } = placed);
+      crowdOffMap = placed.offMap ?? (location === 'off-campus'
+        ? { at: availableAt, point: cursor > 0 && events[cursor - 1].trip && events[cursor - 1].to === 'off-campus' ? events[cursor - 1].trip!.path.at(-1)! : trip.path[0] } : undefined);
+      crowdHandled = true;
+    } else if (participant.outcome === 'relocated') {
       // Optional activity moves to another venue on saved walks, then rejoins the itinerary at the
       // destination of the first saved walk out of the footprint, never later than scheduled.
       const plan = relocations.get(id)!, kind = participant.decision!.activity as 'dining' | 'library' | 'gym';
@@ -804,7 +1004,7 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
         }
       }
     }
-    if (participant.role === 'arrival' && participant.outcome !== 'relocated') {
+    if (participant.role === 'arrival' && participant.outcome !== 'relocated' && !crowdHandled) {
       const visit = events[events.indexOf(event) + 1];
       const activity = visit?.stay && blocked.has(visit.to) ? activityAt(events, events.indexOf(visit)) : { kind: 'unknown' as const };
       participant.decision = participant.outcome === 'cancelled'
@@ -814,7 +1014,7 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
           reason: at > event.start ? 'turns back on its approach and visits after reopening' : 'waits at origin and visits after reopening' };
     }
     participant.resumedAt = availableAt;
-    let offMapArrival: { at: number; point: [number, number] } | undefined = location === 'off-campus'
+    let offMapArrival: { at: number; point: [number, number] } | undefined = crowdHandled ? crowdOffMap : location === 'off-campus'
       ? participant.role === 'arrival' && event.from === 'off-campus'
         ? { at: at + (at - event.start), point: event.trip!.path[0] }
         : { at: availableAt, point: events[cursor - 1].trip!.path.at(-1)! }
@@ -867,6 +1067,7 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       const list = changedOffMap.get(item.agent) ?? []; list.push(item); changedOffMap.set(item.agent, list);
     }
   }
+  const rematched = new Set<Trip>();
   const transitRides = day.transitRides?.map(ride => {
     if (!affected.has(ride.agent) || ride.time < incident.start || ride.cancelledAt !== undefined) return ride;
     const cancelled = { ...ride, cancelledAt: incident.start };
@@ -879,9 +1080,24 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
     const walk = walks.find(trip => trip.to === 'off-campus' && endOf(trip) <= ride.time
       && ride.time - endOf(trip) <= MAX_STOP_WAIT_SECONDS && samePoint(trip.path.at(-1)!, ride.position)
       && offMap.some(item => Math.abs(item.start - endOf(trip)) < EPS && item.end > ride.time));
-    return walk ? { ...ride, waitStart: endOf(walk) } : cancelled;
+    if (walk) return { ...ride, waitStart: endOf(walk) };
+    // Outdoor crowd: someone heading home early takes the next published departure of their usual service.
+    const visits = geometry && context?.transit?.visits(ride.stop, ride.route, ride.direction, context.weekday, 'board');
+    const early = visits && walks.filter(trip => trip.to === 'off-campus' && !rematched.has(trip) && endOf(trip) >= incident.start
+      && endOf(trip) <= ride.time && samePoint(trip.path.at(-1)!, ride.position)).sort((a, b) => endOf(a) - endOf(b))[0];
+    const offStay = early && offMap.find(item => Math.abs(item.start - endOf(early)) < EPS);
+    if (visits && early && offStay) {
+      const k = visits.departures.findIndex(time => time >= endOf(early) && time <= Math.min(endOf(early) + MAX_STOP_WAIT_SECONDS, offStay.end - 60));
+      if (k >= 0) { rematched.add(early); return { ...ride, trip: visits.trips[k], time: visits.departures[k], waitStart: endOf(early) }; }
+    }
+    return cancelled;
   });
-  const result = { ...day, locations: assemblyLocation ? [...day.locations, assemblyLocation] : day.locations, trips, stays,
+  if (geometry) {
+    // Leaving campus counts as "by transit" only with a published departure still to board.
+    const riding = new Set((transitRides ?? []).filter(ride => ride.kind === 'board' && ride.cancelledAt === undefined && ride.time >= incident.start).map(ride => ride.agent));
+    for (const participant of participants) if (participant.dispersal === 'transit' && !riding.has(participant.agentId)) participant.dispersal = 'home';
+  }
+  const result = { ...day, locations: assemblyLocation ? [...day.locations, assemblyLocation] : crowdLocations.length ? [...day.locations, ...crowdLocations] : day.locations, trips, stays,
     ...(transitRides ? { transitRides } : {}) };
   // New scenarios never return a malformed day: late egress, waiting or return walks that would
   // run past midnight (or any other gap or overlap) reject instead.
@@ -900,5 +1116,16 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
     affectedAgents, assemblyLocation, assemblyClearanceMetres, participants, requestedEndsAt, endsAt,
     ...(zone ? { hazard: { radiusMetres, responseStartsAt, activeUntil: requestedEndsAt,
       affectedLocationIds: zone.locationIds, affectedBuildingIds: zone.buildingIds } } : {}),
-    ...(casualties ? { casualties } : {}) };
+    ...(casualties ? { casualties } : {}),
+    ...(geometry ? { crowd: crowdResult(geometry, crowdLocations, crowdPlans) } : {}) };
 }
+
+function crowdResult(geometry: FireGeometry, areas: CampusLocation[], plans: Map<string, CrowdPlan>): FireCrowd {
+  const spots: FireCrowd['spots'] = {};
+  for (const [id, plan] of plans) {
+    const spot = plan.area.spots[plan.spot];
+    spots[id] = { position: spot.position, bearing: spot.bearing, area: areas[plan.area.index].id };
+  }
+  return { areas, spots, exits: geometry.exits.map(exit => exit.edge) };
+}
+const HOME_STAY: StayPurpose = { kind: 'home', fixed: false };

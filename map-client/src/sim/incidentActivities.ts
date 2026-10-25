@@ -3,9 +3,13 @@
 import type { CampusData } from '../data/campusData';
 import type { CampusLocation, DayData, Stay, StayPurpose } from './playback';
 import { venueWindows } from './sourceDay';
+import type { TransitService } from './transitService';
+import type { FireScene } from './fireEvacuation';
 
-/** Optional applyIncident context. Without it no venue hours are known, so nobody relocates. */
-export interface IncidentContext { sourceData: CampusData; weekday: number }
+/** Optional applyIncident context. Without it no venue hours are known, so nobody relocates.
+ * `transit` lets a fire's outdoor crowd re-match early departures home to published trips;
+ * `fireScene` (streets and parked fire trucks) keeps that crowd off the road and clear of the trucks. */
+export interface IncidentContext { sourceData: CampusData; weekday: number; transit?: TransitService; fireScene?: FireScene }
 
 export type IncidentActivity = StayPurpose['kind'] | 'unknown';
 /**
