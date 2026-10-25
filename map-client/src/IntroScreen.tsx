@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { LightPreset } from './map/basemap';
 import { INTRO_KEY, introSources } from './intro';
 import { introSound, setSoundMuted, soundState } from './introSound';
+import { IntroTips } from './IntroTips';
 import './intro.css';
 
 /**
@@ -137,6 +138,7 @@ export function IntroScreen({ progress, preset }: { progress: LoadProgress; pres
           </svg>
           {sound === 'blocked' && <span>Tap for sound</span>}
         </button>
+        <IntroTips />
         <div className="intro-progress">
           <p className="intro-step" aria-live="polite">{step}…</p>
           <div className="intro-bar" role="progressbar" aria-label="Loading the map" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)}>
