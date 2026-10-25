@@ -1,28 +1,43 @@
 /*
  * Where joined personas live between the phone and the display.
  *
- * The /join flow runs in the dashboard (port 5174 in dev) and the map page is served by that same
- * origin (web/vite.config.ts serves map.html and map-client/public), so one localStorage key is
- * enough to get a character from the builder onto the display: the phone writes, the map listens.
+ * The two ends of this feature are two different devices and they have different jobs, so this file
+ * has two halves that barely touch:
  *
- * Scope, stated plainly: localStorage is per-origin *and per-browser*. This carries a join from one
- * tab to another on the same machine, which is what the demo needs and what the prototype did in
- * component state. It does NOT carry a join from a student's phone to a separate display machine --
- * that needs a server endpoint, and the handoff does not specify one. The read/write surface here is
- * deliberately small so swapping localStorage for `fetch` later touches only this file.
+ *  - The DISPLAY (map.html) reads. `readPersonas()` is the list it draws and `subscribePersonas()`
+ *    keeps it current by polling /api/personas. It never writes.
+ *  - The PHONE (/join) writes. `saveMyPersona()` posts one character and `readMyPersona()` recovers
+ *    it on a revisit. The phone has no map to draw, so it never reads the list at all -- it holds
+ *    only its own character, and the token that proves the character is its to edit.
+ *
+ * This used to be one localStorage key, which could only ever carry a join between two tabs of the
+ * same browser -- a student's phone and a display across the room are not that. The server
+ * (server/src/personas) is the handoff now. localStorage keeps two much smaller jobs: the phone's
+ * own character and token, and a mirror of the last list the display saw, so a display that starts
+ * up during a network blip still has people on it.
  */
 
 import { DEFAULT_APPEARANCE, type Appearance } from './parts';
 import { newPersonaId, type Persona } from './model';
+import { deletePersona, fetchPersonas, pushPersona, type WriteOutcome } from './remote';
 
-const KEY = 'flowcast.personas.v1';
-/** Which persona belongs to this device, so /join can show "You're on the map" on a revisit. */
-const MINE_KEY = 'flowcast.persona.mine.v1';
+/** The display's mirror of the last list it fetched. Not the source of truth; the server is. */
+const LIST_KEY = 'flowcast.personas.v1';
+/** The phone's own character and its edit token. */
+const MINE_KEY = 'flowcast.persona.mine.v2';
+/** The pre-server key, read once so a character built before this change is not orphaned. */
+const LEGACY_MINE_KEY = 'flowcast.persona.mine.v1';
 /** Same-tab writes do not fire `storage`; this does. */
 const EVENT = 'flowcast:personas';
 
-/** The display draws one extra ScenegraphLayer per persona, so the list is capped. */
+/**
+ * How many characters the display draws. Mirrors MAX_PERSONAS in server/src/personas/store.ts,
+ * which is the one that actually enforces it; this copy only shapes the local mirror.
+ */
 export const MAX_PERSONAS = 24;
+
+/** How often the display asks for the list. Fast enough that a join feels immediate from the room. */
+const POLL_MS = 3000;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null;
@@ -54,80 +69,240 @@ function storage(): Storage | null {
   }
 }
 
-export function readPersonas(): Persona[] {
-  const s = storage();
-  if (!s) return [];
-  try {
-    const parsed: unknown = JSON.parse(s.getItem(KEY) ?? '[]');
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map(coerce)
-      .filter((p): p is Persona => p !== null)
-      .sort((a, b) => a.joinedAt - b.joinedAt)
-      .slice(-MAX_PERSONAS);
-  } catch {
-    return [];
-  }
-}
-
-function write(list: Persona[]): void {
-  const s = storage();
-  if (!s) return;
-  try {
-    s.setItem(KEY, JSON.stringify(list.slice(-MAX_PERSONAS)));
-  } catch {
-    // A full quota is not worth breaking the flow over.
-  }
-  window.dispatchEvent(new Event(EVENT));
-}
-
-/** Add or replace one persona. Returns the stored record. */
-export function savePersona(input: Omit<Persona, 'id' | 'joinedAt'> & { id?: string }): Persona {
-  const persona: Persona = { ...input, id: input.id ?? newPersonaId(), joinedAt: Date.now() };
-  const rest = readPersonas().filter((p) => p.id !== persona.id);
-  write([...rest, persona]);
-  return persona;
-}
-
-export function removePersona(id: string): void {
-  write(readPersonas().filter((p) => p.id !== id));
-}
-
-/** The id of the persona built on this device, if it is still in the list. */
-export function myPersonaId(): string | null {
+function readJson(key: string): unknown {
   const s = storage();
   if (!s) return null;
   try {
-    return s.getItem(MINE_KEY);
+    const raw = s.getItem(key);
+    return raw === null ? null : JSON.parse(raw);
   } catch {
     return null;
   }
 }
 
-export function setMyPersonaId(id: string | null): void {
+function writeJson(key: string, value: unknown): void {
   const s = storage();
   if (!s) return;
   try {
-    if (id === null) s.removeItem(MINE_KEY);
-    else s.setItem(MINE_KEY, id);
+    s.setItem(key, JSON.stringify(value));
   } catch {
-    // See write().
+    // A full quota is not worth breaking the flow over.
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * The display: read the list, keep it current
+ * ------------------------------------------------------------------------- */
+
+function readMirror(): Persona[] {
+  const parsed = readJson(LIST_KEY);
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map(coerce)
+    .filter((p): p is Persona => p !== null)
+    .sort((a, b) => a.joinedAt - b.joinedAt)
+    .slice(-MAX_PERSONAS);
+}
+
+/** Seeded from the mirror so the first frame has people on it, then replaced by the server's list. */
+let cache: Persona[] = readMirror();
+/** The revision `cache` came from, sent back on the next poll so an idle server answers cheaply. */
+let revision: string | null = null;
+/** False once the server says it is holding characters in memory. */
+let durable = true;
+/** True once a fetch has come back, so "no characters" can be told apart from "not asked yet". */
+let loaded = false;
+
+const listeners = new Set<(list: Persona[]) => void>();
+
+function emit(): void {
+  for (const listener of listeners) listener(cache);
+  try {
+    window.dispatchEvent(new Event(EVENT));
+  } catch {
+    // Not a browser; nothing is listening anyway.
+  }
+}
+
+/** The characters the display should be drawing right now. Synchronous: it is read every frame. */
+export function readPersonas(): Persona[] {
+  return cache;
+}
+
+/** False when the server is keeping characters in memory, so a restart will lose them. */
+export function personasAreDurable(): boolean {
+  return durable;
+}
+
+/** True once the first fetch has answered, whatever it said. */
+export function personasLoaded(): boolean {
+  return loaded;
+}
+
+/** One poll. Exported for the tests; the display goes through subscribePersonas(). */
+export async function refreshPersonas(): Promise<void> {
+  const result = await fetchPersonas(revision ?? undefined);
+  loaded = loaded || result !== null;
+  // null is a failed request and 'unchanged' is a quiet one: in both cases keep what we have.
+  if (result === null || result === 'unchanged') return;
+  durable = result.durable;
+  revision = result.revision;
+  cache = [...result.personas].sort((a, b) => a.joinedAt - b.joinedAt);
+  writeJson(LIST_KEY, cache);
+  emit();
+}
+
+let pollTimer: ReturnType<typeof setInterval> | undefined;
+let onVisible: (() => void) | undefined;
+
+function startPolling(): void {
+  if (pollTimer !== undefined) return;
+  void refreshPersonas();
+  pollTimer = setInterval(() => {
+    // A display in a background tab is nobody's display; stop asking until it is looked at again.
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    void refreshPersonas();
+  }, POLL_MS);
+  if (typeof document !== 'undefined') {
+    onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshPersonas();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+  }
+}
+
+function stopPolling(): void {
+  if (pollTimer !== undefined) clearInterval(pollTimer);
+  pollTimer = undefined;
+  if (onVisible && typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
+  onVisible = undefined;
+}
+
 /**
- * Watch the list. Fires on this tab's own writes (the custom event) and on another tab's
- * (the `storage` event), so the display updates the moment a phone finishes the flow.
+ * Watch the list, and keep it current while anyone is watching.
+ *
+ * The first subscriber starts the poll and the last one to leave stops it, so the map page does not
+ * keep asking after it is torn down.
  */
 export function subscribePersonas(onChange: (list: Persona[]) => void): () => void {
-  const fire = () => onChange(readPersonas());
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === null || e.key === KEY) fire();
-  };
-  window.addEventListener(EVENT, fire);
-  window.addEventListener('storage', onStorage);
+  listeners.add(onChange);
+  startPolling();
   return () => {
-    window.removeEventListener(EVENT, fire);
-    window.removeEventListener('storage', onStorage);
+    listeners.delete(onChange);
+    if (listeners.size === 0) stopPolling();
   };
+}
+
+/* ---------------------------------------------------------------------------
+ * The phone: one character, and the token that owns it
+ * ------------------------------------------------------------------------- */
+
+/** The phone's own character, plus the secret that lets it edit or delete it. */
+export interface MyPersona {
+  persona: Persona;
+  /** Absent only for a character saved before the server existed, or saved while offline. */
+  token?: string;
+}
+
+export function readMyPersona(): MyPersona | null {
+  const parsed = readJson(MINE_KEY);
+  if (isRecord(parsed)) {
+    const persona = coerce(parsed.persona);
+    if (persona) return { persona, token: typeof parsed.token === 'string' ? parsed.token : undefined };
+  }
+  // A character built before the handoff moved to the server: the old key held only an id, and the
+  // record itself was in the list. There is no token for it, so it is re-posted on the next save.
+  const legacyId = readJson(LEGACY_MINE_KEY);
+  if (typeof legacyId === 'string' && legacyId) {
+    const found = readMirror().find((p) => p.id === legacyId);
+    if (found) return { persona: found };
+  }
+  return null;
+}
+
+function writeMine(value: MyPersona | null): void {
+  const s = storage();
+  if (!s) return;
+  try {
+    if (value === null) {
+      s.removeItem(MINE_KEY);
+      s.removeItem(LEGACY_MINE_KEY);
+    } else {
+      s.setItem(MINE_KEY, JSON.stringify(value));
+    }
+  } catch {
+    // See writeJson().
+  }
+}
+
+/** The id of the character built on this device, if there is one. */
+export function myPersonaId(): string | null {
+  return readMyPersona()?.persona.id ?? null;
+}
+
+/** What the phone collects on the form. The id and joinedAt are not its to choose. */
+export interface PersonaDraft {
+  name: string;
+  bio: string;
+  appearance: Appearance;
+  homeLocationId: string;
+}
+
+export type SaveResult =
+  | { ok: true; persona: Persona }
+  | { ok: false; reason: Exclude<Extract<WriteOutcome, { ok: false }>['reason'], 'conflict'> };
+
+/**
+ * Put this device's character on the map, creating it or replacing the one already there.
+ *
+ * Asynchronous and honest about failing: the phone's whole purpose is to get a character onto a
+ * display somewhere else, so a save that did not reach the server is not a save, and the caller
+ * must be able to say so instead of showing "You're on the map".
+ *
+ * A `conflict` means the generated id is already somebody else's character. That is a collision
+ * between two random ids rather than anything the student did, so it is retried once with a new id
+ * and never surfaces.
+ */
+export async function saveMyPersona(draft: PersonaDraft): Promise<SaveResult> {
+  const mine = readMyPersona();
+  // Editing keeps the id, so the character on the display changes rather than a second one appearing.
+  const first = await pushPersona({ id: mine?.persona.id ?? newPersonaId(), ...draft }, mine?.token);
+  const outcome = first.ok || first.reason !== 'conflict' ? first : await pushPersona({ id: newPersonaId(), ...draft });
+  if (!outcome.ok) {
+    return { ok: false, reason: outcome.reason === 'conflict' ? 'offline' : outcome.reason };
+  }
+  writeMine({ persona: outcome.persona, token: outcome.token });
+  // The display will see it on its next poll; this is for a phone that somehow also has the list.
+  cache = [...cache.filter((p) => p.id !== outcome.persona.id), outcome.persona].sort((a, b) => a.joinedAt - b.joinedAt);
+  emit();
+  return { ok: true, persona: outcome.persona };
+}
+
+/**
+ * Take this device's character off the map.
+ *
+ * Returns false when the server could not be reached, in which case the character is still on the
+ * display and the phone keeps its token so the student can try again. The local record is cleared
+ * only once the server has actually let go of it.
+ */
+export async function removeMyPersona(): Promise<boolean> {
+  const mine = readMyPersona();
+  if (!mine) return true;
+  // No token: a pre-server character, which the server never had. Forgetting it locally is all
+  // there is to do -- and it has long since expired from any list.
+  if (!mine.token) {
+    writeMine(null);
+    return true;
+  }
+  const gone = await deletePersona(mine.persona.id, mine.token);
+  if (!gone) return false;
+  writeMine(null);
+  cache = cache.filter((p) => p.id !== mine.persona.id);
+  emit();
+  return true;
+}
+
+/** Forget this device's character without touching the server. Used when the record is unusable. */
+export function forgetMyPersona(): void {
+  writeMine(null);
 }

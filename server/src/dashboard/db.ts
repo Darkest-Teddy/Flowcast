@@ -29,17 +29,31 @@ export async function migrate(pool: pg.Pool) {
         expires_at timestamptz NOT NULL DEFAULT now() + interval '30 days'
       );
     `);
+    // Characters built on a phone at /join and drawn on the display. See personas/store.ts: the
+    // token hash is what proves a device owns the character it is editing, and expires_at is what
+    // keeps a public display from still showing last week's visitors.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS map_personas (
+        id text PRIMARY KEY, token_hash text NOT NULL,
+        name text NOT NULL, bio text NOT NULL DEFAULT '',
+        appearance jsonb NOT NULL, home_location_id text NOT NULL,
+        joined_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
+        expires_at timestamptz NOT NULL DEFAULT now() + interval '24 hours'
+      );
+      CREATE INDEX IF NOT EXISTS map_personas_live ON map_personas (expires_at, joined_at);
+    `);
     await client.query(`
       ALTER TABLE dashboard_snapshots ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_current ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_guests ENABLE ROW LEVEL SECURITY;
-      REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests FROM PUBLIC;
+      ALTER TABLE map_personas ENABLE ROW LEVEL SECURITY;
+      REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, map_personas FROM PUBLIC;
       DO $$ BEGIN
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests FROM anon;
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, map_personas FROM anon;
         END IF;
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests FROM authenticated;
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, map_personas FROM authenticated;
         END IF;
       END $$;
     `);

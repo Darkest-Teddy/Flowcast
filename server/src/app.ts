@@ -3,6 +3,8 @@
 
 import type pg from 'pg';
 import { dashboardRouter } from './dashboard/router';
+import { personasRouter } from './personas/router';
+import { personaStore, type PersonaStore } from './personas/store';
 import { isIP } from 'node:net';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
@@ -46,6 +48,11 @@ export const ChatRequest = z.object({
 
 export interface AppOptions {
   dashboardPool?: pg.Pool;
+  /**
+   * Where joined characters live. Defaults to Postgres when `dashboardPool` is given and memory
+   * otherwise, so the phone-to-display handoff works on a laptop with no database.
+   */
+  personas?: PersonaStore;
   campus: CampusModel;
   ask: (question: string, ctx: ServerAskContext, signal: AbortSignal, history?: AgentMessage[]) => Promise<AskResult>;
   /** One chat turn (chat.ts); without it /api/chat answers 503 and the directory says chat is unavailable. */
@@ -130,6 +137,9 @@ export function createApp(options: AppOptions) {
   app.use('/api/chat', express.json({ limit: '64kb' }));
   app.use(express.json({ limit: '128kb' }));
   app.use('/api/dashboard', dashboardRouter(options.dashboardPool));
+  // A character from a phone, and the list the display draws. Unlike the dashboard this has no 503
+  // path for a missing database: without one it keeps the characters in memory (personas/store.ts).
+  app.use('/api/personas', personasRouter(options.personas ?? personaStore(options.dashboardPool)));
   let domains: DataDomain[] | undefined;
   const directory = () => (domains ??= options.directory?.() ?? buildDirectory(campus));
 

@@ -20,18 +20,49 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { JOINED_MARK } from './model';
+import { JoinCharacter } from './JoinCharacter';
 
-/** Where the phone should land. Set VITE_JOIN_URL to point a display at another host. */
+/** An address that only ever means "the device reading it", and so is useless in a QR code. */
+function isLoopback(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '::1' || hostname === '[::1]' || /^127\./.test(hostname);
+}
+
+/**
+ * Where the phone should land.
+ *
+ * The order matters, because the one way this feature fails silently is a QR code holding an
+ * address the phone cannot reach:
+ *  1. VITE_JOIN_URL, when a display is pointed at another host deliberately.
+ *  2. The page's own origin -- correct in production, where the display is on a real hostname and
+ *     the dashboard serves both itself and map.html, so /join is a sibling of this page.
+ *  3. In development the origin is `localhost`, which to a phone means the phone. The dev server
+ *     supplies this machine's LAN host (see joinHost() in web/vite.config.ts), and the port and
+ *     protocol come from this page -- the display is served by the very server the phone needs.
+ */
 export function joinUrl(): string {
   const configured = import.meta.env.VITE_JOIN_URL as string | undefined;
   if (configured) return configured;
-  // The dashboard serves both itself and map.html, so the join page is a sibling of this page.
+  const { protocol, hostname, port } = window.location;
+  const lanHost = import.meta.env.VITE_JOIN_HOST as string | undefined;
+  if (lanHost && isLoopback(hostname)) return `${protocol}//${lanHost}${port ? `:${port}` : ''}/join`;
   return `${window.location.origin}/join`;
+}
+
+/** True when this code cannot be scanned from another device, whatever it says on the card. */
+export function joinUrlIsReachable(url: string): boolean {
+  try {
+    return !isLoopback(new URL(url).hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function JoinQrCard({ url = joinUrl() }: { url?: string }) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  // A loopback code is worth saying out loud: it looks exactly like a working one on the display,
+  // and the only symptom is every phone in the room failing to load the page.
+  const reachable = joinUrlIsReachable(url);
 
   // Once per URL. The code is a 360px PNG scaled down to 120, so it stays crisp on a big display.
   useEffect(() => {
@@ -59,6 +90,9 @@ export function JoinQrCard({ url = joinUrl() }: { url?: string }) {
           </span>
         )}
       </div>
+      {/* A real character, because the card is asking for one. */}
+      <JoinCharacter />
+
       <div className="join-card-body">
         <span className="join-card-mark" aria-hidden="true">
           {JOINED_MARK}
@@ -69,7 +103,9 @@ export function JoinQrCard({ url = joinUrl() }: { url?: string }) {
         {/* One line: the card is now sized by its code, and a second sentence
             overflowed it onto the map. What the character then does is the
             thing the map itself shows. */}
-        <p className="join-card-note">Scan to build your character</p>
+        <p className="join-card-note">
+          {reachable ? 'Scan to build your character' : 'Local address: set VITE_JOIN_URL to scan'}
+        </p>
         <p className="join-card-url">{url.replace(/^https?:\/\//, '')}</p>
       </div>
     </section>

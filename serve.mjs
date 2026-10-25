@@ -115,7 +115,9 @@ export function createHostServer({ root = ROOT, apiUrl = '', timeoutMs = 30_000 
     const url = req.url || '/';
 
     const pathname = url.split('?')[0];
-    if (/^\/api\/(dashboard(?:\/|$)|ask$|health$)/.test(pathname)) {
+    // /api/personas is how a character built on a phone reaches the display, so it is proxied like
+    // the rest of the API -- and, unlike the dashboard, it is useful even with no DATABASE_URL.
+    if (/^\/api\/(dashboard(?:\/|$)|personas(?:\/|$)|ask$|health$)/.test(pathname)) {
       return proxy(req, res, apiUrl, timeoutMs);
     }
     if (pathname === '/api' || pathname.startsWith('/api/')) return jsonError(res, 404, 'API route not found');
@@ -153,9 +155,18 @@ export function createHostServer({ root = ROOT, apiUrl = '', timeoutMs = 30_000 
   });
 }
 
+/*
+ * Whether to run the API next to the static host, and where to send /api/* .
+ *
+ * An explicit FLOWCAST_API_URL always wins. Otherwise the API is started locally, with or without a
+ * DATABASE_URL: it used to be skipped without one, on the grounds that there was nothing for it to
+ * serve, and that is no longer true. /api/personas carries a character built on a phone at /join to
+ * the display at /map, and it holds those characters in memory when there is no database
+ * (server/src/personas/store.ts). Skipping the API would make the join flow -- the one feature
+ * aimed at the room rather than the operator -- fail on exactly the simplest deploy.
+ */
 export function backendConfig(env = process.env) {
   if (env.FLOWCAST_API_URL) return { apiUrl: env.FLOWCAST_API_URL };
-  if (!env.DATABASE_URL) return { apiUrl: '' };
   const port = Number(env.FLOWCAST_API_PORT) || (Number(env.PORT) === 8787 ? 8788 : 8787);
   return { apiUrl: `http://127.0.0.1:${port}`, env: { ...env, HOST: '127.0.0.1', PORT: String(port) } };
 }

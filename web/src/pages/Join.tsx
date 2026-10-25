@@ -31,11 +31,9 @@ import {
   LOCATIONS,
   isWalking,
   locationName,
-  myPersonaId,
-  readPersonas,
-  removePersona,
-  savePersona,
-  setMyPersonaId,
+  readMyPersona,
+  removeMyPersona,
+  saveMyPersona,
   statusText,
   type Persona,
 } from '../lib/personaShared';
@@ -212,12 +210,12 @@ export default function Join() {
   const stageRef = useRef<HTMLCanvasElement>(null);
   const emoteTimer = useRef<number | undefined>(undefined);
 
-  // A revisit from the same phone lands straight on the status screen.
+  // A revisit from the same phone lands straight on the status screen. The character comes from this
+  // phone's own record, not from the map's list: this page never asks the server who else joined.
   useEffect(() => {
-    const mine = myPersonaId();
+    const mine = readMyPersona();
     if (!mine) return;
-    const found = readPersonas().find((p) => p.id === mine);
-    if (!found) return void setMyPersonaId(null);
+    const found = mine.persona;
     setPersona(found);
     setApp(found.appearance);
     setName(found.name);
@@ -268,25 +266,50 @@ export default function Join() {
     feedback(el);
   };
 
+  /*
+   * Adding yourself to the map is a network write, and the display is somewhere else in the room, so
+   * this only reaches the status screen once the server has the character. A failure says so and
+   * leaves the form exactly as it was, because the one thing worse than not joining is being told
+   * you joined while the display shows nobody.
+   */
   const submit = () => {
     setSubmitting(true);
-    // A beat of "Adding you to the map…" so the transition reads as an action, not a jump cut.
-    window.setTimeout(() => {
-      const saved = savePersona({ name: name.trim(), bio: bio.trim(), appearance: { ...app }, homeLocationId: home });
-      setMyPersonaId(saved.id);
-      setPersona(saved);
+    setError(null);
+    void (async () => {
+      // A beat of "Adding you to the map…" so the transition reads as an action, not a jump cut --
+      // run alongside the request rather than before it, so a slow network is not 700ms slower.
+      const [result] = await Promise.all([
+        saveMyPersona({ name: name.trim(), bio: bio.trim(), appearance: { ...app }, homeLocationId: home }),
+        new Promise((resolve) => window.setTimeout(resolve, 700)),
+      ]);
       setSubmitting(false);
+      if (!result.ok) {
+        setError(
+          result.reason === 'full'
+            ? 'The map is showing all the characters it can fit right now. Try again in a little while.'
+            : result.reason === 'rejected'
+              ? 'The map could not accept that character. Try a different name.'
+              : 'Could not reach the map. Check your connection and try again.',
+        );
+        return;
+      }
+      setPersona(result.persona);
       setNow(Date.now());
       setStep('status');
-    }, 700);
+    })();
   };
 
   const remove = () => {
     if (!persona) return;
     setRemoving(true);
-    window.setTimeout(() => {
-      removePersona(persona.id);
-      setMyPersonaId(null);
+    setError(null);
+    void (async () => {
+      const [gone] = await Promise.all([removeMyPersona(), new Promise((resolve) => window.setTimeout(resolve, 500))]);
+      setRemoving(false);
+      if (!gone) {
+        setError('Could not reach the map. Your character is still on it; try again.');
+        return;
+      }
       setPersona(null);
       setApp({ ...DEFAULT_APPEARANCE });
       setName('');
@@ -294,9 +317,8 @@ export default function Join() {
       setHome(DEFAULT_LOCATION_ID);
       setTab(CATEGORIES[0].id);
       setError(null);
-      setRemoving(false);
       setStep('customize');
-    }, 500);
+    })();
   };
 
   /* ---------------- Step 1: Customize ---------------- */
@@ -513,12 +535,19 @@ export default function Join() {
           </p>
         </div>
 
+        {/* Joining is a write to a server, and this is the screen where it can fail. */}
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
+
         <div className={styles.footer}>
-          <button type="button" className={styles.secondary} disabled={submitting} onClick={() => setStep('details')}>
+          <button type="button" className={styles.secondary} disabled={submitting} onClick={() => { setStep('details'); setError(null); }}>
             ← Back
           </button>
           <button type="button" className={`${styles.primary} ${styles.grow}`} disabled={submitting} data-busy={submitting || undefined} onClick={submit}>
-            {submitting ? 'Adding you to the map…' : 'Add me to the map'}
+            {submitting ? 'Adding you to the map…' : error ? 'Try again' : 'Add me to the map'}
           </button>
         </div>
       </div>
@@ -559,6 +588,13 @@ export default function Join() {
           <p>{persona ? statusText(persona, now) : 'Finding your character…'}</p>
         </div>
       </div>
+
+      {/* Removing is a server write too, and it can fail with the character still on the display. */}
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
 
       <button type="button" className={`${styles.secondary} ${styles.removeButton}`} disabled={removing} onClick={remove}>
         {removing ? 'Removing…' : 'Remove my character'}

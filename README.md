@@ -167,9 +167,23 @@ npm run build                  # installs server, map-client and web dependencie
 npm start
 ```
 
-The root host binds to `HOST` (default `0.0.0.0`) and `PORT` (default `8080`). When `DATABASE_URL` is set and `FLOWCAST_API_URL` is unset, it starts `server/src/index.ts` as a child process bound to `127.0.0.1:8787`. `FLOWCAST_API_PORT` overrides that internal port; it must differ from the root host's port. If the root uses port 8787, the internal default is 8788. Root startup passes environment variables directly to the child without printing secrets or loading local environment files. Stop the root process to stop its child.
+The root host binds to `HOST` (default `0.0.0.0`) and `PORT` (default `8080`). Unless `FLOWCAST_API_URL` is set, it starts `server/src/index.ts` as a child process bound to `127.0.0.1:8787` — with or without `DATABASE_URL`, because `/api/personas` (below) is useful either way. `FLOWCAST_API_PORT` overrides that internal port; it must differ from the root host's port. If the root uses port 8787, the internal default is 8788. Root startup passes environment variables directly to the child without printing secrets or loading local environment files. Stop the root process to stop its child.
 
-For an independently managed API, set `FLOWCAST_API_URL` to its HTTP(S) origin. This disables local API startup; configure `DATABASE_URL` on that separate API process. Do not put credentials in the API URL. The root host forwards only `/api/dashboard` and its subpaths, `/api/ask`, and `/api/health`. It preserves request bodies, response statuses, cookies, `Host`, and `Origin`. Unknown `/api/*` paths return JSON 404; unavailable APIs return sanitized JSON 503 with a 30-second request deadline. Once response headers have been sent, an upstream failure closes the response. API errors never fall through to dashboard HTML. The public map remains available without PostgreSQL.
+For an independently managed API, set `FLOWCAST_API_URL` to its HTTP(S) origin. This disables local API startup; configure `DATABASE_URL` on that separate API process. Do not put credentials in the API URL. The root host forwards only `/api/dashboard` and its subpaths, `/api/personas` and its subpaths, `/api/ask`, and `/api/health`. It preserves request bodies, response statuses, cookies, `Host`, and `Origin`. Unknown `/api/*` paths return JSON 404; unavailable APIs return sanitized JSON 503 with a 30-second request deadline. Once response headers have been sent, an upstream failure closes the response. API errors never fall through to dashboard HTML. The public map remains available without PostgreSQL.
+
+### Put yourself on the map (`/join`)
+
+The map display shows a QR code. Scanning it on a phone opens `/join`, where you build a character — skin, hair, face, clothes, accessories, a name, and where you hang out — and add it to the map. The display then draws it walking campus under a starred name tag (`★ Ada`), which is what tells a joined student apart from the simulated crowd. The phone never shows the map, and the display never writes; they meet only at `/api/personas`:
+
+| | |
+| --- | --- |
+| `GET /api/personas` | The list the display polls every 3s. Pass `?since=<revision>` and an unchanged list answers without resending it. |
+| `POST /api/personas` | One character, from the phone. Same-origin only, rate limited, and validated against the character catalog. Returns an edit token. |
+| `DELETE /api/personas/:id` | Removes it, with that token in `X-Persona-Token`. |
+
+A character belongs to the device that made it: the server mints a secret on the first write and stores only its hash, so nobody can rename or delete a character by reading the name off the display. Characters expire after 24 hours and the display is capped at 24 of them. With `DATABASE_URL` set they live in the `map_personas` table and survive a restart; without one the server keeps them in memory, so a laptop demo with no database still carries a character from a phone to the display and `GET /api/personas` reports `durable: false`.
+
+**Scanning the code in development.** The QR code is built from the display's own origin, which is correct in production but is `localhost` on a dev machine — an address that means "this phone" to a phone. `npm --prefix web run dev` therefore listens on the LAN and prints a `Join (scan from a phone)` URL, which the card uses in place of `localhost`. Set `VITE_JOIN_URL` to point a display somewhere else; when the code still holds a loopback address the card says so instead of showing an unscannable code.
 
 Both Vite apps use the same API target, defaulting to `http://127.0.0.1:8787`. For example, start the backend with `HOST=127.0.0.1 PORT=8798`, then run `FLOWCAST_API_URL=http://127.0.0.1:8798 npm --prefix web run dev -- --port 5198`. Both proxies preserve the browser-facing `Host`, so the backend can compare it with `Origin` for same-origin mutation checks.
 
@@ -180,8 +194,11 @@ Railway uses the repository root, `npm run build`, and `npm start` from `railway
 ```bash
 (cd data-pipeline && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m unittest discover -s tests)
 npm --prefix map-client test
+npm --prefix server test
 npm run test:host
 ```
+
+The persona tests cover the memory store over real HTTP. To run the PostgreSQL half as well, set `TEST_DATABASE_URL` to a throwaway database (it must differ from `DATABASE_URL`) and run `npm --prefix server test` again; without it those two tests skip.
 
 ## How it works
 

@@ -93,5 +93,7 @@ test('local backend inherits secrets only in process env and external backend wi
   assert.deepEqual(local.env, { ...env, HOST: '127.0.0.1', PORT: '8787' });
   assert.equal(backendConfig({ ...env, PORT: '8787' }).env.PORT, '8788');
   assert.deepEqual(backendConfig({ ...env, FLOWCAST_API_URL: 'https://api.example' }), { apiUrl: 'https://api.example' });
-  assert.deepEqual(backendConfig({}), { apiUrl: '' });
+  // With no database the API still runs: /api/personas carries a character from a phone at /join to
+  // the display, keeping them in memory. Only an explicit external URL skips the local backend.
+  assert.deepEqual(backendConfig({}), { apiUrl: 'http://127.0.0.1:8787', env: { HOST: '127.0.0.1', PORT: '8787' } });
 });

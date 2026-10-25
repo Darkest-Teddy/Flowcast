@@ -27,12 +27,19 @@ export {
   type Phase,
 } from '@map/persona/model';
 
+/*
+ * The join flow's half of the store. The phone writes one character and recovers it on a revisit;
+ * it never reads the list, because it has no map to draw -- that is the display's side
+ * (readPersonas/subscribePersonas, used only by map-client/src/App.tsx).
+ */
 export {
   MAX_PERSONAS,
+  forgetMyPersona,
   myPersonaId,
-  readPersonas,
-  removePersona,
-  savePersona,
-  setMyPersonaId,
-  subscribePersonas,
+  readMyPersona,
+  removeMyPersona,
+  saveMyPersona,
+  type MyPersona,
+  type PersonaDraft,
+  type SaveResult,
 } from '@map/persona/store';
