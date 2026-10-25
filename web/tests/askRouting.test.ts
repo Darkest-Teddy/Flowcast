@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bostonClock, isPersonalQuestion, routeQuestion } from '../src/lib/askRouting.ts';
+import { bostonClock, isPersonalQuestion, mentionsHome, planQuestion, routeQuestion } from '../src/lib/askRouting.ts';
 
 const PERSONAL = [
   'Where is my next class?',
@@ -10,7 +10,19 @@ const PERSONAL = [
   'how long is the walk between classes',
   "What's next?",
   'When do I have class tomorrow?',
-  'How far is Mugar from my dorm?',
+  'What is my schedule today',
+  'Do I have a lecture this afternoon?',
+  'Where should I eat between classes?',
+  'How far is Mugar from my next lecture',
+];
+/** Name only the person's home: sent with the home's place name, never kept local. */
+const HOME = [
+  ['How far is Mugar from my dorm?', 'How far is Mugar from Warren Towers?'],
+  ['walk from my room to CAS', 'walk from Warren Towers to CAS'],
+  ['quietest library near my dorm', 'quietest library near Warren Towers'],
+  ['How long to get home from the GSU', 'How long to get home from the GSU'], // "get home" isn't a place
+  ['how far is FitRec from home', 'how far is FitRec from Warren Towers'],
+  ['Is My Dorm busy right now?', 'Is Warren Towers busy right now?'],
 ];
 const CAMPUS = [
   'Quietest dining hall at 6pm',
@@ -20,9 +32,12 @@ const CAMPUS = [
   'When is GSU quiet?',
   'Where should I eat?',
   'any events tonight',
+  'Is my favorite library busy?',
+  'where can I find an empty classroom',
+  'Where do I find food after 10pm?',
 ];
 
-test('questions about the asker’s own schedule or places are personal', () => {
+test('questions that need the asker’s own schedule are personal', () => {
   for (const q of PERSONAL) assert.equal(isPersonalQuestion(q), true, q);
 });
 
@@ -30,13 +45,31 @@ test('campus questions are not personal', () => {
   for (const q of CAMPUS) assert.equal(isPersonalQuestion(q), false, q);
 });
 
+test('a question that only names the person’s home is sent with the home’s place name', () => {
+  for (const [q, sent] of HOME) {
+    assert.equal(isPersonalQuestion(q), false, q);
+    assert.deepEqual(planQuestion(q, 'Warren Towers'), { local: false, question: sent }, q);
+  }
+  assert.equal(mentionsHome('How far is Mugar from my dorm?'), true);
+  assert.equal(mentionsHome('How far is Mugar from CAS?'), false);
+  // Without a home on the profile there is nothing to send, so it stays on the device.
+  assert.deepEqual(planQuestion('How far is Mugar from my dorm?', null), { local: true });
+  // Schedule questions stay local even with a home.
+  assert.deepEqual(planQuestion('How far is my next class from my dorm?', 'Warren Towers'), { local: true });
+});
+
 test('personal questions never reach the agent; campus questions do', async () => {
   const sent: string[] = [];
   const agent = async (q: string) => { sent.push(q); return { ok: true as const, value: `agent: ${q}` }; };
   for (const q of PERSONAL) assert.deepEqual(await routeQuestion(q, agent), { source: 'device', reason: 'personal' });
   assert.deepEqual(sent, []);
-  assert.deepEqual(await routeQuestion('Quietest dining hall at 6pm', agent), { source: 'agent', answer: 'agent: Quietest dining hall at 6pm' });
+  assert.deepEqual(await routeQuestion('Quietest dining hall at 6pm', agent), { source: 'agent', answer: 'agent: Quietest dining hall at 6pm', question: 'Quietest dining hall at 6pm' });
   assert.deepEqual(sent, ['Quietest dining hall at 6pm']);
+  // Only the home's place name leaves the device.
+  assert.deepEqual(await routeQuestion('How far is Mugar from my dorm?', agent, 'Warren Towers'),
+    { source: 'agent', answer: 'agent: How far is Mugar from Warren Towers?', question: 'How far is Mugar from Warren Towers?' });
+  assert.deepEqual(await routeQuestion('How far is Mugar from my dorm?', agent, null), { source: 'device', reason: 'personal' });
+  assert.deepEqual(sent, ['Quietest dining hall at 6pm', 'How far is Mugar from Warren Towers?']);
 });
 
 test('agent failures fall back to the device; a cancelled question is dropped', async () => {
