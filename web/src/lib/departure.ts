@@ -1,4 +1,5 @@
 import type { CampusGeo, CampusLocation, ScheduleItem } from '../data/types';
+import { planTransit, type TransitContext, type TransitPlan } from './transitDeparture';
 
 export const BOSTON_TIME_ZONE = 'America/New_York';
 export function bostonDay(value: string | number | Date): string {
@@ -23,9 +24,11 @@ export interface DepartureInput {
   /** Omit for the schedule/home default; an empty string explicitly requests no origin. */
   fromLocationId?: string;
   bufferMinutes?: number;
+  /** Published timetables and stop walks; without them the plan is walking only (`transit: null`). */
+  transit?: TransitContext;
 }
 
-export function getDeparturePlan({ items, locations, geo, now, homeLocationId, fromLocationId, bufferMinutes = 5 }: DepartureInput) {
+export function getDeparturePlan({ items, locations, geo, now, homeLocationId, fromLocationId, bufferMinutes = 5, transit: transitContext }: DepartureInput) {
   const buffer = Number.isFinite(bufferMinutes) ? Math.max(0, bufferMinutes) : 5;
   const sorted = items.filter((item) => Number.isFinite(Date.parse(item.start)) && Date.parse(item.end) > Date.parse(item.start))
     .slice().sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.id.localeCompare(b.id));
@@ -67,7 +70,11 @@ export function getDeparturePlan({ items, locations, geo, now, homeLocationId, f
   const overlap = !!(previous && target && Date.parse(previous.end) > Date.parse(target.start));
   const connectionShortfallMinutes = previous && arrivalTarget !== null && transferWalkMinutes !== null
     ? Math.max(0, Math.ceil((Date.parse(previous.end) + transferWalkMinutes * 60_000 - arrivalTarget) / 60_000)) : null;
+  // Transit is planned between the same two known buildings as the walk, for the same arrival target.
+  const transit: TransitPlan | null = transitContext && target && from && arrivalTarget !== null && (routeStatus === 'ready' || routeStatus === 'no-route')
+    ? planTransit({ date: bostonDay(target.start), from, to: target.locationId, classStart: Date.parse(target.start), arrivalTarget, now, walkMinutes, walkLeaveBy: leaveBy }, transitContext)
+    : null;
   return { current, next, target, previous, fromLocationId: from, originSource, bufferMinutes: buffer, routeStatus,
     walkMinutes, arrivalTarget, leaveBy, lateMinutes, overlap, connectionShortfallMinutes, transferWalkMinutes,
-    ambiguousCurrent: active.length > 1 };
+    ambiguousCurrent: active.length > 1, transit };
 }

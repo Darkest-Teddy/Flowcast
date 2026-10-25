@@ -170,6 +170,8 @@ export function loadCampusModel(env: Record<string, string | undefined> = proces
   const locations = base.locations.filter((l) => l.kind !== 'off-campus');
   const populationSummary = {
     total: base.populationSummary.total,
+    staff: base.populationSummary.staff,
+    staffReportingPeriod: base.populationSummary.staffReportingPeriod,
     reportingPeriod: base.populationSummary.reportingPeriod,
     campusAllocation: base.populationSummary.campusAllocation,
   };

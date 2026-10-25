@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bostonDay, bostonDayLabel, bostonTime, bostonDateTime, getDeparturePlan } from '../src/lib/departure.ts';
+import { createServer } from 'vite';
+import { fileURLToPath } from 'node:url';
 import type { DepartureInput } from '../src/lib/departure.ts';
+// departure.ts imports the transit planner (and map-client modules) without extensions: load through Vite.
+const vite = await createServer({ configFile: false, root: fileURLToPath(new URL('..', import.meta.url)), server: { middlewareMode: true, watch: null } });
+const { bostonDay, bostonDayLabel, bostonTime, bostonDateTime, getDeparturePlan } = await vite.ssrLoadModule('/src/lib/departure.ts') as typeof import('../src/lib/departure.ts');
+await vite.close();
 import type { ScheduleItem } from '../src/data/types.ts';
 
 const item = (id: string, start: string, end: string, locationId = 'b'): ScheduleItem => ({ id, title: id, start, end, locationId, source: 'calendar' });

@@ -43,6 +43,9 @@ import { activeWindFromDegrees } from './weather/weather';
 import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
 import { atmosphereLayers } from './weather/atmosphere';
+import { ragdollLayers, ragdollsAt } from './layers/ragdolls';
+import { LANDMARK_TARGETS, withLandmarkTarget } from './sim/landmarks';
+import { fanCasualties } from './sim/fanCasualties';
 import { quality } from './perf/quality';
 import { pacer } from './perf/pacer';
 import {
@@ -89,7 +92,7 @@ import { AskPanel, type AskShow } from './AskPanel';
 import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
 import { LiveVoice } from './LiveVoice';
-import type { Stay, WalkRoute } from './sim/playback';
+import type { DayData, Stay, WalkRoute } from './sim/playback';
 import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireModels } from './layers/fireTrucks';
 import { loadFireNetwork, planFireResponse, roadsNear, signalOracle, type FireNetwork } from './sim/fireResponse';
 import { crowdCharacters } from './layers/fireCrowd';
@@ -159,6 +162,23 @@ const OCCUPANCY_REFRESH_MS = 500;
 /** The map opens on the intro still (IntroScreen) and flies in from its camera, unless the URL sets the view. */
 const FROM_INTRO = !VIEW_IN_URL;
 const NO_PADDING = { top: 0, left: 0, right: 0, bottom: 0 };
+/** Each person's character model, looked up by id; built once per day. */
+const agentModels = new WeakMap<DayData, (id: string) => number>();
+function modelOfAgent(day: DayData): (id: string) => number {
+  let lookup = agentModels.get(day);
+  if (!lookup) {
+    const models = new Map<string, number>(day.agents.map((agent) => [agent.id, agent.model]));
+    const found = (id: string) => models.get(id) ?? 0;
+    agentModels.set(day, found);
+    return found;
+  }
+  return lookup;
+}
+/** A venue visitor's character model, from its id `visitor:<slot>:<i>`. */
+function visitorModel(plan: VisitorPlan, id: string): number {
+  const [, slot, index] = id.split(':');
+  return plan.events.find((e) => e.slot === Number(slot))?.model[Number(index)] ?? 0;
+}
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const nextFrames = (n: number) => new Promise<void>((resolve) => { const step = (left: number) => (left ? requestAnimationFrame(() => step(left - 1)) : resolve()); step(n); });
@@ -895,6 +915,14 @@ export default function App() {
         const response = incidentRunRef.current?.fireResponse;
         const fireTrucks = response ? fireResponseAt(response, t) : [];
         const incidentFrameLayers = incidentLayers(incidentRunRef.current, t, occupancy, day.buildings, placer, damage);
+        // Meteor fatalities thrown from the impact, then lying where they land.
+        const run = incidentRunRef.current;
+        if (run?.incident.kind === 'meteor' && (run.casualties?.length || run.fans?.ragdolls.length) && models) {
+          const thrown = run.fans?.ragdolls.length ? [...(run.casualties ?? []), ...run.fans.ragdolls] : run.casualties!;
+          const modelOf = modelOfAgent(day), plan = visitorPlanRef.current;
+          incidentFrameLayers.push(...ragdollLayers(ragdollsAt(thrown, run.location.position, run.hazard?.radiusMetres ?? 100, t,
+            (id) => (id.startsWith('visitor:') ? visitorModel(plan, id) : modelOf(id))), models, t, basemap.getZoom()));
+        }
         // Rolled up per building only when occupancy is refreshed (or the day changes), not every frame.
         if (occupancy !== buildingsFrom || playback !== buildingsPlayback) {
           buildingOccupancy = playback.byBuilding(occupancy);
@@ -960,6 +988,9 @@ export default function App() {
         }
         // Event visitors near the camera (none, at no cost, when no venue event is on).
         const visitorFrame = visitorsAt(visitorPlanRef.current, t, camera.center, q.walkerRadius, ([x, y]) => x >= view[0] && x <= view[2] && y >= view[1] && y <= view[3]);
+        // Fans a meteor hit stop walking from that moment (the dead are drawn as ragdolls).
+        const harmedFans = incidentRunRef.current?.fans?.harmed;
+        if (harmedFans?.size) visitorFrame.drawn = visitorFrame.drawn.filter((fan) => !((harmedFans.get(fan.id) ?? Infinity) <= t));
         const frameLayers = [
           ...fallbackDamageLayers(damage, new Set(detailedBuildings?.manifest.campuses
             .filter(campus => detailedBuildings.models[campus.id])
@@ -1286,7 +1317,9 @@ export default function App() {
     if (start + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
     const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start, duration, radiusMetres,
       ...(kind === 'fire' && outdoorCrowd ? { outdoorCrowd: true } : {}) };
-    const location = baseline.locations.find((entry) => entry.id === locationId)!;
+    // An area disaster can also be aimed at a landmark off the simulated campus (Fenway Park).
+    const target = kind === 'meteor' || kind === 'earthquake' ? withLandmarkTarget(baseline.data, locationId) : baseline.data;
+    const location = target.locations.find((entry) => entry.id === locationId)!;
     // The trucks depend only on the fire's active period, so they are planned first: the outdoor crowd keeps clear of where they park.
     const responsePlan = kind === 'fire' ? (transitRef.current
       ? planDisasterFireResponse({ incident, location, hazard: { activeUntil: incident.start + duration } }, transitRef.current.data, baseline.data.buildings)
@@ -1298,13 +1331,15 @@ export default function App() {
         ...segmentsNear((transitRef.current?.feed.tracks ?? []).filter((track) => track.route.startsWith('Green-')).map((track) => track.points), location.position, 600, 5.5)],
       apparatus: (fireResponse?.trucks ?? []).flatMap((truck) => fireResponseAt(fireResponse, truck.fightStart).filter((frame) => frame.id === truck.id).map((frame) => frame.position)),
     } : undefined;
-    const result = applyIncident(baseline.data, incident, sourceData
+    const result = applyIncident(target, incident, sourceData
       ? { sourceData, weekday: weekdayRef.current, transit: transitServiceRef.current, ...(fireScene ? { fireScene } : {}) } : undefined);
     const playback = new Playback(result.day);
     baselinePlaybackRef.current = baseline;
     playbackRef.current = playback;
     leaveLive();
-    const run = { incident, location, fireResponse, fireResponseUnavailable: responsePlan?.reason,
+    // A meteor also hits venue-event visitors (fans) in the open or in an open-air venue: counted apart from students.
+    const fans = kind === 'meteor' ? fanCasualties(visitorPlanRef.current, location.position, result.hazard?.radiusMetres ?? radiusMetres ?? 0, incident.start, incident.id) : undefined;
+    const run = { incident, location, fans, fireResponse, fireResponseUnavailable: responsePlan?.reason,
       hazard: result.hazard, casualties: result.casualties, assemblyLocation: result.assemblyLocation, assemblyClearanceMetres: result.assemblyClearanceMetres ?? null, affectedAgents: result.affectedAgents, endsAt: result.endsAt, participants: result.participants, crowd: result.crowd };
     incidentRunRef.current = run;
     setIncidentRun(run);
@@ -1529,7 +1564,7 @@ export default function App() {
           <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
             onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
             siren={siren} onSiren={toggleSiren} responsePending={responsePending}
-            game={simulatedGame} gameEstimate={eventDay.events.find((e) => e.event.id === GAME_ID) ?? null} onGame={playSimulatedGame} />
+            game={simulatedGame} gameEstimate={eventDay.events.find((e) => e.event.id === GAME_ID) ?? null} onGame={playSimulatedGame} landmarks={LANDMARK_TARGETS} />
         )}
         {hud && (
           <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={tab !== 'ask'}>
@@ -1552,7 +1587,7 @@ export default function App() {
             <h2>Campus activity</h2>
             {hud.public ? (
               <p className="muted">
-                Students only. Streets: {hud.walking.toLocaleString()} students walking · {hud.public.toLocaleString()} public (non-students), from MBTA ridership and pedestrian counts.
+                Simulated BU students and staff. Streets: {hud.walking.toLocaleString()} BU people walking · {hud.public.toLocaleString()} public (not BU students or staff), from MBTA ridership and pedestrian counts.
               </p>
             ) : null}
             <ol className="rows">
@@ -1681,7 +1716,8 @@ export default function App() {
         {hud && tab === 'data' && (
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
             {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
-            {publicCrowdRef.current && <p>Public (non-students): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
+            {baseDayRef.current?.populationSummary.staff ? <p>{baseDayRef.current.populationSummary.staff.toLocaleString()} faculty and staff · {baseDayRef.current.populationSummary.staffReportingPeriod}. Their working day (arrival, workplace, lunch, gym) is a modeled assumption, not observed; they are planned after the students and counted in building figures, which show people present.</p> : null}
+            {publicCrowdRef.current && <p>Public (not BU students or staff): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and staff and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
             {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
           </section>
         )}

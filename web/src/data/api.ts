@@ -8,6 +8,7 @@ import { config } from '../config';
 import { createDashboardClient } from './realData';
 import { agentConfigured, askAgentWithRetry, type AgentResult, type AgentMessage } from '@map/askClient';
 import { bostonClock } from '../lib/askRouting';
+import { eventSlotsQuery, parseEventSlots, type EventPlan } from '../lib/eventSlots';
 import { parseChatResponse, parseDirectoryResponse, type ChatResult, type DirectoryResult } from '../lib/chatParse';
 import type { PersonalSchedule } from '@map/personalSchedule';
 import type { ChatRequest } from '@map/chatContract';
@@ -86,6 +87,9 @@ export const api = {
   clearSchedule: () => dashboard.mutate<ScheduleImportState>('/schedule', 'DELETE'),
   getPlaceForecasts: () => dashboard.getPublic().then((data) => data.places),
   getHourlyForecasts: () => dashboard.getPublic().then((data) => data.hourly),
+  getBestTimes: () => dashboard.getPublic().then((data) => data.bestTimes ?? []),
+  /** Rooms and evenings for a club event (GET /api/dashboard/event-slots). Reads schedules and model figures; never books. */
+  getEventSlots: (plan: EventPlan) => dashboard.request<unknown>(`/event-slots?${eventSlotsQuery(plan)}`).then(parseEventSlots),
   getCampusGeo: () => dashboard.getPublic().then((data) => data.geo),
   getSuggestions: (): Promise<Suggestion[]> => unsupported('Personalized suggestions'),
   acceptSuggestion: (_id: string): Promise<Suggestion[]> => unsupported('Schedule suggestions'),

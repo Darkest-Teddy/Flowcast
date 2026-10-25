@@ -67,7 +67,7 @@ export function scoreModel({ base, data, bikes, transit, observations }, model, 
       score.metrics.push(metric); score.loss += metric.weight * metric.loss;
     }
     scores.push(score);
-    built.push({ spec, day, ms, outdoor15, observed: observations && spec.kind === 'normal' ? validate.scoreObservations(observations, day, spec.weekday, scale) : null });
+    built.push({ spec, day, ms, outdoor15, observed: observations && spec.kind === 'normal' ? validate.scoreObservations(observations, day, spec.weekday, scale, validate.staffIds(base)) : null });
   }
   return { scores, built };
 }

@@ -1,6 +1,7 @@
 // Aggregate markers for modeled injuries in disaster scenarios. Each marker merges injured events
 // within a fixed grid cell (see injuryClusters) and sits at the mean of their recorded positions.
-// Fatalities are reported only as a panel count, never on the map. Markers are plain, non-interactive
+// Fatalities are a panel count, with no marker; a meteor's are also drawn as ragdolls thrown from the
+// impact (layers/ragdolls.ts). Markers are plain, non-interactive
 // circles with a count; there is no per-person marker. Uncalibrated scenario output, not a prediction.
 import type { Layer } from '@deck.gl/core';
 import { ScatterplotLayer, TextLayer } from '@deck.gl/layers';

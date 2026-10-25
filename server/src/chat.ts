@@ -29,7 +29,7 @@ function instructions(ctx: ChatContext): string {
       'a campus (Charles River, Medical, Fenway), pass campus; a calendar date, pass date to the event tools and that date’s weekday to the crowd tools. ' +
       'Keep the day, time, campus and date the user chose for follow-up questions until they change them. When an answer is for anything other than now on the campus in view, say which day, time or campus it is for.',
     '',
-    'Tools cover: crowding (rank_places_by_crowd, place_day, campus_overview, model_basis), places and hours (place_info, find_places), classes (find_course, free_rooms), walking (walking_route), ' +
+    'Tools cover: crowding (rank_places_by_crowd, place_day, best_times for the week, campus_overview, model_basis), event planning (event_slots), places and hours (place_info, find_places), classes (find_course, free_rooms), walking (walking_route), ' +
       'events (list_events, event_impact), transit (transit_near), Bluebikes (bluebikes), housing (housing), population (population_summary), published counts (published_counts, library_gate_counts), ' +
       'validation against published counts (model_validation), weather and what-ifs (weather_effects, what_if_scenarios), emergencies (emergency_info), the academic calendar (academic_calendar) and parking (parking_lots).',
     '',
@@ -40,6 +40,7 @@ function instructions(ctx: ChatContext): string {
     '- Closed is not quiet: open=false means closed by published hours; never call it quiet or empty. open=null means hours aren’t published: not closed.',
     '- If a tool gives afterMidnightNote, say the place is open then but the simulation doesn’t model visits after midnight.',
     '- For another day, pass the weekday parameter (0 = Monday). If a tool returns available=false, say that day is still being simulated and to try again shortly.',
+    '- For "when is X quietest this week" use best_times (model-derived; places without published hours are not ranked). For planning an event, use event_slots and say a free room may still be in use or locked and that nothing is booked.',
     '- For "why is X busy/full/quiet": use place_day and model_basis (meals_study_gym for libraries, dining and gyms; enrollment for classrooms; housing for dorms; capacity for percentages).',
     '- Call simulation outputs "simulated", "modeled" or "projected". Never call them predictions, measurements or live counts, and never describe the model’s quality as accuracy; say how it compares with published counts (model_validation).',
     '- If modeled=false, say the simulation doesn’t model that place that day. If percent is null, give the student count and say the capacity isn’t comparable. If isEstimate=true, the walk is a straight-line estimate.',
