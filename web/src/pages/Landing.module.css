@@ -359,8 +359,8 @@
   inset: 0;
 }
 
-/* A still of the live map (map-client/src/intro.ts) filling the hero. "Open the map" opens the map
-   on the same picture, which then becomes the live map. */
+/* The view of campus from the sky (map-client/src/intro.ts) filling the hero, under the same haze and
+   clouds as the map's loading screen (IntroSky). "Open the map" opens the map on this very picture. */
 .heroStill {
   position: absolute;
   inset: 0;
@@ -383,50 +383,6 @@
     transparent 86%
   );
   pointer-events: none;
-}
-
-.tag {
-  position: absolute;
-  z-index: 2;
-  transform: translate(-50%, -100%);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.5s var(--ease-standard), visibility 0.5s;
-  pointer-events: none;
-}
-
-.tagShown {
-  opacity: 1;
-  visibility: visible;
-}
-
-.tagPill {
-  composes: glass-strong from global;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 7px var(--space-4) 7px var(--space-3);
-  border-radius: var(--radius-capsule);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  white-space: nowrap;
-}
-
-.tagPill b {
-  font-weight: var(--weight-semibold);
-}
-
-.tagSep {
-  color: var(--color-ink-secondary);
-}
-
-.stem {
-  width: 1px;
-  margin: 0 auto;
-  background: linear-gradient(
-    color-mix(in srgb, var(--color-ink) 75%, transparent),
-    color-mix(in srgb, var(--color-ink) 15%, transparent)
-  );
 }
 
 /* ---------- Shared section parts ---------- */

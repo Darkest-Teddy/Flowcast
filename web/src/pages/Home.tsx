@@ -63,9 +63,12 @@ export default function Home() {
       </div>
 
       <AskChat scheduleAvailable={schedule.data !== null} visible={mode === 'ask'} composer={(ask, pending, resetToken) => (
-        <SearchBar placeholder="Search buildings, events, clubs and classes" mode={mode}
-          resetToken={resetToken} onModeChange={setMode} pending={mode === 'ask' && pending}
-          onSubmit={(query, selectedMode) => { if (selectedMode === 'ask') void ask(query); else setSearch(query); }} />
+        <div className={styles.searchControls}>
+          <SearchBar placeholder="Search buildings, events, clubs and classes" mode={mode}
+            resetToken={resetToken} onModeChange={setMode} pending={mode === 'ask' && pending}
+            onSubmit={(query, selectedMode) => { if (selectedMode === 'ask') void ask(query); else setSearch(query); }} />
+          <LiveVoice compact />
+        </div>
       )} data={{
         locations: locations.data ?? [], schedule: schedule.data ?? [],
         events: events.data ?? [], clubs: clubs.data ?? [],
@@ -73,8 +76,6 @@ export default function Home() {
         geo: geo.data ?? { positions: {}, walkMeters: {} },
         homeLocationId: session?.user.homeLocationId ?? null,
       }} />
-
-      <LiveVoice />
 
       {mode === 'search' && search && (
         <SearchResults query={search} onClear={() => setSearch(null)}

@@ -1,32 +1,28 @@
 /* Startup overlay (IntroScreen.tsx): the intro still over the loading map, no backdrop of its own.
-   Only transform animates, so the compositor does the work while the main thread parses models and
-   builds the population. The progress line is art over a photo: its own light ink in both themes. */
+   No stacking context of its own, so the app's sky (z-index 40, styles.css) sits between the still
+   and the progress line. The progress line is art over a photo: its own light ink in both themes. */
 
 .intro {
   position: absolute;
   inset: 0;
-  z-index: 50;
-  overflow: hidden;
-  pointer-events: none; /* the map under it can be grabbed once the still has gone */
+  pointer-events: none;
 }
 
 /* Covers the window exactly as the live map will (centred, object-fit: cover; intro.ts works out
-   the matching zoom), pushing in slowly like a camera moving toward campus. */
+   the matching zoom). It takes the pointer, so the map under it can't be moved out of line. */
 .intro-still {
   position: absolute;
+  z-index: 30;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  animation: intro-push 30s cubic-bezier(0.2, 0.6, 0.35, 1) both;
-}
-@keyframes intro-push {
-  from { transform: scale(1); }
-  to { transform: scale(1.1); }
+  pointer-events: auto;
 }
 
 .intro-progress {
   position: absolute;
+  z-index: 60;
   left: 50%;
   bottom: max(32px, env(safe-area-inset-bottom));
   width: min(320px, calc(100% - 64px));
@@ -59,6 +55,7 @@
 .intro-error {
   pointer-events: auto;
   position: absolute;
+  z-index: 60;
   left: 50%;
   top: 50%;
   width: min(420px, calc(100% - 32px));
@@ -83,6 +80,3 @@
 }
 .intro-error button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
-@media (prefers-reduced-motion: reduce) {
-  .intro-still { animation: none; }
-}

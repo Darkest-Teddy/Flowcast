@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { motion, MotionConfig } from 'motion/react';
@@ -9,7 +9,8 @@ import { Logo } from '../ui/Logo';
 import { api, useResource } from '../data/api';
 import { formatPercent } from '../lib/format';
 import { CampusScene } from './landing/CampusScene';
-import { coverScale, INTRO_ANCHORS, INTRO_SHOT, introSources, presetNow } from '@map/intro';
+import { introSources, presetNow } from '@map/intro';
+import { IntroSky } from '@map/IntroSky';
 import { openMap, STILL_ATTR } from './landing/openMap';
 import { item, rise, stagger } from './landing/motion';
 import { scrollToElement, useSmoothScroll } from './landing/smoothScroll';
@@ -45,13 +46,6 @@ const GITHUB_URL = 'https://github.com/Darkest-Teddy/Flowcast';
 const HERO_HOUR = 18;
 
 /** The places the hero tags point at, with how long each tag's stem is. */
-const HERO_TAGS = [
-  { place: 'mugar', stem: 92 },
-  { place: 'warren', stem: 24 },
-  { place: 'questrom', stem: 30 },
-  { place: 'fitrec', stem: 58 },
-];
-
 const PREVIEW_PLACES = ['mugar', 'warren-dining', 'fitrec'];
 const KIND_LABEL: Record<string, string> = { library: 'Library', dining: 'Dining hall', gym: 'Gym', classroom: 'Academic building', dorm: 'Residence' };
 
@@ -102,7 +96,7 @@ export default function Landing() {
         </a>
         <LandingNav />
         <main id="main" tabIndex={-1} className={styles.main}>
-          <Hero day={day} />
+          <Hero />
           <Preview day={day} error={impact.error} reload={impact.reload} />
           <HowItWorks sources={sources.data} />
           <Features day={day} event={event} />
@@ -188,54 +182,15 @@ function LandingNav() {
 
 /* ---------- 01 Hero ---------- */
 
-interface TagSpot {
-  x: number;
-  y: number;
-}
-
-function Hero({ day }: { day: DayForecast | null }) {
-  const stageRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLDivElement>(null);
-  const [spots, setSpots] = useState<Record<string, TagSpot | null>>({});
-
-  // Tags point at roofs in the still of the map. It covers the stage (centred, object-fit: cover),
-  // so a roof's spot is its place in the shot, scaled about the centre. A tag that would leave the
-  // stage or run into the headline is hidden.
-  const measure = useCallback(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const box = stage.getBoundingClientRect();
-    const scale = coverScale(box.width, box.height);
-    const cards = textRef.current ? [textRef.current.getBoundingClientRect()] : [];
-    const next: Record<string, TagSpot | null> = {};
-    for (const tag of HERO_TAGS) {
-      const [ax, ay] = INTRO_ANCHORS[tag.place];
-      const x = (ax - INTRO_SHOT.width / 2) * scale + box.width / 2;
-      const y = (ay - INTRO_SHOT.height / 2) * scale + box.height / 2;
-      const top = y - tag.stem - 34;
-      // The pills are centred on their roof and up to ~260px wide ("Warren Towers (Tower A) · Busy 68%").
-      const tagBox = { left: box.left + x - 130, right: box.left + x + 130, top: box.top + top, bottom: box.top + y };
-      const clear = cards.every((c) => tagBox.right < c.left - 8 || tagBox.left > c.right + 8 || tagBox.bottom < c.top - 8 || tagBox.top > c.bottom + 8);
-      next[tag.place] = x > 130 && x < box.width - 130 && top > 8 && clear ? { x, y } : null;
-    }
-    setSpots(next);
-  }, []);
-
-  useLayoutEffect(() => {
-    measure();
-    const stage = stageRef.current;
-    if (!stage || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(measure);
-    ro.observe(stage);
-    return () => ro.disconnect();
-  }, [measure, day]);
-
-  // The still in the light the map opens in now: the same picture the map's intro starts from.
-  const [still] = useState(() => introSources(presetNow()));
+function Hero() {
+  // The view from the sky in the light the map opens in now: the same picture, haze and clouds the
+  // map's loading screen starts from (map-client/src/intro.ts).
+  const [preset] = useState(presetNow);
+  const still = introSources(preset);
 
   return (
     <section id="top" tabIndex={-1} className={`${styles.dark} ${styles.hero}`} data-theme="dark" aria-labelledby="hero-title">
-      <div ref={textRef} className={styles.heroText}>
+      <div className={styles.heroText}>
         <p className={styles.heroEyebrow}>Crowd forecasts for Boston University</p>
         <h1 id="hero-title" className={styles.heroTitle}>
           See how busy campus is before you go.
@@ -254,40 +209,16 @@ function Hero({ day }: { day: DayForecast | null }) {
         </div>
       </div>
 
-      <div ref={stageRef} className={styles.stage}>
+      <div className={styles.stage}>
         <img
           className={styles.heroStill}
           {...still}
           {...{ [STILL_ATTR]: '' }}
           sizes="100vw"
-          alt="The Flowcast 3D map of Boston University’s Charles River Campus along Commonwealth Avenue"
+          alt="Boston University's campus along the Charles River on the Flowcast map, seen from above through cloud"
           fetchPriority="high"
-          onLoad={measure}
         />
-
-        {day &&
-          HERO_TAGS.map((tag) => {
-            const spot = spots[tag.place];
-            const share = day.share(tag.place, HERO_HOUR);
-            const place = day.place(tag.place);
-            if (share == null || !place) return null;
-            return (
-              <div
-                key={tag.place}
-                className={`${styles.tag} ${spot ? styles.tagShown : ''}`}
-                style={{ left: spot?.x ?? 0, top: spot?.y ?? 0 }}
-                aria-hidden
-              >
-                <div className={styles.tagPill}>
-                  <Dot share={share} size="sm" />
-                  <span>{place.short}</span>
-                  <span className={styles.tagSep}>·</span>
-                  <b>{reading(share)}</b>
-                </div>
-                <div className={styles.stem} style={{ height: tag.stem }} />
-              </div>
-            );
-          })}
+        <IntroSky light={preset} />
       </div>
     </section>
   );

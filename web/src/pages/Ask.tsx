@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ArrowRight, Eraser } from 'lucide-react';
-import { LiveVoice } from '@map/LiveVoice';
 import { api } from '../data/api';
 import { bostonClock, isPersonalQuestion } from '../lib/askRouting';
 import { plainText } from '../lib/chatMarkdown';
@@ -231,8 +230,6 @@ export default function Ask() {
           </Button>
         }
       />
-
-      <LiveVoice />
 
       {chatOff && (
         <div className={styles.banner} role="note">
