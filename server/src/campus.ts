@@ -36,7 +36,7 @@ export function chooseBundle(env: Record<string, string | undefined>, exists: (r
  */
 export class InFlight {
   private active = 0;
-  private waiters: (() => void)[] = [];
+  private waiters = new Set<() => void>();
 
   get count(): number { return this.active; }
 
@@ -49,7 +49,7 @@ export class InFlight {
       ended = true;
       if (--this.active === 0) {
         const waiters = this.waiters;
-        this.waiters = [];
+        this.waiters = new Set();
         for (const wake of waiters) wake();
       }
     };
@@ -59,8 +59,13 @@ export class InFlight {
   settled(maxWaitMs: number): Promise<void> {
     if (this.active === 0) return Promise.resolve();
     return new Promise((resolve) => {
-      const timer = setTimeout(resolve, maxWaitMs);
-      this.waiters.push(() => { clearTimeout(timer); resolve(); });
+      const wake = () => {
+        clearTimeout(timer);
+        this.waiters.delete(wake);
+        resolve();
+      };
+      const timer = setTimeout(wake, maxWaitMs);
+      this.waiters.add(wake);
     });
   }
 }
@@ -102,12 +107,14 @@ export class BuildCache<K, V> {
     let pending = this.building.get(key);
     if (!pending) {
       // Deferred so the request that triggers a build can respond before the build blocks the loop.
-      const start = () => new Promise<V>((resolve, reject) =>
-        setImmediate(() => {
-          try { resolve(this.build(key)); } catch (error) { reject(error); }
+      pending = new Promise<V>((resolve, reject) =>
+        setImmediate(async () => {
+          try {
+            await this.before?.();
+            resolve(this.build(key));
+          } catch (error) { reject(error); }
         }),
-      );
-      pending = (this.before ? this.before().then(start) : start()).then(
+      ).then(
         (v) => {
           this.building.delete(key);
           this.built.set(key, v);

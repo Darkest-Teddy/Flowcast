@@ -558,6 +558,19 @@ test('day builds wait while an answer is being worked out, so the week prebuild 
   assert.ok(Date.now() - t0 >= 25);
 });
 
+test('a queued day build checks for answers that started before its deferred turn', async () => {
+  const asks = new InFlight();
+  let built = false;
+  const cache = new BuildCache(() => { built = true; return 4; }, 7, () => asks.settled(BUILD_WAIT_MS));
+  const pending = cache.get(4);
+  const end = asks.begin();
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(built, false);
+  } finally { end(); }
+  assert.equal(await pending, 4);
+});
+
 test('the endpoint marks each model run in flight until it settles', async () => {
   const asks = new InFlight();
   const counts: number[] = [];
