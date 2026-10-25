@@ -129,7 +129,7 @@ function AskAnswer({ query, data, clear, onAsk }: { query: string; data: CampusD
   const mapLink = answer ? mapLinkFor(answer.focus, data.geo, answer.mapQuestion) : null;
 
   return (
-    <div className={styles.wrap} aria-live="polite" aria-busy={!answer}>
+    <div className={`${styles.wrap} ${styles.card}`} aria-live="polite" aria-busy={!answer}>
       <div className={styles.head}>
         <span>You asked “{query}”</span>
         {clear}

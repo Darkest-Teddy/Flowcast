@@ -107,6 +107,32 @@ export default function Home() {
         />
       )}
 
+      <div className={styles.forYou}>
+        <SectionList
+          title="For you"
+          empty={
+            suggestions.loading ? (
+              loadingText
+            ) : acceptedCount > 0 ? (
+              <>
+                Added to your day. <Link to="/schedule">See your schedule</Link>
+              </>
+            ) : (
+              'No suggestions right now. Flowcast will suggest a quieter time or place when one of yours gets crowded.'
+            )
+          }
+        >
+          {(suggestions.data ?? []).map((g) => (
+            <div key={g.id} className={styles.suggestion}>
+              <p>{g.text}</p>
+              <Button onClick={() => accept(g.id)} disabled={accepting === g.id}>
+                {g.actionLabel}
+              </Button>
+            </div>
+          ))}
+        </SectionList>
+      </div>
+
       <div className={styles.columns}>
         <SectionList
           title="Today"
@@ -146,29 +172,7 @@ export default function Home() {
           })}
         </SectionList>
 
-        <SectionList
-          title="For you"
-          empty={
-            suggestions.loading ? (
-              loadingText
-            ) : acceptedCount > 0 ? (
-              <>
-                Added to your day. <Link to="/schedule">See your schedule</Link>
-              </>
-            ) : (
-              'No suggestions right now. Flowcast will suggest a quieter time or place when one of yours gets crowded.'
-            )
-          }
-        >
-          {(suggestions.data ?? []).map((g) => (
-            <div key={g.id} className={styles.suggestion}>
-              <p>{g.text}</p>
-              <Button onClick={() => accept(g.id)} disabled={accepting === g.id}>
-                {g.actionLabel}
-              </Button>
-            </div>
-          ))}
-        </SectionList>
+
       </div>
 
       <SectionHeading
@@ -186,7 +190,7 @@ export default function Home() {
       >
         {range === '7d' ? 'This week' : 'Last 30 days'}
       </SectionHeading>
-      <Grid columns={4}>
+      <Grid columns={4} phoneColumns={2}>
         {(stats.data ?? []).map((s) => (
           <StatCard
             key={s.id}
