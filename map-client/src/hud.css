@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Map chrome layout.
  *
  * Everything floats over the scene at an edge, so the map is the page and the
@@ -12,7 +12,12 @@
 .hud {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  /*
+   * Above the sheet (z-index 3 in styles.css). The chrome frames the panel, so
+   * when they meet the frame wins -- otherwise the panel covered the time block
+   * and the month popover opened behind it.
+   */
+  z-index: 4;
   /* The chrome is a frame around the map: only its own controls take clicks. */
   pointer-events: none;
 }
@@ -224,11 +229,17 @@
   gap: 2px;
 }
 
-/* The day of the week, beside the time it belongs to. */
-.hud-day {
+/* ---------------------------------------------------------------------------
+ * The date, and the month behind it
+ * ------------------------------------------------------------------------- */
+.hud-date {
+  position: relative;
   flex: none;
+}
+
+.hud-date-button {
   height: 26px;
-  padding: 0 4px;
+  padding: 0 9px;
   border: 0;
   border-radius: 8px;
   background: rgb(255 255 255 / 0.1);
@@ -236,12 +247,126 @@
   font: inherit;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+@media (hover: hover) {
+  .hud-date-button:hover {
+    background: rgb(255 255 255 / 0.18);
+  }
+}
+
+.hud-date-button:focus-visible,
+.hud-month button:focus-visible {
+  outline: 2px solid var(--color-accent, #2997ff);
+  outline-offset: 2px;
+}
+
+/* Hangs below the button, aligned to its left edge. */
+.hud-month {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  width: 232px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--glass-fill-strong, rgb(28 32 38 / 0.82));
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 0.42);
+}
+
+.hud-month-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hud-month-head button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--map-ink-secondary, #a1a1a6);
+  font-size: 16px;
+  line-height: 1;
   cursor: pointer;
 }
 
-.hud-day:focus-visible {
-  outline: 2px solid var(--color-accent, #2997ff);
-  outline-offset: 2px;
+@media (hover: hover) {
+  .hud-month-head button:hover {
+    background: rgb(255 255 255 / 0.12);
+    color: var(--color-ink, #f5f5f7);
+  }
+}
+
+.hud-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.hud-month-day {
+  display: grid;
+  place-items: center;
+  height: 22px;
+  color: var(--map-ink-secondary, #a1a1a6);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hud-month-cell {
+  position: relative; /* the today dot is positioned against this */
+  display: grid;
+  place-items: center;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+@media (hover: hover) {
+  .hud-month-cell:hover {
+    background: rgb(255 255 255 / 0.12);
+  }
+}
+
+/* Today is marked by a dot, so the selected day is the only filled cell. */
+.hud-month-cell[data-today] {
+  font-weight: 700;
+}
+
+.hud-month-cell[data-today]::after {
+  content: '';
+  position: absolute;
+  transform: translateY(10px);
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.hud-month-cell[aria-pressed='true'] {
+  background: var(--color-accent, #2997ff);
+  color: #fff;
+  font-weight: 700;
 }
 
 .hud-time-play {
@@ -595,7 +720,7 @@
  * ------------------------------------------------------------------------- */
 .hud-panel {
   position: absolute;
-  top: 64px;
+  top: 116px;
   right: 12px;
   bottom: 12px;
   width: min(380px, 34vw);
@@ -681,8 +806,9 @@
   opacity: 0.85;
 }
 
+/* Below the time block, which is two rows tall now. */
 .app .sheet {
-  top: 64px;
+  top: 116px;
 }
 
 /* No tab open means the map, uncovered. No panel, not even a collapsed stub. */
@@ -693,8 +819,9 @@
 
 /* Clear of the status group, which now carries the clock, the drag bar and the
    weather across the top right. */
+/* Below the time block, which is two rows tall now. */
 .app .sheet {
-  top: 64px;
+  top: 116px;
 }
 
 /* The sheet's own stats line duplicated what the panel already says and was the

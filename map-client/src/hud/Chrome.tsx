@@ -16,7 +16,7 @@
  * simulation, and every control is a prop.
  */
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 /* ---------------------------------------------------------------------------
  * Icons. One stroke weight, one size, currentColor throughout, so a button's
@@ -346,6 +346,128 @@ export function HudTime({
       <button type="button" className="hud-live-toggle" aria-pressed={live} onClick={onLive} title="Follow Boston time and live transit">
         {live ? 'Live' : 'Go live'}
       </button>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * The date, and the month behind it.
+ *
+ * Shows the real date being simulated rather than a weekday name: "Sat 24 Oct"
+ * answers both questions at once, and a weekday alone does not say which week.
+ * Clicking opens the month, because picking a date from a list of seven day
+ * names is not how anyone thinks about when.
+ *
+ * All dates here are ISO yyyy-mm-dd and built in local time. Constructing them
+ * from Date.toISOString would shift the day backwards for anyone west of UTC,
+ * which is everyone this map is for.
+ * ------------------------------------------------------------------------- */
+
+const DAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Parsed as local midday, so a timezone offset can never move it to another day. */
+const fromIso = (s: string) => {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 12);
+};
+
+export function HudDate({ value, onPick }: { value: string; onPick: (date: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState(() => fromIso(value));
+  const root = useRef<HTMLDivElement>(null);
+
+  // Re-centre on the selected date each time it opens, not on every change:
+  // paging through months while open should stay where the user left it.
+  useEffect(() => {
+    if (open) setMonth(fromIso(value));
+  }, [open, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const selected = fromIso(value);
+  const today = iso(new Date());
+  const label = selected.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const lead = first.getDay();
+  const cells: (Date | null)[] = [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => new Date(month.getFullYear(), month.getMonth(), i + 1, 12)),
+  ];
+
+  const shift = (by: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + by, 1, 12));
+
+  return (
+    <div className="hud-date" ref={root}>
+      <button
+        type="button"
+        className="hud-date-button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen((v) => !v)}
+        title="Pick a date to simulate"
+      >
+        {label}
+      </button>
+
+      {open && (
+        <div className="hud-month" role="dialog" aria-label="Pick a date">
+          <div className="hud-month-head">
+            <button type="button" onClick={() => shift(-1)} aria-label="Previous month">
+              ‹
+            </button>
+            <span>{month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+            <button type="button" onClick={() => shift(1)} aria-label="Next month">
+              ›
+            </button>
+          </div>
+
+          <div className="hud-month-grid" role="grid">
+            {DAY_INITIALS.map((d, i) => (
+              <span key={i} className="hud-month-day" aria-hidden="true">
+                {d}
+              </span>
+            ))}
+            {cells.map((d, i) =>
+              d === null ? (
+                <span key={`pad-${i}`} />
+              ) : (
+                <button
+                  key={iso(d)}
+                  type="button"
+                  className="hud-month-cell"
+                  aria-pressed={iso(d) === value}
+                  data-today={iso(d) === today || undefined}
+                  onClick={() => {
+                    onPick(iso(d));
+                    setOpen(false);
+                  }}
+                >
+                  {d.getDate()}
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

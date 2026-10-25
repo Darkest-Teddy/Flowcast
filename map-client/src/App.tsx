@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardE
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
-import { HudAsk, HudBrand, HudIcons, HudRail, HudStatus, HudTabs, HudTime, type RailItem } from './hud/Chrome';
+import { HudAsk, HudBrand, HudDate, HudIcons, HudRail, HudStatus, HudTabs, HudTime, type RailItem } from './hud/Chrome';
 import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
@@ -1386,19 +1386,10 @@ export default function App() {
             live={live}
             day={
               sourceData && (
-                <select
-                  className="hud-day"
-                  value={weekday}
-                  onChange={(event) => changeDay(Number(event.target.value))}
-                  aria-label="Simulation day"
-                  title="Which day of the week is simulated"
-                >
-                  {WEEKDAYS.map((name, index) => (
-                    <option key={name} value={index}>
-                      {name.slice(0, 3)}
-                    </option>
-                  ))}
-                </select>
+                // pickEventDate pins the date and switches the simulated day to
+                // its weekday, which is what picking a date has to mean here:
+                // the simulation runs a representative week.
+                <HudDate value={dateForWeekday(sourceData, weekday)} onPick={pickEventDate} />
               )
             }
             scrubber={
