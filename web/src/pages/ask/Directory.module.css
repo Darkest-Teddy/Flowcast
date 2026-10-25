@@ -1,7 +1,6 @@
 .directory {
-  composes: glass-strong from global;
-  border-radius: var(--radius-card);
-  padding: var(--space-5);
+  border-top: 1px solid var(--color-hairline);
+  padding: var(--space-3) 0;
   min-width: 0;
 }
 
@@ -17,9 +16,8 @@
   letter-spacing: var(--tracking-text);
 }
 
-/* The toggle only shows on narrow screens, where the directory collapses. */
 .toggle {
-  display: none;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   min-height: var(--control-height-touch);
@@ -44,8 +42,11 @@
 }
 
 .body {
+  display: none;
   margin-top: var(--space-3);
 }
+
+.body.open { display: block; }
 
 .hint {
   color: var(--color-ink-secondary);
@@ -138,10 +139,6 @@
 }
 
 @media (max-width: 1080px) {
-  .directory {
-    padding: var(--space-3) var(--space-4);
-  }
-
   .toggle {
     display: inline-flex;
   }

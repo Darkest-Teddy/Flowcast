@@ -1,24 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Eraser } from 'lucide-react';
+import { ArrowRight, ChevronDown, Eraser } from 'lucide-react';
 import { useSession } from '../auth/session';
 import { api } from '../data/api';
 import { bostonClock, isPersonalQuestion } from '../lib/askRouting';
 import { plainText } from '../lib/chatMarkdown';
 import {
   buildChatRequest,
+  CAMPUSES,
   clockText,
   restoreConversation,
   serializeConversation,
   STORAGE_KEY,
   weekdayOfDate,
+  WEEKDAYS,
   type ChatContext,
   type ChatMessage,
 } from '../lib/chatHistory';
 import { parseChatBody, type ChatError, type DirectoryResult } from '../lib/chatParse';
 import { config } from '../config';
 import { Button, Page, PageHeader } from '../ui';
-import { Composer, ContextControls, MessageItem, PendingItem, QuestionChips } from './ask/Chat';
+import { Composer, ContextControls, MessageItem, PendingItem } from './ask/Chat';
 import { Directory, StartServerHint } from './ask/Directory';
 import { answerQuestion, type CampusData } from './student/campusSearch';
 import styles from './Ask.module.css';
@@ -50,8 +52,12 @@ function nowContext(campus: ChatContext['campus'] = 'charles-river'): ChatContex
 let nextId = 0;
 const newId = () => `m${Date.now().toString(36)}${(nextId++).toString(36)}`;
 
-/** Questions to start with when the directory can't load. */
-const FALLBACK_EXAMPLES = ['Least crowded library right now', 'Quietest dining hall at 6 PM', 'When is GSU quiet?', 'Where is my next class?'];
+const STARTERS = [
+  { topic: 'Find a study spot', question: 'Which library is least crowded right now?' },
+  { topic: 'Grab a bite', question: 'Is Warren dining open now?' },
+  { topic: 'Get around', question: 'How long is the walk from CAS to Mugar?' },
+  { topic: 'Plan your day', question: 'Where is my next class?' },
+];
 
 const DEVICE_NOTE = 'Calculated from your schedule, without sending it to AI.';
 
@@ -224,7 +230,7 @@ export default function Ask() {
   };
 
   const busy = pending !== null;
-  const domains = directory?.ok ? directory.value.domains : [];
+  const empty = messages.length === 0 && !busy;
   const chatOff = directory?.ok && !directory.value.chatAvailable;
   const unreachable = directory && !directory.ok && directory.error.kind === 'unreachable';
 
@@ -232,8 +238,8 @@ export default function Ask() {
     <Page wide>
       <PageHeader
         title="Ask Flowcast"
-        description="Ask about crowds, dining, events and getting around campus. Answers come from the simulation and published BU data, and say which is which."
         actions={
+          messages.length > 0 &&
           <Button variant="secondary" icon={<Eraser aria-hidden />} onClick={clear} disabled={!messages.length && !busy}>
             Clear conversation
           </Button>
@@ -253,34 +259,14 @@ export default function Ask() {
         </div>
       )}
 
-      <div className={styles.layout}>
+      <div className={`${styles.layout} ${empty ? styles.empty : ''}`}>
         <section className={styles.chat} aria-label="Conversation">
-          <ContextControls context={context} onChange={changeContext} onNow={() => setContext(nowContext(context.campus))} />
-
-          {messages.length === 0 && !busy ? (
+          {empty ? (
             <div className={styles.intro}>
-              <h2 className={styles.introTitle}>Ask about campus in your own words</h2>
+              <h2 className={styles.introTitle}>What’s your next stop?</h2>
               <p className={styles.introBody}>
-                Flowcast answers with charts and tables from its tools and names every source. Crowd figures are simulated projections, not live counts.
-                Questions about your own schedule stay on this device.
+                Find a quiet spot, grab food, or figure out your day at BU.
               </p>
-              {domains.some((d) => d.examples.length) ? (
-                <div className={styles.examples}>
-                  {domains.filter((d) => d.examples.length).map((d) => (
-                    <div key={d.id} className={styles.exampleGroup}>
-                      <h3 className={styles.groupTitle}>{d.title}</h3>
-                      <QuestionChips questions={d.examples} onAsk={ask} label={`Example questions about ${d.title}`} />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className={styles.examples}>
-                  <div className={styles.exampleGroup}>
-                    <h3 className={styles.groupTitle}>Try asking</h3>
-                    <QuestionChips questions={FALLBACK_EXAMPLES} onAsk={ask} label="Example questions" />
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <ol ref={listRef} className={styles.list} aria-label="Messages">
@@ -292,8 +278,30 @@ export default function Ask() {
           )}
 
           <div className={styles.dock}>
+            <details className={styles.context}>
+              <summary>
+                <span>{CAMPUSES.find((c) => c.value === context.campus)?.label} <span aria-hidden>·</span> {context.date ?? WEEKDAYS[context.weekday]} <span aria-hidden>·</span> {context.time} Boston time</span>
+                <span className={styles.editContext}>Change <ChevronDown aria-hidden /></span>
+              </summary>
+              <div className={styles.contextFields}>
+                <ContextControls context={context} onChange={changeContext} onNow={() => setContext(nowContext(context.campus))} />
+              </div>
+            </details>
             <Composer value={draft} onChange={setDraft} onSend={() => void send(draft)} onStop={stop} busy={busy} textareaRef={textareaRef} />
+            <p className={styles.disclosure}>Crowds are simulated, not live. Answers include sources. Questions about your own schedule stay on this device.</p>
           </div>
+          {empty && (
+            <ul className={styles.starters} aria-label="Try a question">
+              {STARTERS.map(({ topic, question }) => (
+                <li key={topic}>
+                  <button type="button" onClick={() => ask(question)}>
+                    <span className={styles.starterTopic}>{topic}<ArrowRight aria-hidden /></span>
+                    <span>{question}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
             {announcement}
           </p>

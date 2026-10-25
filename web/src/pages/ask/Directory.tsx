@@ -52,7 +52,7 @@ function DomainEntry({ domain, onAsk, busy }: { domain: DataDomain; onAsk: (q: s
 
 /**
  * What the chat knows: every data domain, its datasets with provenance, and example questions.
- * A side column on wide screens; a collapsible section on narrow ones.
+ * Collapsed until requested, on every screen size.
  */
 export function Directory({ result, loading, onAsk, onReload, busy }: { result: DirectoryResult | null; loading: boolean; onAsk: (q: string) => void; onReload: () => void; busy: boolean }) {
   const [open, setOpen] = useState(false);
@@ -63,7 +63,7 @@ export function Directory({ result, loading, onAsk, onReload, busy }: { result: 
     <section className={styles.directory} aria-labelledby={`${bodyId}-title`}>
       <div className={styles.head}>
         <h2 id={`${bodyId}-title`} className={styles.title}>
-          What Flowcast knows
+          Sources & more questions
         </h2>
         <button type="button" className={styles.toggle} aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((v) => !v)}>
           {open ? 'Hide' : `Show${count ? ` ${count} topics` : ''}`}
