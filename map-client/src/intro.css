@@ -115,13 +115,19 @@
    loads. Art over a photo, like the progress line: it keeps the dark glass values and light ink in
    both themes. */
 
+/* The shot leads and the text column is the narrower one. The captures are 1000 × 1190, so the
+   shot column is sized from the window's height at that ratio and is never cropped; the card is
+   the shot plus the text, so it hugs both. 600px tall keeps the shot about 504px wide, which the
+   1000px captures still cover at 2x. */
 .intro-tips {
+  --tips-shot-w: min(calc(min(68vh, 600px, 100vh - 168px) * 1000 / 1190), calc(100vw - 312px));
+  --tips-text-w: clamp(280px, 26vw, 380px);
   pointer-events: auto;
   position: absolute;
   z-index: 60;
   left: 50%;
   top: calc(50% - 40px); /* clear of the progress line at the bottom */
-  width: min(max(68vw, 720px), 1120px, calc(100% - 32px));
+  width: min(calc(var(--tips-shot-w) + var(--tips-text-w)), calc(100% - 32px));
   max-height: calc(100% - 152px);
   overflow: hidden;
   border-radius: var(--radius-card);
@@ -137,20 +143,18 @@
     0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-/* wrap-reverse: when the card is too narrow for two columns (phones) the shot lands on top. */
+/* Phones stack the shot over the text (the max-width query below). */
 .intro-tips-row {
   display: flex;
-  flex-wrap: wrap-reverse;
-  min-height: min(60vh, 560px, calc(100vh - 152px));
 }
 
 .intro-tips-text {
-  flex: 1 1 300px;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 32px 32px 24px 36px;
+  gap: 14px;
+  padding: 28px 24px 20px 32px;
 }
 
 .intro-tips-eyebrow {
@@ -188,7 +192,7 @@
 .intro-tip h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(28px, 3.2vw, 48px);
+  font-size: clamp(24px, 2.3vw, 36px);
   font-weight: 700;
   line-height: var(--leading-display);
   letter-spacing: var(--tracking-display);
@@ -196,7 +200,7 @@
 }
 .intro-tip-body {
   margin: 0;
-  font-size: clamp(15px, 1.25vw, 19px);
+  font-size: clamp(15px, 1.1vw, 17px);
   line-height: var(--leading-normal);
   letter-spacing: var(--tracking-text);
   text-wrap: pretty;
@@ -204,7 +208,7 @@
 .intro-tip-where {
   margin: 2px 0 0;
   color: #a1a1a6;
-  font-size: clamp(13px, 1vw, 15px);
+  font-size: clamp(13px, 0.9vw, 14px);
   line-height: var(--leading-snug);
 }
 
@@ -272,15 +276,13 @@
   stroke-linejoin: round;
 }
 
-/* The shots run the full height of the card, edge to edge, and crossfade with the text. They hold
-   44% and don't grow into the spare width: the captures are framed for that column (about 5:6), and
-   a wider one would cover-crop the playback controls and the crowd scale out of every shot. */
+/* The shots run the full height of the card, edge to edge, and crossfade with the text. The column
+   keeps the captures' own ratio (1000 × 1190), so cover never crops the playback controls or the
+   crowd scale out of a shot. */
 .intro-tips-shots {
   position: relative;
-  flex: 0 0 44%;
-  max-width: 100%;
-  align-self: stretch;
-  min-height: 220px;
+  flex: 0 0 var(--tips-shot-w);
+  aspect-ratio: 1000 / 1190;
   overflow: hidden;
 }
 .intro-tips-shots img {
@@ -297,8 +299,20 @@
 .intro-tips-seam {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(28, 28, 30, 0.55) 0%, rgba(28, 28, 30, 0) 28%);
+  background: linear-gradient(90deg, rgba(28, 28, 30, 0.55) 0%, rgba(28, 28, 30, 0) 20%);
   pointer-events: none;
+}
+
+/* Phones: no room for two columns, so the shot goes on top at full width and the text sits under
+   it. The shot gives up height before the text does (cropping its bottom edge, the legend and Ask
+   bar), so the dots and arrows always stay on the card. */
+@media (max-width: 640px) {
+  .intro-tips { display: flex; flex-direction: column; width: calc(100% - 32px); }
+  .intro-tips-row { flex: 1 1 auto; min-height: 0; flex-direction: column-reverse; }
+  .intro-tips-text { flex: none; padding: 20px 24px 16px; gap: 12px; }
+  .intro-tips-shots { flex: 0 1 auto; width: 100%; min-height: 160px; }
+  .intro-tips-shots img { object-position: top; }
+  .intro-tips-seam { background: linear-gradient(0deg, rgba(28, 28, 30, 0.55) 0%, rgba(28, 28, 30, 0) 20%); }
 }
 
 /* Less motion: the crossfades stay (they're what makes the swap legible), the timer bar goes, and
@@ -310,8 +324,7 @@
 
 /* On a short window the card would crowd the progress line: the shot goes and the text leads. */
 @media (max-height: 560px) {
-  .intro-tips { top: calc(50% - 28px); }
-  .intro-tips-row { min-height: 0; }
+  .intro-tips { top: calc(50% - 28px); width: min(560px, calc(100% - 32px)); }
   .intro-tips-shots { display: none; }
   .intro-tips-text { padding: 20px 24px 16px; gap: 12px; }
 }

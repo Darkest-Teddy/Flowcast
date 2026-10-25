@@ -16,8 +16,14 @@
 // the swoop's). Both files are fetched and decoded while the map loads, so the first boom is ready
 // on time. Off with reduced motion.
 //
+// The booms are one sequence: the first decides whether the intro has sound, so a browser that lets the
+// audio start partway through (a press during the drop, or a late resume) never starts it on a later boom,
+// out of step with the camera. Before the drop the intro waits briefly for the audio to be running and
+// the files decoded (introSound.ready), so the first boom isn't lost to an audio clock still starting up.
+//
 // The join card's tone (public/sounds/text-tone.mp3, 0.65 s) shares the same audio, mute and rules: it
-// plays as the card opens (JoinQrCard.tsx), and is skipped while the browser holds sound back.
+// plays as the card opens (JoinQrCard.tsx), and is skipped while the browser holds sound back. It also
+// holds off from the loading screen until the intro's chime has ended, so it never lands in the drop.
 
 const MUTE_KEY = 'flowcast.sound';
 const ZOOM = '/intro/zoom-in.mp3';
@@ -69,6 +75,14 @@ const quiet = () => soundMuted() || window.matchMedia('(prefers-reduced-motion: 
 let context: AudioContext | null = null;
 const bytes = new Map<string, Promise<ArrayBuffer>>();
 const recordings = new Map<string, AudioBuffer>();
+/** The files' decoding, started with the audio context. */
+let decoding: Promise<unknown> = Promise.resolve();
+/** Whether this intro's booms are playing: decided by the first drop's. */
+let booming = false;
+/** Until when (audio clock, seconds) the join card's tone waits: the intro's, from the loading screen to its chime's end. */
+let joinHeldUntil = 0;
+/** When the swoop's chime ends (audio clock), once it's scheduled. */
+let chimeEnds = 0;
 
 /** A file's bytes, fetched once (allowed while prerendered, unlike starting the audio). */
 function load(file: string): Promise<ArrayBuffer> {
@@ -88,7 +102,7 @@ function audio(): AudioContext | null {
     context = ctx;
     // Decoding works while the browser holds the audio back, so the files are ready either way.
     // One that can't be had is left out.
-    for (const file of [ZOOM, ARRIVE, JOIN_TONE]) load(file).then((data) => ctx.decodeAudioData(data)).then((buffer) => { recordings.set(file, buffer); }, () => {});
+    decoding = Promise.all([ZOOM, ARRIVE, JOIN_TONE].map((file) => load(file).then((data) => ctx.decodeAudioData(data)).then((buffer) => { recordings.set(file, buffer); }, () => {})));
     // Again when the page is shown (back from the back/forward cache, or a tab coming forward), in
     // case the browser lets it start then, and on the first press on the page, which always does.
     const wake = () => {
@@ -111,27 +125,46 @@ export const introSound = {
   /** Fetches the files and starts the audio as early as possible: as the loading screen shows (a prerendered page, once it's shown). */
   prepare: () => {
     if (quiet()) return;
+    joinHeldUntil = Infinity;
     for (const file of [ZOOM, ARRIVE]) void load(file).catch(() => {});
     if (!(document as Document & { prerendering?: boolean }).prerendering) return void audio();
     document.addEventListener('prerenderingchange', () => void audio(), { once: true });
   },
-  /** Drop `i` (INTRO_DROPS): its boom, as the camera starts down. */
+  /**
+   * Resolves once the audio is running and the files are decoded, or after `ms` regardless (the
+   * browser may be holding the audio back until a press on the page). Asks it to start, too.
+   */
+  ready: (ms: number): Promise<void> => {
+    const ctx = audio();
+    if (!ctx) return Promise.resolve();
+    return Promise.race([Promise.all([ctx.resume(), decoding]), new Promise((resolve) => setTimeout(resolve, ms))]).then(() => {}, () => {});
+  },
+  /** Drop `i` (INTRO_DROPS): its boom, as the camera starts down. The first decides whether the rest play. */
   drop: (i: number) => {
-    if (i < BOOMS.length - 1) play(ZOOM, BOOMS[i], BOOMS[i + 1]);
+    if (i >= BOOMS.length - 1 || (i > 0 && !booming)) return;
+    const played = play(ZOOM, BOOMS[i], BOOMS[i + 1]);
+    if (i === 0) booming = played;
   },
   /**
    * The swoop into the view: the last boom, its rumble running on past the landing to the file's
    * end, and the chime as the rumble fades (about 3 s after the landing).
    */
   swoop: () => {
+    if (!booming) return;
     const at = context?.currentTime ?? 0;
     const boom = BOOMS[BOOMS.length - 1];
-    if (play(ZOOM, boom, undefined, at)) play(ARRIVE, 0, undefined, at + RUMBLE_FADED - boom - ARRIVE_NOTE);
+    const chime = at + RUMBLE_FADED - boom - ARRIVE_NOTE;
+    if (play(ZOOM, boom, undefined, at) && play(ARRIVE, 0, undefined, chime)) chimeEnds = chime + (recordings.get(ARRIVE)?.duration ?? 0);
+  },
+  /** The intro is over (landed, stopped or skipped): the join card's tone may play once the chime has ended. */
+  end: () => {
+    joinHeldUntil = chimeEnds;
   },
 };
 
 /** The join card opening (JoinQrCard.tsx): a short text tone. */
 export function joinTone() {
+  if ((context?.currentTime ?? 0) < joinHeldUntil) return;
   play(JOIN_TONE, 0);
 }
 

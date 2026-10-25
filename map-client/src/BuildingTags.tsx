@@ -1,7 +1,8 @@
 // Glass HTML tags floating over each tracked building, on a stem that stands on the roof. By
 // default a small capsule in the chrome's material: a level-coloured dot and the figure ("87%"),
-// in the level's ink. Hovering the capsule, its roof dot or the building itself, focusing it,
-// tapping it, or selecting the building expands it into the full card: kind icon, name, "87%
+// in the level's ink. Hovering the capsule (only the glass: not its roof dot or the building on
+// the map, which made the card close and reopen as the pointer crossed between them), focusing
+// it, tapping it, or selecting the building expands it into the full card: kind icon, name, "87%
 // Packed", any event under way and a fill bar. The card grows out of the capsule's outline.
 // HTML rather than a deck.gl TextLayer for real typography, hover/focus states and keyboard access.
 //
@@ -71,8 +72,6 @@ export interface BuildingTagsFrame {
 
 export interface BuildingTagsHandle {
   update(frame: BuildingTagsFrame): void;
-  /** The building under the pointer on the map (deck.gl picking), or null: expands its tag. */
-  hoverBuilding(id: string | null): void;
 }
 
 interface Tag {
@@ -162,7 +161,6 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
     compact: null as boolean | null,
     last: 0,
     selectedId: null as string | null,
-    hoveredId: null as string | null,
     heightsFrom: null as BuildingFootprint[] | null,
     heights: new Map<string, number>(),
     roofsFrom: undefined as RoofHeights | undefined,
@@ -188,7 +186,6 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
   useImperativeHandle(
     ref,
     () => ({
-      hoverBuilding: (id) => void (s.hoveredId = id),
       update({ buildings, footprints, locations, selectedId, spotlitId = null, placer, project, camera, roofHeights }) {
         const layer = layerRef.current;
         const [width, height] = s.size;
@@ -288,8 +285,8 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
             tag.spotlit = spotlit;
             tag.root.classList.toggle('is-spotlit', spotlit);
           }
-          // Hover and focus on the tag itself open it in CSS; the map's hover and the selection here.
-          const open = selected || b.id === s.hoveredId;
+          // Hover and focus on the tag itself open it in CSS; the selection here.
+          const open = selected;
           if (open !== tag.open) {
             tag.open = open;
             tag.root.classList.toggle('is-open', open);

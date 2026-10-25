@@ -801,8 +801,6 @@ export default function App() {
       setCampus(linkedCampus);
 
       // What a map pointer is over, for the tags that expand on hover (and on tap, for touch).
-      const buildingUnder = (object: unknown) =>
-        object && typeof object === 'object' && ('polygon' in object || 'share' in object) ? (object as unknown as { id: string }).id : null;
       const markerUnder = (object: unknown): TagMarker =>
         !object || typeof object !== 'object' ? null
         : 'platforms' in object ? { kind: 'stop', id: (object as unknown as { id: string }).id }
@@ -813,9 +811,10 @@ export default function App() {
         _animate: true, // keeps the walk cycles ticking between data updates
         // Skips drawing models that are wholly off-screen (see layers/culling.ts).
         layerFilter: cullLayers,
-        // Hovering a building or a stop/dock dot expands its tag.
+        // Hovering a stop/dock dot expands its tag. Not a building: its tag opens only from the
+        // tag's own glass (BuildingTags.tsx), since an open card covers part of the building and
+        // the pointer crossing between the two would close and reopen it over and over.
         onHover: ({ object }: PickingInfo) => {
-          tagsRef.current?.hoverBuilding(buildingUnder(object));
           transitTagsRef.current?.hoverMarker(markerUnder(object));
           placeTagsRef.current?.hoverPlace(placeUnder(object));
           if (showParkingRef.current) {
@@ -932,6 +931,7 @@ export default function App() {
         } else {
           loadProgress.stage('Lining up the view', 0.97, 2000);
           introSound.prepare();
+          const sound = introSound.ready(1500); // alongside the tiles below, so it rarely adds to the wait
           // Still under the still: fetch the tiles of the views the camera will pass through (it would
           // otherwise fetch them on the way, in stutters), then back to the sky. The first frames after
           // loading also build layers and shaders: let them settle so the drops run smoothly.
@@ -940,7 +940,7 @@ export default function App() {
             basemap.jumpTo(view);
             await tilesIn(basemap, 1200);
           }
-          await steadyFrames(6, 45, 2500);
+          await Promise.all([steadyFrames(6, 45, 2500), sound]);
           if (cancelled) return;
           const unwatch = basemap.onUserInteraction(() => { introStopped = true; });
           loadProgress.finish(); // the still goes: the live map is under it at the same camera
@@ -966,6 +966,7 @@ export default function App() {
         introRef.current = false;
         basemap.setLimits(true);
         if (introStopped) basemap.setViewPadding(paddingRef.current);
+        introSound.end();
         setIntroPhase('done');
       };
       const revealFrom = performance.now();
@@ -977,6 +978,7 @@ export default function App() {
         basemap.jumpTo({ zoom: camera.zoom - 0.9, bearing: camera.bearing - 25, pitch: Math.max(0, camera.pitch - 15) });
         basemap.easeTo({ ...camera, duration: 2200 });
         loadProgress.finish();
+        introSound.end();
       };
       requestAnimationFrame(() => requestAnimationFrame(reveal));
 
