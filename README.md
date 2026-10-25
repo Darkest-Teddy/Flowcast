@@ -137,7 +137,16 @@ npm --prefix web run dev                   # http://localhost:5174
 | 3D map | http://localhost:5174/map (first load takes about 20 seconds while the week is simulated) |
 | Map during an evening event | http://localhost:5174/map?date=2026-10-29&at=20:15&speed=1 |
 
-**Optional keys** (`map-client/.env.local`, see `.env.example`): `VITE_MAPBOX_TOKEN` for textured Mapbox buildings, `VITE_MBTA_API_KEY` for a higher MBTA rate limit. The optional Ask server in `server/` needs `OPENAI_KEY`; see [server/README.md](server/README.md).
+**Optional keys** (`map-client/.env.local`, see `.env.example`): `VITE_MAPBOX_TOKEN` for textured Mapbox buildings, `VITE_MBTA_API_KEY` for a higher MBTA rate limit.
+
+**Ask with the agent (optional):** the map's Ask tab and the dashboard's Ask Flowcast send campus questions to the Ask server in `server/`, which holds the OpenAI key. Put `OPENAI_KEY=...` in `server/.env` (gitignored, `chmod 600`), then run it next to the web app in two terminals:
+
+```bash
+npm --prefix server install && npm --prefix server start   # http://127.0.0.1:8787
+npm --prefix web run dev
+```
+
+The web dev server forwards `/api/ask` and `/api/health` to it (set `FLOWCAST_API_URL` for another address). Without the server or a key, both pages answer on the device and say so. Questions about your own schedule are always answered on the device. See [server/README.md](server/README.md).
 
 **Run the tests:**
 
