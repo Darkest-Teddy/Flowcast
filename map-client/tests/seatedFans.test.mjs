@@ -9,7 +9,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   try { return nextResolve(specifier, context); }
   catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
 } });
-const { expandSeats, occupiedSeats, fenwayEvent, fanScale } = await import('../src/layers/seatedFans.ts');
+const { expandSeats, occupiedSeats, fenwayEvent, fenwayFanData, fanData, fenwayFanLayers, MIN_ZOOM } = await import('../src/layers/seatedFans.ts');
 
 const seating = { total: 7, rows: [[-71.098, 42.346, -71.097, 42.346, 2.5, 4, 45, 0], [-71.098, 42.347, -71.097, 42.347, 11.5, 3, 90, 1]] };
 
@@ -46,11 +46,31 @@ test('a sellout bigger than the model shares seats, so the stands fill in propor
   assert.equal(occupiedSeats(s, e, 1000).length, 7); // everyone in: every seat
 });
 
-test('the Fenway game is found by venue; fans grow a little when zoomed out', () => {
+test('the Fenway game is found by venue', () => {
   assert.equal(fenwayEvent({ date: null, events: [event([1], [2]), { ...event([1], [2]), estimate: { venue: { id: 'agganis' } } }] }).estimate.venue.id, 'fenway-park');
   assert.equal(fenwayEvent({ date: null, events: [] }), null);
-  assert.equal(fanScale(19), 1);
-  assert.ok(fanScale(16) > 1 && fanScale(12) <= 1.8);
+});
+
+test('the layer data is the same object frame after frame until the crowd changes (deck.gl recomputes on new data)', () => {
+  const plan = { date: null, events: [event([100, 200, 300], [1000, 500, 1000])] };
+  const a = fenwayFanData(seating, plan, 250);
+  const b = fenwayFanData(seating, plan, 251); // same 20 s step
+  assert.equal(b.data, a.data);
+  assert.equal(b.data.all, a.data.all);
+  const c = fenwayFanData(seating, plan, 259.9);
+  assert.equal(c.data, a.data);
+  const d = fenwayFanData(seating, plan, 290); // a new step, the same people seated: still the same arrays
+  assert.equal(d.data, a.data);
+  const e = fenwayFanData(seating, plan, 620); // visitor 1 left: new data, new version
+  assert.notEqual(e.data, a.data);
+  assert.ok(e.data.version > a.data.version);
+  assert.equal(e.data.all.length, 2);
+  // The half set is a stable subset for middle zooms.
+  const h = fanData(Uint32Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]), 1);
+  assert.ok(h.half.length < 10 && h.half.every((s) => h.all.includes(s)));
+  assert.deepEqual([...fanData(h.all, 2).half], [...h.half]);
+  // Far out, no layer at all; outside a browser (no document) nothing is drawn either.
+  assert.deepEqual(fenwayFanLayers(seating, plan, 620, MIN_ZOOM - 1), []);
 });
 
 test('the shipped manifest seats Fenway: rows in the park, sane heights and counts', () => {

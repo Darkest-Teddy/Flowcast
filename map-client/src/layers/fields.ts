@@ -191,11 +191,10 @@ const FLOODLIT_STANDS: Record<FieldLight, Color> = {
 };
 /** Light shafts from each bank to the field, in the night air's haze: faint, additive. */
 const BEAM_ALPHA: Record<FieldLight, number> = { day: 0, dawn: 0, dusk: 5, night: 9 };
-/** The glow over a lit ballpark seen across the city: a wide, faint dome of light. */
-const SKY_GLOW = [
-  { id: 'sky-wide', radius: 190, alpha: 10 },
-  { id: 'sky-near', radius: 95, alpha: 16 },
-];
+/** The glow over a lit ballpark seen across the city: one wide, faint disc, drawn only from a
+ *  distance (SKY_MAX_ZOOM): up close it would cover the whole screen for no visible gain. */
+const SKY_GLOW = [{ id: 'sky', radius: 150, alpha: 14 }];
+const SKY_MAX_ZOOM = 16.5;
 const BRIGHTEN = {
   depthWriteEnabled: false,
   blend: true,
@@ -549,7 +548,7 @@ export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk', clock
     }),
     ...SKY_GLOW.map(({ id, radius, alpha }) => new ScatterplotLayer<Glow>({
       id: `field-${id}`,
-      data: floodlit ? g.sky : NO_GLOW,
+      data: floodlit && zoom < SKY_MAX_ZOOM ? g.sky : NO_GLOW,
       getPosition: (l) => l.position,
       getRadius: radius,
       radiusUnits: 'meters',

@@ -6,9 +6,9 @@
 // sharing a seat when the game sells more tickets than the model has seats. Like the walking
 // visitors, it is a pure function of sim time: the same people sit in the same seats at any speed.
 //
-// Drawn as three tiny meshes per fan (body and cap in their shirt colour, head, legs), each one
-// GPU-instanced draw for the whole crowd. Rebuilt only when the set of seated fans changes.
-import { SimpleMeshLayer } from '@deck.gl/mesh-layers';
+// Drawn as one flat sprite per fan in a single layer; its data is rebuilt only when the set of
+// seated fans changes, and nothing is drawn when the camera is far away.
+import { IconLayer } from '@deck.gl/layers';
 import type { Layer } from '@deck.gl/core';
 import type { PlannedVisitorEvent, VisitorPlan } from '../sim/visitors';
 
@@ -95,104 +95,99 @@ export function occupiedSeats(seats: Seats, event: PlannedVisitorEvent | null, t
   return Uint32Array.from(out);
 }
 
-// ---------------------------------------------------------------- the fan, seated, facing +y
+// ---------------------------------------------------------------- drawing: one 2D sprite per fan
 
-type Vec3 = [number, number, number];
-interface MeshBuilder { p: number[]; n: number[]; c: number[] }
-function quad(m: MeshBuilder, a: Vec3, b: Vec3, c: Vec3, d: Vec3, normal: Vec3, color: Vec3) {
-  for (const v of [a, b, c, a, c, d]) { m.p.push(...v); m.n.push(...normal); m.c.push(...color); }
-}
-function box(m: MeshBuilder, [x0, y0, z0]: Vec3, [x1, y1, z1]: Vec3, color: Vec3 = [1, 1, 1]) {
-  quad(m, [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1], [1, 0, 0], color);
-  quad(m, [x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [-1, 0, 0], color);
-  quad(m, [x1, y1, z0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [0, 1, 0], color);
-  quad(m, [x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], [0, -1, 0], color);
-  quad(m, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], color);
-  quad(m, [x0, y1, z0], [x1, y1, z0], [x1, y0, z0], [x0, y0, z0], [0, 0, -1], color);
-}
-function mesh(build: (m: MeshBuilder) => void) {
-  const m: MeshBuilder = { p: [], n: [], c: [] };
-  build(m);
-  return { attributes: {
-    positions: { value: new Float32Array(m.p), size: 3 },
-    normals: { value: new Float32Array(m.n), size: 3 },
-    colors: { value: new Float32Array(m.c), size: 3 },
-  } };
-}
-/** Metres, z up from the tread, facing +y (the field). Seat height 0.45 m. */
-const BODY = mesh((m) => {
-  box(m, [-0.19, -0.16, 0.42], [0.19, 0.08, 0.98]); // torso
-  box(m, [-0.27, -0.1, 0.55], [-0.19, 0.16, 0.9]); // arms, forearms on the knees
-  box(m, [0.19, -0.1, 0.55], [0.27, 0.16, 0.9]);
-  box(m, [-0.13, -0.09, 1.23], [0.13, 0.13, 1.31]); // cap crown
-  box(m, [-0.12, 0.13, 1.23], [0.12, 0.24, 1.25]); // cap brim, towards the field
-});
-const HEAD = mesh((m) => box(m, [-0.11, -0.1, 1.0], [0.11, 0.12, 1.24]));
-const LEGS = mesh((m) => {
-  box(m, [-0.17, -0.06, 0.4], [0.17, 0.4, 0.52]); // thighs, forward on the seat
-  box(m, [-0.16, 0.32, 0.0], [0.16, 0.44, 0.42]); // shins down to the tread in front
-});
-
+// A seated fan is a flat head-and-shoulders silhouette facing the camera (deck.gl's IconLayer,
+// tinted by shirt colour): four vertices a fan, one draw for the whole crowd. 3D figures cost about
+// 290 vertices a fan, millions for a sold-out park, and nobody sees more than a coloured dot.
 const SHIRTS: [number, number, number][] = [
   [189, 48, 57], [189, 48, 57], [189, 48, 57], [178, 36, 46], // Red Sox red
   [12, 35, 64], [12, 35, 64], [24, 44, 78], // navy
   [236, 236, 232], [236, 236, 232], // home whites
   [128, 132, 138], [40, 40, 44], [62, 110, 74], [214, 182, 70], // grey, black, green, gold
 ];
-const SKIN: [number, number, number][] = [[241, 204, 174], [224, 172, 132], [198, 140, 98], [160, 104, 70], [118, 78, 52], [92, 60, 40]];
-const PANTS: [number, number, number][] = [[52, 64, 92], [44, 48, 56], [70, 86, 118], [120, 112, 98]];
-const MATERIAL = { ambient: 0.6, diffuse: 0.55, shininess: 8, specularColor: [30, 30, 30] as [number, number, number] };
 const slot = { slot: 'middle' } as Record<string, unknown>; // read by @deck.gl/mapbox for Mapbox Standard
+/** No fans drawn below this zoom (the park is a few dozen pixels across); half of them below FULL_ZOOM. */
+export const MIN_ZOOM = 15.5;
+export const FULL_ZOOM = 17;
 
-/** Fans a little larger than life when zoomed out, so the crowd reads; never so large they overlap. */
-export function fanScale(zoom: number): number {
-  return Math.min(1.8, Math.max(1, 2 ** ((18 - zoom) * 0.5)));
+const ICON_W = 32, ICON_H = 40;
+let atlas: string | null = null;
+/** The silhouette, drawn once on a canvas: a head over rounded shoulders, white (the layer tints it). */
+function iconAtlas(): string {
+  if (atlas) return atlas;
+  const c = document.createElement('canvas');
+  c.width = ICON_W; c.height = ICON_H;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#fff';
+  g.beginPath(); g.arc(16, 9, 7.5, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.moveTo(3, 40); g.lineTo(3, 27); g.quadraticCurveTo(3, 18, 12, 18); g.lineTo(20, 18); g.quadraticCurveTo(29, 18, 29, 27); g.lineTo(29, 40); g.closePath(); g.fill();
+  return (atlas = c.toDataURL());
+}
+const ICON_MAPPING = { fan: { x: 0, y: 0, width: ICON_W, height: ICON_H, anchorY: ICON_H, mask: true } };
+
+/** What a layer draws: seat indices, and the same list thinned to half for middle zooms. Built once per occupancy. */
+export interface FanData { all: Uint32Array; half: Uint32Array; version: number }
+export function fanData(occupied: Uint32Array, version: number): FanData {
+  return { all: occupied, half: occupied.filter((s) => hash(s, 23) < 0.5), version };
 }
 
-/** Seated fans: three instanced meshes. Empty when nobody is in the stands. */
-export function seatedFanLayers(seats: Seats, occupied: Uint32Array, zoom: number, version: number): Layer[] {
-  if (!occupied.length || zoom < 14) return [];
-  const data = { length: occupied.length };
-  const at = (i: number) => occupied[i];
-  const common = {
-    data, sizeScale: fanScale(zoom), material: MATERIAL, pickable: false,
-    getPosition: (_: unknown, { index }: { index: number }) => {
-      const s = at(index);
-      return [seats.position[s * 3], seats.position[s * 3 + 1], seats.position[s * 3 + 2]] as [number, number, number];
-    },
-    // The meshes face +y; deck.gl's yaw turns them to the seat's bearing.
-    getOrientation: (_: unknown, { index }: { index: number }) => [0, -seats.bearing[at(index)], 0] as [number, number, number],
-    updateTriggers: { getPosition: version, getOrientation: version, getColor: version },
+/** The seated fans as one IconLayer, or nothing when zoomed far out or the stands are empty. */
+export function seatedFanLayers(seats: Seats, data: FanData, zoom: number): Layer[] {
+  if (!data.all.length || zoom < MIN_ZOOM || typeof document === 'undefined') return [];
+  const shown = zoom >= FULL_ZOOM ? data.all : data.half;
+  return [new IconLayer({
+    id: 'fenway-fans',
+    // Stable arrays: deck.gl only recomputes positions and colours when the crowd changes.
+    data: shown as unknown as number[],
+    iconAtlas: iconAtlas(),
+    iconMapping: ICON_MAPPING,
+    getIcon: () => 'fan',
+    getPosition: (s: number) => [seats.position[s * 3], seats.position[s * 3 + 1], seats.position[s * 3 + 2]],
+    getColor: (s: number) => SHIRTS[Math.floor(hash(s, 11) * SHIRTS.length)],
+    getSize: 1.15,
+    sizeUnits: 'meters',
+    sizeMinPixels: 1.5,
+    sizeMaxPixels: 20,
+    billboard: true,
+    pickable: false,
+    updateTriggers: { getPosition: data.version, getColor: data.version },
     ...slot,
-  };
-  return [
-    new SimpleMeshLayer({ ...common, id: 'fenway-fans-body', mesh: BODY as never,
-      getColor: (_: unknown, { index }: { index: number }) => SHIRTS[Math.floor(hash(at(index), 11) * SHIRTS.length)] }),
-    new SimpleMeshLayer({ ...common, id: 'fenway-fans-head', mesh: HEAD as never,
-      getColor: (_: unknown, { index }: { index: number }) => SKIN[Math.floor(hash(at(index), 13) * SKIN.length)] }),
-    new SimpleMeshLayer({ ...common, id: 'fenway-fans-legs', mesh: LEGS as never,
-      getColor: (_: unknown, { index }: { index: number }) => PANTS[Math.floor(hash(at(index), 17) * PANTS.length)] }),
-  ] as Layer[];
+  }) as Layer];
 }
 
 // One cache for the map: seats expanded once per manifest, occupancy recomputed when the visitor
 // plan changes or sim time crosses a REFRESH_SECONDS step (fans arrive by the thousand over hours;
-// a 20 s step is invisible and keeps fast playback cheap).
+// a 20 s step is invisible and keeps fast playback cheap). The layer's data arrays change only
+// when the set of seated fans does.
 const REFRESH_SECONDS = 20;
-let cache: { seating: Seating | null; seats: Seats | null; plan: VisitorPlan | null; key: number; occupied: Uint32Array; version: number } =
-  { seating: null, seats: null, plan: null, key: Number.NaN, occupied: new Uint32Array(0), version: 0 };
+let cache: { seating: Seating | null; seats: Seats | null; plan: VisitorPlan | null; key: number; occupied: Uint32Array; data: FanData } =
+  { seating: null, seats: null, plan: null, key: Number.NaN, occupied: new Uint32Array(0), data: fanData(new Uint32Array(0), 0) };
 
-/** Fenway's seated fans at sim time `t` (local seconds on the shown day) for the map's layer list. */
-export function fenwayFanLayers(seating: Seating | null | undefined, plan: VisitorPlan, t: number, zoom: number): Layer[] {
-  if (!seating) return [];
-  if (cache.seating !== seating) cache = { seating, seats: expandSeats(seating), plan: null, key: Number.NaN, occupied: new Uint32Array(0), version: cache.version + 1 };
+/**
+ * The fans' layer data at sim time `t`: the same object (and arrays) frame after frame until the set
+ * of seated fans changes. Handing deck.gl a new array every frame would make it recompute the whole
+ * crowd's attributes every frame.
+ */
+export function fenwayFanData(seating: Seating | null | undefined, plan: VisitorPlan, t: number): { seats: Seats; data: FanData } | null {
+  if (!seating) return null;
+  if (cache.seating !== seating) {
+    cache = { seating, seats: expandSeats(seating), plan: null, key: Number.NaN, occupied: new Uint32Array(0), data: fanData(new Uint32Array(0), cache.data.version + 1) };
+  }
   const seats = cache.seats;
-  if (!seats) return [];
+  if (!seats) return null;
   const key = Math.floor(t / REFRESH_SECONDS);
   if (cache.plan !== plan || cache.key !== key) {
     const occupied = occupiedSeats(seats, fenwayEvent(plan), t);
     const same = occupied.length === cache.occupied.length && occupied.every((s, i) => s === cache.occupied[i]);
-    cache = { ...cache, plan, key, occupied, version: same ? cache.version : cache.version + 1 };
+    cache = { ...cache, plan, key, occupied: same ? cache.occupied : occupied, data: same ? cache.data : fanData(occupied, cache.data.version + 1) };
   }
-  return seatedFanLayers(seats, cache.occupied, zoom, cache.version);
+  return { seats, data: cache.data };
+}
+
+/** Fenway's seated fans at sim time `t` (local seconds on the shown day) for the map's layer list. */
+export function fenwayFanLayers(seating: Seating | null | undefined, plan: VisitorPlan, t: number, zoom: number): Layer[] {
+  if (zoom < MIN_ZOOM) return [];
+  const fans = fenwayFanData(seating, plan, t);
+  return fans ? seatedFanLayers(fans.seats, fans.data, zoom) : [];
 }
