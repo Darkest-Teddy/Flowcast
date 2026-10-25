@@ -37,10 +37,9 @@
 }
 
 .mark {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-md);
-  background: var(--color-strong);
+  flex: none;
+  width: 24px;
+  height: 24px;
 }
 
 .brandTag {

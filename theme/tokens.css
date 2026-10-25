@@ -104,6 +104,11 @@
   --color-on-swatch: #ffffff;
   --color-knob: #ffffff;
 
+  /* Brand mark (web/src/ui/Logo.tsx, favicon.svg): the same in both themes, like any logo. */
+  --brand-start: #14b8a6;
+  --brand-end: #0066cc;
+  --brand-ink: #ffffff;
+
   /* Spacing (4 px grid) */
   --space-1: 4px;
   --space-2: 8px;

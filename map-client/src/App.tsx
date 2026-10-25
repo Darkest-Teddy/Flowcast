@@ -33,7 +33,7 @@ import { loadObservations, type CalibrationObservations } from './data/observati
 import { buildPublicCrowd, isPublicId, type PublicCrowd } from './sim/publicCrowd';
 import { waitingCharacters, waitingRiderLayers } from './layers/waitingRiders';
 import { SourceDataPanel } from './SourceDataPanel';
-import { AMENITY_KINDS, displayName, displayShort } from './tags/names';
+import { displayName, displayShort, sharedTagParts } from './tags/names';
 import { assignNames, type NameLists } from './sim/names';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
@@ -1202,12 +1202,13 @@ export default function App() {
     () => (sourceData ? askMeetings(sourceData) : []),
     [sourceData],
   );
-  const askContext: AskContext | null = hud && playbackRef.current
+  const askPlayback = playbackRef.current;
+  const askContext: AskContext | null = hud && askPlayback
     ? {
-        locations: playbackRef.current.locations.filter((l) => l.kind !== 'off-campus'),
+        locations: askPlayback.locations.filter((l) => l.kind !== 'off-campus'),
         walkRoutes: walkRoutesRef.current,
         meetings,
-        occupancyAt: (t) => playbackRef.current!.occupancyAt(t),
+        occupancyAt: (t) => askPlayback.occupancyAt(t),
         time: Math.floor(hud.time / 60) * 60,
         weekday,
         campus,
@@ -1216,7 +1217,11 @@ export default function App() {
     : null;
   const showAsk = (show: AskShow | null) => {
     askRouteRef.current = show?.route ?? null;
-    if (!show) return;
+    if (!show) {
+      selectedRef.current = null;
+      setSelected(null);
+      return;
+    }
     if (show.select) {
       if (show.select.campus) setCampus(show.select.campus);
       selectedRef.current = show.select.building;
@@ -1305,7 +1310,7 @@ export default function App() {
         onCover={onSheetCover}
         header={
           <>
-            <h1>Flowcast</h1>
+            <h1><img className="sheet-logo" src="/favicon.svg" alt="" width={24} height={24} />Flowcast</h1>
             <p className="sheet-summary">{currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]}</p>
           </>
         }
@@ -1359,8 +1364,8 @@ export default function App() {
             onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
             siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
         )}
-        {hud && tab === 'ask' && (
-          <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask">
+        {hud && (
+          <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={tab !== 'ask'}>
             {askContext
               ? <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
               : <p className="muted" role="status">Loading the day…</p>}
@@ -1924,7 +1929,8 @@ const AMENITY_SPREAD_M = 14;
  * Building tags: one per building, named for the building (sim/../tags/names.ts), plus a dot of
  * its own for every dining hall, library or gym that shares a building with something else
  * (Warren Towers and Warren Dining; Questrom and Pardee Library; Fenway Center, Fenway Dining and
- * FitRec at Fenway). The building's tag carries its main space's load; the glow still uses the
+ * FitRec at Fenway; Mugar and the Music and African Studies libraries inside it). The building's tag
+ * carries its main space's load (sharedTagParts); the glow still uses the
  * busiest space.
  */
 function splitSharedTags(
@@ -1941,8 +1947,7 @@ function splitSharedTags(
   const out: BuildingOccupancy[] = [];
   for (const b of buildings) {
     const places = byBuilding.get(b.id) ?? [];
-    const amenities = places.filter((o) => AMENITY_KINDS.has(o.location.kind));
-    const rest = places.filter((o) => !AMENITY_KINDS.has(o.location.kind));
+    const { rest, amenities } = sharedTagParts(places);
     // A building with one kind of place (or only amenities): its single tag, cleanly named.
     if (!amenities.length || !rest.length) {
       out.push({ ...b, name: displayName(b.name), short: displayShort(b.short, b.name) });

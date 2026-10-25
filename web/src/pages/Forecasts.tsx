@@ -81,7 +81,7 @@ export default function Forecasts() {
         <Legend />
       </div>
 
-      <div className={styles.places}>
+      <div className={`${styles.places} ${selected === 'all' ? styles.grid : ''}`}>
         {shown.map((f) => {
           const peak = peakOf(f);
           const quiet = quietestOf(f);

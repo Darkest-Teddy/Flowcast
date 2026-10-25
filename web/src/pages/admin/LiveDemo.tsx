@@ -86,49 +86,51 @@ export default function LiveDemo() {
       <StatusLine flash={message.flash} className={styles.message} />
 
       <SectionHeading>Clock</SectionHeading>
-      <div className={styles.clockRow}>
-        <SimClock sim={sim} />
-        <BigButton
-          tone="accent"
-          icon={sim.paused ? <Play aria-hidden /> : <Pause aria-hidden />}
-          title={sim.paused ? 'Play' : 'Pause'}
-          detail={sim.paused ? 'Start the clock again' : 'Freeze every agent'}
-          onClick={() => update({ paused: !sim.paused }, sim.paused ? 'Playing' : 'Paused')}
-          disabled={busy}
-        />
-      </div>
-
-      <div className={styles.group} role="group" aria-label="Playback speed">
-        <span className={styles.groupLabel}>Speed</span>
-        <div className={styles.buttons}>
-          {speeds.map((n) => (
-            <BigButton
-              key={n}
-              title={speedLabel(n)}
-              pressed={sim.playbackSpeed === n}
-              onClick={() => update({ playbackSpeed: n }, n === 1 ? 'Playing at the live clock' : `Playing at ${speedLabel(n)}`)}
-              disabled={busy}
-            />
-          ))}
+      <div className={styles.card}>
+        <div className={styles.clockRow}>
+          <SimClock sim={sim} />
+          <BigButton
+            tone="accent"
+            icon={sim.paused ? <Play aria-hidden /> : <Pause aria-hidden />}
+            title={sim.paused ? 'Play' : 'Pause'}
+            detail={sim.paused ? 'Start the clock again' : 'Freeze every agent'}
+            onClick={() => update({ paused: !sim.paused }, sim.paused ? 'Playing' : 'Paused')}
+            disabled={busy}
+          />
         </div>
-      </div>
 
-      <div className={styles.group} role="group" aria-label="Jump to a time">
-        <span className={styles.groupLabel}>Jump to</span>
-        <div className={styles.buttons}>
-          {jumps.map((j) => (
-            <BigButton
-              key={j.clock}
-              title={j.label}
-              detail={formatTime(clockIso(j.clock))}
-              pressed={sim.clock === j.clock}
-              onClick={() => update({ clock: j.clock }, `Jumped to ${j.label.toLowerCase()}, ${formatTime(clockIso(j.clock))}`)}
-              disabled={busy}
-            />
-          ))}
-          {sim.clock && (
-            <BigButton title="Real time" detail="Follow the real clock" onClick={() => update({ clock: undefined }, 'Following the real clock')} disabled={busy} />
-          )}
+        <div className={styles.group} role="group" aria-label="Playback speed">
+          <span className={styles.groupLabel}>Speed</span>
+          <div className={styles.buttons}>
+            {speeds.map((n) => (
+              <BigButton
+                key={n}
+                title={speedLabel(n)}
+                pressed={sim.playbackSpeed === n}
+                onClick={() => update({ playbackSpeed: n }, n === 1 ? 'Playing at the live clock' : `Playing at ${speedLabel(n)}`)}
+                disabled={busy}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.group} role="group" aria-label="Jump to a time">
+          <span className={styles.groupLabel}>Jump to</span>
+          <div className={styles.buttons}>
+            {jumps.map((j) => (
+              <BigButton
+                key={j.clock}
+                title={j.label}
+                detail={formatTime(clockIso(j.clock))}
+                pressed={sim.clock === j.clock}
+                onClick={() => update({ clock: j.clock }, `Jumped to ${j.label.toLowerCase()}, ${formatTime(clockIso(j.clock))}`)}
+                disabled={busy}
+              />
+            ))}
+            {sim.clock && (
+              <BigButton title="Real time" detail="Follow the real clock" onClick={() => update({ clock: undefined }, 'Following the real clock')} disabled={busy} />
+            )}
+          </div>
         </div>
       </div>
 

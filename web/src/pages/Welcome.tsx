@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { config } from '../config';
-import { Button } from '../ui';
+import { Button, Logo } from '../ui';
 import { tourPreviews, type TourPreviewId } from './account/TourPreviews';
 import styles from './Welcome.module.css';
 
@@ -58,7 +58,7 @@ export default function Welcome() {
     <div className={styles.screen}>
       <header className={styles.top}>
         <div className={styles.brand}>
-          <span className={styles.mark} aria-hidden />
+          <Logo className={styles.mark} />
           <span>{config.appName}</span>
         </div>
         {!last && (

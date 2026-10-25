@@ -9,11 +9,16 @@ export type SearchMode = 'search' | 'ask';
 export function SearchBar({
   placeholder,
   onSubmit,
+  mode: controlledMode,
+  onModeChange,
 }: {
   placeholder: string;
+  mode?: SearchMode;
+  onModeChange?: (mode: SearchMode) => void;
   onSubmit?: (query: string, mode: SearchMode) => void;
 }) {
-  const [mode, setMode] = useState<SearchMode>('search');
+  const [internalMode, setMode] = useState<SearchMode>('search');
+  const mode = controlledMode ?? internalMode;
   const [query, setQuery] = useState('');
   const input = useRef<HTMLInputElement>(null);
 
@@ -37,28 +42,29 @@ export function SearchBar({
         if (query.trim()) onSubmit?.(query.trim(), mode);
       }}
     >
-      <Search aria-hidden className={styles.icon} />
+      {mode === 'search' && <><Search aria-hidden className={styles.icon} />
       <input
         ref={input}
         className={styles.input}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={mode === 'ask' ? 'Ask anything about campus, like “when is Mugar quiet?”' : placeholder}
-        aria-label={mode === 'ask' ? 'Ask Flowcast' : 'Search'}
+        placeholder={placeholder}
+        aria-label="Search"
       />
+      </>}
       <Segmented
         label="Search mode"
         value={mode}
-        onChange={setMode}
+        onChange={(value) => { setMode(value); onModeChange?.(value); }}
         options={[
           { value: 'search', label: 'Search' },
           { value: 'ask', label: 'Ask Flowcast' },
         ]}
       />
-      <span className={styles.keys} aria-hidden>
+      {mode === 'search' && <span className={styles.keys} aria-hidden>
         <kbd>Ctrl</kbd>
         <kbd>K</kbd>
-      </span>
+      </span>}
     </form>
   );
 }

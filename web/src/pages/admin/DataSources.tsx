@@ -139,7 +139,7 @@ export default function DataSources() {
         <Loading label="Loading data sources" />
       ) : (
         <>
-          <Grid columns={4}>
+          <Grid columns={4} phoneColumns={2}>
             <StatCard label="Healthy" value={String(count((s) => s.health === 'healthy'))} detail={`of ${sources.length} sources`} />
             <StatCard label="Needs attention" value={String(count((s) => s.health === 'attention' || s.health === 'failing'))} detail={`${count((s) => s.health === 'failing')} failing`} />
             <StatCard label="Not connected or off" value={String(count((s) => s.health === 'off'))} detail="Set up when needed" />

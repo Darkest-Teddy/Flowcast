@@ -78,6 +78,16 @@ export const HABIT_TRAITS: Record<string, { share: number; high: number }> = {
 };
 /** Weight multiplier for each student's stable favourite dining hall, library and gym. */
 export const FAVORITE_VENUE_WEIGHT = 5;
+/** Seconds added to a venue's round-trip walk before dividing, so a venue next door isn't infinitely attractive. */
+export const VENUE_TRAVEL_OFFSET_SECONDS = 300;
+/**
+ * How strongly an open venue with room draws a student: its seats over the travel it costs. Weights
+ * grow in proportion to capacity, so at equal travel every seat is equally likely to be picked and a
+ * 40-seat café gets the same expected demand per seat as an 800-seat library. (A square-root rule
+ * gave small venues several times more demand per seat, filling them for hours.) A model assumption.
+ */
+export const venueWeight = (capacity: number, travelSeconds: number): number =>
+  Math.max(1, capacity) / (VENUE_TRAVEL_OFFSET_SECONDS + travelSeconds);
 /** Share of visits at a student's usual time, jittered by up to ±HABIT_TIME_JITTER_MINUTES. */
 export const HABITUAL_TIME_SHARE = 0.7;
 const HABIT_TIME_JITTER_MINUTES = 20;
@@ -226,6 +236,8 @@ export interface SourceDayStats {
   modeledOffCampusOutings: number;
   unavailableActivities: number;
   optionalCapacityRejected: number;
+  /** Students whose class arrival waits and post-class lingering were shortened because the building's classroom seats were full. */
+  classroomWaitsShortened: number;
   estimatedActivities: number;
   unmappedAcademicBlocks: number;
   behaviorRejectedCandidates: number;
@@ -361,7 +373,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     sharedCandidatesSuppressed: 0, unroutableCandidates: 0, unroutableTrips: 0, invalidRoutes: 0,
     composedRoutes: 0, composedTrips: 0, capacityLimitedCandidates: 0, roomCapacityLimitedCandidates: 0, excludedNonDegreeSections: 0, affinityCourseEnrollments: 0, excludedIncompleteComponentCourses: 0, componentBundleRejectedCandidates: 0, linkedCourseEnrollments: 0, modeledDegreeCourseSlots: 0, mappedCourseSlotTargets: 0, unmappedCourseSlotTargets: 0,
     mappedCourseCoverage: { undergraduate: { mappedOfferings: 0, totalOfferings: 0, fraction: 1 }, graduate: { mappedOfferings: 0, totalOfferings: 0, fraction: 1 } },
-    weeklyEnrolledStudents: 0, weeklyEnrollments: 0, unassignedStudents: 0, eligibleWeeklySections: 0, campusAccessTrips: 0, modeledActivities: 0, modeledOffCampusMeals: 0, modeledOffCampusOutings: 0, unavailableActivities: 0, optionalCapacityRejected: 0, estimatedActivities: 0, unmappedAcademicBlocks: 0, behaviorRejectedCandidates: 0, optionalTravelRejectedCandidates: 0, estimatedLocationCounts: {},
+    weeklyEnrolledStudents: 0, weeklyEnrollments: 0, unassignedStudents: 0, eligibleWeeklySections: 0, campusAccessTrips: 0, modeledActivities: 0, modeledOffCampusMeals: 0, modeledOffCampusOutings: 0, unavailableActivities: 0, optionalCapacityRejected: 0, classroomWaitsShortened: 0, estimatedActivities: 0, unmappedAcademicBlocks: 0, behaviorRejectedCandidates: 0, optionalTravelRejectedCandidates: 0, estimatedLocationCounts: {},
     transitCommuters: 0, transitAlightings: 0, transitBoardings: 0, transitUnmatchedLegs: 0,
     assumptions: [
       'Enrollment is synthetic and fixed for the whole reference week; published classes supply places, times, and seat upper bounds, not actual enrollment.',
@@ -389,10 +401,12 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       'Optional visits require published exact-date or valid weekly opening hours; exact-date closures override weekly schedules. Missing or undated hours do not imply availability. Published classes retain their own source times.',
       'Explicit low-confidence scenario profiles may supply estimated academic, research, community, arena, or rowing activities. These use existing students, never published enrollment; source-unassigned students receive priority and source-covered students have a 15% relative participation weight.',
       'Estimated availability never overrides known dated/weekly closures. Restricted arena/rowing profiles describe purpose-specific student participants, not public access. At most one estimated activity is added per student per day.',
-      'Optional presence, including waits, reserves conservative minute buckets within existing venue capacities. Published class presence is reserved first and never trimmed.',
-      'Open, reachable optional venues are selected with modeled capacity/distance weights, not observed preferences; unavailable venues receive no overflow traffic.',
+      'Optional presence, including waits, reserves conservative minute buckets within existing venue capacities, classroom buildings included (their deduplicated classroom seats). Published class presence is reserved first and never trimmed.',
+      'Waiting before a class and lingering after one count against the building’s classroom seats. When a building’s seats are already full, a student (in a stable hashed order) arrives with the minimum lead and leaves when class ends, or walks on right after class and waits at the next class’s building; waits that remain unavoidable (consecutive classes in one building, a full next building) are kept and can exceed the seats.',
+      'Open, reachable optional venues are selected with weight capacity / (300 s + round-trip walk), so demand per seat is equal at equal travel; these are modeled capacity/distance weights, not observed preferences. Unavailable venues receive no overflow traffic.',
       `A modeled ${Math.round(MODELED_OFF_CAMPUS_MEAL_SHARE * 100)}% share of attempted resident meals (an uncalibrated model parameter) uses physical gateway walks and off-campus stays; no restaurant, off-map route, or observed meal behavior is asserted. Infeasible meals are skipped.`,
       'Date-limited class notes are excluded. Undated opening-hour snapshots are not authoritative.',
+      'Late-night snacks are not modeled. A dining hall, library or gym that is open only outside the modeled visit windows of its kind on a day (After Hours at West Campus opens at 22:30 Monday–Thursday, after modeled dinners end at 22:00) is marked not modeled for that day rather than shown as empty.',
     ],
   };
   if (transit) stats.assumptions.push(
@@ -1011,8 +1025,13 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     for (let index = before + 1; index < visits.arrivals.length && visits.arrivals[index] + ALIGHT_SECONDS <= latest + 1e-7; index++) if (usable(index)) return { visits, index };
     return undefined;
   };
+  // Students whose class waits are changed today because a classroom building's seats are full (see
+  // buildDay): 1 = minimum arrival lead and no lingering; 2 = also walk on right after class and wait
+  // at the next class's building instead of the last one.
+  let compactArrivals = new Map<string, 1 | 2>();
   const planDay = (agent: Agent, stops: WeeklyStop[]): DayPlan | undefined => {
     const stays: PlannedStay[] = [], moves: PlannedMove[] = [];
+    const compact = compactArrivals.get(agent.id) ?? 0;
     const rides: DayPlan['rides'] = [];
     let unmatchedLegs = 0;
     const commute = commuteOf(agent);
@@ -1083,8 +1102,9 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         const walk = duration(from, stop.location, agent);
         const latest = stop.start - walk;
         const earliest = Math.max(freeAt, notBeforeDeparture, from === 'off-campus' ? offReady(stop.location) : 0, Math.min(lingerUntil, latest));
-        const desiredLead = stop.meeting ? arrivalLead.minimum + fraction(`${agent.id}:${stop.weekday}:${stop.meeting.id}:arrival-lead`) * arrivalLead.spread : 0;
-        let depart = Math.max(earliest, latest - desiredLead);
+        const desiredLead = !stop.meeting ? 0 : compact ? arrivalLead.minimum
+          : arrivalLead.minimum + fraction(`${agent.id}:${stop.weekday}:${stop.meeting.id}:arrival-lead`) * arrivalLead.spread;
+        let depart = compact === 2 && locations.get(from)?.kind === 'classroom' ? earliest : Math.max(earliest, latest - desiredLead);
         if (depart > latest + 1e-7) return undefined;
         let ride: DayPlan['rides'][number] | undefined;
         const gate = from === 'off-campus' && commute ? movementRoute(agent, from, stop.location)?.path[0] : undefined;
@@ -1108,7 +1128,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       addStay(stop.location, stop.start, stop.end, stop, stopPurpose(stop));
       if (stop.location === 'off-campus' && outside) outside.dwell += stop.end - stop.start;
       from = stop.location; freeAt = stop.end; notBeforeDeparture = freeAt; currentBasis = stop;
-      lingerUntil = params && stop.meeting && stop.end < DAY - 3 * 3600
+      lingerUntil = params && !compact && stop.meeting && stop.end < DAY - 3 * 3600
         ? stop.end + fraction(`${agent.id}:${stop.weekday}:${stop.meeting.id}:linger`) * params.scalars.postClassLingerMinutes * 60 : 0;
       if (!valid) return undefined;
     }
@@ -1159,7 +1179,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     if (favorites.has(key)) return favorites.get(key);
     const campus = agent.campus ?? (locations.has(agent.home) ? campusOf(locations.get(agent.home)!) : 'charles-river');
     const options = base.locations.filter(location => location.kind === kind && campusOf(location) === campus)
-      .map(location => ({ id: location.id, weight: Math.sqrt(Math.max(1, location.capacity)) / (300 + duration(agent.home, location.id, agent)) }))
+      .map(location => ({ id: location.id, weight: venueWeight(location.capacity, duration(agent.home, location.id, agent)) }))
       .filter(option => Number.isFinite(option.weight) && option.weight > 0);
     let choice = fraction(`${key}:favorite-venue`) * options.reduce((sum, option) => sum + option.weight, 0);
     const favorite = options.find(option => { choice -= option.weight; return choice < 0; })?.id;
@@ -1230,22 +1250,30 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     let composedTrips = 0, scheduledStudents = 0, campusAccessTrips = 0, modeledActivities = 0, modeledOffCampusMeals = 0, modeledOffCampusOutings = 0, unavailableActivities = 0, optionalCapacityRejected = 0, estimatedActivities = 0;
     let unmappedAcademicBlocks = 0, behaviorRejectedCandidates = 0, optionalTravelRejectedCandidates = 0;
     const estimatedLocationCounts: Record<string, number> = {};
-    // Event venues that are not already optional-visit resources (classrooms) join this day's
-    // minute ledger, so classes, waits and every overlapping event share the venue's capacity.
-    const dayResources = [...resourceLocations, ...[...new Set(gatherings.map(g => g.locationId))]
-      .filter(id => !resourceIndex.has(id)).map(id => locations.get(id)!)];
+    // Classroom buildings and event venues join this day's minute ledger next to the optional-visit
+    // resources, so classes, waits, study blocks and every overlapping event share the venue's capacity.
+    const dayResources = [...new Set([...resourceLocations,
+      ...base.locations.filter(location => location.kind === 'classroom'),
+      ...gatherings.map(g => locations.get(g.locationId)!)])];
     const dayIndex = new Map(dayResources.map((location, index) => [location.id, index]));
-    const dayPresenceKeys = (plan: DayPlan): Set<number> => {
+    const seatLimit = (location: CampusLocation, minute: number): number => (tuned ? scenarioSeats(location.id, minute) : undefined)
+      ?? Math.max(0, Math.floor(Math.min(location.capacity, estimatedProfile(location)?.capacity ?? Infinity)));
+    const dayPresenceKeys = (plan: DayPlan, only?: (stay: PlannedStay) => boolean): Set<number> => {
       const keys = new Set<number>();
       for (const stay of plan.stays) {
         const index = dayIndex.get(stay.location);
-        if (index === undefined) continue;
+        if (index === undefined || (only && !only(stay))) continue;
         for (let minute = Math.floor(stay.start / OPTIONAL_CAPACITY_BUCKET_SECONDS); minute < Math.ceil(stay.end / OPTIONAL_CAPACITY_BUCKET_SECONDS); minute++) keys.add(index * bucketsPerDay + minute);
       }
       return keys;
     };
     const capacityLedger = new Int32Array(dayResources.length * bucketsPerDay);
     const baselinePresence = new Map<string, Set<number>>();
+    const baselinePlans = new Map<string, DayPlan>();
+    const isClass = (stay: PlannedStay) => stay.purpose.kind === 'class';
+    compactArrivals = new Map();
+    let classroomWaitsShortened = 0;
+    // Published class presence is reserved first, for everyone.
     for (const agent of base.agents) {
       let plan = planDay(agent, dayStops(agent));
       // Conditions engine hook: a student whose classes don't fit the day's parameters keeps today's rules.
@@ -1254,9 +1282,45 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         plan = planDay(agent, dayStops(agent));
       }
       if (!plan) throw new Error(`Published schedule has no feasible itinerary for ${agent.id}`);
-      const keys = dayPresenceKeys(plan);
-      baselinePresence.set(agent.id, keys);
-      for (const key of keys) capacityLedger[key]++;
+      baselinePlans.set(agent.id, plan);
+      for (const key of dayPresenceKeys(plan, isClass)) capacityLedger[key]++;
+    }
+    // Then the waits and lingering around those classes. A student whose wait would take a classroom
+    // building past its seats arrives with the minimum lead and leaves at the end of class instead.
+    const seatOverflow = (keys: Set<number>) => {
+      let minutes = 0;
+      for (const key of keys) {
+        const location = dayResources[Math.floor(key / bucketsPerDay)];
+        if (location.kind === 'classroom' && capacityLedger[key] + 1 > seatLimit(location, key % bucketsPerDay)) minutes++;
+      }
+      return minutes;
+    };
+    const waitOrder = [...base.agents].sort((a, b) => fraction(`class-wait-order:${a.id}`) - fraction(`class-wait-order:${b.id}`) || a.id.localeCompare(b.id));
+    for (const agent of waitOrder) {
+      let plan = baselinePlans.get(agent.id)!;
+      const classKeys = dayPresenceKeys(plan, isClass);
+      // A class and an adjacent wait can touch the same minute; reserve that student only once.
+      const waitKeys = (candidate: DayPlan) => {
+        const keys = dayPresenceKeys(candidate, stay => !isClass(stay));
+        for (const key of classKeys) keys.delete(key);
+        return keys;
+      };
+      let waits = waitKeys(plan);
+      let overflow = seatOverflow(waits);
+      for (const mode of [1, 2] as const) {
+        if (!overflow) break;
+        compactArrivals.set(agent.id, mode);
+        const compactPlan = planDay(agent, dayStops(agent));
+        const compactWaits = compactPlan && waitKeys(compactPlan);
+        const compactOverflow = compactWaits ? seatOverflow(compactWaits) : Infinity;
+        if (compactPlan && compactWaits && compactOverflow < overflow) { plan = compactPlan; waits = compactWaits; overflow = compactOverflow; }
+        else if (mode === 2) compactArrivals.set(agent.id, 1);
+      }
+      // Keep the variant actually chosen (none, 1 or 2).
+      if (plan === baselinePlans.get(agent.id)) compactArrivals.delete(agent.id);
+      else classroomWaitsShortened++;
+      for (const key of waits) capacityLedger[key]++;
+      baselinePresence.set(agent.id, dayPresenceKeys(plan));
     }
     const activityPlanningOrder = [...base.agents].sort((a, b) => Number(enrollment.get(a.id)!.length > 0) - Number(enrollment.get(b.id)!.length > 0)
       || fraction(`activity-order:${a.id}`) - fraction(`activity-order:${b.id}`) || a.id.localeCompare(b.id));
@@ -1276,9 +1340,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
         for (const key of baseline) keys.delete(key);
         for (const key of keys) {
           const location = dayResources[Math.floor(key / bucketsPerDay)];
-          const limit = (tuned ? scenarioSeats(location.id, key % bucketsPerDay) : undefined)
-            ?? Math.max(0, Math.floor(Math.min(location.capacity, estimatedProfile(location)?.capacity ?? Infinity)));
-          if (capacityLedger[key] - (reserved.has(key) ? 1 : 0) + 1 > limit) { optionalCapacityRejected++; return undefined; }
+          if (capacityLedger[key] - (reserved.has(key) ? 1 : 0) + 1 > seatLimit(location, key % bucketsPerDay)) { optionalCapacityRejected++; return undefined; }
         }
         return keys;
       };
@@ -1319,7 +1381,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
               const travel = duration(proposed[index - 1]?.location ?? agent.home, location.id, agent)
                 + duration(location.id, proposed[index + 1]?.location ?? agent.home, agent);
               const habit = location.kind === 'library' && favoriteVenue(agent, 'library') === location.id ? params?.scalars.favoriteVenueWeight ?? FAVORITE_VENUE_WEIGHT : 1;
-              sites.push({ proposed, keys, weight: habit * Math.sqrt(Math.max(1, location.capacity)) / (300 + travel) });
+              sites.push({ proposed, keys, weight: habit * venueWeight(location.capacity, travel) });
             }
           }
           let siteChoice = fraction(`${agent.id}:${weekday}:unmapped-study-choice:${attempt}`) * sites.reduce((sum, site) => sum + site.weight, 0);
@@ -1430,7 +1492,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
             const destination = proposed[index + 1]?.location ?? agent.home;
             const travelTime = duration(origin, location.id, agent) + duration(location.id, destination, agent);
             const habit = favoriteVenue(agent, activity.kind) === location.id ? params?.scalars.favoriteVenueWeight ?? FAVORITE_VENUE_WEIGHT : 1;
-            candidates.push({ stop, proposed, keys, weight: habit * Math.sqrt(Math.max(1, location.capacity)) / (300 + travelTime) });
+            candidates.push({ stop, proposed, keys, weight: habit * venueWeight(location.capacity, travelTime) });
           }
           const totalWeight = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
           let choice = fraction(`${seed}:venue`) * totalWeight;
@@ -1467,13 +1529,21 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
       }
     }
     const residentLocations = new Set(base.agents.filter(agent => agent.residency === 'resident').map(agent => agent.home));
+    const visited = new Set(stays.filter(stay => (stay as { purpose?: StayPurpose }).purpose?.kind !== 'wait').map(stay => stay.location));
     const dayLocations = base.locations.map(location => {
       const source = data.locations[location.id];
       const hasClass = source?.meetings.some(meeting => effectiveMeetingIntervals(meeting, data).some(interval => interval.weekday === weekday));
       const optionalOnly = ['dining', 'library', 'gym'].includes(location.kind) && !residentLocations.has(location.id) && !hasClass && !location.estimatedProfile;
+      if (!optionalOnly) return location;
       const hours = source?.hours ?? [];
-      return optionalOnly ? { ...location, activityModeled: openingHoursForDate(hours, dates[weekday], weekday).length > 0
-        || carriedForwardHours(hours, dates[weekday], weekday).length > 0 } : location;
+      const today = openingHoursForDate(hours, dates[weekday], weekday);
+      const entries = today.length ? today : carriedForwardHours(hours, dates[weekday], weekday);
+      const open = entries.flatMap(entry => entry.windows);
+      // Unknown hours are not modeled; a published closure is a known zero. A venue open only outside
+      // every modeled visit window of its kind (After Hours opens after dinner ends at 22:00) has no
+      // one modeled there either, so it reads "not modeled", not "Quiet".
+      return { ...location, activityModeled: entries.length > 0
+        && (open.length === 0 || visited.has(location.id) || inModeledVisitTimes(location.kind, open, weekday)) };
     });
     transitRides.sort((a, b) => a.time - b.time || a.agent.localeCompare(b.agent));
     // Conditions engine hook: river spots are places in a conditioned day (kind 'outdoor', like an incident's
@@ -1481,7 +1551,7 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     const dayPlaces = tuned?.behavior.outdoor && outdoorLocations.length ? [...dayLocations, ...outdoorLocations.map(location => ({ ...location, capacity: 0 }))] : dayLocations;
     const result: SourceDay = { ...base, locations: dayPlaces, day: WEEKDAYS[weekday], trips, stays, transitRides,
       sourceStats: { ...stats, eligibleMeetings: [...occurrences].filter((key) => Number(key.split(':').at(-3)) === weekday).length,
-        assignedClasses: assignments.length, scheduledStudents, composedTrips, campusAccessTrips, modeledActivities, modeledOffCampusMeals, modeledOffCampusOutings, unavailableActivities, optionalCapacityRejected, estimatedActivities, unmappedAcademicBlocks, behaviorRejectedCandidates, optionalTravelRejectedCandidates, estimatedLocationCounts,
+        assignedClasses: assignments.length, scheduledStudents, composedTrips, campusAccessTrips, modeledActivities, modeledOffCampusMeals, modeledOffCampusOutings, unavailableActivities, optionalCapacityRejected, classroomWaitsShortened, estimatedActivities, unmappedAcademicBlocks, behaviorRejectedCandidates, optionalTravelRejectedCandidates, estimatedLocationCounts,
         transitCommuters: riders.size, transitAlightings: transitRides.filter((ride) => ride.kind === 'alight').length,
         transitBoardings: transitRides.filter((ride) => ride.kind === 'board').length, transitUnmatchedLegs,
         assumptions: gatherings.length ? [...stats.assumptions, ...GATHERING_ASSUMPTIONS] : stats.assumptions },
@@ -1513,6 +1583,13 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
     while (conditionedDays.size > CONDITIONED_DAYS_KEPT) conditionedDays.delete(conditionedDays.keys().next().value!);
     return result;
   };
+}
+
+/** Whether any of the day's free-time activities of this kind (breakfast, lunch, dinner, study, gym)
+ * may start while the venue is open. A venue open only outside them gets no modeled visits. */
+export function inModeledVisitTimes(kind: string, open: readonly (readonly [number, number])[], weekday: number): boolean {
+  return freeTimeActivities(weekday).some(activity => activity.kind === kind
+    && open.some(([from, to]) => Math.min(to, activity.shoulder[1] * 3600) > Math.max(from, activity.shoulder[0] * 3600)));
 }
 
 /**

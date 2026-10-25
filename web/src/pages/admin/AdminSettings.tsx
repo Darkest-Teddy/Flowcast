@@ -3,7 +3,7 @@ import { ExternalLink } from 'lucide-react';
 import { useSession } from '../../auth/session';
 import { api, useResource } from '../../data/api';
 import type { AdminSettings as Settings } from '../../data/types';
-import { Avatar, Button, CellStack, ListRow, Loading, Page, PageHeader, SectionHeading, SectionList, SelectField, StatusBadge, TextField } from '../../ui';
+import { Avatar, Button, ListRow, Loading, Page, PageHeader, SectionHeading, SectionList, SelectField, StatusBadge, TextField } from '../../ui';
 import { SettingRow } from './components/SettingRow';
 import { StatusLine, useFlash } from './components/StatusLine';
 import styles from './AdminSettings.module.css';
@@ -87,7 +87,8 @@ function TeamAdmins({
             <ListRow
               key={a.id}
               leading={<Avatar name={a.name} size={28} />}
-              title={<CellStack primary={a.name} secondary={a.email} />}
+              title={a.name}
+              subtitle={a.email}
               trailing={
                 me ? (
                   <span className={styles.quiet}>You</span>
@@ -100,32 +101,32 @@ function TeamAdmins({
             />
           );
         })}
+        <form
+          className={styles.addRow}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void add();
+          }}
+        >
+          <div className={styles.addField}>
+            <TextField
+              label="Add an admin"
+              type="email"
+              placeholder="name@bu.edu"
+              value={email}
+              error={error}
+              hint="Admins can change the shared map, data sources and club approvals."
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError(undefined);
+              }}
+            />
+          </div>
+          <Button type="submit" disabled={!email.trim()}>
+            Add admin
+          </Button>
+        </form>
       </SectionList>
-      <form
-        className={styles.addRow}
-        onSubmit={(e) => {
-          e.preventDefault();
-          void add();
-        }}
-      >
-        <div className={styles.addField}>
-          <TextField
-            label="Add an admin"
-            type="email"
-            placeholder="name@bu.edu"
-            value={email}
-            error={error}
-            hint="Admins can change the shared map, data sources and club approvals."
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setError(undefined);
-            }}
-          />
-        </div>
-        <Button type="submit" disabled={!email.trim()}>
-          Add admin
-        </Button>
-      </form>
       <StatusLine flash={message.flash} className={styles.flash} />
     </section>
   );
@@ -175,7 +176,7 @@ function Retention({ settings, onSave }: { settings: Settings; onSave: (patch: P
   return (
     <section>
       <SectionHeading>Data retention</SectionHeading>
-      <div className={styles.inline}>
+      <div className={`${styles.inline} ${styles.card}`}>
         <div className={styles.addField}>
           <SelectField
             label="Keep persona data"

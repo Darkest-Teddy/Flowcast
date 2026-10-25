@@ -1,4 +1,5 @@
 .button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -95,4 +96,19 @@
 .icon svg {
   width: 15px;
   height: 15px;
+}
+
+/* Touch screens: every button is at least 44px tall to the finger, whatever it looks like. */
+@media (pointer: coarse) {
+  .sm::after,
+  .md::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    min-width: 44px;
+    transform: translateY(-50%);
+  }
 }

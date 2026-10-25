@@ -1,14 +1,16 @@
+/* A form column: each group is a section heading over a glass card. */
 .form {
   max-width: var(--content-form);
 }
 
-.section {
-  padding-bottom: var(--space-6);
-  border-bottom: 1px solid var(--color-hairline-soft);
-}
-
 .section:first-child > :first-child {
   margin-top: 0;
+}
+
+.card {
+  composes: glass from global;
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
 }
 
 .fields {
@@ -96,7 +98,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-4);
-  margin-top: var(--space-6);
+  margin-top: var(--space-8);
 }
 
 .saved,
@@ -127,5 +129,15 @@
 
   .avatarRow {
     flex-direction: column;
+  }
+
+  .card {
+    padding: var(--space-4);
+  }
+}
+
+@media (pointer: coarse) {
+  .swatch {
+    height: 40px;
   }
 }

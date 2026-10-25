@@ -162,6 +162,18 @@
   text-decoration: none;
 }
 
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mark {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
 .navLinks,
 .menu {
   list-style: none;

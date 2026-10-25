@@ -19,7 +19,8 @@ console.log(`campus data loaded in ${Date.now() - started} ms (${campus.privateB
 
 const catalog = datasetCatalog(campus);
 const app = createApp({
-  campus, ask: askAgent, keyConfigured: Boolean(key), model: ASK_MODEL,
+  campus, keyConfigured: Boolean(key), model: ASK_MODEL,
+  ask: (question, ctx, signal, history) => askAgent(question, ctx, signal, ASK_MODEL, history),
   chat: (input, ctx, signal) => chatAgent(input, ctx, catalog, signal),
 });
 const port = Number(process.env.PORT) || 8787;

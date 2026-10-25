@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useSession } from '../auth/session';
 import { config } from '../config';
-import { Button } from '../ui';
+import { Button, Logo } from '../ui';
 import styles from './SignIn.module.css';
 
 export default function SignIn() {
@@ -36,13 +36,13 @@ export default function SignIn() {
     <main className={styles.screen}>
       <div className={styles.column}>
         <div className={styles.brand}>
-          <span className={styles.mark} aria-hidden />
+          <Logo className={styles.mark} />
           <span>{config.appName}</span>
         </div>
 
         <h1 className={styles.title}>Know how busy campus will be before you go</h1>
         <p className={styles.lede}>
-          Flowcast is a 3D map of BU where simulated students follow real schedules, so it can predict how crowded dining halls,
+          Flowcast is a 3D map of BU where simulated students follow real schedules, so it can project how crowded dining halls,
           libraries and classrooms will get.
         </p>
 

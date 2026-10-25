@@ -78,15 +78,15 @@ export default function ClubPage() {
       </div>
 
       <dl className={styles.facts}>
-        <div>
+        <div className={styles.fact}>
           <dt>Followers</dt>
           <dd>{c.followers.toLocaleString()}</dd>
         </div>
-        <div>
+        <div className={styles.fact}>
           <dt>Upcoming events</dt>
           <dd>{events.data ? upcoming.length : '–'}</dd>
         </div>
-        <div>
+        <div className={styles.fact}>
           <dt>Last calendar upload</dt>
           <dd className={styles.small}>{lastImport ? formatRelative(lastImport.importedAt) : 'None yet'}</dd>
         </div>
@@ -101,12 +101,8 @@ export default function ClubPage() {
           {upcoming.map((e) => (
             <ListRow
               key={e.id}
-              title={
-                <span className={styles.event}>
-                  <span>{e.title}</span>
-                  <span className={styles.place}>{eventVenue(e)}</span>
-                </span>
-              }
+              title={e.title}
+              subtitle={eventVenue(e)}
               detail={formatDateTime(e.start)}
             />
           ))}

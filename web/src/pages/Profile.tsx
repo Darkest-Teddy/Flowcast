@@ -90,18 +90,20 @@ export default function Profile() {
       <form className={styles.form} onSubmit={save} noValidate>
         <section className={styles.section}>
           <SectionHeading>About you</SectionHeading>
-          <TextField
-            label="Name"
-            value={draft.name}
-            onChange={(e) => update('name', e.target.value)}
-            error={errors.name}
-            autoComplete="name"
-          />
+          <div className={styles.card}>
+            <TextField
+              label="Name"
+              value={draft.name}
+              onChange={(e) => update('name', e.target.value)}
+              error={errors.name}
+              autoComplete="name"
+            />
+          </div>
         </section>
 
         <section className={styles.section}>
           <SectionHeading>Your habits</SectionHeading>
-          <div className={styles.fields}>
+          <div className={`${styles.card} ${styles.fields}`}>
             <SelectField
               label="Home dorm"
               hint="Where your agent starts and ends each day."
@@ -147,7 +149,7 @@ export default function Profile() {
 
         <section className={styles.section}>
           <SectionHeading>Avatar</SectionHeading>
-          <div className={styles.avatarRow}>
+          <div className={`${styles.card} ${styles.avatarRow}`}>
             <Avatar name={draft.name || '?'} size={40} color={swatches[draft.avatarSwatch]} />
             <fieldset className={styles.swatches}>
               <legend className={styles.legend}>Avatar colour</legend>

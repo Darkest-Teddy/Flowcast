@@ -57,7 +57,7 @@ export const session: Session = {
 
 export const schedule: ScheduleItem[] = [
   { id: 's1', title: 'CS 132', locationId: 'cas', start: iso(0, 9, 5), end: iso(0, 9, 55), source: 'calendar' },
-  { id: 's2', title: 'Lunch', locationId: 'gsu', start: iso(0, 12, 0), end: iso(0, 12, 40), source: 'suggested', note: 'Warren Dining is predicted 88% full at 12:20' },
+  { id: 's2', title: 'Lunch', locationId: 'gsu', start: iso(0, 12, 0), end: iso(0, 12, 40), source: 'suggested', note: 'Warren Dining is projected 88% full at 12:20' },
   { id: 's3', title: 'DS 340', locationId: 'cds', start: iso(0, 14, 30), end: iso(0, 15, 45), source: 'calendar' },
   { id: 's4', title: 'Robotics Club build night', locationId: 'epic', start: iso(0, 18, 0), end: iso(0, 20, 0), source: 'club', clubId: 'robotics' },
   { id: 's5', title: 'Study', locationId: 'mugar', start: iso(0, 20, 15), end: iso(0, 22, 0), source: 'habit' },
@@ -164,7 +164,7 @@ export const dataSources: DataSource[] = [
     settings: [{ key: 'agents', label: 'Agents', value: '300' }, { key: 'seed', label: 'Seed', value: '7' }],
   },
   {
-    id: 'forecast', name: 'Crowd forecast model', via: 'Trained on the simulated week', feeds: 'Predicted % full', group: 'prebuilt',
+    id: 'forecast', name: 'Crowd forecast model', via: 'Trained on the simulated week', feeds: 'Projected % full', group: 'prebuilt',
     health: 'off', statusText: 'Not trained', updatedAt: null, size: null, action: 'Train',
     settings: [{ key: 'window', label: 'Time window', value: '15 minutes' }],
   },

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, useResource } from '../data/api';
-import { Avatar, Button, EmptyState, Loading, Page, PageHeader, SectionList, Segmented, Tag } from '../ui';
+import { Avatar, Button, EmptyState, Loading, Page, PageHeader, Segmented, Tag } from '../ui';
 import styles from './Clubs.module.css';
 
 type Filter = 'all' | 'following';
@@ -50,46 +50,53 @@ export default function Clubs() {
   return (
     <Page>
       {header}
-      <Segmented
-        label="Show"
-        value={filter}
-        onChange={setFilter}
-        options={[
-          { value: 'all', label: 'All clubs' },
-          { value: 'following', label: `Following (${followingCount})` },
-        ]}
-      />
-
-      <div className={styles.list}>
-        <SectionList
-          title={filter === 'following' ? 'Clubs you follow' : 'Verified clubs'}
-          count={shown.length}
-          empty={filter === 'following' ? "You don't follow any clubs yet. Follow one to see its events on your schedule." : 'No verified clubs yet.'}
-        >
-          {shown.map((c) => (
-            <div key={c.id} className={styles.row}>
-              <Avatar name={c.name} />
-              <div className={styles.main}>
-                <div className={styles.name}>
-                  {c.name}
-                  {c.following && <Tag tone="accent">Following</Tag>}
-                </div>
-                <p className={styles.description}>{c.description}</p>
-                <p className={styles.members}>{c.members.toLocaleString()} members</p>
-              </div>
-              <Button
-                variant={c.following ? 'ghost' : 'secondary'}
-                size="sm"
-                disabled={pending === c.id}
-                onClick={() => setFollowing(c.id, !c.following)}
-                aria-label={`${c.following ? 'Unfollow' : 'Follow'} ${c.name}`}
-              >
-                {c.following ? 'Unfollow' : 'Follow'}
-              </Button>
-            </div>
-          ))}
-        </SectionList>
+      <div className={styles.toolbar}>
+        <Segmented
+          label="Show"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'all', label: 'All clubs' },
+            { value: 'following', label: `Following (${followingCount})` },
+          ]}
+        />
+        <p className={styles.count}>
+          {shown.length} {filter === 'following' ? 'followed' : 'verified'} {shown.length === 1 ? 'club' : 'clubs'}
+        </p>
       </div>
+
+      {shown.length ? (
+        <ul className={styles.grid} aria-label={filter === 'following' ? 'Clubs you follow' : 'Verified clubs'}>
+          {shown.map((c) => (
+            <li key={c.id} className={styles.card}>
+              <div className={styles.name}>
+                <Avatar name={c.name} size={32} />
+                <h2>{c.name}</h2>
+                {c.following && <Tag tone="accent">Following</Tag>}
+              </div>
+              <p className={styles.description}>{c.description}</p>
+              <div className={styles.foot}>
+                <p className={styles.members}>{c.members.toLocaleString()} members</p>
+                <Button
+                  variant={c.following ? 'ghost' : 'secondary'}
+                  disabled={pending === c.id}
+                  onClick={() => setFollowing(c.id, !c.following)}
+                  aria-label={`${c.following ? 'Unfollow' : 'Follow'} ${c.name}`}
+                >
+                  {c.following ? 'Unfollow' : 'Follow'}
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className={styles.empty}>
+          <EmptyState
+            title={filter === 'following' ? "You don't follow any clubs yet" : 'No verified clubs yet'}
+            body={filter === 'following' ? 'Follow one to see its events on your schedule.' : undefined}
+          />
+        </div>
+      )}
 
       <p className={styles.footnote}>
         Run a club? Register it with your bu.edu email, and once it's verified you can upload its calendar.

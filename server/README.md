@@ -1,8 +1,8 @@
 # server (Node.js + TypeScript)
 
-The Ask server. `POST /api/ask` answers one campus question, and `POST /api/chat` holds a multi-turn conversation over every dataset the project ships, with an OpenAI agent (`gpt-6-luna` by default, via `@openai/agents`) that reads the same simulation, walking routes, class schedule and opening hours the map plays. The model only picks tools and words the reply; every number comes from a tool. The OpenAI key stays on this server.
+The Ask server. `POST /api/ask` answers campus questions and short follow-ups (the quick Ask on Home and the map), and `POST /api/chat` holds a longer conversation over every dataset the project ships, with server-built charts and tables (the Ask Flowcast page, `/ask`). Both use an OpenAI agent (`gpt-6-luna` by default, via `@openai/agents`) that reads the same simulation, walking routes, class schedule and opening hours the map plays. The model only picks tools and words the reply; every number comes from a tool. The OpenAI key stays on this server.
 
-It loads the public campus bundle, builds the population, and simulates each weekday of the reference week (2026-10-26 to 2026-11-01) in the background at startup, one day at a time.
+It loads the public campus bundle, builds the population, and simulates each weekday of the reference week (2026-10-26 to 2026-11-01) in the background at startup, one day at a time. A day build blocks the event loop for several seconds, so no build starts while an answer is being worked out (it waits up to 30 s); otherwise the prebuild stalled the first answers past the timeout.
 
 The realtime backend in the plan (`.plans/campus-digital-twin-spec.md` Section 8) is not built yet.
 
@@ -21,7 +21,7 @@ With the web app, run `npm --prefix server start` and `npm --prefix web run dev`
 ## Endpoints
 
 - `GET /api/health` → `{ ok, model, keyConfigured, privateBundle }`
-- `POST /api/ask` with `{ question (1–300 chars), weekday (0 = Monday … 6), time (seconds since midnight), campus ("charles-river" | "medical" | "fenway") }`
+- `POST /api/ask` with `{ question (1–300 chars), weekday (0 = Monday … 6), time (seconds since midnight), campus ("charles-river" | "medical" | "fenway"), history? }`
   - 200 → `{ answer, model, show: { route, select, points } | null, rows: [{ id, name, percent, level, students, modeled, open, walkMinutes }], calls: [tool names] }`. `show` and `rows` come from the last tool call that changes the map.
   - 400 bad input · 429 rate limit (12/min per client, 600/hour overall) · 503 no key, or the day is still being simulated (`Retry-After`) · 504 model timeout (25 s) · 502 model error.
 - `POST /api/chat` with `ChatRequest` from `map-client/src/chatContract.ts`: `{ messages (1–12 turns, oldest first, last from the user; user 1–300 chars, assistant ≤ 2000), weekday, time, campus, date (YYYY-MM-DD or null) }`. Body limit 64 KB.
@@ -79,3 +79,9 @@ Tools other than the shown day's never wait for a build: an unbuilt day returns 
 ## Never sent to the model
 
 The private bundle (unless `FLOWCAST_ASK_PRIVATE_BUNDLE=1`), stays, trips, agent ids, source assignments and activities, bike ride records (only dock profiles are loaded), anyone's schedule or fatigue score, live MBTA/GBFS data, source URL lists, and the full simulation assumption list. Questions, conversations and answers are not logged and tracing is off.
+
+### Conversation history (`/api/ask`)
+
+`history` is optional and contains at most six complete user/assistant pairs: `{ role: "user" | "assistant", content: string }`. User messages are limited to 300 characters and assistant messages to 4,000; other roles and incomplete pairs are rejected. Each request still supplies the current day, time and campus. The agent uses earlier messages to resolve references and fetches fresh tool facts for each answer.
+
+The browser retains the visible chat while switching tabs and sends only bounded campus conversation context. Personal schedule answers remain on the device. **New chat** cancels the pending request and clears the conversation.

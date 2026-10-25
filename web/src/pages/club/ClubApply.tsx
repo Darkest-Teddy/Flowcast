@@ -4,7 +4,7 @@ import { useSession } from '../../auth/session';
 import { config } from '../../config';
 import { api } from '../../data/api';
 import type { ClubApplication } from '../../data/types';
-import { Button, StatusBadge, TextArea, TextField } from '../../ui';
+import { Button, Logo, StatusBadge, TextArea, TextField } from '../../ui';
 import styles from './ClubApply.module.css';
 
 const DESCRIPTION_MAX = 280;
@@ -116,7 +116,7 @@ export default function ClubApply() {
     <div className={styles.screen}>
       <header className={styles.top}>
         <Link to="/" className={styles.brand}>
-          <span className={styles.mark} aria-hidden />
+          <Logo className={styles.mark} />
           <span>{config.appName}</span>
         </Link>
         <Button variant="ghost" to="/clubs">

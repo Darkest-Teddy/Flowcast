@@ -1,6 +1,7 @@
+/* One glass card per day, a card gap apart, under the filter. */
 .days {
   display: flex;
   flex-direction: column;
-  gap: var(--space-10);
-  margin-top: var(--space-8);
+  gap: var(--space-5);
+  margin-top: var(--space-6);
 }

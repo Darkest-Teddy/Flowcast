@@ -1,8 +1,17 @@
+/* A column, so the chart sits on the card's bottom edge and lines up across a row of cards even
+   when one card's detail wraps to two lines. */
 .card {
   composes: glass from global;
+  display: flex;
+  flex-direction: column;
   border-radius: var(--radius-card);
   padding: var(--space-4) var(--space-5);
   min-width: 0;
+}
+
+.chart {
+  margin-top: auto;
+  padding-top: var(--space-4);
 }
 
 .label {
@@ -30,7 +39,6 @@
   align-items: flex-end;
   gap: 3px;
   height: 32px;
-  margin-top: var(--space-4);
 }
 
 .bars i {
@@ -49,4 +57,14 @@
   margin-top: var(--space-1);
   color: var(--color-ink-tertiary);
   font-size: var(--text-xs);
+}
+
+@media (max-width: 560px) {
+  .card {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .value {
+    font-size: var(--text-xl);
+  }
 }

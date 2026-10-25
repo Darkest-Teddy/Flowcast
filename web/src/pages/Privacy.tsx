@@ -69,12 +69,12 @@ export default function Privacy() {
       <div className={styles.columns}>
         <SectionList title="What Flowcast keeps">
           {kept.map((k) => (
-            <ListRow key={k.title} title={<Item {...k} />} />
+            <ListRow key={k.title} title={k.title} subtitle={k.detail} />
           ))}
         </SectionList>
         <SectionList title="What Flowcast doesn’t keep">
           {notKept.map((k) => (
-            <ListRow key={k.title} title={<Item {...k} />} />
+            <ListRow key={k.title} title={k.title} subtitle={k.detail} />
           ))}
         </SectionList>
       </div>
@@ -128,14 +128,5 @@ export default function Privacy() {
         </p>
       )}
     </Page>
-  );
-}
-
-function Item({ title, detail }: { title: string; detail: string }) {
-  return (
-    <span className={styles.item}>
-      <span>{title}</span>
-      <span className={styles.itemDetail}>{detail}</span>
-    </span>
   );
 }

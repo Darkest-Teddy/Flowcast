@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 import { NavLink, Outlet, useLocation } from 'react-router';
 import { Menu, X, type LucideIcon } from 'lucide-react';
 import styles from './AppShell.module.css';
+import { Logo } from '../ui/Logo';
 
 export interface NavItem {
   to: string;
@@ -131,7 +132,7 @@ export function AppShell({
     <div className={`${styles.shell} ${tabBar ? styles.withTabBar : ''}`}>
       <aside className={`${styles.sidebar} ${open ? styles.open : ''}`} aria-label="Main">
         <div className={styles.brand}>
-          <span className={styles.mark} aria-hidden />
+          <Logo className={styles.mark} />
           <span>Flowcast</span>
           {brandTag && <span className={styles.brandTag}>{brandTag}</span>}
           <button ref={closeButton} className={styles.close} onClick={() => setOpen(false)} aria-label="Close menu">

@@ -4,7 +4,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .search {
@@ -12,8 +12,10 @@
 }
 
 .count {
+  padding-bottom: var(--space-2);
   font-size: var(--text-sm);
   color: var(--color-ink-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .name {

@@ -482,7 +482,8 @@ test('POST /api/chat validates turns, day, time, campus and date', async () => {
     assert.equal(typeof seen[0].ctx.occupancyAt(45000)[0].count, 'number');
     assert.equal((await post(s.url, '/api/chat', { ...valid, date: undefined })).status, 200); // date may be left out
     assert.equal(seen[1].ctx.date, null);
-    assert.equal((await post(s.url, '/api/ask', { question: 'q'.repeat(300), weekday: 2, time: 1, campus: 'charles-river', pad: 'x'.repeat(5000) })).status, 413);
+    // /api/ask takes up to 128 KB (its conversation history); anything bigger is refused.
+    assert.equal((await post(s.url, '/api/ask', { question: 'q'.repeat(300), weekday: 2, time: 1, campus: 'charles-river', pad: 'x'.repeat(140_000) })).status, 413);
   } finally { s.close(); }
 });
 

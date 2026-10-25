@@ -11,9 +11,19 @@ import type { AskResult } from './agent';
 import type { ServerAskContext } from './facts';
 import type { ChatContext } from './chatTools';
 import { buildDirectory } from './directory';
+import type { AgentMessage } from '../../map-client/src/askClient';
+import { MAX_HISTORY_PAIRS, MAX_USER_LENGTH, MAX_ASSISTANT_LENGTH, MAX_HISTORY_LENGTH } from '../../map-client/src/askConversation';
+
+const historySchema = z.array(z.discriminatedUnion('role', [
+  z.object({ role: z.literal('user'), content: z.string().max(MAX_USER_LENGTH) }),
+  z.object({ role: z.literal('assistant'), content: z.string().max(MAX_ASSISTANT_LENGTH) }),
+])).max(MAX_HISTORY_PAIRS * 2)
+  .refine((history) => history.length % 2 === 0 && history.every((message, i) => message.role === (i % 2 === 0 ? 'user' : 'assistant')), 'History must contain complete user/assistant pairs')
+  .refine((history) => history.reduce((total, message) => total + message.content.length, 0) <= MAX_HISTORY_LENGTH, 'History is too long');
 
 export const AskRequest = z.object({
   question: z.string().trim().min(1).max(300),
+  history: historySchema.optional(),
   weekday: z.number().int().min(0).max(6),
   time: z.number().int().min(0).max(86399),
   campus: z.string().min(1).max(40),
@@ -34,7 +44,7 @@ export const ChatRequest = z.object({
 
 export interface AppOptions {
   campus: CampusModel;
-  ask: (question: string, ctx: ServerAskContext, signal: AbortSignal) => Promise<AskResult>;
+  ask: (question: string, ctx: ServerAskContext, signal: AbortSignal, history?: AgentMessage[]) => Promise<AskResult>;
   /** One chat turn (chat.ts); without it /api/chat answers 503 and the directory says chat is unavailable. */
   chat?: (input: { messages: ChatTurn[] }, ctx: ChatContext, signal: AbortSignal) => Promise<ChatResponse>;
   /** The directory's domains; built from the campus model when not given. */
@@ -112,9 +122,10 @@ export function createApp(options: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', options.trustProxyHops ?? Number(process.env.TRUST_PROXY_HOPS ?? 0));
-  // A chat request carries up to 12 turns; everything else stays at 4 KB. The first parser to run wins.
+  // A chat request carries up to 12 turns (64 KB); an ask request with its history up to 128 KB.
+  // The first parser to run wins.
   app.use('/api/chat', express.json({ limit: '64kb' }));
-  app.use(express.json({ limit: '4kb' }));
+  app.use(express.json({ limit: '128kb' }));
   let domains: DataDomain[] | undefined;
   const directory = () => (domains ??= options.directory?.() ?? buildDirectory(campus));
 
@@ -133,10 +144,10 @@ export function createApp(options: AppOptions) {
       res.status(503).json({ error: 'Ask is not configured on this server (no OpenAI key).' });
       return;
     }
-    const { question, weekday, time, campus: campusId } = parsed.data;
+    const { question, weekday, time, campus: campusId, history } = parsed.data;
     const playback = ready(weekday, req, res);
     if (!playback) return;
-    await run(res, 'ask', (signal) => ask(question, contextFor(playback, weekday, time, campusId), signal));
+    await run(res, 'ask', (signal) => ask(question, contextFor(playback, weekday, time, campusId), signal, history));
   });
 
   /**
@@ -180,6 +191,8 @@ export function createApp(options: AppOptions) {
     const disconnect = new AbortController();
     res.on('close', () => { if (!res.writableFinished) disconnect.abort(); });
     const signal = AbortSignal.any([timeout, disconnect.signal]);
+    // Day builds block the event loop, so none starts while this answer runs (campus.ts InFlight).
+    const done = campus.asks?.begin();
     try {
       const result = await answer(signal);
       if (!disconnect.signal.aborted) res.json(result);
@@ -192,6 +205,8 @@ export function createApp(options: AppOptions) {
       // Log the failure kind, not the question: questions can carry personal details.
       console.error(`${what} failed: ${timedOut ? 'timeout' : error instanceof Error ? error.name : 'unknown'}`);
       res.status(timedOut ? 504 : 502).json({ error: timedOut ? 'The answer took too long. Try again.' : 'Couldn’t get an answer right now.' });
+    } finally {
+      done?.();
     }
   }
 

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ask, type AskContext, type CourseMeeting, type MapInsight, type RankedPlace, type Walk } from './insights';
+import { ask, dayList, daysWithPublishedHours, rankTier, type AskContext, type CourseMeeting, type MapInsight, type RankedPlace, type Walk } from './insights';
 import { crowdLevel, crowdLevelStyle } from './layers/crowd';
 import type { AskRoute } from './layers/askRoute';
 import { formatClock, type CampusLocation, type LocationKind } from './sim/playback';
-import { WEEKDAYS } from './data/campusData';
-import { agentConfigured, askAgentWithRetry, type AgentAnswer, type AgentError, type AskCampus } from './askClient';
+import { dateForWeekday, WEEKDAYS } from './data/campusData';
+import { agentConfigured, askAgentWithRetry, type AgentAnswer, type AgentError, type AgentMessage, type AskCampus } from './askClient';
+import { appendExchange } from './askConversation';
+import { needsPrivateClarification, planQuestion } from '../../web/src/lib/askRouting';
 
 export const EXAMPLE_QUESTIONS = [
   'Least crowded library right now',
@@ -64,6 +66,8 @@ function meetingWhen(m: CourseMeeting, weekday: number): string {
 function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, CampusLocation>): Answer {
   const when = (t: number) => (t === ctx.time ? 'right now' : `at ${formatClock(t)}`);
   switch (insight.kind) {
+    case 'differentDay':
+      return { text: `The device answer uses the day shown on the map. Select ${WEEKDAYS[insight.weekday]} in the day picker, then ask again.`, rows: [], show: null };
     case 'leastCrowded': {
       const { placeKind, ranked, from, time } = insight;
       if (!ranked.length) return { text: `There are no ${PLURAL[placeKind]} on this campus in the model.`, rows: [], show: null };
@@ -85,6 +89,18 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       }
       if (best.open === false) {
         return { text: `By their published hours, all the ${PLURAL[placeKind]} here are closed ${when(time)}.`, rows, show: { ...show, route: null, select: null } };
+      }
+      const missingHours = ctx.data ? ranked.filter((r) => rankTier(r) === 2 && ctx.data!.locations[r.location.id]?.hoursStatus === 'published') : [];
+      if (rankTier(best) === 2 && missingHours.length) {
+        // Nothing open by published hours, and these places have no hours in the data for the shown
+        // date (the dining halls' dated hours end before the reference weekend): no ranking.
+        const days = ctx.data ? dayList(daysWithPublishedHours(missingHours.map((r) => r.location.id), ctx.data), WEEKDAYS) : '';
+        const date = ctx.data ? ` (${dateForWeekday(ctx.data, ctx.weekday)})` : '';
+        return {
+          text: `Opening hours for the ${PLURAL[placeKind]} here aren't in the data for ${WEEKDAYS[ctx.weekday]}${date}, so the map can't say which is least crowded.${days ? ` Published hours cover ${days}: pick one of those days in the day picker.` : ''}`,
+          rows: [],
+          show: null,
+        };
       }
       const hoursNote = best.open === null ? ` Its opening hours aren't published for ${WEEKDAYS[ctx.weekday]}, so check before going.` : '';
       if (best.share === null) {
@@ -138,7 +154,13 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       if (openNow?.open && openNow.fromPreviousDay) {
         return { text: `${location.name} is open ${when(time)} (published hours: ${openNow.hoursText}), but the simulation doesn't model visits after midnight.`, rows: [], show };
       }
-      const hoursNote = openNow?.open === null ? ' Its opening hours for this day aren’t published.' : '';
+      const otherDays = openNow?.open === null && ctx.data?.locations[location.id]?.hoursStatus === 'published'
+        ? dayList(daysWithPublishedHours([location.id], ctx.data), WEEKDAYS) : '';
+      const hoursNote = openNow?.open === null
+        ? otherDays
+          ? ` Its opening hours aren’t in the data for ${WEEKDAYS[ctx.weekday]}, so it may be closed; published hours cover ${otherDays}.`
+          : ' Its opening hours for this day aren’t published.'
+        : '';
       if (now === null) {
         const count = ctx.occupancyAt(time).find((o) => o.location.id === location.id)?.count ?? 0;
         return { text: `${location.name} has ${count.toLocaleString()} simulated students ${when(time)}. Its capacity isn't comparable, so the map shows a headcount rather than a percentage.${hoursNote}`, rows: [], note: MODEL_NOTE, show };
@@ -193,7 +215,18 @@ function deviceReason(error: AgentError | null): string {
   return 'Answered on this device: the Ask server isn’t reachable.';
 }
 
-/** The Ask tab: a question box, example questions, and an answer that the map draws. */
+interface Exchange {
+  id: number;
+  question: string;
+  label: string;
+  answer: Answer | null;
+}
+
+const CAMPUS_LABELS: Record<string, string> = {
+  'charles-river': 'Charles River', fenway: 'Fenway', medical: 'Medical',
+};
+
+/** Kept mounted by App so changing tabs preserves the conversation and pending reply. */
 export function AskPanel({
   context,
   initialQuestion,
@@ -206,53 +239,73 @@ export function AskPanel({
   onSelect: (location: CampusLocation) => void;
 }) {
   const [question, setQuestion] = useState(initialQuestion ?? '');
-  const [answer, setAnswer] = useState<{ question: string; answer: Answer } | null>(null);
+  const [exchanges, setExchanges] = useState<Exchange[]>([]);
   const contextRef = useRef(context);
   contextRef.current = context;
 
   const [busy, setBusy] = useState<string | null>(null); // what the panel is waiting for, or null
-  const answerRef = useRef(answer);
-  answerRef.current = answer;
+  const history = useRef<AgentMessage[]>([]);
+  const afterDevice = useRef(false);
+  const nextId = useRef(0);
   const inFlight = useRef<AbortController | null>(null);
+  const composer = useRef<HTMLInputElement | null>(null);
+  const initialTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const answerLocally = (q: string, reason: string) => {
-    const ctx = contextRef.current;
-    const byId = new Map(ctx.locations.map((l) => [l.id, l]));
-    const result = { ...describe(ask(q, ctx), ctx, byId), device: reason };
-    setAnswer({ question: q, answer: result });
-    onShow(result.show);
-  };
-
-  // Each question goes to the Ask server for the map's shown day, time and campus. A newer question
-  // cancels the one in flight; any failure falls back to this device's own answer, labelled as such.
+  // One pending exchange at a time, using the context captured at submission. New chat cancels it;
+  // server failures fall back to this device's own answer, labelled as such.
   const run = async (q: string) => {
     const trimmed = q.trim().slice(0, 300);
-    if (!trimmed) return;
-    inFlight.current?.abort();
+    if (!trimmed || inFlight.current) return;
     const controller = new AbortController();
     inFlight.current = controller;
-    setQuestion(trimmed);
+    setQuestion('');
     const ctx = contextRef.current;
     const campus = ASK_CAMPUSES.includes(ctx.campus) ? (ctx.campus as AskCampus) : 'charles-river';
+    const id = nextId.current++;
+    const label = `${WEEKDAYS[ctx.weekday]} · ${formatClock(ctx.time)} · ${CAMPUS_LABELS[campus]}`;
+    const byId = new Map(ctx.locations.map((l) => [l.id, l]));
+    setExchanges((previous) => [...previous, { id, question: trimmed, label, answer: null }]);
+    const finish = (answer: Answer) => {
+      if (controller.signal.aborted) return;
+      setExchanges((previous) => previous.map((exchange) => exchange.id === id ? { ...exchange, answer } : exchange));
+      onShow(answer.show);
+    };
+    const answerLocally = (reason?: string, insight?: MapInsight) => {
+      // Local replies cannot resolve references against the remote conversation.
+      history.current = [];
+      afterDevice.current = true;
+      finish({ ...describe(insight ?? ask(trimmed, ctx), ctx, byId), device: reason });
+    };
     setBusy('Asking…');
     try {
-      if (!(await agentConfigured())) {
-        if (!controller.signal.aborted) answerLocally(trimmed, deviceReason(null));
+      if (planQuestion(trimmed, null).local) {
+        answerLocally(undefined, { kind: 'personal' });
         return;
       }
+      if (needsPrivateClarification(trimmed, {
+        afterDevice: afterDevice.current,
+        locationNames: ctx.locations.flatMap((location) => [location.name, location.short]),
+      })) {
+        finish({ text: 'Which building or place do you mean? Please name it so I can answer your follow-up.', rows: [], show: null });
+        return;
+      }
+      if (!(await agentConfigured())) {
+        if (!controller.signal.aborted) answerLocally(deviceReason(null));
+        return;
+      }
+      if (controller.signal.aborted) return;
       const result = await askAgentWithRetry(
-        { question: trimmed, weekday: ctx.weekday, time: ctx.time, campus },
+        { question: trimmed, weekday: ctx.weekday, time: ctx.time, campus, history: history.current },
         controller.signal,
         { onWarming: () => { if (!controller.signal.aborted) setBusy(`Simulating ${WEEKDAYS[ctx.weekday]}…`); } },
       );
       if (controller.signal.aborted) return;
       if (result.ok) {
-        const now = contextRef.current;
-        const answered = fromAgent(result.value, new Map(now.locations.map((l) => [l.id, l])));
-        setAnswer({ question: trimmed, answer: answered });
-        onShow(answered.show);
+        afterDevice.current = false;
+        history.current = appendExchange(history.current, trimmed, result.value.answer);
+        finish(fromAgent(result.value, byId));
       } else if (result.error.kind !== 'aborted') {
-        answerLocally(trimmed, deviceReason(result.error));
+        answerLocally(deviceReason(result.error));
       }
     } finally {
       if (inFlight.current === controller) {
@@ -262,20 +315,19 @@ export function AskPanel({
     }
   };
 
-  // A question passed in the URL (?ask=...) is asked once, as soon as the simulation is ready. It
-  // starts a tick later, so a mount that is immediately undone (React dev mode) sends nothing; if
-  // the panel closes before it's answered, it is asked again when the panel comes back.
+  // Consume the URL only when the timer runs, after StrictMode's setup/cleanup replay.
   const askedInitial = useRef(false);
   useEffect(() => {
-    let start: ReturnType<typeof setTimeout> | undefined;
     if (initialQuestion && !askedInitial.current) {
-      askedInitial.current = true;
-      start = setTimeout(() => void run(initialQuestion), 0);
+      initialTimer.current = setTimeout(() => {
+        askedInitial.current = true;
+        void run(initialQuestion);
+      }, 0);
     }
     return () => {
-      clearTimeout(start);
-      if (askedInitial.current && !answerRef.current) askedInitial.current = false;
+      clearTimeout(initialTimer.current);
       inFlight.current?.abort();
+      inFlight.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuestion]);
@@ -285,31 +337,37 @@ export function AskPanel({
     void run(question);
   };
   const clear = () => {
+    askedInitial.current = true;
+    clearTimeout(initialTimer.current);
     inFlight.current?.abort();
-    setAnswer(null);
+    inFlight.current = null;
+    history.current = [];
+    afterDevice.current = false;
+    setBusy(null);
+    setExchanges([]);
     setQuestion('');
     onShow(null);
+    composer.current?.focus();
   };
 
   return (
     <div className="ask">
-      <form className="ask-form" onSubmit={submit} role="search">
-        <input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Least crowded library, how far is CAS from Mugar…"
-          aria-label="Ask about campus"
-        />
-        <button type="submit" disabled={busy !== null}>{busy ? 'Asking…' : 'Ask'}</button>
-      </form>
-      <div className="ask-answer" aria-live="polite" aria-busy={busy !== null}>
-        {busy && <p className="muted ask-status">{busy}</p>}
-        {answer && !busy ? (
-          <>
-            <p className="ask-text">{answer.answer.text}</p>
-            {answer.answer.rows.length > 0 && (
+      <div className="ask-heading">
+        <h2>Ask about campus</h2>
+        <button type="button" className="ask-clear" onClick={clear}>New chat</button>
+      </div>
+      {exchanges.length === 0 && <p className="muted">Ask about places, crowd projections, courses or walks. Follow up to explore an answer.</p>}
+      <p className="muted ask-note">Each reply uses the map context when asked. Earlier answers do not refresh when the day, time or campus changes.</p>
+      <ol className="ask-transcript" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Campus conversation">
+        {exchanges.map((exchange) => (
+          <li className="ask-exchange" key={exchange.id}>
+            <p className="ask-question"><span className="visually-hidden">You: </span>{exchange.question}</p>
+            <p className="muted ask-context">{exchange.label}</p>
+            {exchange.answer && <div className="ask-answer">
+            <p className="ask-text"><span className="visually-hidden">Flowcast: </span>{exchange.answer.text}</p>
+            {exchange.answer.rows.length > 0 && (
               <ol className="rows">
-                {answer.answer.rows.map((r) => (
+                {exchange.answer.rows.map((r) => (
                   <li key={r.location.id}>
                     <button className="row" onClick={() => onSelect(r.location)} style={r.share === null ? undefined : crowdLevelStyle(r.share)}>
                       <span className="name">{r.location.name}</span>
@@ -320,17 +378,30 @@ export function AskPanel({
                 ))}
               </ol>
             )}
-            {answer.answer.note && <p className="muted ask-note">{answer.answer.note}</p>}
-            {answer.answer.device && <p className="muted ask-note">{answer.answer.device}</p>}
-            <button type="button" className="ask-clear" onClick={clear}>Clear</button>
-          </>
-        ) : null}
-      </div>
-      <div className="ask-examples" aria-label="Example questions">
-        {EXAMPLE_QUESTIONS.map((q) => (
-          <button key={q} type="button" onClick={() => void run(q)}>{q}</button>
+            {exchange.answer.note && <p className="muted ask-note">{exchange.answer.note}</p>}
+            {exchange.answer.device && <p className="muted ask-note">{exchange.answer.device}</p>}
+            {exchange.answer.show && <button type="button" className="ask-show" onClick={() => onShow(exchange.answer!.show)}>Show on map</button>}
+            </div>}
+          </li>
         ))}
-      </div>
+      </ol>
+      <p className="muted ask-status" role="status">{busy ?? (exchanges.length > 0 ? 'Answer ready.' : '')}</p>
+      <form className="ask-form" onSubmit={submit}>
+        <input
+          ref={composer}
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          maxLength={300}
+          placeholder={exchanges.length ? 'Ask a follow-up…' : 'Least crowded library, CAS to Mugar…'}
+          aria-label={exchanges.length ? 'Ask a follow-up' : 'Ask about campus'}
+        />
+        <button type="submit" disabled={busy !== null || !question.trim()}>{busy ? 'Asking…' : 'Send'}</button>
+      </form>
+      {exchanges.length === 0 && <div className="ask-examples" aria-label="Example questions">
+        {EXAMPLE_QUESTIONS.map((q) => (
+          <button key={q} type="button" disabled={busy !== null} onClick={() => void run(q)}>{q}</button>
+        ))}
+      </div>}
     </div>
   );
 }

@@ -1,10 +1,9 @@
-/* The accent stripe on the leading edge is an inset shadow so it follows the rounded corner. */
+/* A glass card right under the table row it configures. */
 .panel {
   composes: glass-strong from global;
   margin-top: var(--space-3);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-5);
   border-radius: var(--radius-card);
-  box-shadow: inset var(--space-1) 0 0 var(--color-accent), var(--glass-inner-shadow), var(--glass-shadow);
 }
 
 .panel:focus {
@@ -20,7 +19,7 @@
 }
 
 .title {
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-text);
 }

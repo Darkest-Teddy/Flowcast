@@ -121,8 +121,12 @@ def build_population(population, campuses, sources, availability=None, estimates
                     basis = 'estimated_student_capacity'
                 target[key] = profile
                 if kind == 'housing':
-                    capacities[key] = profile['capacity']
+                    capacities[key] = profile['capacity'] + academic.get(key, {}).get('value', 0)
                 bases[key] = {'referenceCapacity': capacities[key], 'referenceBasis': 'configured_size_proxy' if kind == 'activities' else 'estimated_beds', 'basis': basis, 'unit': 'people', 'confidence': 'low', 'note': profile['note'], 'proxy': profile['proxy']}
+                if kind == 'housing' and key in academic:
+                    bases[key].update({'basis': 'residential_beds_plus_classroom_seats',
+                                       'estimatedResidentialBeds': profile['capacity'],
+                                       'academicSeatReference': academic[key]['value']})
     return {**population, "locationEstimatedProfiles": activity_estimates, "estimatedHousingProfiles": housing_estimates,
             "academicCapacities": academic, "campusResidentMinimums": campus_minimums,
             "locationCapacities": capacities, "locationCapacityBasis": bases,
