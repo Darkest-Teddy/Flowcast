@@ -64,6 +64,8 @@ function meetingWhen(m: CourseMeeting, weekday: number): string {
 function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, CampusLocation>): Answer {
   const when = (t: number) => (t === ctx.time ? 'right now' : `at ${formatClock(t)}`);
   switch (insight.kind) {
+    case 'differentDay':
+      return { text: `The device answer uses the day shown on the map. Select ${WEEKDAYS[insight.weekday]} in the day picker, then ask again.`, rows: [], show: null };
     case 'leastCrowded': {
       const { placeKind, ranked, from, time } = insight;
       if (!ranked.length) return { text: `There are no ${PLURAL[placeKind]} on this campus in the model.`, rows: [], show: null };

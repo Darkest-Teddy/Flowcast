@@ -60,6 +60,14 @@ test('least crowded library uses the simulation at the shown time, and a named t
   assert.equal(noon.ranked[0].location.id, 'mugar'); // 480/800 = 60% vs Pardee 200/250 = 80%
 });
 
+test('local crowd answers never substitute the shown day for another named weekday', () => {
+  const context = ctx({ occupancyAt: () => { throw new Error('Wrong day occupancy requested'); } });
+  assert.deepEqual(ask('least crowded dining hall on Saturday at 2pm', context), { kind: 'differentDay', weekday: 5 });
+  assert.deepEqual(ask('is Mugar busy on Tuesday?', context), { kind: 'differentDay', weekday: 1 });
+  assert.equal(ask('least crowded library on Monday', ctx()).kind, 'leastCrowded');
+  assert.equal(ask('how far is CAS from Mugar on Saturday?', context).kind, 'distance');
+});
+
 test('rankings stay on the campus in view and walk from a named place', () => {
   const a = ask('quietest dining hall near CAS at 6pm', ctx());
   assert.equal(a.kind, 'leastCrowded');
