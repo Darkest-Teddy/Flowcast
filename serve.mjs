@@ -165,7 +165,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   let backend;
   if (config.env) {
     const require = createRequire(new URL('./server/package.json', import.meta.url));
-    backend = spawn(process.execPath, ['--import', require.resolve('tsx'), 'src/index.ts'], {
+    // The API keeps ~100 MB of compact days; a heap cap makes V8 collect each day build's garbage
+    // instead of growing toward its default ~2 GB limit (server/src/compactDay.ts).
+    backend = spawn(process.execPath, ['--max-old-space-size=512', '--import', require.resolve('tsx'), 'src/index.ts'], {
       cwd: fileURLToPath(new URL('./server', import.meta.url)), env: config.env, stdio: 'ignore',
     });
     backend.on('error', () => console.error('Flowcast API could not start'));

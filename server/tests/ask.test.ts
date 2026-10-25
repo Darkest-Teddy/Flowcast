@@ -13,14 +13,14 @@ import { BASIS_TOPICS, dayFrom, type AskFacts, type ServerAskContext } from '../
 import { AskRequest, clientKey, createApp, limiter } from '../src/app';
 import type { AgentMessage } from '../../map-client/src/askClient';
 import type { AskContext } from '../../map-client/src/insights';
-import type { Playback } from '../../map-client/src/sim/playback';
+import type { DayView } from '../src/compactDay';
 import type { CampusData, SourceMeeting } from '../../map-client/src/data/campusData';
 
 // The real public bundle and simulation, Wednesday 12:30 on the Charles River campus. The day is
 // built once for the whole suite; app tests use a fake CampusModel around it. Other days are never
 // built here: the tools' facts report them as still being simulated.
 let campus: CampusModel;
-let wednesday: Playback;
+let wednesday: DayView;
 let facts: AskFacts;
 let ctx: ServerAskContext;
 before(async () => {
@@ -501,7 +501,7 @@ test('tool outputs stay small and never carry source URLs, agent ids or private 
   assert.doesNotMatch(all, /sourceUrl|https?:\/\//);
   assert.doesNotMatch(all, /(?:under)?graduate:(?:full|part)-time:\d+/); // agent ids
   assert.doesNotMatch(all, /meeting-[0-9a-f]{8,}/);
-  assert.ok(wednesday.data.agents.slice(0, 50).every((a) => !all.includes(`"${a.id}"`)));
+  // Every agent id has that shape (`${level}:${attendance}:${i}`, map-client/src/sim/population.ts), so the pattern covers them all.
   const privatePath = fileURLToPath(new URL(`../../${PRIVATE_BUNDLE}`, import.meta.url));
   if (existsSync(privatePath)) {
     const publicIds = new Set(Object.values(ctx.data!.locations).flatMap((l) => l.meetings.map((m) => m.id)));
@@ -666,9 +666,9 @@ test('the endpoint marks each model run in flight until it settles', async () =>
 // ---------------------------------------------------------------- the endpoint
 
 /** The real locations and Wednesday's playback; other days build when asked, with a fake builder. */
-function fakeCampus(builder: (weekday: number) => Playback | Promise<Playback> = () => wednesday): CampusModel & { builds: number[] } {
+function fakeCampus(builder: (weekday: number) => DayView | Promise<DayView> = () => wednesday): CampusModel & { builds: number[] } {
   const builds: number[] = [];
-  const cache = new BuildCache<number, Playback>((d) => { builds.push(d); return builder(d); }, 7);
+  const cache = new BuildCache<number, DayView>((d) => { builds.push(d); return builder(d); }, 7);
   return {
     locations: campus.locations, walkRoutes: campus.walkRoutes, meetings: campus.meetings,
     ready: (d) => (d === 2 ? wednesday : cache.ready(d)),

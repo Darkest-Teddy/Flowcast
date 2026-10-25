@@ -11,7 +11,8 @@ import type { ClassDirectory } from '../../map-client/src/classSearch';
 import type { AskContext } from '../../map-client/src/insights';
 import { ASK_ASSUMPTIONS } from '../../map-client/src/insights';
 import { LEVELS } from '../../map-client/src/layers/crowdLevels';
-import type { CampusLocation, Playback } from '../../map-client/src/sim/playback';
+import type { CampusLocation } from '../../map-client/src/sim/playback';
+import type { DayView } from './compactDay';
 import type { PopulationSummary } from '../../map-client/src/sim/population';
 import { MODELED_OFF_CAMPUS_MEAL_SHARE } from '../../map-client/src/sim/sourceDay';
 import { WEEKDAYS, type CampusData } from '../../map-client/src/data/campusData';
@@ -34,7 +35,7 @@ export interface PedestrianSite {
   profiles: { weekday: number | null; weekdays?: number[]; hour: number; pedestrians: number }[];
 }
 
-export type DayResult = { playback: Playback } | { available: false; reason: string; retryAfterSec: number };
+export type DayResult = { playback: DayView } | { available: false; reason: string; retryAfterSec: number };
 
 export interface AskFacts {
   /** The chosen campus bundle (public unless FLOWCAST_ASK_PRIVATE_BUNDLE=1). */
@@ -136,7 +137,7 @@ export function assumptionTable(data: CampusData, locations: CampusLocation[], s
  * The tools' view of one weekday: the shown day as passed in, another day only when its build has
  * finished (a missing one starts building and the tool says to retry).
  */
-export function dayContext(ctx: ServerAskContext, weekday: number | null): { ctx: ServerAskContext; playback?: Playback } | { available: false; reason: string; retryAfterSec: number } {
+export function dayContext(ctx: ServerAskContext, weekday: number | null): { ctx: ServerAskContext; playback?: DayView } | { available: false; reason: string; retryAfterSec: number } {
   const w = weekday ?? ctx.weekday;
   const day = ctx.facts?.day(w);
   if (w === ctx.weekday) return { ctx, playback: day && 'playback' in day ? day.playback : undefined };
@@ -147,7 +148,7 @@ export function dayContext(ctx: ServerAskContext, weekday: number | null): { ctx
 }
 
 /** The `day` function for AskFacts around a day cache. */
-export function dayFrom(ready: (weekday: number) => Playback | undefined, build: (weekday: number) => Promise<Playback>, retryAfterSec: number) {
+export function dayFrom(ready: (weekday: number) => DayView | undefined, build: (weekday: number) => Promise<DayView>, retryAfterSec: number) {
   return (weekday: number): DayResult => {
     const playback = ready(weekday);
     if (playback) return { playback };

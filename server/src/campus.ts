@@ -1,7 +1,7 @@
 // Loads the same bundled data the map plays, and builds the same simulation, so the server's
 // answers match what the map shows. Each weekday takes several seconds to build (blocking the
 // event loop while it runs); days are built one at a time, in the background, only while no
-// answer is being worked out, and kept in a small LRU cache.
+// answer is being worked out, and kept in a small LRU cache in compact form (compactDay.ts).
 
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ import { askMeetings } from '../../map-client/src/insights';
 import type { CampusData, SourceMeeting } from '../../map-client/src/data/campusData';
 import { assumptionTable, capacityBasis, dayFrom, pedestrianSites, type AskFacts } from './facts';
 import { loadChatFacts } from './chatData';
+import { compactDay, type DayView } from './compactDay';
 
 const root = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
@@ -140,10 +141,10 @@ export interface CampusModel {
   walkRoutes: Record<string, WalkRoute>;
   /** Meetings with their reference-week intervals (see askMeetings). */
   meetings: { locationId: string; meeting: SourceMeeting }[];
-  /** Playback for a weekday (0 = Monday) when it is built, else undefined. */
-  ready(weekday: number): Playback | undefined;
-  /** Playback for a weekday, starting or joining its build. */
-  playback(weekday: number): Promise<Playback>;
+  /** A weekday (0 = Monday) when it is built, else undefined. */
+  ready(weekday: number): DayView | undefined;
+  /** A weekday, starting or joining its build. */
+  playback(weekday: number): Promise<DayView>;
   /** Whether the private hackathon bundle was loaded (FLOWCAST_ASK_PRIVATE_BUNDLE=1). */
   privateBundle: boolean;
   /** How many built days are kept. */
@@ -167,7 +168,9 @@ export function loadCampusModel(env: Record<string, string | undefined> = proces
   const base: PopulationBase = buildPopulation(day, campus, population);
   const daysCached = daysCachedFrom(env);
   const asks = new InFlight();
-  const days = new BuildCache<number, Playback>((weekday) => new Playback(buildSourceDay(base, campus, weekday)), daysCached, () => asks.settled(BUILD_WAIT_MS));
+  // buildSourceDay keeps its last few full days per `base` object; a copy per build lets them go
+  // once the compact day is made (same inputs, same day).
+  const days = new BuildCache<number, DayView>((weekday) => compactDay(new Playback(buildSourceDay({ ...base }, campus, weekday))), daysCached, () => asks.settled(BUILD_WAIT_MS));
 
   const locations = base.locations.filter((l) => l.kind !== 'off-campus');
   const populationSummary = {

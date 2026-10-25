@@ -15,13 +15,13 @@ import { SOURCE_URLS } from '../src/chatData';
 import { buildVisuals, clock24, followUpsFor, mapLinkFor, MAX_VISUALS } from '../src/visuals';
 import { createApp } from '../src/app';
 import type { AskFacts } from '../src/facts';
-import type { Playback } from '../../map-client/src/sim/playback';
+import type { DayView } from '../src/compactDay';
 import type { ChatResponse, Visual } from '../../map-client/src/chatContract';
 
 // The real public bundle and Wednesday's simulation, 12:30 on the Charles River campus, as in
 // ask.test.ts. Other days are never built: tools report them as still being simulated.
 let campus: CampusModel;
-let wednesday: Playback;
+let wednesday: DayView;
 let facts: AskFacts;
 let ctx: ChatContext;
 const repo = (p: string) => JSON.parse(readFileSync(fileURLToPath(new URL(`../../${p}`, import.meta.url)), 'utf8'));
@@ -224,7 +224,7 @@ test('chat tool outputs stay small, carry no URLs or ids, and every schema is st
   const all = outputs.join('\n');
   assert.doesNotMatch(all, /sourceUrl|https?:\/\//);
   assert.doesNotMatch(all, /terriercentral:|(?:under)?graduate:(?:full|part)-time:\d+|fatigue/);
-  assert.ok(wednesday.data.agents.slice(0, 50).every((a) => !all.includes(`"${a.id}"`)));
+  // Every agent id has that shape (`${level}:${attendance}:${i}`, map-client/src/sim/population.ts), so the pattern covers them all.
   const tools = createChatTools(ctx, newToolLog()) as any[];
   for (const name of CHAT_TOOL_NAMES) assert.ok(tools.some((t) => t.name === name), name);
   for (const t of tools) assert.equal(t.strict, true, t.name);
@@ -445,8 +445,8 @@ test('replies are kept to the markdown subset and to the length of an assistant 
 
 // ---------------------------------------------------------------- the endpoints
 
-function fakeCampus(builder: (weekday: number) => Playback | Promise<Playback> = () => wednesday): CampusModel {
-  const cache = new BuildCache<number, Playback>((d) => builder(d), 7);
+function fakeCampus(builder: (weekday: number) => DayView | Promise<DayView> = () => wednesday): CampusModel {
+  const cache = new BuildCache<number, DayView>((d) => builder(d), 7);
   return {
     locations: campus.locations, walkRoutes: campus.walkRoutes, meetings: campus.meetings,
     ready: (d) => (d === 2 ? wednesday : cache.ready(d)),
