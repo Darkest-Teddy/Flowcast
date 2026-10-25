@@ -50,6 +50,7 @@ import { displayName, displayShort, sharedTagParts } from './tags/names';
 import { assignNames, type NameLists } from './sim/names';
 import type { CampusLocation } from './sim/playback';
 import { CameraControls } from './CameraControls';
+import { MapHotkeys } from './MapHotkeys';
 import { PerfMonitor, type PerfCounts } from './PerfMonitor';
 import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
@@ -78,7 +79,7 @@ import { IntroScreen, createLoadProgress } from './IntroScreen';
 import { IntroSky } from './IntroSky';
 import { introSound } from './introSound';
 import { INTRO_VIEW, introZoom } from './intro';
-import { prefersReducedMotion } from './map/camera';
+import { prefersReducedMotion, type CameraController } from './map/camera';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
@@ -104,7 +105,6 @@ import { fireResponseLayers } from './layers/fireResponse';
 import { AskPanel, type AskShow } from './AskPanel';
 import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
-import { LiveVoice } from './LiveVoice';
 import type { DayData, Stay, WalkRoute } from './sim/playback';
 import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireModels } from './layers/fireTrucks';
 import { loadFireNetwork, planFireResponse, roadsNear, signalOracle, type FireNetwork } from './sim/fireResponse';
@@ -342,6 +342,9 @@ const START_TAB: Tab = ['crowds', 'data', 'transit', 'traffic', 'bikes', 'weathe
 const LINKED_ANALYTICS = ['crowds', 'data', 'transit', 'bikes'].includes(LINKED_TAB ?? '');
 /** Gap between the floating toolbar and what it sits on (the screen edge, or the phone sheet). */
 const TOOLBAR_GAP = 12;
+/** An event's "Show on map" comes in this close on its building; a stadium or arena a little less. */
+const EVENT_ZOOM = 18;
+const VENUE_ZOOM = 17.2;
 
 interface Hud {
   time: number;
@@ -381,11 +384,13 @@ interface Bikes {
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const basemapRef = useRef<Basemap | null>(null);
+  const [camera, setCamera] = useState<CameraController | null>(null); // shared with the rail's rotate buttons
   const timeRef = useRef(START_AT);
   const speedRef = useRef(START_SPEED);
   const playingRef = useRef(true);
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
+  const spotlitRef = useRef<string | null>(null); // the selected building, when an event's Show on map picked it
   /* Which tab is open, for the handlers the map holds onto across renders. */
   const viewRef = useRef<View | null>(null);
   /* Analytics: which of the three subjects, and how the places list is cut. */
@@ -1167,6 +1172,7 @@ export default function App() {
             footprints: day.buildings,
             locations: populationBase.locations,
             selectedId: frameSelected,
+            spotlitId: spotlitRef.current === frameSelected ? frameSelected : null,
             placer,
             project: basemap.project,
             camera: basemap.getCamera(),
@@ -1260,6 +1266,7 @@ export default function App() {
             time: t,
             speed: speedRef.current,
             selectedId: selectedRef.current,
+            spotlitId: spotlitRef.current === selectedRef.current ? spotlitRef.current : null,
             zoom: basemap.getZoom(),
             roofHeights,
             volumes,
@@ -1470,6 +1477,7 @@ export default function App() {
   };
   const selectBuilding = (id: string | null) => {
     selectedRef.current = id;
+    spotlitRef.current = null;
     setSelected(id);
     /*
      * While the Log tab is open, tapping a building is picking the what-if's
@@ -1587,11 +1595,17 @@ export default function App() {
     const venue = eventDayRef.current.events.find((e) => e.startSec === startSec)?.venue;
     if (venue) basemapRef.current?.flyTo(venue.position, 16.6);
   };
-  const selectSource = (location: CampusLocation) => {
+  const selectSource = (location: CampusLocation, zoom?: number) => {
     setCampus(location.campus ?? 'charles-river');
     selectedRef.current = location.kind === 'outdoor' ? null : location.building;
     setSelected(selectedRef.current);
-    basemapRef.current?.flyTo(location.position);
+    spotlitRef.current = null;
+    basemapRef.current?.flyTo(location.position, zoom);
+  };
+  /** An event's "Show on map": in close on its building, whose tag wears the event's orange ring. */
+  const showEventAt = (location: CampusLocation) => {
+    selectSource(location, Math.max(EVENT_ZOOM, basemapRef.current?.getZoom() ?? 0));
+    spotlitRef.current = selectedRef.current;
   };
   const refreshIncidentHud = () => {
     const playback = playbackRef.current;
@@ -2068,6 +2082,12 @@ export default function App() {
       : []),
   ];
 
+  // Under the layers: turn the view 45 degrees a click, and keep turning while held.
+  const rotateItems: RailItem[] = camera ? [
+    { id: 'rotate-left', label: 'Rotate left', icon: <HudIcons.rotateLeft />, onSelect: () => camera.rotateLeft(), onHold: (on) => camera.holdTurn(on ? -1 : 0) },
+    { id: 'rotate-right', label: 'Rotate right', icon: <HudIcons.rotateRight />, onSelect: () => camera.rotateRight(), onHold: (on) => camera.holdTurn(on ? 1 : 0) },
+  ] : [];
+
   /*
    * The legend, built from the scale rather than written out: the ranges come
    * from each level's own `min`, so a threshold changed in theme/crowd.ts can
@@ -2123,6 +2143,18 @@ export default function App() {
       {(introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land') && <IntroSky phase={introPhase} light={shownLight} />}
       <IntroScreen progress={loadProgress} preset={shownLight} />
 
+      {/* Keyboard flying (arrows, + -, Shift to look around) and the shortcuts sheet, hidden until ?. */}
+      <MapHotkeys
+        basemap={mapKind ? basemapRef.current : null}
+        camera={camera}
+        onHome={() => { if (currentCampus) goToCampus(currentCampus); }}
+        onNextCampus={() => {
+          if (!campuses.length) return;
+          const at = campuses.findIndex((c) => c.id === campus);
+          goToCampus(campuses[(at + 1) % campuses.length]);
+        }}
+      />
+
       {/*
         The chrome. Each piece owns a corner so the map stays one uninterrupted
         surface: brand top left, layers down the left edge, views across the top,
@@ -2134,7 +2166,7 @@ export default function App() {
 
           {/* The views and the layers: two corners on a wide screen, one bottom sheet on a phone (hud.css). */}
           <div className="hud-dock">
-            <HudRail items={railItems}
+            <HudRail items={railItems} actions={rotateItems}
               campus={currentCampus ? {
                 current: currentCampus.id,
                 options: campuses,
@@ -2243,12 +2275,6 @@ export default function App() {
           </p>
         )}
         actions={<>
-          {askContext && <LiveVoice compact context={{ weekday, time: askContext.time,
-            campus: campus === 'fenway' || campus === 'medical' ? campus : 'charles-river' }}
-            onAnswer={(answer) => {
-              if (answer.show) showAsk({ ...answer.show,
-                select: askContext.locations.find(location => location.id === answer.show?.select) ?? null });
-            }} />}
           <span className="weather-chip-slot" ref={setWeatherChip} />
         </>}
       >
@@ -2401,7 +2427,7 @@ export default function App() {
                 onBack={() => setOpenEventId(null)}
                 onShow={(event) => {
                   const where = eventLocation(event);
-                  if (where) selectSource(where);
+                  if (where) showEventAt(where);
                 }}
                 buildingName={eventLocation(openEvent)?.name ?? null}
               />
@@ -2423,9 +2449,9 @@ export default function App() {
             {/* The scheduling tools stay: making an event is a different job from
                 reading what is on, and nothing in the handoff replaces them. */}
             <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
-              onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
+              onToggle={toggleEvents} onPickDate={pickEventDate} onShow={showEventAt}
               venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
-              time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
+              time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, VENUE_ZOOM)} onJump={jumpToVenueEvent} />
           </section>
         )}
 
@@ -2582,7 +2608,7 @@ export default function App() {
               {SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}
               {!SPEEDS.includes(speed) && <option value={speed}>{speed}×</option>}
             </select>
-            {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} intro={introPhase !== 'done'} />}
+            {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} intro={introPhase !== 'done'} onController={setCamera} />}
             <Popover title="Layers" hint="Map layers and lighting" className="layers" label={<><LayersIcon /> <span className="tool-word">Layers</span></>}>
               <ul className="layer-list">
                 <LayerSwitch label="MBTA" detail="Trains, buses and BU shuttles" on={showTransit} onToggle={toggleTransit} />

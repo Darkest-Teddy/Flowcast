@@ -2,7 +2,7 @@ import { createContext, Fragment, useContext, useEffect, useRef, useState, type 
 import { Navigate, useLocation } from 'react-router';
 import { api, resetAccountData } from '../data/api';
 import { CROWD_STORAGE_KEY } from '../lib/crowdReports';
-import { auth } from './client';
+import { auth, DEV_AUTH_BYPASS } from './client';
 import { AccountError } from './AccountError';
 import type { Role, Session } from '../data/types';
 
@@ -41,10 +41,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const version = ++revision.current;
     let signedIn = false; // past Google: a failure from here on is the profile's, not the sign-in's
     try {
-      const { data, error: sdkError } = await (await auth.getClient()).auth.getSession();
-      if (sdkError) throw sdkError;
-      if (version !== revision.current) return;
-      if (!data.session) { clearAccount(null); setReady(true); return; }
+      if (!DEV_AUTH_BYPASS) {
+        const { data, error: sdkError } = await (await auth.getClient()).auth.getSession();
+        if (sdkError) throw sdkError;
+        if (version !== revision.current) return;
+        if (!data.session) { clearAccount(null); setReady(true); return; }
+      }
       signedIn = true;
       const profile = await api.getSession();
       if (version === revision.current) { setSession(profile); setError(null); setProfileFailed(false); setReady(true); }
@@ -62,6 +64,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let active = true;
     let unsubscribe: (() => void) | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // Local demo (client.ts DEV_AUTH_BYPASS): no Google session to watch; the server knows the account.
+    if (DEV_AUTH_BYPASS) { void refreshSession(); return () => { active = false; revision.current++; }; }
     auth.getClient().then((client) => {
       if (!active) return;
       const { data } = client.auth.onAuthStateChange((_event, sdkSession) => {
@@ -91,7 +95,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       clearAccount(null);
       // Which suggested places this browser would ask about stays with the student who saw them.
       try { window.localStorage.removeItem(CROWD_STORAGE_KEY); } catch { /* Storage may be disabled. */ }
-      try { await auth.signOut(); setError(null); }
+      try { if (!DEV_AUTH_BYPASS) await auth.signOut(); setError(null); }
       catch (e) { setError(e instanceof Error ? e.message : 'Sign-out failed.'); throw e; }
       finally { setReady(true); }
     },
@@ -112,6 +116,7 @@ export function useSession(): SessionState {
  * visitor who has never signed in instead of waiting for the session check.
  */
 export function mayBeSignedIn(): boolean {
+  if (DEV_AUTH_BYPASS) return true;
   try {
     for (let i = 0; i < localStorage.length; i++) if (/^sb-.+-auth-token$/.test(localStorage.key(i) ?? '')) return true;
     return false;

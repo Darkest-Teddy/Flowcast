@@ -40,6 +40,8 @@ export function crowdLevelStyle(share: number): Record<string, string> {
 
 /** The selected building is outlined in white: every hue already means a level. */
 const SELECTED: RGB = [255, 255, 255];
+/** A building an event's "Show on map" picked: the whole glow turns this orange (styles.css --tag-spotlight-rgb). */
+export const SPOTLIGHT: RGB = [251, 146, 60];
 /** Roof glow floats just above the roof (the detailed models' roofs sit 0.5 m above Mapbox's). */
 const ROOF_LIFT = 0.9;
 const BREATH_MS = 2400;
@@ -79,6 +81,10 @@ interface Glow {
   share: number;
   level: CrowdLevelInfo;
   selected: boolean;
+  /** Picked by an event: drawn in SPOTLIGHT orange rather than its crowd level's colour. */
+  spotlit: boolean;
+  /** The glow's colour: the crowd level's, or orange for an event's building. */
+  tint: readonly number[];
   /** Ground halo: outer ring (fade 0) and inner ring (fade 1), with the fade carried in z. */
   halo: [number, number, number][][];
 }
@@ -111,8 +117,8 @@ let cached: {
   packedRims: Rim[];
 } | null = null;
 
-function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupancy[], selectedId: string | null, roofs?: RoofHeights, volumes?: ModelVolumes) {
-  const key = `${selectedId}|${roofs?.size}|${volumes?.size}|${buildings.map((b) => `${b.id}:${b.count}:${b.share}`).join()}`;
+function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupancy[], selectedId: string | null, spotlitId: string | null, roofs?: RoofHeights, volumes?: ModelVolumes) {
+  const key = `${selectedId}|${spotlitId}|${roofs?.size}|${volumes?.size}|${buildings.map((b) => `${b.id}:${b.count}:${b.share}`).join()}`;
   if (cached && cached.key === key && cached.footprints === footprints) return cached;
   const shares = new Map(buildings.map((b) => [b.id, b.share]));
   const glows: Glow[] = [];
@@ -123,13 +129,17 @@ function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupanc
     const share = shares.get(f.id) ?? 0;
     const outer = roundedOffset(geo.hull, haloReach(share)).map(geo.toLngLat);
     const inner = roundedOffset(geo.hull, 0.5).map(geo.toLngLat);
+    const level = crowdLevel(share);
+    const spotlit = f.id === spotlitId;
     glows.push({
       id: f.id,
       geo,
       top: ringTop(f, footprints, roofs),
       share,
-      level: crowdLevel(share),
+      level,
       selected: f.id === selectedId,
+      spotlit,
+      tint: spotlit ? SPOTLIGHT : level.glow,
       halo: [ring3d(outer, HALO_Z), ring3d(inner, HALO_Z + HALO_Z_RANGE)],
     });
   }
@@ -154,8 +164,9 @@ function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupanc
   // rises well above the footprint (CAS's tower, CDS's crown), a tinted plane up there would float
   // over the real roof, so those keep just the outline cage around the whole model.
   const flatRoofs = glows.filter((g) => g.top <= g.geo.height * 1.2 + 3);
-  const packed = glows.filter((g) => g.level.key === 'packed');
-  const packedRims = rims.filter((r) => r.glow.level.key === 'packed');
+  // An event's orange building doesn't also pulse in its crowd colour.
+  const packed = glows.filter((g) => g.level.key === 'packed' && !g.spotlit);
+  const packedRims = rims.filter((r) => r.glow.level.key === 'packed' && !r.glow.spotlit);
   cached = { key, footprints, glows, flatRoofs, packed, edges, rims, packedRims };
   return cached;
 }
@@ -167,6 +178,8 @@ export interface CrowdLayerInput {
   time: number;
   speed: number;
   selectedId: string | null;
+  /** The selected building when an event's Show on map picked it: glows orange. */
+  spotlitId?: string | null;
   /** Map zoom: the overview gets a stronger wash so it reads as a heat map from afar. */
   zoom: number;
   /** Detailed-model heights, when the models are drawn (modelRoofHeights). */
@@ -183,8 +196,8 @@ const lineFade = new GlowFadeExtension({ mode: 'line', power: 1.6 });
 // edge just outside its walls is never swallowed by the model it outlines.
 const GLOW_PARAMETERS = { depthWriteEnabled: false, depthBias: -1, depthBiasSlopeScale: -1600 } as const;
 
-export function crowdLayers({ footprints, buildings, trips, time, speed, selectedId, zoom, roofHeights, volumes }: CrowdLayerInput) {
-  const { glows, packed, edges, rims, packedRims, key } = buildGlows(footprints, buildings, selectedId, roofHeights, volumes);
+export function crowdLayers({ footprints, buildings, trips, time, speed, selectedId, spotlitId = null, zoom, roofHeights, volumes }: CrowdLayerInput) {
+  const { glows, packed, edges, rims, packedRims, key } = buildGlows(footprints, buildings, selectedId, spotlitId, roofHeights, volumes);
   // 1 from street level to zoom 17.5, rising to 1.9 at the zoom 15.5 overview.
   const far = Math.min(Math.max((17.5 - zoom) / 2, 0), 1);
   const roofBoost = 1 + 0.9 * far;
@@ -193,7 +206,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
   const now = performance.now();
   const breath = reducedMotion ? 0.6 : 0.5 + 0.5 * Math.sin((now / BREATH_MS) * 2 * Math.PI);
   const ping = (now % PING_MS) / PING_MS;
-  const rimColor = (g: Glow, a: number) => (g.selected ? withAlpha(SELECTED, 255) : withAlpha(g.level.glow, a));
+  const rimColor = (g: Glow, a: number) => (g.spotlit ? withAlpha(SPOTLIGHT, 255) : g.selected ? withAlpha(SELECTED, 255) : withAlpha(g.level.glow, a));
 
   return [
     // Ground: a soft pool of light around each building.
@@ -201,7 +214,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       id: 'crowd-halo',
       data: glows,
       getPolygon: (d) => d.halo,
-      getFillColor: (d) => withAlpha(d.level.glow, Math.min(255, d.level.halo * haloBoost)),
+      getFillColor: (d) => withAlpha(d.tint, Math.min(255, (d.spotlit ? Math.max(d.level.halo, 110) : d.level.halo) * haloBoost)),
       extensions: [heightFade],
       parameters: GLOW_PARAMETERS,
       updateTriggers: { getFillColor: [key, zoomKey] },
@@ -263,7 +276,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       data: edges,
       getSourcePosition: (d) => d.source,
       getTargetPosition: (d) => d.target,
-      getColor: (d) => (d.glow.selected ? withAlpha(SELECTED, 235) : withAlpha(d.glow.level.glow, 90 + d.glow.level.halo * 0.6)),
+      getColor: (d) => (d.glow.selected ? withAlpha(d.glow.spotlit ? SPOTLIGHT : SELECTED, 235) : withAlpha(d.glow.level.glow, 90 + d.glow.level.halo * 0.6)),
       getWidth: (d) => (d.glow.selected ? 2 : 1.25),
       widthUnits: 'pixels',
       extensions: [lineFade],
@@ -278,7 +291,7 @@ export function crowdLayers({ footprints, buildings, trips, time, speed, selecte
       id: 'crowd-rim-glow',
       data: rims,
       getPath: (d) => d.path,
-      getColor: ({ glow: d }) => withAlpha(d.level.glow, d.selected ? 150 : 70),
+      getColor: ({ glow: d }) => withAlpha(d.tint, d.selected ? 150 : 70),
       getWidth: ({ glow: d }) => (d.selected ? 14 : d.level.rim),
       widthUnits: 'pixels',
       billboard: true,

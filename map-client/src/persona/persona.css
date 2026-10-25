@@ -34,13 +34,26 @@
  * The invitation
  * ------------------------------------------------------------------------- */
 /*
- * The invitation, a third of its old height.
+ * It rests as a capsule and opens on a cycle (JoinQrCard.tsx), so it reads as a
+ * piece of the chrome that speaks up now and then rather than a sign bolted to
+ * the corner. Open, it is laid out like the chrome's own rows: a semibold label,
+ * a secondary line, and the code at the edge as the thing to act on. The figure
+ * on the left is what you get; the star is kept for the capsule, where it ties
+ * the invitation to the starred walkers out on the map.
  *
- * It used to be a 340x164 block in the corner, which is a lot of the map to
- * spend on a sign. A phone only needs enough modules to lock on, so the code
- * came down to 68px and the card to one line of type beside it. Outer radius 20
- * less the 8px padding gives the code tile's 12.
+ * The opening is the building tags' (styles.css, .btag-card): closed, the card
+ * is clipped to exactly the capsule's outline in the bottom-right corner, so it
+ * reads as the capsule stretching up and out, and closing folds it back down.
+ * The card keeps its full size in layout throughout, so the panel above (which
+ * stops at --join-card-height, hud.css) never moves.
  */
+.join {
+  --join-capsule-width: 140px;
+  position: relative;
+  /* The slot's empty corner, while folded, belongs to the map. */
+  pointer-events: none;
+}
+
 .join-card,
 .persona-card {
   background: var(--hud-fill);
@@ -55,7 +68,83 @@
   align-items: center;
   box-sizing: border-box;
   height: var(--join-card-height);
-  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  clip-path: inset(
+    calc(100% - var(--hud-bar-height)) 0 0 calc(100% - var(--join-capsule-width)) round calc(var(--hud-bar-height) / 2)
+  );
+  opacity: 0;
+  transform-origin: 100% 100%;
+  transition: clip-path 0.26s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.08s linear 0.2s;
+}
+
+/* Open: on its cycle, hovered, or reached from the keyboard. The open clip sits
+   outside the box so the shadow isn't cut, its radius grown by the same 40px. */
+.join:is(.is-open, :hover, :has(.join-capsule:focus-visible)) .join-card {
+  clip-path: inset(-40px round calc(var(--radius-panel) + 40px));
+  opacity: 1;
+  pointer-events: auto;
+  transition: clip-path 0.4s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.06s linear;
+  animation: join-pop 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* A small overshoot, so it pops rather than slides. */
+@keyframes join-pop {
+  0% { scale: 0.92; }
+  55% { scale: 1.015; }
+  100% { scale: 1; }
+}
+
+/* The contents follow the shape: gone before it folds, in once it has mostly opened. */
+.join-card > * {
+  opacity: 0;
+  transition: opacity 0.08s linear;
+}
+
+.join:is(.is-open, :hover, :has(.join-capsule:focus-visible)) .join-card > * {
+  opacity: 1;
+  transition: opacity 0.2s ease 0.12s;
+}
+
+/* The resting state: a pill the height of every other bar, like the legend across the bottom. */
+.join-capsule {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  width: var(--join-capsule-width);
+  height: var(--hud-bar-height);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-capsule);
+  background: var(--hud-fill);
+  box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  /* Closing: back in as the card folds down onto it. */
+  transition: opacity 0.1s linear 0.18s;
+}
+
+.join:is(.is-open, :hover, :has(.join-capsule:focus-visible)) .join-capsule {
+  opacity: 0;
+  transition: opacity 0.1s linear;
+}
+
+.join-capsule:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.join-capsule-mark {
+  color: var(--color-accent);
 }
 
 /* Always white, in both themes: a dark QR tile does not scan. */
@@ -90,41 +179,35 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
-.join-card-mark {
-  font-size: var(--text-lg);
-  line-height: 1;
-  color: var(--color-accent);
-}
-
+/* The chrome's row label and detail (hud.css, .hud-tag-menu-label), not a headline. */
 .join-card-title {
   margin: 0;
   font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-text);
-  line-height: 1.2;
+  font-weight: var(--weight-semibold);
+  line-height: 1.25;
   white-space: nowrap;
 }
 
 .join-card-note {
   margin: 0;
   font-size: var(--text-sm);
-  line-height: 1.3;
+  line-height: var(--leading-snug);
   color: var(--map-ink-secondary);
   white-space: nowrap;
 }
 
 /*
- * The address, so someone can type it if the scan fails. Pinned to the bottom of
- * the column and allowed to wrap nowhere: the card is as wide as its longest
- * line, so a wrap here would stretch the whole card instead.
+ * The address, so someone can type it if the scan fails. Allowed to wrap
+ * nowhere: the card is as wide as its longest line, so a wrap here would
+ * stretch the whole card instead.
  */
 .join-card-url {
-  margin: auto 0 0;
+  margin: var(--space-1) 0 0;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--map-ink-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -285,6 +368,14 @@
 @media (prefers-reduced-motion: reduce) {
   .persona-card-close {
     transition: none;
+  }
+
+  /* Still opens and closes on its cycle, but as a fade: no fold, no pop. */
+  .join .join-card,
+  .join:is(.is-open, :hover, :has(.join-capsule:focus-visible)) .join-card {
+    clip-path: none;
+    animation: none;
+    transition: opacity 0.2s linear;
   }
 }
 

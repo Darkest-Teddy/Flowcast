@@ -6,11 +6,12 @@ export interface VoiceCaption {
   end: number;
 }
 
-interface VoiceOptions {
+export interface VoiceOptions {
   audio: HTMLAudioElement;
   onState: (phase: VoicePhase, message: string) => void;
   onCaptions: (captions: VoiceCaption[]) => void;
   onPlaybackBlocked: () => void;
+  onAudioLevel?: (level: { input: number; output: number }) => void;
   context: () => string;
   lookup: (question: string, signal: AbortSignal) => Promise<string>;
   fetch?: typeof fetch;
@@ -25,6 +26,8 @@ export class VoiceSession {
   private peer?: RTCPeerConnection;
   private events?: RTCDataChannel;
   private microphone?: MediaStream;
+  private remote?: MediaStream;
+  private audioLevels?: VoiceAudioLevels;
   private ready = false;
   private closing = false;
   private disposed = false;
@@ -36,7 +39,10 @@ export class VoiceSession {
   private connectTimer?: ReturnType<typeof setTimeout>;
   private previousContext = '';
 
-  constructor(options: VoiceOptions) { this.options = options; }
+  constructor(options: VoiceOptions) {
+    this.options = options;
+    if (options.onAudioLevel) this.audioLevels = new VoiceAudioLevels(options.onAudioLevel);
+  }
 
   private later(fn: () => void, ms: number) {
     const timer = setTimeout(() => { this.timers.delete(timer); fn(); }, ms);
@@ -56,13 +62,17 @@ export class VoiceSession {
       const peer = this.options.peer?.() ?? new RTCPeerConnection();
       this.peer = peer;
       peer.addEventListener('track', ({ track }) => {
-        if (this.disposed) return;
-        this.options.audio.srcObject = new MediaStream([track]);
+        if (this.disposed) { track.stop(); return; }
+        this.remote?.getTracks().forEach(previous => { if (previous !== track) previous.stop(); });
+        this.remote = new MediaStream([track]);
+        this.options.audio.srcObject = this.remote;
+        this.audioLevels?.attach('output', this.remote);
         void this.options.audio.play().catch(() => {
           if (!this.disposed) this.options.onPlaybackBlocked();
         });
       });
       peer.addEventListener('connectionstatechange', () => {
+        if (this.disposed) return;
         if (peer.connectionState === 'failed') this.fail('Voice connection lost. Start again to reconnect.');
         if (peer.connectionState === 'disconnected') {
           this.later(() => {
@@ -74,6 +84,7 @@ export class VoiceSession {
       // Permission may resolve after Cancel or a route change.
       if (this.disposed) { stream.getTracks().forEach(track => track.stop()); return; }
       this.microphone = stream;
+      this.audioLevels?.attach('input', stream);
       for (const track of stream.getAudioTracks()) {
         peer.addTrack(track, stream);
         track.addEventListener('ended', () => this.fail('Microphone disconnected. Check it and start again.'));
@@ -192,6 +203,7 @@ export class VoiceSession {
   stop() {
     if (this.disposed || this.closing) return;
     this.closing = true;
+    this.audioLevels?.dispose();
     this.controller.abort();
     this.mute(true);
     if (this.ready && this.events?.readyState === 'open') {
@@ -216,14 +228,95 @@ export class VoiceSession {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.audioLevels?.dispose();
     if (this.ready && !this.closing) this.send({ type: 'session.close' });
     this.controller.abort();
     for (const timer of this.timers) clearTimeout(timer);
     this.timers.clear();
     this.microphone?.getTracks().forEach(track => track.stop());
+    this.remote?.getTracks().forEach(track => track.stop());
     this.events?.close();
     this.peer?.close();
     this.options.audio.pause();
     this.options.audio.srcObject = null;
+  }
+}
+
+type AudioAnalysis = {
+  stream: MediaStream;
+  source: MediaStreamAudioSourceNode;
+  analyser: AnalyserNode;
+  samples: Float32Array<ArrayBuffer>;
+};
+
+class VoiceAudioLevels {
+  private callback: NonNullable<VoiceOptions['onAudioLevel']>;
+  private context?: AudioContext;
+  private channels: Partial<Record<'input' | 'output', AudioAnalysis>> = {};
+  private timer?: ReturnType<typeof setInterval>;
+  private disposed = false;
+
+  constructor(callback: NonNullable<VoiceOptions['onAudioLevel']>) { this.callback = callback; }
+
+  attach(channel: 'input' | 'output', stream: MediaStream) {
+    if (this.disposed || typeof AudioContext === 'undefined') return;
+    let source: MediaStreamAudioSourceNode | undefined;
+    let analyser: AnalyserNode | undefined;
+    try {
+      if (!this.context) {
+        this.context = new AudioContext();
+        if (this.context.state === 'suspended') {
+          void this.context.resume().catch(() => this.dispose());
+        }
+      }
+      this.disconnect(this.channels[channel]);
+      delete this.channels[channel];
+      source = this.context.createMediaStreamSource(stream);
+      analyser = this.context.createAnalyser();
+      analyser.fftSize = 512;
+      // Analysis ends at the analyser; microphone audio must never reach speakers.
+      source.connect(analyser);
+      this.channels[channel] = { stream, source, analyser, samples: new Float32Array(analyser.fftSize) };
+      if (!this.timer) this.timer = setInterval(() => this.sample(), 50);
+    } catch {
+      try { source?.disconnect(); } catch { /* Already disconnected. */ }
+      try { analyser?.disconnect(); } catch { /* Already disconnected. */ }
+      this.dispose();
+    }
+  }
+
+  private level(channel: 'input' | 'output') {
+    const analysis = this.channels[channel];
+    if (!analysis || this.context?.state !== 'running' || !analysis.stream.getAudioTracks().some(
+      track => track.enabled && !track.muted && track.readyState !== 'ended',
+    )) return 0;
+    analysis.analyser.getFloatTimeDomainData(analysis.samples);
+    let sum = 0;
+    for (const value of analysis.samples) sum += value * value;
+    const rms = Math.sqrt(sum / analysis.samples.length);
+    return Number.isFinite(rms) ? Math.min(1, rms) : 0;
+  }
+
+  private sample() {
+    if (this.disposed) return;
+    try { this.callback({ input: this.level('input'), output: this.level('output') }); }
+    catch { this.dispose(); }
+  }
+
+  private disconnect(analysis?: AudioAnalysis) {
+    try { analysis?.source.disconnect(); } catch { /* Continue releasing other resources. */ }
+    try { analysis?.analyser.disconnect(); } catch { /* Continue releasing other resources. */ }
+  }
+
+  dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
+    clearInterval(this.timer);
+    this.timer = undefined;
+    for (const analysis of Object.values(this.channels)) this.disconnect(analysis);
+    this.channels = {};
+    try { void this.context?.close().catch(() => {}); } catch { /* Visualization cannot interrupt voice cleanup. */ }
+    this.context = undefined;
+    try { this.callback({ input: 0, output: 0 }); } catch { /* Consumer errors must not end the call. */ }
   }
 }

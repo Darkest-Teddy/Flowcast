@@ -4,7 +4,7 @@
   "generatedAt": "2026-10-24T23:33:33.249071+00:00",
   "timezone": "America/New_York",
   "status": "ok",
-  "collectedAt": "2026-10-25T06:14:09.099668+00:00",
+  "collectedAt": "2026-10-25T08:01:57.280093+00:00",
   "locations": [
     {
       "locationId": "mugar",
@@ -2684,11 +2684,30 @@
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/breadwinners/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.bu.edu/dining/location/breadwinners/?refresh=20261025",
+          "qualifier": "Published dated meal service hours."
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.zmenu.com/breadwinners-boston-online-menu/",
+          "sourceKind": "third_party_regular_hours",
+          "observedAt": "2026-10-25T08:01:57.270127+00:00",
+          "listingUpdatedAt": "2024-01-30",
+          "qualifier": "Published third-party weekly Sunday closure used as a fallback for this scenario date; date-specific exceptions unverified. Listing last updated 2024-01-30; corroborated by BU Dining closure on October 25."
         }
       ],
       "reason": null,
       "sources": [
-        "https://www.bu.edu/dining/location/breadwinners/"
+        "https://www.bu.edu/dining/location/breadwinners/",
+        "https://www.bu.edu/dining/location/breadwinners/?refresh=20261025",
+        "https://www.zmenu.com/breadwinners-boston-online-menu/"
       ]
     },
     {
@@ -2935,11 +2954,30 @@
           "serviceSourceUrls": [
             "https://www.bu.edu/dining/location/einsteins-brothers-bagels/"
           ]
+        },
+        {
+          "date": "2026-10-31",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/?refresh=20261025",
+          "qualifier": "Published dated meal service hours."
+        },
+        {
+          "date": "2026-11-01",
+          "windows": [],
+          "text": "Closed",
+          "sourceUrl": "https://restaurantguru.com/Einstein-Bros-Bagels-Boston-3",
+          "sourceKind": "third_party_regular_hours",
+          "observedAt": "2026-10-25T08:01:57.277809+00:00",
+          "listingUpdatedAt": "2026-06-14",
+          "qualifier": "Published third-party weekly Sunday closure used as a fallback for this scenario date; date-specific exceptions unverified. Listing last updated 2026-06-14; corroborated by BU Dining closure on October 25."
         }
       ],
       "reason": null,
       "sources": [
-        "https://www.bu.edu/dining/location/einsteins-brothers-bagels/"
+        "https://restaurantguru.com/Einstein-Bros-Bagels-Boston-3",
+        "https://www.bu.edu/dining/location/einsteins-brothers-bagels/",
+        "https://www.bu.edu/dining/location/einsteins-brothers-bagels/?refresh=20261025"
       ]
     },
     {
@@ -4495,6 +4533,44 @@
       "rawPath": "data-pipeline/inputs/google_maps_hours.json",
       "cacheUsed": true,
       "captureMethod": "Manually reviewed Google Maps listing; hash identifies saved observation records."
+    },
+    {
+      "url": "https://www.bu.edu/dining/location/breadwinners/?refresh=20261025",
+      "requestedUrl": "https://www.bu.edu/dining/location/breadwinners/?refresh=20261025",
+      "retrievedAt": "2026-10-25T08:01:07.391489+00:00",
+      "sha256": "b67f3c0ab10281c4f8c77702425a327f0d4f0acf06259843e19f9b64fad67d39",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/700c9a7a2b725d999d2041b197d8183cde3f1a6c30fbc26e6c8cdf4e4b3ddd64.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/?refresh=20261025",
+      "requestedUrl": "https://www.bu.edu/dining/location/einsteins-brothers-bagels/?refresh=20261025",
+      "retrievedAt": "2026-10-25T08:01:08.235403+00:00",
+      "sha256": "f33ce89fbddeb3a3cfa3f630542dfc90d9a5d378e05c59118740783d1a7c70bb",
+      "contentType": "text/html; charset=UTF-8",
+      "rawPath": "data-pipeline/.cache/sources/faf774d43e9ac224e816340cf91824da006df0d6d7a023481bc2c6fca8a1bba0.body",
+      "cacheUsed": true
+    },
+    {
+      "url": "https://www.zmenu.com/breadwinners-boston-online-menu/",
+      "requestedUrl": "https://www.zmenu.com/breadwinners-boston-online-menu/",
+      "retrievedAt": "2026-10-25T08:01:57.270127+00:00",
+      "sha256": "3db22c56ae7326f72db21dbd56763be3c7111aa3d186d006f681146fbddfa6f4",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/published_weekend_hours.json",
+      "cacheUsed": false,
+      "captureMethod": "Manually reviewed published weekly listing via web search; hash identifies saved observation records."
+    },
+    {
+      "url": "https://restaurantguru.com/Einstein-Bros-Bagels-Boston-3",
+      "requestedUrl": "https://restaurantguru.com/Einstein-Bros-Bagels-Boston-3",
+      "retrievedAt": "2026-10-25T08:01:57.277809+00:00",
+      "sha256": "3db22c56ae7326f72db21dbd56763be3c7111aa3d186d006f681146fbddfa6f4",
+      "contentType": "application/json",
+      "rawPath": "data-pipeline/inputs/published_weekend_hours.json",
+      "cacheUsed": false,
+      "captureMethod": "Manually reviewed published weekly listing via web search; hash identifies saved observation records."
     }
   ],
   "coverage": {
@@ -4523,15 +4599,9 @@
       "west-dining": [],
       "marciano": [],
       "gsu": [],
-      "breadwinners": [
-        "2026-10-31",
-        "2026-11-01"
-      ],
+      "breadwinners": [],
       "saxbys": [],
-      "einstein-bagels": [
-        "2026-10-31",
-        "2026-11-01"
-      ],
+      "einstein-bagels": [],
       "buick-street-market": [],
       "fullers-pub": [],
       "after-hours-west": []
@@ -4541,15 +4611,15 @@
     "weekStart": "2026-10-26",
     "weekEnd": "2026-11-01",
     "basis": "Manually reviewed Google Maps regular weekend listings, used only to fill missing scenario hours. Date-specific exceptions unverified.",
-    "missingDates": {
-      "breadwinners": [
-        "2026-10-31",
-        "2026-11-01"
-      ],
-      "einstein-bagels": [
-        "2026-10-31",
-        "2026-11-01"
-      ]
-    }
+    "missingDates": {}
+  },
+  "publishedWeekendFallback": {
+    "weekStart": "2026-10-26",
+    "weekEnd": "2026-11-01",
+    "basis": "Published third-party regular Sunday closures; date-specific exceptions unverified. Saturday closures come from fresh dated BU Dining pages.",
+    "locations": [
+      "breadwinners",
+      "einstein-bagels"
+    ]
   }
 }

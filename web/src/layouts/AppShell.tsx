@@ -199,24 +199,27 @@ export function AppShell({
             </div>
           ))}
         </nav>
-        <div className={styles.tools}>
-          <button type="button" className={styles.tool} onClick={toggleTheme}
-            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'}>
-            {dark ? <Sun aria-hidden /> : <Moon aria-hidden />}
-          </button>
-          <button type="button" className={styles.tool} onClick={toggleCollapsed}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-pressed={collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-            {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
-          </button>
-        </div>
+        {/* A full-width row just above the profile; an icon alone on the rail. */}
+        <button type="button" className={`${styles.item} ${styles.collapse}`} onClick={toggleCollapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-pressed={collapsed} title={collapsed ? 'Expand sidebar' : undefined}>
+          {collapsed ? <PanelLeftOpen aria-hidden className={styles.itemIcon} /> : <PanelLeftClose aria-hidden className={styles.itemIcon} />}
+          <span className={styles.itemLabel}>{collapsed ? 'Expand' : 'Collapse'}</span>
+        </button>
         {sidebarFooter && <div className={styles.footer}>{sidebarFooter}</div>}
       </aside>
       {open && <div className={styles.scrim} onClick={() => setOpen(false)} aria-hidden />}
 
       <div className={styles.main} inert={open || undefined}>
-        {!tabBar && <button ref={menuButton} className={styles.menu} onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}>
-          <Menu aria-hidden />
-        </button>}
+        {/* The admin menu button (phones) on the left, the light/dark toggle on the right. */}
+        <div className={styles.topBar}>
+          {!tabBar && <button ref={menuButton} className={styles.menu} onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}>
+            <Menu aria-hidden />
+          </button>}
+          <button type="button" className={`${styles.tool} ${styles.theme}`} onClick={toggleTheme}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'}>
+            {dark ? <Sun aria-hidden /> : <Moon aria-hidden />}
+          </button>
+        </div>
         <main className={styles.content}>
           <Outlet />
         </main>

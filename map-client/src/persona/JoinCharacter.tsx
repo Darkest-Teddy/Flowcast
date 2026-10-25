@@ -21,6 +21,9 @@ import type { PersonaRenderer } from '../../../web/src/lib/personaRender';
 /** The handoff's look for this card, and the only one it ever shows. */
 const LOOK = PRESETS[3];
 
+/** Its view: the idle loop while the card is open, a still pose (no frames drawn) while it is folded. */
+const view = (still: boolean) => ({ app: LOOK, cam: 'full', auto: false, drag: false, ground: true, anim: still ? 'pose' : 'loop' }) as const;
+
 /*
  * Dark, to sit on the card rather than on a page. The ground disc and its shadow
  * are the card's own greys, so the figure stands on the card instead of on a
@@ -28,9 +31,12 @@ const LOOK = PRESETS[3];
  */
 const THEME = { ground: '#2c2c2e', shadow: '#151517', outline: '#0b0b0d' };
 
-export function JoinCharacter() {
+export function JoinCharacter({ still = false }: { still?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
+  const rendererRef = useRef<PersonaRenderer | null>(null);
+  const stillRef = useRef(still);
+  stillRef.current = still;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -55,7 +61,8 @@ export function JoinCharacter() {
         // of the eye is the one piece of chrome that cannot be ignored.
         renderer.setAutoRotate(false);
         renderer.setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-        renderer.attach(canvas, { app: LOOK, cam: 'full', auto: false, drag: false, ground: true, anim: 'loop' });
+        renderer.attach(canvas, view(stillRef.current));
+        rendererRef.current = renderer;
       } catch (error) {
         // WebGL refused, the models are missing, or the chunk failed: the card
         // keeps its QR code and simply has no figure beside it.
@@ -66,10 +73,17 @@ export function JoinCharacter() {
 
     return () => {
       dead = true;
+      rendererRef.current = null;
       renderer?.detach(canvas);
       renderer?.dispose();
     };
   }, []);
+
+  // Re-specifying the view is how the renderer is told to stop or start animating it.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) rendererRef.current?.attach(canvas, view(still));
+  }, [still]);
 
   if (failed) return null;
   return <canvas ref={canvasRef} className="join-character" width={96} height={128} aria-hidden="true" />;

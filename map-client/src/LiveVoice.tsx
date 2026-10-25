@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { askAgentWithRetry, type AgentAnswer, type AgentMessage, type AskCampus } from './askClient';
 import { appendExchange } from './askConversation';
 import { VoiceSession, type VoiceCaption, type VoicePhase } from './voiceSession';
@@ -17,17 +17,26 @@ function currentContext(): VoiceContext {
     time: Number(part('hour')) * 3600 + Number(part('minute')) * 60 + Number(part('second')), campus: 'charles-river' };
 }
 
-export function LiveVoice({ context, onAnswer, compact = false }: { context?: VoiceContext; onAnswer?: (answer: AgentAnswer) => void; compact?: boolean }) {
+export function LiveVoice({ context, onAnswer, compact = false, children, disabled = false, onActiveChange }: {
+  context?: VoiceContext;
+  onAnswer?: (answer: AgentAnswer, question: string) => void;
+  compact?: boolean;
+  children?: ReactNode;
+  disabled?: boolean;
+  onActiveChange?: (active: boolean) => void;
+}) {
   const [phase, setPhase] = useState<VoicePhase>('ended');
   const [message, setMessage] = useState('Ask about campus, crowds or walking routes.');
   const [captions, setCaptions] = useState<VoiceCaption[]>([]);
   const [muted, setMuted] = useState(false);
   const [playbackBlocked, setPlaybackBlocked] = useState(false);
+  const [levels, setLevels] = useState({ input: 0, output: 0 });
   const audio = useRef<HTMLAudioElement>(null);
   const call = useRef<VoiceSession | null>(null);
   const latest = useRef({ context, onAnswer });
   latest.current = { context, onAnswer };
   const active = phase === 'connecting' || phase === 'connected' || phase === 'ending';
+  useEffect(() => { onActiveChange?.(active); }, [active, onActiveChange]);
 
   useEffect(() => {
     if (!active) return;
@@ -57,20 +66,21 @@ export function LiveVoice({ context, onAnswer, compact = false }: { context?: Vo
   }, []);
 
   const start = () => {
-    if (active || !audio.current) return;
+    if (active || disabled || !audio.current) return;
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) {
       setPhase('error');
       setMessage('Voice needs a browser with microphone support on HTTPS or localhost.');
       return;
     }
     call.current?.dispose();
-    setCaptions([]); setMuted(false); setPlaybackBlocked(false);
+    setCaptions([]); setMuted(false); setPlaybackBlocked(false); setLevels({ input: 0, output: 0 });
     let history: AgentMessage[] = [];
     let historyAccount: string | null | undefined;
     const session = new VoiceSession({
       audio: audio.current,
       onState: (next, text) => { setPhase(next); setMessage(text); },
       onCaptions: setCaptions,
+      onAudioLevel: setLevels,
       onPlaybackBlocked: () => setPlaybackBlocked(true),
       context: () => {
         const ctx = latest.current.context ?? currentContext();
@@ -100,7 +110,7 @@ export function LiveVoice({ context, onAnswer, compact = false }: { context?: Vo
         if (signal.aborted) return '';
         if (!result.ok) return `Campus lookup could not answer: ${result.error.message}. Do not invent a result.`;
         history = appendExchange(history, question, result.value.answer);
-        latest.current.onAnswer?.(result.value);
+        latest.current.onAnswer?.(result.value, question);
         return result.value.answer;
       },
     });
@@ -110,12 +120,35 @@ export function LiveVoice({ context, onAnswer, compact = false }: { context?: Vo
 
   const toggleLabel = phase === 'connecting' ? 'Cancel voice' : active ? 'End voice' : 'Start voice';
   const toggle = () => active ? call.current?.stop() : start();
+  const status = phase === 'connecting' ? 'Connecting…' : phase === 'ending' ? 'Ending…'
+    : playbackBlocked ? 'Audio paused' : levels.output > 0.035 ? 'Flowcast speaking' : muted ? 'Mic muted' : 'Listening';
+  const level = Math.min(1, Math.sqrt(Math.max(muted ? 0 : levels.input, levels.output)) * 2);
 
   if (compact) return (
-    <div className={styles.compact} role="group" aria-label="Live voice">
-      <button type="button" className={`${styles.mic} ${active ? styles.active : ''}`}
+    <div className={styles.compact} role="group" aria-label="Live voice"
+      onKeyDown={event => { if (event.key === 'Escape' && active) { event.preventDefault(); call.current?.stop(); } }}>
+      {children && <div className={styles.composer} hidden={active}>{children}</div>}
+      {active && <div className={styles.session} data-phase={phase}>
+        <div className={styles.voiceLabel}><span className={styles.indicator} aria-hidden="true" /><span>{status}</span><small>AI voice</small></div>
+        <div className={styles.waveform} aria-hidden="true">
+          {Array.from({ length: 36 }, (_, i) => {
+            const envelope = Math.sin((i + 1) / 37 * Math.PI);
+            const weight = 0.3 + 0.7 * Math.abs(Math.sin(i * 2.4));
+            return <span key={i} style={{ '--bar-height': `${3 + level * 29 * envelope * weight}px`, '--bar-delay': `${i * 24}ms` } as CSSProperties} />;
+          })}
+        </div>
+        {phase === 'connected' && <button type="button" data-voice-control className={styles.mic}
+          aria-label={muted ? 'Unmute microphone' : 'Mute microphone'} aria-pressed={muted}
+          title={muted ? 'Unmute microphone' : 'Mute microphone'} onClick={() => { call.current?.mute(!muted); setMuted(!muted); }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+            <rect x="9" y="2" width="6" height="13" rx="3" /><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" />
+            {muted && <path d="m3 3 18 18" />}
+          </svg>
+        </button>}
+      </div>}
+      <button type="button" data-voice-control className={`${styles.mic} ${active ? styles.active : ''}`}
         aria-label={toggleLabel} title={active ? toggleLabel : 'Talk to Flowcast (AI voice)'}
-        aria-pressed={active} aria-busy={phase === 'connecting'} disabled={phase === 'ending'} onClick={toggle}>
+        aria-pressed={active} aria-busy={phase === 'connecting'} disabled={phase === 'ending' || (!active && disabled)} onClick={toggle}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
           {active ? <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none" />
             : <><rect x="9" y="2" width="6" height="13" rx="3" /><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" /></>}

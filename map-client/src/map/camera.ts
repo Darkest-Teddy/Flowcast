@@ -27,6 +27,9 @@ const TOUR_REDUCED_DEG_PER_S = 1.5;
 /** Seconds to reach full orbit speed, so starting and resuming never jerk. */
 const SPIN_RAMP_S = 1.2;
 const ROTATE_STEP = 45;
+/** Holding a rotate button: after its 45 degree step, the view keeps turning at this rate. */
+const TURN_DEG_PER_S = 60;
+const TURN_REDUCED_DEG_PER_S = 20;
 const TILT_STEP = 10;
 const STEP_MS = 650;
 const PRESET_MS = 1600;
@@ -101,6 +104,7 @@ export class CameraController {
   private lastFrame = 0;
   private ramp = 0; // 0..1 towards full orbit speed
   private held = false; // a pointer is down on the map
+  private turnDir = 0; // a rotate button held down: -1 left, 1 right
   private autoStartTimer = 0;
   // The target of a rotate/tilt step still animating, so repeated presses add up.
   private pending: { bearing?: number; pitch?: number; until: number } | null = null;
@@ -155,6 +159,12 @@ export class CameraController {
   }
   rotateRight() {
     this.rotateBy(ROTATE_STEP);
+  }
+  /** A rotate button held (-1 left, 1 right) or let go (0): keep turning, smoothly, until it is. */
+  holdTurn(dir: -1 | 0 | 1) {
+    if (dir) this.endTour();
+    this.turnDir = dir;
+    this.sync();
   }
   tiltBy(delta: number) {
     this.endTour();
@@ -255,7 +265,12 @@ export class CameraController {
     if ((Object.keys(patch) as (keyof CameraControllerState)[]).every((k) => next[k] === this.state[k])) return;
     this.state = next;
     for (const l of this.listeners) l();
-    const active = next.spinning || next.touring;
+    this.sync();
+  }
+
+  /** Runs the frame loop while anything turns the camera continuously. */
+  private sync() {
+    const active = this.state.spinning || this.state.touring || this.turnDir !== 0;
     if (active && !this.frame) {
       this.lastFrame = 0;
       this.ramp = 0;
@@ -276,11 +291,13 @@ export class CameraController {
 
     // Never fight a move in progress (the app's campus flyTo, a preset, a step, a tour flight)
     // or a finger on the map: jumpTo would cancel either. Resume with the ramp afterwards.
-    const orbiting = spinning || (touring && this.tourPhase === 'dwell');
+    const orbiting = this.turnDir !== 0 || spinning || (touring && this.tourPhase === 'dwell');
     if (orbiting && !this.held && !this.map.isEasing()) {
       this.ramp = Math.min(1, this.ramp + dt / SPIN_RAMP_S);
       const k = this.ramp * this.ramp * (3 - 2 * this.ramp);
-      const speed = spinning
+      const speed = this.turnDir
+        ? this.turnDir * (this.reducedMotion ? TURN_REDUCED_DEG_PER_S : TURN_DEG_PER_S)
+        : spinning
         ? this.reducedMotion ? SPIN_REDUCED_DEG_PER_S : SPIN_DEG_PER_S
         : this.reducedMotion ? TOUR_REDUCED_DEG_PER_S : TOUR_DEG_PER_S;
       // Bearing rotates about the map centre, which with VIEW_PADDING is the visual centre of

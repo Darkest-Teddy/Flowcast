@@ -8,10 +8,10 @@ export interface AskRoute {
   estimate: boolean;
 }
 
-const ROUTE: [number, number, number, number] = [255, 214, 10, 235]; // the panel's --accent
+const ROUTE: [number, number, number, number] = [0, 122, 255, 255];
 const CASING: [number, number, number, number] = [17, 17, 17, 200];
 
-/** A yellow walking line with a dark casing, drawn above the crowd rings so it stays readable. */
+/** A blue walking line with a dark casing, drawn above the crowd rings so it stays readable. */
 export function askRouteLayers(route: AskRoute | null): Layer[] {
   if (!route || route.path.length < 2) return [];
   const ends = [route.path[0], route.path[route.path.length - 1]];

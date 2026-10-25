@@ -91,6 +91,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
 .group {
@@ -159,16 +160,8 @@
 }
 
 .footer {
-  padding-top: var(--space-2);
-}
-
-/* Theme and collapse, just above the footer: pinned to the bottom of the sidebar. */
-.tools {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-1);
   margin-top: auto;
-  padding: var(--space-4) var(--space-1) 0;
+  padding-top: var(--space-2);
 }
 
 .main {
@@ -178,13 +171,20 @@
   min-width: 0;
 }
 
+/* Above every page: the admin menu button on phones, the light/dark toggle at the right. */
+.topBar {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-4) 0;
+}
+
 .menu {
   display: none;
   align-items: center;
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin: var(--space-3) var(--space-4) 0;
+  margin: 0;
   border: 0;
   border-radius: var(--radius-capsule);
   background: transparent;
@@ -320,7 +320,7 @@
   color: var(--color-ink-secondary);
 }
 
-/* The theme and collapse toggles. */
+/* The theme toggle in the top bar. */
 .tool {
   display: inline-flex;
   align-items: center;
@@ -346,6 +346,34 @@
   height: 16px;
 }
 
+/* Collapse: a nav-style row pinned to the bottom, straight above the profile. */
+.collapse {
+  flex: none;
+  width: 100%;
+  margin-top: auto;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.collapse + .footer {
+  margin-top: 0;
+}
+
+.theme {
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  color: var(--color-ink-secondary);
+}
+
+.theme svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* Collapsed: an icon rail. Labels stay in the accessibility tree (visually hidden) and show as
    tooltips; the footer keeps its avatar or icon and hides anything marked data-rail="hide". */
 .collapsed {
@@ -357,10 +385,16 @@
   padding: 0;
 }
 
-.collapsed .tools {
-  flex-direction: column;
-  align-items: center;
-  padding-inline: 0;
+/* No labels on the rail, so a short hairline marks where each section starts. */
+.collapsed .nav {
+  gap: var(--space-3);
+}
+
+.collapsed .group + .group::before {
+  content: '';
+  height: 1px;
+  margin: 0 var(--space-3) var(--space-3);
+  background: var(--color-hairline-soft);
 }
 
 .collapsed .brandName,
@@ -395,9 +429,20 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* Phones: the collapse toggle has no rail to fold to; theme stays. */
-  .tool[aria-pressed] {
+  /* Phones: the collapse toggle has no rail to fold to. */
+  .collapse {
     display: none;
+  }
+
+  .collapse + .footer {
+    margin-top: auto;
+  }
+
+  /* A full-size touch target in the corner. */
+  .theme {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-capsule);
   }
 
   /* The drawer is always full width: undo the rail. */
@@ -406,9 +451,12 @@
     padding: 0 var(--space-3);
   }
 
-  .collapsed .tools {
-    flex-direction: row;
-    padding-inline: var(--space-1);
+  .collapsed .nav {
+    gap: var(--space-4);
+  }
+
+  .collapsed .group + .group::before {
+    content: none;
   }
 
   .collapsed .brandName,

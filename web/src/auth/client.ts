@@ -10,6 +10,13 @@ export function savedReturnRoute(): string {
   catch { return '/'; }
 }
 
+/**
+ * Local development only: with VITE_DEV_AUTH_BYPASS=1 (web/.env.local) in `vite` dev mode, the app
+ * skips Google and the server signs this browser in as its Local demo account
+ * (FLOWCAST_DEV_AUTH_BYPASS in server/.env; server/src/dashboard/auth.ts). Production builds never do.
+ */
+export const DEV_AUTH_BYPASS = import.meta.env?.DEV === true && import.meta.env?.VITE_DEV_AUTH_BYPASS === '1';
+
 export function createAuthClient(fetcher: typeof fetch = (...args) => fetch(...args), factory = createClient) {
   let pending: Promise<SupabaseClient> | undefined;
   let callback: Promise<string> | undefined;
@@ -29,6 +36,7 @@ export function createAuthClient(fetcher: typeof fetch = (...args) => fetch(...a
   return {
     getClient,
     async headers(): Promise<Record<string, string>> {
+      if (DEV_AUTH_BYPASS) return { Authorization: 'Bearer local-dev' };
       const { data, error } = await (await getClient()).auth.getSession();
       if (error) throw error;
       if (!data.session) throw new Error('Please sign in with Google to continue.');

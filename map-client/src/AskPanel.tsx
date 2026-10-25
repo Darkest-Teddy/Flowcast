@@ -7,6 +7,7 @@ import { dateForWeekday, WEEKDAYS } from './data/campusData';
 import { agentConfigured, askAgentWithRetry, type AgentAnswer, type AgentError, type AgentMessage, type AskCampus } from './askClient';
 import { appendExchange } from './askConversation';
 import { needsPrivateClarification, planQuestion } from '../../web/src/lib/askRouting';
+import { LiveVoice } from './LiveVoice';
 
 export const EXAMPLE_QUESTIONS = [
   'Least crowded library right now',
@@ -252,10 +253,14 @@ export function AskPanel({
 }) {
   const [question, setQuestion] = useState(initialQuestion ?? '');
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceKey, setVoiceKey] = useState(0);
   const contextRef = useRef(context);
   contextRef.current = context;
 
   const [busy, setBusy] = useState<string | null>(null); // what the panel is waiting for, or null
+  // Folds the conversation away so the map shows again; the composer stays, and asking reopens it.
+  const [collapsed, setCollapsed] = useState(false);
   const history = useRef<AgentMessage[]>([]);
   const afterDevice = useRef(false);
   const nextId = useRef(0);
@@ -271,6 +276,7 @@ export function AskPanel({
     const controller = new AbortController();
     inFlight.current = controller;
     setQuestion('');
+    setCollapsed(false);
     const ctx = contextRef.current;
     const campus = ASK_CAMPUSES.includes(ctx.campus) ? (ctx.campus as AskCampus) : 'charles-river';
     const id = nextId.current++;
@@ -346,9 +352,12 @@ export function AskPanel({
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (voiceActive) return;
     void run(question);
   };
   const clear = () => {
+    setVoiceKey(key => key + 1);
+    setVoiceActive(false);
     askedInitial.current = true;
     clearTimeout(initialTimer.current);
     inFlight.current?.abort();
@@ -358,19 +367,25 @@ export function AskPanel({
     setBusy(null);
     setExchanges([]);
     setQuestion('');
+    setCollapsed(false);
     onShow(null);
     composer.current?.focus();
   };
 
   return (
     <div className="ask">
-      <div className="ask-heading">
+      <div className="ask-heading" data-clearable={exchanges.length > 0 || voiceActive}>
         <h2>Ask about campus</h2>
-        <button type="button" className="ask-clear" onClick={clear}>New chat</button>
+        {exchanges.length > 0 && (
+          <button type="button" className="ask-collapse" aria-expanded={!collapsed} aria-controls="ask-transcript" onClick={() => setCollapsed((c) => !c)}>
+            {collapsed ? `Show chat (${exchanges.length})` : 'Hide chat'}
+          </button>
+        )}
+        <button type="button" className="ask-clear" onClick={clear}>Clear chat</button>
       </div>
       {exchanges.length === 0 && <p className="muted">Ask about places, crowd projections, courses or walks. Follow up to explore an answer.</p>}
       <p className="muted ask-note">Each reply uses the map context when asked. Earlier answers do not refresh when the day, time or campus changes.</p>
-      <ol className="ask-transcript" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Campus conversation">
+      <ol id="ask-transcript" className="ask-transcript" hidden={collapsed} role="log" aria-live="polite" aria-relevant="additions text" aria-label="Campus conversation">
         {exchanges.map((exchange) => (
           <li className="ask-exchange" key={exchange.id}>
             <p className="ask-question"><span className="visually-hidden">You: </span>{exchange.question}</p>
@@ -396,21 +411,36 @@ export function AskPanel({
           </li>
         ))}
       </ol>
-      <p className="muted ask-status" role="status">{busy ?? (exchanges.length > 0 ? 'Answer ready.' : '')}</p>
+      <p className="muted ask-status" role="status">{busy ?? (exchanges.length > 0 && !collapsed ? 'Answer ready.' : '')}</p>
       <form className="ask-form" onSubmit={submit}>
-        <input
-          ref={composer}
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          maxLength={300}
-          placeholder={exchanges.length ? 'Ask a follow-up…' : 'Least crowded library, CAS to Mugar…'}
-          aria-label={exchanges.length ? 'Ask a follow-up' : 'Ask about campus'}
-        />
-        <button type="submit" disabled={busy !== null || !question.trim()}>{busy ? 'Asking…' : 'Send'}</button>
+        <LiveVoice key={voiceKey} compact disabled={busy !== null} onActiveChange={setVoiceActive}
+          context={{ weekday: context.weekday, time: context.time,
+            campus: ASK_CAMPUSES.includes(context.campus) ? context.campus as AskCampus : 'charles-river' }}
+          onAnswer={(result, spokenQuestion) => {
+            setCollapsed(false);
+            const ctx = contextRef.current;
+            const answer = fromAgent(result, new Map(ctx.locations.map(location => [location.id, location])));
+            setExchanges(previous => [...previous, { id: nextId.current++, question: spokenQuestion,
+              label: `${WEEKDAYS[ctx.weekday]} · ${formatClock(ctx.time)} · Voice`, answer }]);
+            // Voice has its own bounded history; typed follow-ups must name a place after switching.
+            history.current = [];
+            afterDevice.current = true;
+            onShow(answer.show);
+          }}>
+          <input
+            ref={composer}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            maxLength={300}
+            placeholder={exchanges.length ? 'Ask a follow-up…' : 'Least crowded library, CAS to Mugar…'}
+            aria-label={exchanges.length ? 'Ask a follow-up' : 'Ask about campus'}
+          />
+          <button type="submit" disabled={busy !== null || !question.trim()}>{busy ? 'Asking…' : 'Send'}</button>
+        </LiveVoice>
       </form>
       {exchanges.length === 0 && <div className="ask-examples" aria-label="Example questions">
         {EXAMPLE_QUESTIONS.map((q) => (
-          <button key={q} type="button" disabled={busy !== null} onClick={() => void run(q)}>{q}</button>
+          <button key={q} type="button" disabled={busy !== null || voiceActive} onClick={() => void run(q)}>{q}</button>
         ))}
       </div>}
     </div>

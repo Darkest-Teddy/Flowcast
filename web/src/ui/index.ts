@@ -8,6 +8,6 @@ export { TextField, TextArea, SelectField } from './Field';
 export { Select } from './Select';
 export { ExportMenu, type ExportOption } from './ExportMenu';
 export { Table, CellStack, type Column } from './Table';
-export { SearchBar, type SearchMode } from './SearchBar';
+export { AskBar } from './AskBar';
 export { Page, PageHeader, SectionHeading, EmptyState, Grid, Loading } from './Page';
 export { Logo } from './Logo';

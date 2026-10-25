@@ -11,14 +11,13 @@
  * character swaps the invitation for that person's details, and closing them brings it back. That
  * keeps the slot a fixed height, so nothing below it ever has to move.
  *
- * The 64px live character the handoff shows in the right column is not drawn. It would need three.js
- * in map-client (which this branch does not have) and a second WebGL context on the map page, for a
- * decorative thumbnail. The star mark stands there instead, which earns its place: it is the same
- * mark that labels joined characters out on the map.
+ * Resting, it is only a capsule; it opens into the card on a cycle, or whenever someone hovers or
+ * taps it. The card keeps its full size in layout while folded, so the slot's height never changes.
  */
 
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
+import { joinTone } from '../introSound';
 import { JOINED_MARK } from './model';
 import { JoinCharacter } from './JoinCharacter';
 
@@ -30,11 +29,25 @@ export function joinUrl(): string {
   return `${window.location.origin}/join`;
 }
 
+/*
+ * The card rests as a capsule and opens on its own now and then: a display in a room should
+ * catch the eye of whoever walks past, but a full card sitting in the corner all day is a sign,
+ * and the map is what people came to read. Hover, focus or a tap opens it whenever someone wants.
+ */
+const FIRST_OPEN_MS = 4_000;
+const OPEN_MS = 15_000;
+/** Opens once every five minutes: open for OPEN_MS, closed for the rest. */
+const CYCLE_MS = 5 * 60_000;
+const CLOSED_MS = CYCLE_MS - OPEN_MS;
+
 export function JoinQrCard({ url = joinUrl() }: { url?: string }) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [open, setOpen] = useState(false);
+  // Bumped by a tap on the capsule, which restarts the cycle from "open".
+  const [nudge, setNudge] = useState(0);
 
-  // Once per URL. The code is a 360px PNG scaled down to 120, so it stays crisp on a big display.
+  // Once per URL. The code is a 360px PNG scaled down, so it stays crisp on a big display.
   useEffect(() => {
     let live = true;
     setFailed(false);
@@ -50,32 +63,58 @@ export function JoinQrCard({ url = joinUrl() }: { url?: string }) {
     };
   }, [url]);
 
-  return (
-    <section className="join-card" aria-labelledby="join-card-title">
-      <div className="join-qr">
-        {src && <img src={src} alt={`QR code linking to ${url}`} width={120} height={120} />}
-        {failed && (
-          <span className="join-qr-fallback" role="alert">
-            Code unavailable
-          </span>
-        )}
-      </div>
-      {/* A real character, because the card is asking for one. */}
-      <JoinCharacter />
+  // The cycle: rest, open, rest. Each phase schedules the next, so a tap can restart it cleanly.
+  useEffect(() => {
+    let timer = 0;
+    const phase = (isOpen: boolean) => {
+      setOpen(isOpen);
+      // A tone as it pops open, on its cycle or a tap. Not on hover: that would chime at every pass of the mouse.
+      if (isOpen) joinTone();
+      timer = window.setTimeout(() => phase(!isOpen), isOpen ? OPEN_MS : CLOSED_MS);
+    };
+    if (nudge) phase(true);
+    else timer = window.setTimeout(() => phase(true), FIRST_OPEN_MS);
+    return () => window.clearTimeout(timer);
+  }, [nudge]);
 
-      <div className="join-card-body">
-        <span className="join-card-mark" aria-hidden="true">
+  return (
+    <section className={`join${open ? ' is-open' : ''}`} aria-labelledby="join-card-title">
+      <div className="join-card">
+        {/* A real character, because the card is asking for one. Held still while folded away. */}
+        <JoinCharacter still={!open} />
+
+        <div className="join-card-body">
+          <p className="join-card-title" id="join-card-title">
+            Join the map
+          </p>
+          <p className="join-card-note">Scan to add yourself</p>
+          <p className="join-card-url">{url.replace(/^https?:\/\//, '')}</p>
+        </div>
+
+        {/* At the edge, where the eye ends up, and on white in both themes: a dark tile does not scan. */}
+        <div className="join-qr">
+          {src && <img src={src} alt={`QR code linking to ${url}`} width={68} height={68} />}
+          {failed && (
+            <span className="join-qr-fallback" role="alert">
+              Code unavailable
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* The resting state. Closed, the card is clipped down to exactly this outline (persona.css). */}
+      <button
+        type="button"
+        className="join-capsule"
+        aria-expanded={open}
+        aria-label="Join the map: show the QR code"
+        onClick={() => setNudge((n) => n + 1)}
+      >
+        <span className="join-capsule-mark" aria-hidden="true">
           {JOINED_MARK}
         </span>
-        <p className="join-card-title" id="join-card-title">
-          Put yourself on the map
-        </p>
-        {/* One line: the card is now sized by its code, and a second sentence
-            overflowed it onto the map. What the character then does is the
-            thing the map itself shows. */}
-        <p className="join-card-note">Scan to build your character</p>
-        <p className="join-card-url">{url.replace(/^https?:\/\//, '')}</p>
-      </div>
+        Join the map
+      </button>
     </section>
   );
 }

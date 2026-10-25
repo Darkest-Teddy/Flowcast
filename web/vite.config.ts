@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig, loadEnv, type Connect, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { buApiPlugin } from '../map-client/server/buApi.ts';
 
 const themeDir = fileURLToPath(new URL('../theme', import.meta.url));
 const mapDir = fileURLToPath(new URL('../map-client', import.meta.url));
@@ -72,15 +73,24 @@ export default defineConfig(({ mode }) => {
   // (map-client's win); expose them here too. loadEnv also picks up VITE_ variables set in the
   // process environment, which is how a host like Railway passes them to the build.
   const mapEnv = { ...loadEnv(mode, repoDir, 'VITE_'), ...loadEnv(mode, mapDir, 'VITE_') };
+  // The DS+X hackathon BU API (live BU Shuttle) and the private campus bundle, as map-client's own
+  // server serves them (map-client/server/buApi.ts). The key stays on this server, never VITE_.
+  const buKey = process.env.CATALOG_API_KEY
+    || { ...loadEnv(mode, repoDir, 'CATALOG_'), ...loadEnv(mode, mapDir, 'CATALOG_') }.CATALOG_API_KEY
+    || '';
+  const privateBundle = fileURLToPath(new URL('../data-pipeline/.cache/hackathon/campus-data.json', import.meta.url));
   return {
-    plugins: [react(), mapPage(), captureSink()],
+    plugins: [react(), buApiPlugin(buKey, privateBundle), mapPage(), captureSink()],
     // One server for everyone: the dashboard plus the map, its data and its models.
     publicDir: `${mapDir}/public`,
     resolve: {
       alias: { '@theme': themeDir, '@map': `${mapDir}/src` },
       dedupe: ['react', 'react-dom'], // map-client has its own node_modules; keep one React
     },
-    define: Object.fromEntries(Object.entries(mapEnv).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)])),
+    define: {
+      ...Object.fromEntries(Object.entries(mapEnv).map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)])),
+      'import.meta.env.VITE_BU_API_ENABLED': JSON.stringify(Boolean(buKey)),
+    },
     build: {
       rollupOptions: { input: { main: 'index.html', map: 'map.html' } },
     },

@@ -170,3 +170,173 @@ test('long multilingual lookup results are preserved in bounded context appends'
   assert.equal(chunks.map(c => c.content).join(''), answer);
   assert.ok(chunks.every(c => Buffer.byteLength(c.content, 'utf8') < 500));
 });
+
+function audioFixture(t, failure) {
+  const contexts = [];
+  const descriptors = ['AudioContext', 'MediaStream'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]);
+  t.after(() => {
+    for (const [key, descriptor] of descriptors) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  });
+  globalThis.MediaStream = class {
+    constructor(tracks) { this.tracks = tracks; }
+    getTracks() { return this.tracks; }
+    getAudioTracks() { return this.tracks; }
+  };
+  globalThis.AudioContext = class {
+    state = failure === 'resume' ? 'suspended' : 'running';
+    nodes = [];
+    closed = 0;
+    constructor() {
+      if (failure === 'constructor') throw new Error('Audio unavailable');
+      contexts.push(this);
+    }
+    resume() { return Promise.reject(new Error('Resume blocked')); }
+    close() { this.closed++; this.state = 'closed'; return Promise.resolve(); }
+    createMediaStreamSource(stream) {
+      const node = { stream, connections: [], disconnected: false,
+        connect(target) { this.connections.push(target); },
+        disconnect() { this.disconnected = true; },
+      };
+      this.nodes.push(node);
+      return node;
+    }
+    createAnalyser() {
+      if (failure === 'analyser') throw new Error('Analysis unavailable');
+      const node = { fftSize: 0, value: 0.25, disconnected: false,
+        getFloatTimeDomainData(samples) {
+          if (failure === 'sample') throw new Error('Sampling failed');
+          samples.fill(this.value);
+        },
+        disconnect() { this.disconnected = true; },
+      };
+      this.nodes.push(node);
+      return node;
+    }
+  };
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const levels = [];
+  const f = fixture(t, { onAudioLevel: value => {
+    if (failure === 'callback') throw new Error('UI failed');
+    levels.push(value);
+  } });
+  function remote() {
+    const track = Object.assign(new EventTarget(), {
+      enabled: true, muted: false, readyState: 'live', stopped: false,
+      stop() { this.stopped = true; this.readyState = 'ended'; },
+    });
+    const event = new Event('track');
+    Object.defineProperty(event, 'track', { value: track });
+    f.peer.dispatchEvent(event);
+    return track;
+  }
+  return { ...f, contexts, levels, remote };
+}
+
+test('samples actual microphone and remote amplitudes at 20fps without speaker loopback', async t => {
+  const f = audioFixture(t);
+  await f.call.start();
+  const remote = f.remote();
+  const context = f.contexts[0];
+  const [inputSource, inputAnalyser, outputSource, outputAnalyser] = context.nodes;
+  assert.deepEqual(inputSource.connections, [inputAnalyser]);
+  assert.deepEqual(outputSource.connections, [outputAnalyser]);
+  assert.equal(inputSource.stream, f.stream);
+  assert.equal(outputSource.stream, f.audio.srcObject);
+  outputAnalyser.value = 0.5;
+  t.mock.timers.tick(49);
+  assert.equal(f.levels.length, 0);
+  t.mock.timers.tick(1);
+  assert.deepEqual(f.levels.at(-1), { input: 0.25, output: 0.5 });
+  f.call.mute(true);
+  outputAnalyser.value = 2;
+  t.mock.timers.tick(50);
+  assert.deepEqual(f.levels.at(-1), { input: 0, output: 1 });
+  f.call.mute(false);
+  inputAnalyser.value = 0;
+  remote.readyState = 'ended';
+  t.mock.timers.tick(50);
+  assert.deepEqual(f.levels.at(-1), { input: 0, output: 0 });
+  inputAnalyser.value = NaN;
+  t.mock.timers.tick(50);
+  assert.deepEqual(f.levels.at(-1), { input: 0, output: 0 });
+  f.call.dispose();
+  assert.equal(context.closed, 1);
+  assert.ok(context.nodes.every(node => node.disconnected));
+  assert.equal(remote.stopped, true);
+  const count = f.levels.length;
+  t.mock.timers.tick(500);
+  assert.equal(f.levels.length, count);
+  f.call.dispose();
+  assert.equal(context.closed, 1);
+});
+
+test('replacing remote audio disconnects old analysis and disposal stops late tracks', async t => {
+  const f = audioFixture(t);
+  await f.call.start();
+  const first = f.remote();
+  const context = f.contexts[0];
+  const oldNodes = context.nodes.slice(2);
+  const second = f.remote();
+  assert.equal(first.stopped, true);
+  assert.ok(oldNodes.every(node => node.disconnected));
+  assert.equal(f.contexts.length, 1);
+  f.call.dispose();
+  assert.equal(second.stopped, true);
+  const count = context.nodes.length;
+  assert.equal(f.remote().stopped, true);
+  assert.equal(context.nodes.length, count);
+  assert.equal(f.audio.srcObject, null);
+});
+
+for (const ending of ['cancel', 'failure', 'unmount', 'graceful']) {
+  test(`${ending} releases audio analysis and suppresses future samples`, async t => {
+    const f = audioFixture(t);
+    await f.call.start();
+    if (ending === 'graceful') f.receive({ type: 'session.started' });
+    if (ending === 'failure') f.receive({ type: 'session.error' });
+    else if (ending === 'unmount') f.call.dispose();
+    else f.call.stop();
+    const context = f.contexts[0];
+    assert.equal(context.closed, 1);
+    assert.ok(context.nodes.every(node => node.disconnected));
+    assert.deepEqual(f.levels.at(-1), { input: 0, output: 0 });
+    const count = f.levels.length;
+    f.remote();
+    t.mock.timers.tick(100);
+    assert.equal(f.levels.length, count);
+    assert.equal(f.contexts.length, 1);
+  });
+}
+
+for (const failure of ['constructor', 'analyser', 'resume', 'sample', 'callback']) {
+  test(`visualization ${failure} failure does not fail voice`, async t => {
+    const f = audioFixture(t, failure);
+    await f.call.start();
+    f.receive({ type: 'session.started' });
+    t.mock.timers.tick(50);
+    await tick();
+    assert.equal(f.states.at(-1)[0], 'connected');
+    assert.equal(f.track.stopped, false);
+    assert.equal(f.peer.channel.readyState, 'open');
+    for (const context of f.contexts) {
+      assert.equal(context.closed, 1);
+      assert.ok(context.nodes.every(node => node.disconnected));
+    }
+  });
+}
+
+test('optional callback works without AudioContext and absent callback creates no context', async t => {
+  const f = audioFixture(t);
+  const g = fixture(t);
+  await g.call.start();
+  assert.equal(f.contexts.length, 0);
+  delete globalThis.AudioContext;
+  await f.call.start();
+  f.receive({ type: 'session.started' });
+  assert.equal(f.states.at(-1)[0], 'connected');
+  f.call.dispose();
+  assert.deepEqual(f.levels.at(-1), { input: 0, output: 0 });
+});

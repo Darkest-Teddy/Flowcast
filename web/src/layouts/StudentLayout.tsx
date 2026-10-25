@@ -43,6 +43,7 @@ export function StudentLayout() {
   const account: NavSection = {
     label: 'Account',
     items: [
+      welcome,
       { to: '/calendars', label: 'Calendars', icon: CalendarSync },
       { to: '/privacy', label: 'Privacy & data', icon: ShieldCheck },
       { to: '/settings', label: 'Settings', icon: Settings },
@@ -58,8 +59,13 @@ export function StudentLayout() {
       }
     : null;
 
-  const sections: NavSection[] = [{ items: [home, ask, schedule, study, forecasts, events, eventImpact, clubs, meetings, map] }, account, { items: [welcome] }];
-  if (club) sections.push(club);
+  const sections: NavSection[] = [
+    { items: [home, ask] },
+    { label: 'Plan', items: [schedule, study, forecasts] },
+    { label: 'Campus life', items: [events, eventImpact, clubs, meetings] },
+    ...(club ? [club] : []),
+    account,
+  ];
 
   const tabBar: TabBarConfig = {
     tabs: [home, schedule, forecasts, events, clubs],
@@ -74,7 +80,7 @@ export function StudentLayout() {
       ),
       sections: [
         account,
-        { label: 'More', items: [study, ask, meetings, eventImpact, map, welcome] },
+        { label: 'More', items: [study, ask, meetings, eventImpact, map] },
         ...(club ? [club] : []),
         ...(hasRole('admin') ? [{ label: 'Admin', items: [{ to: '/admin', label: 'Admin area', icon: LayoutGrid }] }] : []),
       ],

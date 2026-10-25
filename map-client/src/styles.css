@@ -42,6 +42,8 @@
   /* A venue event's visitors on a tag (violet, apart from every crowd level). */
   --tag-event: #ddd6fe;
   --tag-event-rgb: 167, 139, 250;
+  /* The building an event's "Show on map" picked: its tag's ring and its glow (layers/crowd.ts SPOTLIGHT). */
+  --tag-spotlight-rgb: 251, 146, 60;
   /* The same violet as text on the theme's glass (the tags and their cards): deep by day, pale by night. */
   --tag-event-ink: #6d28d9;
 
@@ -830,6 +832,7 @@ select.tool { padding: 0 8px 0 12px; }
 .btag-card:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .btag[data-level='packed'] .btag-card { box-shadow: var(--glass-inner-shadow), var(--glass-shadow), 0 0 22px -4px rgba(var(--lv), 0.55); }
 .btag.is-selected .btag-card { box-shadow: var(--glass-inner-shadow), 0 0 0 2px var(--color-ink), var(--glass-shadow); }
+.btag.is-spotlit .btag-pill, .btag.is-spotlit .btag-card { box-shadow: var(--glass-inner-shadow), 0 0 0 2.5px rgb(var(--tag-spotlight-rgb)), var(--glass-shadow), 0 0 18px -2px rgba(var(--tag-spotlight-rgb), 0.75); }
 
 .btag-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .btag-icon {

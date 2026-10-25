@@ -34,34 +34,15 @@
   color: var(--color-ink-tertiary);
 }
 
-.keys {
-  display: flex;
-  gap: 3px;
-}
-
-.keys kbd {
-  font-family: var(--font-text);
-  font-size: var(--text-xs);
-  color: var(--color-ink-tertiary);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-sm);
-  padding: 1px 5px;
-}
-
-/* Two lines on phones: a capsule would pinch the second line, so it becomes a rounded card. */
+/* Phones: one row still, so the mic stays inside the capsule; tighter gaps leave the field room. */
 @media (max-width: 640px) {
   .bar {
-    flex-wrap: wrap;
+    gap: var(--space-2);
     padding-left: var(--space-4);
-    border-radius: var(--radius-card);
   }
 
-  .input {
-    flex-basis: calc(100% - var(--space-8));
-  }
-
-  .keys {
-    display: none;
+  .submit {
+    min-width: 0;
   }
 }
 

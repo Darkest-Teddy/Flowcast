@@ -1,0 +1,25 @@
+{
+  "weekStart": "2026-10-26",
+  "weekEnd": "2026-11-01",
+  "basis": "Published third-party regular Sunday closures; date-specific exceptions unverified. Saturday closures come from fresh dated BU Dining pages.",
+  "locations": [
+    {
+      "locationId": "breadwinners",
+      "sourceUrl": "https://www.zmenu.com/breadwinners-boston-online-menu/",
+      "observedAt": "2026-10-25T08:01:57.270127+00:00",
+      "listingUpdatedAt": "2024-01-30",
+      "weekday": 6,
+      "text": "Closed",
+      "windows": []
+    },
+    {
+      "locationId": "einstein-bagels",
+      "sourceUrl": "https://restaurantguru.com/Einstein-Bros-Bagels-Boston-3",
+      "observedAt": "2026-10-25T08:01:57.277809+00:00",
+      "listingUpdatedAt": "2026-06-14",
+      "weekday": 6,
+      "text": "Closed",
+      "windows": []
+    }
+  ]
+}

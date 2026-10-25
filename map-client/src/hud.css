@@ -7,7 +7,8 @@
  *
  * Fixed zones, each --hud-inset from the edges and --hud-gap apart:
  *
- *   top left       the brand, and the layer rail under it
+ *   top left       the brand
+ *   left, centred  the layer rail and the rotate buttons
  *   top centre     the view tabs
  *   top right      the clock card (time, weather, day, drag bar, transport)
  *   bottom left    the crowd legend
@@ -60,6 +61,7 @@
 .hud-legend,
 .hud-ask .ask-form,
 .hud-ask .ask-transcript,
+.hud-ask .ask-clear,
 .hud-tag-menu,
 .hud-month,
 .map-lost {
@@ -200,13 +202,14 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Layer rail, under the brand
+ * Layer rail, centred down the left edge
  * ------------------------------------------------------------------------- */
 /* Outer radius 20 less its 8px padding gives the buttons' 12. */
 .hud-rail {
   position: absolute;
-  top: calc(var(--hud-inset) + var(--hud-bar-height) + var(--hud-gap));
+  top: 50%;
   left: var(--hud-inset);
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -864,7 +867,7 @@
 }
 
 /*
- * Panel furniture, hidden in the bar: the heading, both notes, "New chat" and
+ * Panel furniture, hidden in the bar: the heading, both notes and
  * the example questions. On a bar over a map they were chrome standing between
  * the reader and the campus; they still read in full on the dashboard's own Ask
  * page, where the box is the screen rather than a bar over something else.
@@ -872,7 +875,6 @@
 .hud-ask .ask-heading h2,
 .hud-ask > .ask > .muted:not(.ask-status),
 .hud-ask .ask > .ask-note,
-.hud-ask .ask-clear,
 .hud-ask .ask-examples {
   display: none;
 }
@@ -884,6 +886,33 @@
   /* Collapses to nothing when there is no conversation to clear. */
   min-height: 0;
 }
+
+/* Conversation controls share the map's small glass capsule. */
+.hud-ask .ask-collapse,
+.hud-ask .ask-clear {
+  min-height: 0;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-capsule);
+  background: var(--hud-fill);
+  box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.hud-ask .ask-collapse:hover,
+.hud-ask .ask-clear:hover { background: var(--color-surface-hover); }
+
+.hud-ask .ask-transcript[hidden] {
+  display: none;
+}
+.hud-ask .ask-heading:not([data-clearable='true']) { display: none; }
 
 /* The conversation: a card above the pill, scrolling, never taller than the view. */
 .hud-ask .ask-transcript {
@@ -947,7 +976,7 @@
   box-shadow: var(--glass-inner-shadow), var(--glass-shadow), 0 0 0 2px var(--color-accent);
 }
 
-.hud-ask .ask-form button {
+.hud-ask .ask-form button:not([data-voice-control]) {
   flex: none;
   min-height: 0;
   height: var(--hud-button);
