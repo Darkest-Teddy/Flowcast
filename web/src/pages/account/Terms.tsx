@@ -9,7 +9,7 @@ const SUMMARY = [
   { title: 'Forecasts are estimates', body: 'Crowd levels come from a simulation of public data, not live head counts.' },
   { title: 'Not for emergencies', body: 'In an emergency, follow BU Police, BU Alerts and 911, never Flowcast.' },
   { title: 'Ask uses AI', body: 'Questions, and up to two weeks of your classes, go to OpenAI to be answered.' },
-  { title: 'Your data stays yours', body: 'Download or delete it on this page at any time.' },
+  { title: 'Your data stays yours', body: 'Download or delete it from Privacy & data at any time.' },
 ];
 
 const CLAUSES: Clause[] = [
@@ -52,7 +52,7 @@ const CLAUSES: Clause[] = [
     body: <>
       <p>You sign in with Google. Flowcast never sees your Google password and does not request access to your Google Calendar. You are responsible for activity on your account.</p>
       <p>Flowcast stores what you give it: your profile (name, home dorm, meal times, study spot, avatar colour), your imported schedule, your notification preferences and the clubs you follow. Your schedule is not added to the shared campus simulation.</p>
-      <p>You keep ownership of everything you add. You let Flowcast store and process it only to run the features you use. You can download it, or delete it and sign out, from this page at any time. Theme and similar settings live in your browser and are cleared with your browser data.</p>
+      <p>You keep ownership of everything you add. You let Flowcast store and process it only to run the features you use. You can download it, or delete it and sign out, from Privacy & data in the dashboard at any time. Theme and similar settings live in your browser and are cleared with your browser data.</p>
     </>,
   },
   {

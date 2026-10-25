@@ -8,7 +8,7 @@ const SUMMARY = [
   { title: 'Only what features need', body: 'Your Google name and email, plus what you choose to add: profile, schedule, club follows.' },
   { title: 'No ads, no sale, no trackers', body: 'No analytics or advertising scripts, and your data is never sold or shared for marketing.' },
   { title: 'AI only when you ask', body: 'Ask and voice send your question, and up to two weeks of classes, to OpenAI.' },
-  { title: 'In your control', body: 'Download everything, change it, or delete it from this page.' },
+  { title: 'In your control', body: 'Download everything, change it, or delete it from Privacy & data.' },
 ];
 
 /*
@@ -85,7 +85,7 @@ const CLAUSES: Clause[] = [
     title: 'How long we keep it',
     body: <>
       <p>We keep your Flowcast data for as long as you have an account. Nothing expires automatically.</p>
-      <p>“Delete profile data” on this page permanently removes your Flowcast record (profile, schedule, follows and preferences) from our database straight away and signs you out. Your sign-in record stays with Supabase. Since this is a student project with no private support inbox, if you want that removed too, open an issue on <a href={REPO} target="_blank" rel="noreferrer">GitHub</a> that says only that you’d like your sign-in record deleted. Don’t include your email or any other personal details in the issue.</p>
+      <p>“Delete profile data” on Privacy & data permanently removes your Flowcast record (profile, schedule, follows and preferences) from our database straight away and signs you out. Your sign-in record stays with Supabase. Since this is a student project with no private support inbox, if you want that removed too, open an issue on <a href={REPO} target="_blank" rel="noreferrer">GitHub</a> that says only that you’d like your sign-in record deleted. Don’t include your email or any other personal details in the issue.</p>
     </>,
   },
   {

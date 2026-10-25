@@ -1046,6 +1046,13 @@
   color: var(--color-ink);
 }
 
+/* Policies and source, in a row that wraps under the credit on a phone. */
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+}
+
 /* ---------- Narrow screens and short windows ---------- */
 
 @media (max-width: 759px) {

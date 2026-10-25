@@ -1,0 +1,164 @@
+/*
+ * The public privacy policy and terms page (/legal). The landing page's dark canvas and hairlines,
+ * with the reading column of a document rather than landing sections. The documents themselves bring
+ * their own styles (account/Policy.module.css).
+ */
+
+.page {
+  --gutter: clamp(var(--space-4), 4vw, var(--space-10));
+  min-height: 100%;
+  background: var(--landing-canvas);
+  color: var(--color-ink);
+  line-height: var(--leading-normal);
+}
+
+.page :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.main:focus {
+  outline: none; /* focus lands here from the skip link; the page isn't a control */
+}
+
+.skip {
+  position: fixed;
+  z-index: 60;
+  left: var(--space-4);
+  top: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-capsule);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-overlay);
+  transform: translateY(-200%);
+}
+
+.skip:focus {
+  transform: none;
+  text-decoration: none;
+}
+
+/* ---------- Top bar ---------- */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--gutter);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display-tight);
+}
+
+.brand:hover {
+  text-decoration: none;
+}
+
+.mark {
+  width: 22px;
+  height: 22px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.back:hover {
+  color: var(--color-ink);
+}
+
+.back svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- The documents ---------- */
+
+.main {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--gutter) var(--space-16);
+}
+
+.title {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display-tight);
+}
+
+.lede {
+  max-width: 62ch;
+  margin-top: var(--space-3);
+  color: var(--color-ink-secondary);
+  line-height: 1.6;
+}
+
+/* Two links straight to a document, for anyone who arrived wanting one of them. */
+.jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.jump a {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--landing-hairline);
+  border-radius: var(--radius-capsule);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  transition: border-color var(--duration-base) var(--ease-standard), background var(--duration-base) var(--ease-standard);
+}
+
+.jump a:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  text-decoration: none;
+}
+
+/* ---------- Footer ---------- */
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--gutter) var(--space-10);
+  border-top: 1px solid var(--landing-hairline);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.footer a {
+  color: var(--color-ink);
+}
+
+@media (max-width: 759px) {
+  .jump a,
+  .footer a,
+  .back {
+    min-height: var(--control-height-touch);
+    display: inline-flex;
+    align-items: center;
+  }
+}

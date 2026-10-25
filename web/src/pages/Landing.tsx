@@ -146,7 +146,12 @@ export default function Landing() {
           {status}
           <div className={styles.footerRow}>
             <span>Flowcast · Built at Hackachusetts, Civic Action track.</span>
-            <a href={GITHUB_URL}>GitHub</a>
+            {/* The policy and the terms live at /legal, public: the dashboard's copies are behind sign-in. */}
+            <nav className={styles.footerLinks} aria-label="Policies and source">
+              <Link to="/legal#privacy">Privacy policy</Link>
+              <Link to="/legal#terms">Terms of service</Link>
+              <a href={GITHUB_URL}>GitHub</a>
+            </nav>
           </div>
         </footer>
       </div>

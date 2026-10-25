@@ -6,6 +6,7 @@ import { StudentLayout } from './layouts/StudentLayout';
 import Home from './pages/Home';
 import Ask from './pages/Ask';
 import Landing from './pages/Landing';
+import Legal from './pages/Legal';
 import SignIn from './pages/SignIn';
 import AuthCallback from './pages/AuthCallback';
 import Welcome from './pages/Welcome';
@@ -59,6 +60,10 @@ const router = createBrowserRouter([
   { path: '/auth/callback', element: <AuthCallback /> },
   { path: '/signin', element: <SignIn /> },
   { path: '/landing', element: <Landing /> }, // the landing page for everyone, signed in or not
+  // The privacy policy and terms, public: they are linked from the landing footer, and nobody should
+  // have to sign in to read what they would be agreeing to. The dashboard shows the same documents
+  // under /privacy, beside the download and delete controls.
+  { path: '/legal', element: <Legal /> },
   // Scanned from the QR card on the map display. Public and outside the student shell on purpose:
   // whoever scans it is a passer-by with a phone, not a signed-in user, and the builder's stage
   // needs the whole viewport.
