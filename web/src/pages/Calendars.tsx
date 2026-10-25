@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { api } from '../data/api';
-import type { CampusLocation, ScheduleImportState, SchedulePreview } from '../data/types';
+import type { CampusLocation, ScheduleImportState, ScheduleItem, SchedulePreview } from '../data/types';
+import { firstClassDay, summarizeScheduleCheck, weekOfLabel } from '../lib/scheduleCheck';
 import { Button, Page, PageHeader } from '../ui';
+import { runScheduleCheck, useScheduleCheckContext } from './student/ScheduleCheck';
 import styles from './Calendars.module.css';
 
 const PAGE_SIZE = 25;
@@ -21,6 +24,8 @@ export default function Calendars() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const [imported, setImported] = useState<ScheduleItem[] | null>(null);
+  const checkContext = useScheduleCheckContext();
   const revision = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -35,6 +40,8 @@ export default function Calendars() {
     return () => { revision.current++; };
   }, [attempt]);
 
+  // Computed in the browser from the classes just imported; never saved or sent.
+  const check = imported && locations.length ? runScheduleCheck(imported, locations, checkContext, firstClassDay(imported, Date.now())) : null;
   const rooms = useMemo(() => [...new Set(preview?.items.map((item) => item.locationText ?? '') ?? [])], [preview]);
   const selectedItems = useMemo(() => preview?.items.filter((item) => selected.has(item.id)).map((item) => ({
     ...item, locationId: mapping.get(item.locationText ?? '') ?? item.locationId,
@@ -72,6 +79,7 @@ export default function Calendars() {
     setBusy(true);
     setError(null);
     setStatus('');
+    setImported(null);
     try {
       const result = clear ? await api.clearSchedule() : await api.importSchedule(preview!.fileName, selectedItems);
       if (version !== revision.current) return;
@@ -79,6 +87,7 @@ export default function Calendars() {
       setPreview(null);
       if (fileInput.current) fileInput.current.value = '';
       setStatus(clear ? 'Imported schedule removed.' : `${result.items.length} classes imported.`);
+      if (!clear) setImported(result.items);
     } catch (e) {
       if (version === revision.current) setError(message(e));
     } finally {
@@ -114,6 +123,9 @@ export default function Calendars() {
         </div>
         {busy && <p role="status">Updating schedule…</p>}
         {status && <p role="status">{status}</p>}
+        {imported && imported.length > 0 && <p className={styles.detail} role="status">
+          Schedule check, week of {check ? weekOfLabel(check.days[0].day) : '…'}: {check ? summarizeScheduleCheck(check) : 'checking walks and meal breaks…'} <Link to="/schedule">Details on Schedule</Link>
+        </p>}
         {preview && <section className={styles.card} aria-label="Schedule preview">
           <h2>Preview: {preview.fileName}</h2>
           <p className={styles.detail}>{date(preview.windowStart)} – {date(preview.windowEnd)} · Boston time</p>

@@ -3,6 +3,7 @@ import type { ScheduleItem } from '../data/types';
 import { bostonDay, bostonDayLabel, bostonTime } from '../lib/departure';
 import { Button, EmptyState, Loading, Page, PageHeader, SectionList } from '../ui';
 import { useDepartureClock } from './student/DepartureCard';
+import { ScheduleCheckSection } from './student/ScheduleCheck';
 import styles from './Schedule.module.css';
 
 export default function Schedule() {
@@ -24,6 +25,7 @@ export default function Schedule() {
     groups.get(day)!.push(item);
   }
   return <Page>{header}<div className={styles.days}>
+    <ScheduleCheckSection items={schedule.data} locations={locations.data ?? (locations.error ? [] : null)} now={now} />
     {[...groups].map(([day, items]) => <SectionList key={day}
       title={bostonDayLabel(items[0]?.start ?? now, now)} count={items.length} empty="No imported classes for this day.">
       {items.map((item) => <div key={item.id} className={styles.row}>
