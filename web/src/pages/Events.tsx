@@ -16,7 +16,7 @@ export default function Events() {
   const header = (
     <PageHeader
       title="Events"
-      description="Public events on BU’s Terrier Central. Events at mapped places change how crowded they get in the simulation."
+      description="Saved public event listings from BU’s Terrier Central. Events at mapped places change how crowded they get in the simulation."
       actions={<Button to="/event-impact">See crowd impact by date</Button>}
     />
   );

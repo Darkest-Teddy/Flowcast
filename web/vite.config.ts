@@ -5,10 +5,9 @@ import react from '@vitejs/plugin-react';
 const themeDir = fileURLToPath(new URL('../theme', import.meta.url));
 const mapDir = fileURLToPath(new URL('../map-client', import.meta.url));
 
-/** /map and /map/?at=12:15 load map.html, the 3D map's own page, from this same server. */
-/** Ask (server/): only these two paths go to the Ask server, so the key never reaches the browser. */
-const askTarget = process.env.FLOWCAST_API_URL || 'http://127.0.0.1:8787';
-const askProxy = Object.fromEntries(['/api/ask', '/api/health'].map((path) => [path, { target: askTarget, changeOrigin: true }]));
+/** Ask (server/): dashboard and Ask paths go to the Ask server, so the key never reaches the browser. */
+const apiTarget = process.env.FLOWCAST_API_URL || 'http://127.0.0.1:8787';
+const apiProxy = Object.fromEntries(['^/api/dashboard(?:/|[?]|$)', '^/api/ask(?:\\?|$)', '^/api/health(?:\\?|$)'].map((path) => [path, { target: apiTarget, changeOrigin: false }]));
 
 function mapPage(): Plugin {
   const rewrite: Connect.NextHandleFunction = (req, _res, next) => {
@@ -40,8 +39,8 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5174,
       fs: { allow: ['.', themeDir, mapDir] }, // theme and map live outside this app's folder
-      proxy: askProxy,
+      proxy: apiProxy,
     },
-    preview: { proxy: askProxy },
+    preview: { proxy: apiProxy },
   };
 });

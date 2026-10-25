@@ -5,6 +5,7 @@ import { setImmediate as nextTick } from 'node:timers/promises';
 import { setDefaultOpenAIKey } from '@openai/agents';
 import { WEEKDAYS } from '../../map-client/src/data/campusData';
 import { ASK_MODEL, askAgent } from './agent';
+import { database } from './dashboard/db';
 import { createApp } from './app';
 import { loadCampusModel } from './campus';
 
@@ -15,7 +16,7 @@ const started = Date.now();
 const campus = loadCampusModel();
 console.log(`campus data loaded in ${Date.now() - started} ms (${campus.privateBundle ? 'private' : 'public'} bundle, ${campus.daysCached} days cached)`);
 
-const app = createApp({ campus, ask: (question, ctx, signal, history) => askAgent(question, ctx, signal, ASK_MODEL, history), keyConfigured: Boolean(key), model: ASK_MODEL });
+const app = createApp({ dashboardPool: database(), campus, ask: (question, ctx, signal, history) => askAgent(question, ctx, signal, ASK_MODEL, history), keyConfigured: Boolean(key), model: ASK_MODEL });
 const port = Number(process.env.PORT) || 8787;
 const host = process.env.HOST || '127.0.0.1';
 app.listen(port, host, () => {

@@ -63,3 +63,81 @@ The private bundle (unless `FLOWCAST_ASK_PRIVATE_BUNDLE=1`), stays, trips, agent
 `history` is optional and contains at most six complete user/assistant pairs: `{ role: "user" | "assistant", content: string }`. User messages are limited to 300 characters and assistant messages to 4,000; other roles and incomplete pairs are rejected. Each request still supplies the current day, time and campus. The agent uses earlier messages to resolve references and fetches fresh tool facts for each answer.
 
 The browser retains the visible chat while switching tabs and sends only bounded campus conversation context. Personal schedule answers remain on the device. **New chat** cancels the pending request and clears the conversation.
+
+## PostgreSQL dashboard
+
+The dashboard reads public snapshots and guest data only from PostgreSQL. Ask retains its existing
+map simulation/data loading behavior. `DATABASE_URL` enables the dashboard pool at server startup;
+without it dashboard endpoints return 503. There is no file/fixture fallback and no automatic
+migration or import during requests. PostgreSQL 17 is supported.
+
+Put `DATABASE_URL` in `server/.env` (keep this file private and untracked), then from `server/` run:
+
+```sh
+npm run db:migrate
+npm run db:import
+npm start
+```
+
+Migrations are idempotent and serialized with a transaction advisory lock. Import reads the full
+`map-client/public/data/{event-impact,campus-data,demo-day}.json` sources. An optional directory
+can be passed with `npm run db:import -- /absolute/data/directory`. Each snapshot records the
+SHA-256 of each input, source timestamps when supplied, file modification times, and import time.
+Identical input bytes reuse the existing snapshot. Snapshot insertion and active-pointer change
+commit together. Failed imports leave the previous snapshot active. Reimport explicitly after
+regenerating source data. Older snapshots remain available for provenance.
+
+Only locations and walking routes are extracted from demo-day; agents/trips are not stored.
+All entrance positions are retained. Walking distances use the final saved cumulative distance,
+canonicalize the endpoint pair, and choose the shorter saved direction when both exist. Zero-meter
+routes remain zero. Public forecasts reuse the dashboard's pure transformations, label model output,
+and evaluate published opening hours against the current Boston date, not the source reference week.
+
+### API contracts
+
+All routes are under `/api/dashboard` and return `Cache-Control: no-store`:
+
+- `GET /public`: `{locations, geo, events, impact, hourly, places, clubs}`. Public organizer records
+  are unverified; following is false here. Join the personal following IDs from `/me` in the client.
+- `GET /me`: `{session, profile, notificationPrefs, following: string[]}`. Creates a browser-linked
+  guest on the first request. Session roles are `[]`, email is empty, calendar connection is false,
+  officer club is null, and onboarded is false. This does not establish a student, Google, or admin identity.
+- `PATCH /profile`: partial `Profile`, returns the complete persisted `Profile`. Allowed fields:
+  name (trimmed, at most 100 characters), nullable homeLocationId/studySpotId (published dashboard
+  catalog IDs), lunchTime/dinnerTime (empty or HH:MM), avatarSwatch (integer 0–5).
+- `PATCH /preferences`: partial `{packedRoute, clubEvents, scheduleChanges}` booleans, returns all
+  three persisted preferences. These are preferences only; no notification delivery is claimed.
+- `PUT /following/:id`: `{following: boolean}`, returns the current user's `string[]` organizer IDs.
+  URL-encode the entire organizer ID. Only published organizers are accepted; repeated writes do
+  not duplicate IDs.
+- `GET /export`: `{exportedAt, account, profile, notificationPrefs, followedOrganizers, createdAt,
+  updatedAt, calendars: [], events: []}` from the current persisted guest. No token/hash is exported.
+- `DELETE /me`: deletes only the guest identified by the current cookie, clears that cookie, returns
+  204. It does not delete public snapshots or other guests. The next `/me` request creates a new guest.
+
+Mutations require an Origin with the same host (including port) as the request and reject
+`Sec-Fetch-Site: cross-site`. The dashboard proxy must preserve Host (`changeOrigin: false`).
+Unknown write fields and invalid values return 400, origin failures 403, deleted-session races 409,
+and database/unimported-data failures sanitized 503. Writes never report success after a failed query.
+The API does not enable cross-origin credential access.
+
+The random 256-bit bearer cookie is HttpOnly, SameSite=Lax, scoped to `/api/dashboard`, and Secure
+when `NODE_ENV=production` (serve production over HTTPS). Only its SHA-256 hash is stored. Sessions
+expire after 30 days; expiration is checked on every lookup. Expired records may be removed by an
+operator with `DELETE FROM dashboard_guests WHERE expires_at <= now()`. No personal schedules,
+OAuth tokens, Google connections, admin actions, or authenticated roles are synthesized.
+
+### Verification
+
+```sh
+npm run typecheck
+npm test
+npm run test:db
+```
+
+`test:db` loads `server/.env` and requires `TEST_DATABASE_URL` pointing at a dedicated database,
+separate from `DATABASE_URL`; without it the integration test explicitly skips. Tests apply migrations
+and import actual source data into that database, exercise HTTP sessions and mutations, restart the
+router to verify persistence, check isolation/export/deletion, and verify sanitized database failures.
+Test-created guests are cleaned up; imported public snapshots remain. `npm test` does not load `.env`
+and keeps the existing Ask tests runnable without PostgreSQL.

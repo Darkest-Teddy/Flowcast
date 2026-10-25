@@ -119,20 +119,26 @@ Read the full story, including what Kiro caught that we would have missed, in **
 
 ## Try it
 
-Requirements: **Node.js 22+** and **Python 3.10+**. No account or API key needed; the map uses free OpenFreeMap tiles.
+Requirements: **Node.js 22+**, **Python 3.10+**, and **PostgreSQL** for the dashboard. The public map uses free OpenFreeMap tiles and needs no account or API key.
 
 ```bash
 git clone https://github.com/Darkest-Teddy/Flowcast.git
 cd Flowcast
-npm --prefix map-client install
-npm --prefix web install
+(cd map-client && npm install)
+(cd web && npm install)
+(cd server && npm install)
 npm --prefix map-client run prepare:data   # builds browser data offline from the committed snapshots
+# Configure DATABASE_URL in the server process environment before these commands.
+(cd server && npm run db:migrate && npm run db:import)
+# Start the API in a separate terminal with the same DATABASE_URL:
+(cd server && npm start)                   # http://127.0.0.1:8787
+# Then start the browser app:
 npm --prefix web run dev                   # http://localhost:5174
 ```
 
 | Open | URL |
 | --- | --- |
-| Dashboard | http://localhost:5174 (click **Continue with Google**: sign-in is mocked, no account or password) |
+| Dashboard | http://localhost:5174 (dashboard sessions and saved preferences require the PostgreSQL API) |
 | Event impact | http://localhost:5174/event-impact?date=2026-10-29 |
 | 3D map | http://localhost:5174/map (first load takes about 20 seconds while the week is simulated) |
 | Map during an evening event | http://localhost:5174/map?date=2026-10-29&at=20:15&speed=1 |
@@ -146,13 +152,35 @@ npm --prefix server install && npm --prefix server start   # http://127.0.0.1:87
 npm --prefix web run dev
 ```
 
-The web dev server forwards `/api/ask` and `/api/health` to it (set `FLOWCAST_API_URL` for another address). Without the server or a key, both pages answer on the device and say so. Questions about your own schedule are always answered on the device. See [server/README.md](server/README.md).
+The web dev server forwards `/api/dashboard`, `/api/ask` and `/api/health` to it (set `FLOWCAST_API_URL` for another address). Without the server or a key, both pages answer on the device and say so. Questions about your own schedule are always answered on the device. See [server/README.md](server/README.md).
+
+### PostgreSQL and production hosting
+
+Keep `DATABASE_URL` in the backend's secret environment (for example, a Railway PostgreSQL connection variable). Never use a `VITE_` prefix or put database credentials in browser code. The browser only calls same-origin `/api/dashboard/*`; cookies pass through the host to the API.
+
+Run these commands with `DATABASE_URL` available before serving the dashboard, and rerun the import when the prepared public data changes:
+
+```bash
+(cd server && npm run db:migrate)
+(cd server && npm run db:import)  # imports prepared map-client/public/data sources
+npm run build                  # installs server, map-client and web dependencies; builds both pages
+npm start
+```
+
+The root host binds to `HOST` (default `0.0.0.0`) and `PORT` (default `8080`). When `DATABASE_URL` is set and `FLOWCAST_API_URL` is unset, it starts `server/src/index.ts` as a child process bound to `127.0.0.1:8787`. `FLOWCAST_API_PORT` overrides that internal port; it must differ from the root host's port. If the root uses port 8787, the internal default is 8788. Root startup passes environment variables directly to the child without printing secrets or loading local environment files. Stop the root process to stop its child.
+
+For an independently managed API, set `FLOWCAST_API_URL` to its HTTP(S) origin. This disables local API startup; configure `DATABASE_URL` on that separate API process. Do not put credentials in the API URL. The root host forwards only `/api/dashboard` and its subpaths, `/api/ask`, and `/api/health`. It preserves request bodies, response statuses, cookies, `Host`, and `Origin`. Unknown `/api/*` paths return JSON 404; unavailable APIs return sanitized JSON 503 with a 30-second request deadline. Once response headers have been sent, an upstream failure closes the response. API errors never fall through to dashboard HTML. The public map remains available without PostgreSQL.
+
+Both Vite apps use the same API target, defaulting to `http://127.0.0.1:8787`. For example, start the backend with `HOST=127.0.0.1 PORT=8798`, then run `FLOWCAST_API_URL=http://127.0.0.1:8798 npm --prefix web run dev -- --port 5198`. Both proxies preserve the browser-facing `Host`, so the backend can compare it with `Origin` for same-origin mutation checks.
+
+Railway uses the repository root, `npm run build`, and `npm start` from `railway.json`. Provision PostgreSQL and run the migration/import commands with that service's secret environment before directing dashboard traffic to it. The configured `/` health check proves static hosting only; check `/api/health` and a dashboard request separately to verify API availability.
 
 **Run the tests:**
 
 ```bash
 (cd data-pipeline && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m unittest discover -s tests)
 npm --prefix map-client test
+npm run test:host
 ```
 
 ## How it works
@@ -180,7 +208,7 @@ All public, with no login: the BU course catalog and classroom directory, BU Din
 ## Privacy and accessibility
 
 - No personal or login-only data is collected. The simulated students are synthetic and model no real person.
-- Personal data in the dashboard (calendar, fatigue score) stays in the owner's session and can be exported or deleted from **Privacy & data**.
+- Dashboard sessions and saved preferences are stored by the PostgreSQL API. See **Privacy & data** for the available account controls.
 - Crowd levels use a 4-step scale (Quiet, Moderate, Busy, Packed) with words, percentages and 4.5:1 contrast. All controls are labelled buttons, the calendar is keyboard-navigable, and the map honors reduced-motion settings.
 
 ## Roadmap

@@ -8,18 +8,18 @@ import styles from './Settings.module.css';
 const notificationRows: { key: keyof NotificationPrefs; label: string; description: string }[] = [
   {
     key: 'packedRoute',
-    label: 'Warn me when a place on my route will be packed',
-    description: 'A heads-up before you leave, with a quieter option when there is one.',
+    label: 'Crowding alerts preference',
+    description: 'Saved with your browser-linked profile. Crowding alerts are not delivered in this version.',
   },
   {
     key: 'clubEvents',
     label: 'New events from clubs I follow',
-    description: 'When a club you follow publishes events in Flowcast.',
+    description: 'Saved with your browser-linked profile. Club event notifications are not delivered in this version.',
   },
   {
     key: 'scheduleChanges',
     label: 'Changes to my classes',
-    description: 'When a class in your synced calendar moves to a new time or room.',
+    description: 'Saved with your browser-linked profile. Calendar sync and class alerts are unavailable.',
   },
 ];
 
@@ -30,6 +30,7 @@ export default function Settings() {
   const [systemReduced] = useState(() => window.matchMedia?.('(prefers-reduced-transparency: reduce)').matches ?? false);
   const prefs = useResource(() => api.getNotificationPrefs());
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   function chooseTheme(choice: ThemeChoice) {
     setThemeChoice(choice);
@@ -44,19 +45,22 @@ export default function Settings() {
   async function togglePref(key: keyof NotificationPrefs, on: boolean) {
     if (!prefs.data) return;
     const before = prefs.data;
+    setSaving(true);
     prefs.setData({ ...before, [key]: on });
     setError(null);
     try {
       prefs.setData(await api.updateNotificationPrefs({ [key]: on }));
     } catch {
       prefs.setData(before);
-      setError('That change wasn’t saved. Check your connection and try again.');
+      setError('That preference wasn’t saved. Please try again.');
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <Page>
-      <PageHeader title="Settings" description="Appearance and notifications. Changes save as you make them." />
+      <PageHeader title="Settings" description="Appearance is saved on this browser. Flowcast saves notification preferences with your browser-linked profile; no notifications are sent." />
 
       <SectionHeading>Appearance</SectionHeading>
       <div className={styles.rows}>
@@ -104,6 +108,7 @@ export default function Settings() {
               label={r.label}
               description={r.description}
               checked={prefs.data![r.key]}
+              disabled={saving}
               onChange={(on) => togglePref(r.key, on)}
             />
           ))}

@@ -63,8 +63,8 @@ export function StudentLayout() {
       icon: UserRoundCog,
       header: session && (
         <div className={styles.footer}>
-          <Avatar name={session.user.name} />
-          <span className={styles.name}>{session.user.name}</span>
+          <Avatar name={session.user.name || 'Local visitor'} />
+          <span className={styles.name}>{session.user.name || 'Local visitor'}</span>
         </div>
       ),
       sections: [
@@ -89,8 +89,8 @@ export function StudentLayout() {
       sidebarFooter={
         session && (
           <div className={styles.footer}>
-            <Avatar name={session.user.name} />
-            <span className={styles.name}>{session.user.name}</span>
+            <Avatar name={session.user.name || 'Local visitor'} />
+            <span className={styles.name}>{session.user.name || 'Local visitor'}</span>
             {hasRole('admin') && <Link to="/admin" className={styles.admin}>Admin</Link>}
           </div>
         )

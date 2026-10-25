@@ -3,23 +3,17 @@ import { Link } from 'react-router';
 import { crowdFor } from '@theme/tokens';
 import { useSession } from '../auth/session';
 import { api, locationName, useResource } from '../data/api';
-import type { StatRange } from '../data/types';
 import { formatDayTime, formatPercent, formatRelative, formatTime, isToday } from '../lib/format';
 import {
   Avatar,
   Button,
-  Grid,
   ListRow,
   Page,
   SearchBar,
-  SectionHeading,
   SectionList,
-  Segmented,
-  StatCard,
   StatusBadge,
   type SearchMode,
 } from '../ui';
-import { isUpcoming } from './student/days';
 import { eventVenue } from './student/events';
 import { AskChat } from './student/AskChat';
 import { SearchResults } from './student/SearchResults';
@@ -35,8 +29,6 @@ export default function Home() {
   const suggestions = useResource(api.getSuggestions);
   const events = useResource(api.getCampusEvents);
   const clubs = useResource(api.getClubs);
-  const [range, setRange] = useState<StatRange>('7d');
-  const stats = useResource(() => api.getWeekStats(range), [range]);
 
   const [search, setSearch] = useState<string | null>(null);
   const [mode, setMode] = useState<SearchMode>('search');
@@ -50,7 +42,7 @@ export default function Home() {
     .filter((s) => isToday(s.start))
     .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
   const upcomingEvents = (events.data ?? [])
-    .filter((e) => isUpcoming(e.start))
+    .filter((e) => Date.parse(e.end ?? e.start) >= Date.now())
     .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
     .slice(0, 5);
   const followed = (clubs.data ?? []).filter((c) => c.following);
@@ -72,7 +64,7 @@ export default function Home() {
       <StatusBadge tone="ok">Google Calendar synced {formatRelative(session.calendarSyncedAt)}</StatusBadge>
     ) : (
       <StatusBadge tone="off">
-        No calendar connected yet. <Link to="/calendars">Connect Google Calendar</Link>
+        No personal calendar data. <Link to="/calendars">Calendar availability</Link>
       </StatusBadge>
     );
 
@@ -109,6 +101,10 @@ export default function Home() {
           }} />
       )}
 
+      {[locations, schedule, places, hourly, geo, suggestions, events, clubs].filter((resource) => resource.error).map((resource, index) => (
+        <p role="alert" key={index}>{resource.error?.message} <Button variant="ghost" size="sm" onClick={resource.reload}>Try again</Button></p>
+      ))}
+
       <div className={styles.forYou}>
         <SectionList
           title="For you"
@@ -120,7 +116,7 @@ export default function Home() {
                 Added to your day. <Link to="/schedule">See your schedule</Link>
               </>
             ) : (
-              'No suggestions right now. Flowcast will suggest a quieter time or place when one of yours gets crowded.'
+              'No personal suggestions are available without a connected schedule.'
             )
           }
         >
@@ -135,12 +131,13 @@ export default function Home() {
         </SectionList>
       </div>
 
+      <p className={styles.status}>{places.data?.[0]?.basis ?? 'Campus crowd figures are model-derived projections, not live head counts.'}</p>
       <div className={styles.columns}>
         <SectionList
           title="Today"
           count={schedule.data ? today.length : undefined}
           to="/schedule"
-          empty={schedule.loading ? loadingText : 'Nothing on your calendar today.'}
+          empty={schedule.loading ? loadingText : 'No personal calendar data is connected.'}
         >
           {today.map((item) => (
             <ListRow
@@ -157,11 +154,11 @@ export default function Home() {
         </SectionList>
 
         <SectionList
-          title="Your places"
+          title="Campus crowd projections"
           to="/forecasts"
-          empty={places.loading ? loadingText : 'Places you visit will show up here.'}
+          empty={places.loading ? loadingText : 'No comparable crowd projection is available for this hour.'}
         >
-          {(places.data ?? []).map((p) => {
+          {(places.data ?? []).slice(0, 6).map((p) => {
             const level = crowdFor(p.share);
             return (
               <ListRow
@@ -177,34 +174,11 @@ export default function Home() {
 
       </div>
 
-      <SectionHeading
-        actions={
-          <Segmented
-            label="Time range"
-            value={range}
-            onChange={setRange}
-            options={[
-              { value: '7d', label: '7D' },
-              { value: '30d', label: '30D' },
-            ]}
-          />
-        }
-      >
-        {range === '7d' ? 'This week' : 'Last 30 days'}
-      </SectionHeading>
-      <Grid columns={4} phoneColumns={2}>
-        {(stats.data ?? []).map((s) => (
-          <StatCard
-            key={s.id}
-            label={s.label}
-            value={s.value}
-            detail={s.detail}
-            series={s.series}
-            axis={s.axis}
-            highlightIndex={s.highlightIndex}
-          />
-        ))}
-      </Grid>
+      <SectionList title="Published campus data">
+        <ListRow title="Mapped places" detail={locations.data ? `${locations.data.length} locations` : loadingText} />
+        <ListRow title="Upcoming public events" detail={events.data ? `${events.data.filter((event) => Date.parse(event.end ?? event.start) >= Date.now()).length} in the saved listings` : loadingText} to="/events" />
+        <ListRow title="Event organizers" detail={clubs.data ? `${clubs.data.length} named in public listings` : loadingText} to="/clubs" />
+      </SectionList>
 
       <div className={styles.bottom}>
         <SectionList

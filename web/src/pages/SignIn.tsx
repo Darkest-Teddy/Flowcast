@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useSession } from '../auth/session';
 import { config } from '../config';
@@ -6,7 +6,7 @@ import { Button, Logo } from '../ui';
 import styles from './SignIn.module.css';
 
 export default function SignIn() {
-  const { session, ready, signInWithGoogle } = useSession();
+  const { ready, startLocalSession } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
   const [busy, setBusy] = useState(false);
@@ -14,20 +14,14 @@ export default function SignIn() {
 
   const from = (location.state as { from?: string } | null)?.from;
 
-  // Once someone is signed in (just now, or already), send them on.
-  useEffect(() => {
-    if (!ready || !session) return;
-    const dest = !session.onboarded ? '/welcome' : from && from !== '/signin' ? from : '/';
-    navigate(dest, { replace: true });
-  }, [ready, session, from, navigate]);
-
   async function signIn() {
     setBusy(true);
     setError(null);
     try {
-      await signInWithGoogle();
-    } catch {
-      setError('Couldn’t reach Google. Check your connection and try again.');
+      await startLocalSession();
+      navigate(from?.startsWith('/') && !from.startsWith('//') && from !== '/signin' ? from : '/', { replace: true });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Couldn’t open a browsing session. Please try again.');
       setBusy(false);
     }
   }
@@ -40,14 +34,13 @@ export default function SignIn() {
           <span>{config.appName}</span>
         </div>
 
-        <h1 className={styles.title}>Know how busy campus will be before you go</h1>
+        <h1 className={styles.title}>Browse campus</h1>
         <p className={styles.lede}>
-          Flowcast is a 3D map of BU where simulated students follow real schedules, so it can project how crowded dining halls,
-          libraries and classrooms will get.
+          Explore BU places, published events and model-derived crowd projections. No account is required.
         </p>
 
         <Button variant="primary" size="lg" className={styles.google} onClick={signIn} disabled={busy || !ready}>
-          {busy ? 'Signing in…' : 'Continue with Google'}
+          {busy ? 'Opening…' : 'Continue to campus'}
         </Button>
         {error && (
           <p className={styles.error} role="alert">
@@ -56,11 +49,11 @@ export default function SignIn() {
         )}
 
         <p className={styles.fine}>
-          Flowcast reads your Google Calendar to place your classes on the map. You can disconnect it or delete your data anytime.
+          Google sign-in and calendar connection are unavailable. You can enter an optional profile saved by Flowcast and linked to this browser.
         </p>
 
         <p className={styles.footer}>
-          Run a club? <Link to="/clubs/register">Register your club</Link>
+          <Link to="/profile">Edit your profile</Link>
         </p>
       </div>
     </main>

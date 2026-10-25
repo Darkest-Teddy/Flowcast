@@ -1,21 +1,10 @@
-/*
- * Production static server for the built web app.
- *
- * A generic static host cannot serve this build correctly, for two reasons:
- *
- *   1. There are two HTML entry points. `/map` must serve map.html, which is what
- *      web/vite.config.ts's mapPage() plugin does in dev and preview. Nothing does
- *      it in production.
- *   2. The dashboard routes with react-router's createBrowserRouter, so any path it
- *      owns (/schedule, /events, /admin/...) has to fall back to index.html rather
- *      than 404.
- *
- * No dependencies: Node's own http and fs are enough, and adding a framework here
- * would mean a second lockfile to keep in sync for no gain.
- */
+// Production host for the dashboard, map, and same-origin API.
 
 import { createReadStream, existsSync, statSync } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
+import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -51,11 +40,11 @@ const TYPES = new Map(
 );
 
 /** Resolves a URL path to a real file inside ROOT, or null. Rejects traversal. */
-function resolveFile(urlPath) {
+function resolveFile(urlPath, root) {
   const decoded = decodeURIComponent(urlPath.split('?')[0].split('#')[0]);
-  const candidate = resolve(join(ROOT, normalize(decoded)));
+  const candidate = resolve(join(root, normalize(decoded)));
   // Must stay inside ROOT. normalize() alone does not guarantee that.
-  if (candidate !== ROOT && !candidate.startsWith(ROOT + sep)) return null;
+  if (candidate !== root && !candidate.startsWith(root + sep)) return null;
   if (!existsSync(candidate)) return null;
   const stat = statSync(candidate);
   if (stat.isDirectory()) {
@@ -77,40 +66,118 @@ function send(res, status, file, { immutable = false } = {}) {
   createReadStream(file).pipe(res);
 }
 
-const server = createServer((req, res) => {
-  const url = req.url || '/';
+const hopHeaders = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']);
+function forwardedHeaders(headers) {
+  const excluded = new Set([...hopHeaders, ...(headers.connection || '').split(',').map((name) => name.trim().toLowerCase())]);
+  return Object.fromEntries(Object.entries(headers).filter(([name]) => !excluded.has(name)));
+}
 
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    res.writeHead(405, { Allow: 'GET, HEAD' }).end('Method Not Allowed');
-    return;
+function jsonError(res, status, error) {
+  if (res.headersSent) return res.destroy();
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify({ error }));
+}
+
+function proxy(req, res, target, timeoutMs) {
+  if (!target) return jsonError(res, 503, 'API unavailable');
+  let upstream;
+  let timer;
+  const unavailable = () => {
+    clearTimeout(timer);
+    jsonError(res, 503, 'API unavailable');
+    upstream?.destroy();
+  };
+  try {
+    const base = new URL(target);
+    if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password) return unavailable();
+    // Use only the configured origin: request paths cannot select an upstream host.
+    upstream = (base.protocol === 'https:' ? httpsRequest : httpRequest)({
+      protocol: base.protocol, hostname: base.hostname, port: base.port,
+      method: req.method, path: req.url, headers: { ...forwardedHeaders(req.headers), host: req.headers.host },
+    }, (response) => {
+      res.writeHead(response.statusCode, forwardedHeaders(response.headers));
+      response.on('error', unavailable);
+      response.on('end', () => clearTimeout(timer));
+      response.pipe(res);
+    });
+    timer = setTimeout(unavailable, timeoutMs);
+    upstream.on('error', unavailable);
+    req.on('aborted', () => upstream.destroy());
+    res.on('close', () => { clearTimeout(timer); upstream.destroy(); });
+    req.pipe(upstream);
+  } catch {
+    unavailable();
   }
+}
 
-  // The 3D map is its own entry point. Matches web/vite.config.ts's dev rewrite.
-  if (/^\/map\/?(\?|#|$)/.test(url)) {
-    const mapHtml = join(ROOT, 'map.html');
-    if (existsSync(mapHtml)) return send(res, 200, mapHtml);
+export function createHostServer({ root = ROOT, apiUrl = '', timeoutMs = 30_000 } = {}) {
+  return createServer((req, res) => {
+    const url = req.url || '/';
+
+    const pathname = url.split('?')[0];
+    if (/^\/api\/(dashboard(?:\/|$)|ask$|health$)/.test(pathname)) {
+      return proxy(req, res, apiUrl, timeoutMs);
+    }
+    if (pathname === '/api' || pathname.startsWith('/api/')) return jsonError(res, 404, 'API route not found');
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, { Allow: 'GET, HEAD' }).end('Method Not Allowed');
+      return;
+    }
+
+    // The 3D map is its own entry point. Matches web/vite.config.ts's dev rewrite.
+    if (/^\/map\/?(\?|#|$)/.test(url)) {
+      const mapHtml = join(root, 'map.html');
+      if (existsSync(mapHtml)) return send(res, 200, mapHtml);
+    }
+
+    let file;
+    try { file = resolveFile(url, root); } catch { return jsonError(res, 400, 'Invalid path'); }
+    if (file) {
+      return send(res, 200, file, { immutable: url.startsWith('/assets/') });
+    }
+
+    // A missing asset is a real 404; anything else is a client route.
+    if (/\.[a-z0-9]+$/i.test(url.split('?')[0])) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not Found');
+      return;
+    }
+
+    const index = join(root, 'index.html');
+    if (!existsSync(index)) {
+      res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' })
+        .end('web/dist is missing. Run the build before starting.');
+      return;
+    }
+    send(res, 200, index);
+  });
+}
+
+export function backendConfig(env = process.env) {
+  if (env.FLOWCAST_API_URL) return { apiUrl: env.FLOWCAST_API_URL };
+  if (!env.DATABASE_URL) return { apiUrl: '' };
+  const port = Number(env.FLOWCAST_API_PORT) || (Number(env.PORT) === 8787 ? 8788 : 8787);
+  return { apiUrl: `http://127.0.0.1:${port}`, env: { ...env, HOST: '127.0.0.1', PORT: String(port) } };
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const config = backendConfig();
+  let backend;
+  if (config.env) {
+    const require = createRequire(new URL('./server/package.json', import.meta.url));
+    backend = spawn(process.execPath, ['--import', require.resolve('tsx'), 'src/index.ts'], {
+      cwd: fileURLToPath(new URL('./server', import.meta.url)), env: config.env, stdio: 'ignore',
+    });
+    backend.on('error', () => console.error('Flowcast API could not start'));
+    backend.on('exit', () => console.error('Flowcast API stopped'));
   }
-
-  const file = resolveFile(url);
-  if (file) {
-    return send(res, 200, file, { immutable: url.startsWith('/assets/') });
-  }
-
-  // A missing asset is a real 404; anything else is a client route.
-  if (/\.[a-z0-9]+$/i.test(url.split('?')[0])) {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not Found');
-    return;
-  }
-
-  const index = join(ROOT, 'index.html');
-  if (!existsSync(index)) {
-    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' })
-      .end('web/dist is missing. Run the build before starting.');
-    return;
-  }
-  send(res, 200, index);
-});
-
-server.listen(PORT, HOST, () => {
-  console.log(`Flowcast listening on http://${HOST}:${PORT} (serving ${ROOT})`);
-});
+  const server = createHostServer({ apiUrl: config.apiUrl });
+  const shutdown = () => {
+    backend?.kill('SIGTERM');
+    server.close(() => process.exit(0));
+    setTimeout(() => { backend?.kill('SIGKILL'); process.exit(0); }, 5_000).unref();
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+  server.listen(PORT, HOST, () => console.log(`Flowcast listening on http://${HOST}:${PORT}`));
+}

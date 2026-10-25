@@ -65,7 +65,7 @@ export function searchCampus(query: string, d: CampusData): SearchResult[] {
   }
   for (const club of d.clubs) {
     if (!club.verified || !has(club.name, club.description)) continue;
-    results.push({ id: `club-${club.id}`, kind: 'Club', title: club.name, detail: `${club.members} members`, to: '/clubs' });
+    results.push({ id: `club-${club.id}`, kind: 'Club', title: club.name, detail: club.members == null ? 'Published event organizer' : `${club.members} members`, to: '/clubs' });
   }
   return results;
 }
@@ -193,7 +193,7 @@ export function answerQuestion(query: string, d: CampusData, now = new Date()): 
       const hhmm = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
       const mapQuestion = `least crowded ${mapKindWord[placeKind]}${when === 'right now' ? '' : ` at ${hhmm}`}`;
       if (best.share === null) {
-        return { text: `Flowcast has no crowd projection for ${kindPlural[placeKind]} ${when}. Projections cover 8 AM to 9 PM today.`, rows, focus: ranked.map((r) => r.locationId), mapQuestion };
+        return { text: `Flowcast has no crowd projection for ${kindPlural[placeKind]} ${when}. Only modeled hours with usable capacity and opening-hour data are compared.`, rows, focus: ranked.map((r) => r.locationId), mapQuestion };
       }
       const walk = best.walk && best.walk.meters > 0 && from ? `, a ${walkText(best.walk)} from ${from.label}` : '';
       return {

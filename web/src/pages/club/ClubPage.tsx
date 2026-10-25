@@ -80,7 +80,7 @@ export default function ClubPage() {
       <dl className={styles.facts}>
         <div className={styles.fact}>
           <dt>Followers</dt>
-          <dd>{c.followers.toLocaleString()}</dd>
+          <dd>{c.followers?.toLocaleString() ?? 'Not available'}</dd>
         </div>
         <div className={styles.fact}>
           <dt>Upcoming events</dt>
@@ -111,7 +111,7 @@ export default function ClubPage() {
         <SectionList title="Club details">
           <ListRow title="BU Engage page" detail={c.listingUrl ? <a href={c.listingUrl} target="_blank" rel="noreferrer">Open listing</a> : 'Not added'} />
           <ListRow title="Officers" detail={c.officers.length ? c.officers.join(', ') : 'Not listed'} />
-          <ListRow title="Members on BU Engage" detail={c.members.toLocaleString()} />
+          <ListRow title="Members on BU Engage" detail={c.members?.toLocaleString() ?? 'Not published'} />
         </SectionList>
       </div>
     </Page>

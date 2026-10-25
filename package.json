@@ -8,8 +8,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "cd map-client && npm install --no-audit --no-fund && cd ../web && npm install --no-audit --no-fund && npm run build",
+    "build": "cd server && npm install --no-audit --no-fund && cd ../map-client && npm install --no-audit --no-fund && cd ../web && npm install --no-audit --no-fund && npm run build",
     "start": "node serve.mjs",
-    "typecheck": "cd web && npm run typecheck"
+    "typecheck": "cd web && npm run typecheck",
+    "test:host": "node --test tests/serve.test.mjs"
   }
 }

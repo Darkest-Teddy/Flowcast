@@ -3,7 +3,7 @@ import { crowdFor, crowdScale } from '@theme/tokens';
 import { api, locationName, useResource } from '../data/api';
 import type { HourlyForecast } from '../data/types';
 import { formatHour, formatPercent } from '../lib/format';
-import { Button, CrowdMeter, EmptyState, ListRow, Loading, Page, PageHeader, SectionList, Segmented } from '../ui';
+import { Button, CrowdMeter, EmptyState, ListRow, Loading, Page, PageHeader, SectionList } from '../ui';
 import { HourlyChart } from './student/HourlyChart';
 import styles from './Forecasts.module.css';
 
@@ -41,7 +41,7 @@ export default function Forecasts() {
   const shown = selected === 'all' ? forecasts : forecasts.filter((f) => f.locationId === selected);
   const name = (id: string) => locationName(locations.data, id);
 
-  const header = <PageHeader title="Forecasts" description="How full each place is likely to be today, hour by hour." />;
+  const header = <PageHeader title="Forecasts" description="Hourly crowd projections from the campus simulation. These are modeled counts, not live occupancy." />;
 
   if (hourly.error) {
     return (
@@ -63,7 +63,7 @@ export default function Forecasts() {
     return (
       <Page>
         {header}
-        <EmptyState title="No forecasts yet" body="Forecasts appear once the crowd model has been trained on the simulated week." />
+        <EmptyState title="No forecasts yet" body="The bundled model has no comparable open-hour projections for today. See Event impact to explore other dates." />
       </Page>
     );
   }
@@ -72,12 +72,10 @@ export default function Forecasts() {
     <Page>
       {header}
       <div className={styles.controls}>
-        <Segmented
-          label="Place"
-          value={selected}
-          onChange={(v) => setParams(v === 'all' ? {} : { place: v }, { replace: true })}
-          options={[{ value: 'all', label: 'All places' }, ...forecasts.map((f) => ({ value: f.locationId, label: name(f.locationId) }))]}
-        />
+        <label>Place <select value={selected} onChange={(event) => setParams(event.target.value === 'all' ? {} : { place: event.target.value }, { replace: true })}>
+          <option value="all">All places</option>
+          {forecasts.map((f) => <option key={f.locationId} value={f.locationId}>{name(f.locationId)}</option>)}
+        </select></label>
         <Legend />
       </div>
 
@@ -95,6 +93,7 @@ export default function Forecasts() {
                   <span className={styles.sep}>Quietest {describe(quiet.share)} at {formatHour(quiet.hour)}</span>
                 </p>
               </header>
+              {f.basis && <p>{f.basis}</p>}
               <HourlyChart hours={f.hours} label={`Hourly forecast for ${full}`} tall={selected !== 'all'} />
               {selected !== 'all' && (
                 <div className={styles.hourList}>

@@ -41,7 +41,7 @@ export default function Schedule() {
   const header = (
     <PageHeader
       title="Schedule"
-      description="Your week from Google Calendar, clubs and habits, with suggestions when a place is likely to be crowded."
+      description="Your personal schedule appears here when real calendar data is available."
       actions={<Button to="/calendars">Manage calendars</Button>}
     />
   );
@@ -78,7 +78,7 @@ export default function Schedule() {
             key={g.key}
             title={formatDayLabel(g.start)}
             count={g.items.length}
-            empty="Nothing scheduled. Classes, club events and habits for this day will show up here."
+            empty="No personal schedule data is available for this day. Browse Events for published campus activities."
           >
             {g.items.map((item) => {
               const suggestion = suggestions.data?.find((s) => s.scheduleItemId === item.id);

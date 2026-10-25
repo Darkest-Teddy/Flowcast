@@ -1,6 +1,8 @@
 // HTTP API for Ask. POST /api/ask runs one agent question against the simulation for the day and
 // time the map is showing. The OpenAI key stays here; browsers only talk to this endpoint.
 
+import type pg from 'pg';
+import { dashboardRouter } from './dashboard/router';
 import { isIP } from 'node:net';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
@@ -27,6 +29,7 @@ export const AskRequest = z.object({
 });
 
 export interface AppOptions {
+  dashboardPool?: pg.Pool;
   campus: CampusModel;
   ask: (question: string, ctx: ServerAskContext, signal: AbortSignal, history?: AgentMessage[]) => Promise<AskResult>;
   keyConfigured: boolean;
@@ -103,6 +106,7 @@ export function createApp(options: AppOptions) {
   app.disable('x-powered-by');
   app.set('trust proxy', options.trustProxyHops ?? Number(process.env.TRUST_PROXY_HOPS ?? 0));
   app.use(express.json({ limit: '128kb' }));
+  app.use('/api/dashboard', dashboardRouter(options.dashboardPool));
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, model: options.model, keyConfigured: options.keyConfigured, privateBundle: campus.privateBundle });
