@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { CampusData } from '../../../map-client/src/data/campusData';
 import type { CampusGeo } from '../../../web/src/data/types';
 import type { EventBundle } from '../../../web/src/data/realData';
+import { CLASSROOM_SUFFIX } from '../../../map-client/src/sim/residenceSplit';
 
 export interface Snapshot { impact: EventBundle; campus: CampusData; geo: CampusGeo }
 const point = z.tuple([z.number().finite(), z.number().finite()]);
@@ -34,6 +35,19 @@ export async function importSources(pool: pg.Pool, directory = defaultDataDir) {
     const meters = route.cumulative.at(-1)!;
     // The dashboard represents undirected distances; choose the shorter saved direction.
     geo.walkMeters[canonical] = Math.min(geo.walkMeters[canonical] ?? Infinity, meters);
+  }
+  // A residence's classrooms (sim/residenceSplit.ts) share its building: same entrance, same walks.
+  for (const place of impact.places) {
+    if (!place.id.endsWith(CLASSROOM_SUFFIX)) continue;
+    const residence = place.id.slice(0, -CLASSROOM_SUFFIX.length);
+    if (geo.positions[residence]) geo.positions[place.id] = geo.positions[residence];
+    for (const [key, meters] of Object.entries(geo.walkMeters)) {
+      const ends = key.split('>');
+      if (!ends.includes(residence)) continue;
+      const aliased = ends.map((end) => (end === residence ? place.id : end)).sort().join('>');
+      geo.walkMeters[aliased] = Math.min(geo.walkMeters[aliased] ?? Infinity, meters);
+    }
+    geo.walkMeters[[residence, place.id].sort().join('>')] = 0;
   }
   const provenance = sources.map(({ data: _data, ...source }) => source);
   const hash = createHash('sha256').update(sources.map((s) => `${s.name}:${s.sha256}`).join('\n')).digest('hex');

@@ -64,10 +64,14 @@ test('Wednesday bundled workload matches every event boundary and random Playbac
       } while (i < events.length && events[i][0] === time);
       assert.deepEqual(index.countsAt(time), expected); boundaries++;
     }
+    // Playback counts a residence with classrooms as two places (sim/residenceSplit.ts), so compare it
+    // with an index over the stays as Playback counts them.
+    const { splitResidenceStays } = await import('../src/sim/residenceSplit.ts');
+    const counted = createOccupancyIndex(splitResidenceStays(day.stays, day.locations));
     const playback = new Playback(day); let indexedMs = 0, scanMs = 0;
     for (let i = 0; i < 300; i++) {
       const time = ((i * 7919) % 86400) + 0.125;
-      let start = performance.now(); const fast = index.countsAt(time); indexedMs += performance.now() - start;
+      let start = performance.now(); const fast = counted.countsAt(time); indexedMs += performance.now() - start;
       start = performance.now(); const original = playback.occupancyAt(time); scanMs += performance.now() - start;
       for (const o of original) assert.equal(fast.get(o.location.id) ?? 0, o.count);
     }

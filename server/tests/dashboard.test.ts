@@ -9,6 +9,7 @@ import { importSources, defaultDataDir } from '../src/dashboard/import';
 import { dashboardRouter } from '../src/dashboard/router';
 import { DashboardAuthError, type VerifiedUser } from '../src/dashboard/auth';
 import { emptySchedule, scheduleWindow } from '../src/dashboard/schedule';
+import { CLASSROOM_SUFFIX } from '../../map-client/src/sim/residenceSplit';
 const users = new Map<string, VerifiedUser>();
 const verifyUser = async (token: string) => { const user = users.get(token); if (!user) throw new DashboardAuthError(401); return user; };
 async function serve(pool?: ReturnType<typeof database>) {
@@ -42,7 +43,11 @@ test('PostgreSQL import, sessions, persistence, isolation, validation, export, d
     assert.equal(rows.rows.length, 1); assert.equal(rows.rows[0].sources.length, 3);
     assert.ok(rows.rows[0].sources.every((v: { sha256: string; modifiedAt: string }) => v.sha256.length === 64 && v.modifiedAt));
     assert.equal(rows.rows[0].payload.agents, undefined);
-    assert.equal(Object.keys(rows.rows[0].payload.geo.positions).length, first.locations);
+    // One position per map place, plus each residence's classrooms (map-client/src/sim/residenceSplit.ts) at its entrance.
+    const positions = rows.rows[0].payload.geo.positions as Record<string, [number, number]>;
+    const aliases = Object.keys(positions).filter((id) => id.endsWith(CLASSROOM_SUFFIX));
+    assert.equal(Object.keys(positions).length, first.locations + aliases.length);
+    for (const id of aliases) assert.deepEqual(positions[id], positions[id.slice(0, -CLASSROOM_SUFFIX.length)], `${id} shares its residence's entrance`);
     const demo = JSON.parse(await readFile(`${defaultDataDir}/demo-day.json`, 'utf8'));
     assert.equal(first.locations, demo.locations.length);
     for (const [key, route] of Object.entries(demo.walkRoutes) as [string, { cumulative: number[] }][]) {

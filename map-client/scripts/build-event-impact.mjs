@@ -24,12 +24,13 @@ const { createTransitService, mergeSchedules } = await import('../src/sim/transi
 const { GATHERING_ASSUMPTIONS, GATHERING_ATTENDANCE_PROBABILITY, gatheringExclusion, gatheringsOnDate, weekdayOf } = await import('../src/sim/gatherings.ts');
 const { conditionsFor } = await import('../src/sim/conditions.ts');
 const { simulatedPedestrians } = await import('../src/data/observations.ts');
+const { splitResidences, splitResidenceStays } = await import('../src/sim/residenceSplit.ts');
 
 const dataDir = new URL('../public/data/', import.meta.url);
 const outputUrl = new URL('event-impact.json', dataDir);
 const inputs = ['campus-data', 'demo-day', 'population', 'transit-schedule', 'shuttle-schedule', 'behavior', 'personas', 'outdoor', 'monuments']
   .map(name => readFileSync(new URL(`${name}.json`, dataDir)));
-const code = ['sim/sourceDay.ts', 'sim/gatherings.ts', 'sim/population.ts', 'sim/transitService.ts', 'sim/conditions.ts', 'sim/behavior.ts', 'data/observations.ts']
+const code = ['sim/sourceDay.ts', 'sim/gatherings.ts', 'sim/population.ts', 'sim/transitService.ts', 'sim/conditions.ts', 'sim/behavior.ts', 'sim/residenceSplit.ts', 'data/observations.ts']
   .map(name => readFileSync(new URL(`../src/${name}`, import.meta.url)));
 const inputHash = createHash('sha256').update(Buffer.concat([...inputs, ...code])).digest('hex');
 if (process.argv.includes('--if-stale') && existsSync(outputUrl) && JSON.parse(readFileSync(outputUrl)).inputHash === inputHash) {
@@ -41,12 +42,14 @@ const [source, demoDay, population, mbta, shuttle, behavior, personas, outdoor, 
 const base = buildPopulation(demoDay, source, population);
 // Same timetable as the map, so commuters ride the same scheduled trips in both.
 const transit = createTransitService(mergeSchedules(mbta, shuttle));
-const places = base.locations.filter(location => location.kind !== 'off-campus');
+// The same split as each simulated day (sim/residenceSplit.ts): Kilachand's dorm and its classrooms are two places.
+const places = splitResidences(base.locations).filter(location => location.kind !== 'off-campus');
 
 /** Hourly mean head count per place; places that are empty all day are omitted. */
 function hourlyOccupancy(day) {
   const seconds = new Map();
-  for (const stay of day.stays) {
+  // Residences with classrooms are counted as dorm + classrooms, like the places list.
+  for (const stay of splitResidenceStays(day.stays, day.locations)) {
     if (stay.location === 'off-campus') continue;
     let row = seconds.get(stay.location);
     if (!row) { row = new Float64Array(24); seconds.set(stay.location, row); }
