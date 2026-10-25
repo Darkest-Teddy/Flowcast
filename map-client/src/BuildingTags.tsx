@@ -51,6 +51,8 @@ const SPACING = 6;
 const MARGIN = 60;
 /** The compact marker's diameter; it must match .btag-marker in styles.css. */
 const MARKER = 24;
+/** How long after the last camera change the view still counts as moving. */
+const CAMERA_SETTLE_MS = 260;
 /** Below this zoom the tags tighten up so more of them fit on the overview. */
 const COMPACT_ZOOM = 16;
 
@@ -236,6 +238,11 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
     last: 0,
     selectedId: null as string | null,
     hoveredId: null as string | null,
+    /* The camera as of last frame, and until when it counts as still moving. */
+    lastCamera: null as CameraState | null,
+    movingUntil: 0,
+    /* Which ids survived the last thinning, so the next one can prefer them. */
+    lastKept: new Set<string>(),
     heightsFrom: null as BuildingFootprint[] | null,
     heights: new Map<string, number>(),
     roofsFrom: undefined as RoofHeights | undefined,
@@ -291,6 +298,27 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
           return;
         }
 
+        /*
+         * Is the camera moving?
+         *
+         * Measured here rather than taken from a map event, because this is the
+         * only place that already sees every camera the frame loop draws. The
+         * grace period outlives the gesture: a rotation ends with the pointer
+         * sitting on whatever happened to spin under it, and expanding that
+         * building the instant the drag stops is the same surprise as expanding
+         * it during.
+         */
+        const previous = s.lastCamera;
+        const moved = !previous
+          || previous.zoom !== camera.zoom
+          || previous.bearing !== camera.bearing
+          || previous.pitch !== camera.pitch
+          || previous.center[0] !== camera.center[0]
+          || previous.center[1] !== camera.center[1];
+        s.lastCamera = camera;
+        if (moved) s.movingUntil = now + CAMERA_SETTLE_MS;
+        const moving = now < s.movingUntil;
+
         const compact = camera.zoom < COMPACT_ZOOM;
         if (compact !== s.compact) {
           s.compact = compact;
@@ -317,17 +345,45 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         const cell = cellSize(camera.zoom);
         const kept: BuildingOccupancy[] = [];
         if (cell > 0) {
+          /*
+           * Two passes, and the order matters.
+           *
+           * A screen-space grid re-buckets on every pan, so a single pass hands
+           * each cell to whichever building drifted into it this frame and the
+           * field blinks the whole way round a rotation. Giving last frame's
+           * survivors first refusal on their cell makes the set sticky: a mark
+           * that is up stays up until something genuinely displaces it, and only
+           * the gaps are filled by newcomers.
+           */
           const taken = new Set<string>();
-          for (const b of order) {
+          // Rank once: indexOf inside the sort below would be quadratic, and
+          // this runs every frame at the zoom where there are most of them.
+          const rank = new Map(order.map((b, i) => [b, i]));
+          const cellOf = (b: BuildingOccupancy) => {
             const [x, y] = anchors.get(b)!;
-            const key = `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
+            return `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
+          };
+          for (const b of order) {
+            if (!s.lastKept.has(b.id)) continue;
+            const key = cellOf(b);
             if (taken.has(key)) continue;
             taken.add(key);
             kept.push(b);
           }
+          for (const b of order) {
+            if (s.lastKept.has(b.id)) continue;
+            const key = cellOf(b);
+            if (taken.has(key)) continue;
+            taken.add(key);
+            kept.push(b);
+          }
+          // Back into priority order: the pill/marker split and the Focus
+          // fallback both read the first few entries as "most important".
+          kept.sort((a, b) => rank.get(a)! - rank.get(b)!);
         } else {
           kept.push(...order);
         }
+        s.lastKept = new Set(kept.map((b) => b.id));
 
         const changed: Tag[] = [];
         for (const b of kept) {
@@ -410,7 +466,10 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
             tag.pill.setAttribute('aria-pressed', String(selected));
           }
           // Hover and focus on the tag itself open it in CSS; the map's hover and the selection here.
-          const open = selected || b.id === s.hoveredId;
+          // Hover expands a tag, but not while the camera is moving: panning
+          // drags the pointer across the campus and every building it crosses
+          // would bloom into its card on the way past.
+          const open = selected || (!moving && b.id === s.hoveredId);
           if (open !== tag.open) {
             tag.open = open;
             tag.root.classList.toggle('is-open', open);
