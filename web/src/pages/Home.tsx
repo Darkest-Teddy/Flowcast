@@ -14,6 +14,7 @@ import {
   Avatar,
   Button,
   ListRow,
+  LoadErrors,
   Page,
   SectionList,
   Segmented,
@@ -181,7 +182,9 @@ export default function Home() {
         geo={geo.data ?? { positions: {}, walkMeters: {} }} hours={hours.data ?? {}} forecasts={hourly.data ?? []}
         profile={profile.data ?? null} homeLocationId={homeLocationId} campusEvents={events.data ?? []} venues={venues.data}
         now={now} transit={transit.context}
-        loading={schedule.loading || locations.loading || geo.loading || profile.loading || hours.loading || events.loading} />
+        // Held back while an input is missing, not only loading: a failed load read as "no classes" and
+        // "no campus events today". The failure is reported below.
+        loading={[schedule, locations, geo, profile, hours, events].some((r) => r.loading || r.error)} />
 
       <AskChat scheduleAvailable={schedule.data !== null} visible composer={(ask, pending, resetToken) => (
         <AskBar resetToken={resetToken} pending={pending} onSubmit={(question) => void ask(question)} voice={(field) => <LiveVoice compact>{field}</LiveVoice>} />
@@ -193,9 +196,7 @@ export default function Home() {
         transit: transit.context,
       }} />
 
-      {[locations, schedule, places, hourly, bestTimes, geo, profile, events, clubs, impact, hours, spots, studyHours].filter((resource) => resource.error).map((resource, index) => (
-        <p role="alert" key={index}>{resource.error?.message} <Button variant="ghost" size="sm" onClick={resource.reload}>Try again</Button></p>
-      ))}
+      <LoadErrors resources={[locations, schedule, places, hourly, bestTimes, geo, profile, events, clubs, impact, hours, spots, studyHours]} />
 
       {setupKnown && setupDone < setup.length && (
         <section className={`${styles.setup} ${styles.reveal}`} style={order(2)} aria-label="Get set up">

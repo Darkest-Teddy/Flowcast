@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Button } from './Button';
 import styles from './Page.module.css';
 
 /** Content column with the standard max width and padding. `wide` for tables and admin grids. */
@@ -67,4 +68,17 @@ export function Grid({
 
 export function Loading({ label = 'Loading' }: { label?: string }) {
   return <p className={styles.loading} role="status">{label}…</p>;
+}
+
+/**
+ * The failures among a page's loads, one line per distinct message. When the server is down every
+ * load fails the same way, and a line each stacked a dozen identical alerts; one "Try again" reloads
+ * every load behind its line.
+ */
+export function LoadErrors({ resources }: { resources: { error: Error | null; reload: () => void }[] }) {
+  const byMessage = new Map<string, (() => void)[]>();
+  for (const r of resources) if (r.error) byMessage.set(r.error.message, [...(byMessage.get(r.error.message) ?? []), r.reload]);
+  return [...byMessage].map(([message, reloads]) => (
+    <p role="alert" key={message}>{message} <Button variant="ghost" size="sm" onClick={() => reloads.forEach((reload) => reload())}>Try again</Button></p>
+  ));
 }
