@@ -15,16 +15,23 @@ const { CROWD_LEVELS, crowdLevel } = await import('../../theme/crowd.ts');
 const { crowdScale, crowdFor } = await import('../../theme/tokens.ts');
 const mapLevels = await import('../src/layers/crowdLevels.ts');
 
-const tokensCss = readFileSync(new URL('../../theme/tokens.css', import.meta.url), 'utf8');
+// Comments stripped, so a rule's selector list is just selectors.
+const tokensCss = readFileSync(new URL('../../theme/tokens.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 const stylesCss = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 
-/** The custom properties declared in the first rule whose selector is exactly `selector`. */
-function declarations(css, selector, after = 0) {
-  const at = css.indexOf(`${selector} {`, after);
-  assert.ok(at >= 0, `no "${selector} {" rule`);
-  const body = css.slice(at + selector.length + 2, css.indexOf('}', at));
-  return Object.fromEntries([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
+/** The first rule at or after `after` whose selector list includes exactly `selector`: where it starts, its selectors, and its custom properties. */
+function rule(css, selector, after = 0) {
+  const rules = /([^{}]*)\{([^{}]*)\}/g;
+  rules.lastIndex = after;
+  for (let m; (m = rules.exec(css)); ) {
+    const selectors = m[1].split(',').map((s) => s.trim());
+    if (!selectors.includes(selector)) continue;
+    const props = Object.fromEntries([...m[2].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((d) => [d[1], d[2].trim()]));
+    return { at: m.index, selectors, props };
+  }
+  assert.fail(`no rule for "${selector}"`);
 }
+const declarations = (css, selector, after = 0) => rule(css, selector, after).props;
 const light = declarations(tokensCss, ':root');
 const darkMedia = declarations(tokensCss, ':root:not([data-theme="light"])', tokensCss.indexOf('@media (prefers-color-scheme: dark)'));
 const darkForced = declarations(tokensCss, ':root[data-theme="dark"]');
@@ -134,6 +141,12 @@ test('the two dark blocks in tokens.css are identical', () => {
   assert.deepEqual(darkMedia, darkForced);
 });
 
+test('a data-theme="dark" element gets the same dark values as a dark page', () => {
+  // One rule serves both, so a dark part of a light page (the landing hero) can't drift.
+  assert.deepEqual(rule(tokensCss, '[data-theme="dark"]').selectors, [':root[data-theme="dark"]', '[data-theme="dark"]']);
+  assert.deepEqual(declarations(tokensCss, '[data-theme="dark"]'), darkForced);
+});
+
 test("the map tag's default level is Quiet from crowd.ts", () => {
   const rule = stylesCss.slice(stylesCss.indexOf('.btag {'), stylesCss.indexOf('}', stylesCss.indexOf('.btag {')));
   const quiet = CROWD_LEVELS[0];
@@ -164,8 +177,18 @@ test('ink keeps 4.5:1 on glass and on the bare canvas gradient, at every stop', 
   assert.ok(contrast(hex(light['--color-ink-tertiary']), over(light['--glass-fill'], stops(light['--canvas-gradient'])[0])) < 4.5);
 });
 
+test('the accent fill carries its text at 4.5:1 in light and dark, and stands out 3:1 on the dark canvas', () => {
+  for (const [name, theme] of [['light', light], ['dark', dark]]) {
+    for (const fill of ['--color-accent-fill', '--color-accent-fill-hover']) {
+      const ratio = contrast(hex(theme['--color-on-accent']), hex(theme[fill]));
+      assert.ok(ratio >= 4.5, `${name} ${fill}: ${ratio.toFixed(2)}:1`);
+    }
+  }
+  assert.ok(contrast(hex(dark['--color-accent-fill']), hex(dark['--color-canvas'])) >= 3, 'accent fill on the dark canvas');
+});
+
 test('reduced transparency makes glass solid and wins over both dark blocks', () => {
-  const lastDark = tokensCss.lastIndexOf(':root[data-theme="dark"] {');
+  const lastDark = rule(tokensCss, ':root[data-theme="dark"]').at;
   const media = tokensCss.indexOf('@media (prefers-reduced-transparency: reduce)');
   assert.ok(media > lastDark, 'the reduced-transparency rules come after the dark blocks');
   const solidGlass = {
@@ -179,6 +202,9 @@ test('reduced transparency makes glass solid and wins over both dark blocks', ()
   // :root:not([data-theme="light"]), so coming later is what makes them win.
   assert.deepEqual(declarations(tokensCss, ':root:not([data-transparency="full"])', media), solidGlass);
   assert.deepEqual(declarations(tokensCss, ':root[data-transparency="reduced"]', media), solidGlass);
+  // A data-theme="dark" part of the page redeclares glass, so the same rules cover it too.
+  assert.ok(rule(tokensCss, ':root:not([data-transparency="full"]) [data-theme="dark"]', media).selectors.includes(':root:not([data-transparency="full"])'));
+  assert.ok(rule(tokensCss, ':root[data-transparency="reduced"] [data-theme="dark"]', media).selectors.includes(':root[data-transparency="reduced"]'));
   for (const name of Object.keys(solidGlass)) {
     assert.ok(light[name], `light defines ${name}`);
   }

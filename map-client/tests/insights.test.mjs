@@ -232,3 +232,13 @@ test('the outlook skips closed hours and flags open hours after midnight', () =>
   assert.equal(busyOutlook(withData(), location, 7.5 * 3600).quiet.time, 7.5 * 3600);
   assert.equal(busyOutlook(ctx(), location, 7.5 * 3600).quiet.time, 8 * 3600);
 });
+
+test('an empty venue without published hours gets no percent and ranks after measured places', () => {
+  const data = { referenceWeekStart: '2026-10-26', locations: {
+    mugar: { hours: [{ date: '2026-10-26', windows: [[0, 86400]], text: 'open', sourceUrl: '', qualifier: null }], hoursStatus: 'published' },
+    pardee: { hours: [], hoursStatus: 'unknown' },
+  } };
+  const occ = (t) => occupancyAt(t).map((o) => (o.location.id === 'pardee' ? { ...o, count: 0, share: 0 } : o));
+  const a = ask('least crowded library', ctx({ time: 8 * 3600, occupancyAt: occ, data }));
+  assert.deepEqual(a.ranked.map((r) => [r.location.id, r.share === null]), [['mugar', false], ['pardee', true]]);
+});

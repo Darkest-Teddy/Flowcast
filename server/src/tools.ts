@@ -184,7 +184,7 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
     description:
       'Rank places on the campus in view by simulated crowding at a time. Rows come in tiers: open with a percent, open with a headcount only, hours not published, closed, not modeled. ' +
       'leastCrowded (or mostCrowded) is the top open place with a comparable percent, the answer even when rounded percents tie; it is null when no place qualifies. Never re-rank by student count. ' +
-      'percent is simulated students over stated capacity; null means not comparable, or closed. open=false is closed by published hours (never call it quiet); open=null means hours are not published. ' +
+      'percent is simulated students over stated capacity; null means not comparable, closed, or (open=null with 0 students) no published hours, so the simulation sends no one there: never call those quiet. open=false is closed by published hours (never call it quiet); open=null means hours are not published. ' +
       'modeled=false means the simulation does not model that place on this day.',
     parameters: z.object({
       kind: z.enum(PLACE_KINDS).nullable().describe('Kind of place, or null for every kind.'),

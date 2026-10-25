@@ -1,10 +1,14 @@
+import { useEffect, useState, type ReactNode } from 'react';
 import { Map as MapIcon } from 'lucide-react';
 import { crowdFor } from '@theme/tokens';
 import { config } from '../../config';
 import type { CampusGeo } from '../../data/types';
 import type { SearchMode } from '../../ui';
 import { Button, ListRow, SectionList, Tag } from '../../ui';
-import { answerQuestion, EXAMPLE_QUESTIONS, searchCampus, type CampusData } from './campusSearch';
+import { api } from '../../data/api';
+import { isPersonalQuestion, routeQuestion, type AskOutcome } from '../../lib/askRouting';
+import type { AgentAnswer, AgentError } from '@map/askClient';
+import { agentAnswer, answerQuestion, EXAMPLE_QUESTIONS, searchCampus, type Answer, type CampusData } from './campusSearch';
 import styles from './SearchResults.module.css';
 
 /**
@@ -58,44 +62,7 @@ export function SearchResults({
     </Button>
   );
 
-  if (mode === 'ask') {
-    const answer = answerQuestion(query, data);
-    const mapLink = mapLinkFor(answer.focus, data.geo, answer.mapQuestion);
-    return (
-      <div className={styles.wrap} aria-live="polite">
-        <div className={styles.head}>
-          <span>You asked “{query}”</span>
-          {clear}
-        </div>
-        <p className={styles.answer}>{answer.text}</p>
-        {answer.rows.length > 0 && (
-          <div className={styles.rows}>
-            {answer.rows.map((r) => (
-              <ListRow
-                key={r.id}
-                leading={
-                  r.share !== undefined ? (
-                    <i className={styles.crowdDot} style={{ background: r.share === null ? 'var(--color-off)' : crowdFor(r.share).color }} aria-hidden />
-                  ) : undefined
-                }
-                title={r.title}
-                detail={r.detail}
-              />
-            ))}
-          </div>
-        )}
-        <div className={styles.answerFoot}>
-          {answer.note && <p className={styles.note}>{answer.note}</p>}
-          {mapLink && (
-            <Button variant="ghost" size="sm" href={mapLink} icon={<MapIcon aria-hidden />}>
-              Show on map
-            </Button>
-          )}
-        </div>
-        <ExampleQuestions onAsk={onAsk} />
-      </div>
-    );
-  }
+  if (mode === 'ask') return <AskAnswer query={query} data={data} clear={clear} onAsk={onAsk} />;
 
   const results = searchCampus(query, data);
   return (
@@ -110,6 +77,98 @@ export function SearchResults({
         ))}
       </SectionList>
       <div className={styles.foot}>{clear}</div>
+    </div>
+  );
+}
+
+/** Why an Ask answer came from this device, in plain words. */
+function deviceNote(outcome: AskOutcome<AgentAnswer, AgentError>): string {
+  if (outcome.source !== 'device') return '';
+  if (outcome.reason === 'personal') return 'Answered on this device from your schedule. Your schedule isn’t sent anywhere.';
+  const why: Partial<Record<AgentError['kind'], string>> = {
+    notConfigured: 'the Ask server isn’t set up',
+    rateLimited: 'too many questions to the Ask server just now',
+    timeout: 'the Ask server took too long',
+    warming: 'the Ask server is still simulating today',
+  };
+  return `Answered on this device: ${why[outcome.error.kind] ?? 'the Ask server isn’t reachable'}.`;
+}
+
+/**
+ * Ask mode. Personal questions are answered here from the person's schedule; campus questions go to
+ * the Ask server's agent, falling back to this device's sample forecasts with a label when it fails.
+ */
+function AskAnswer({ query, data, clear, onAsk }: { query: string; data: CampusData; clear: ReactNode; onAsk: (question: string) => void }) {
+  const personal = isPersonalQuestion(query);
+  const [state, setState] = useState<{ query: string; outcome: AskOutcome<AgentAnswer, AgentError> | null; status: string }>({ query, outcome: null, status: 'Asking…' });
+
+  useEffect(() => {
+    if (personal) return;
+    const controller = new AbortController();
+    setState({ query, outcome: null, status: 'Asking…' });
+    // Started a tick later, so a mount that is immediately undone (React dev mode) sends nothing.
+    const start = setTimeout(() => {
+      routeQuestion(query, (q) => api.askCampus(q, new Date(), controller.signal, () => {
+        if (!controller.signal.aborted) setState({ query, outcome: null, status: 'Simulating today…' });
+      })).then((outcome) => {
+        if (!controller.signal.aborted && outcome.source !== 'cancelled') setState({ query, outcome, status: '' });
+      });
+    }, 0);
+    return () => {
+      clearTimeout(start);
+      controller.abort();
+    };
+  }, [query, personal]);
+
+  const outcome: AskOutcome<AgentAnswer, AgentError> | null = personal ? { source: 'device', reason: 'personal' } : state.query === query ? state.outcome : null;
+  const answer: Answer | null = !outcome
+    ? null
+    : outcome.source === 'agent'
+      ? agentAnswer(outcome.answer, query)
+      : { ...answerQuestion(query, data), device: deviceNote(outcome) };
+  const mapLink = answer ? mapLinkFor(answer.focus, data.geo, answer.mapQuestion) : null;
+
+  return (
+    <div className={styles.wrap} aria-live="polite" aria-busy={!answer}>
+      <div className={styles.head}>
+        <span>You asked “{query}”</span>
+        {clear}
+      </div>
+      {!answer ? (
+        <p className={styles.answer}>{state.status || 'Asking…'}</p>
+      ) : (
+        <>
+          <p className={styles.answer}>{answer.text}</p>
+          {answer.rows.length > 0 && (
+            <div className={styles.rows}>
+              {answer.rows.map((r) => (
+                <ListRow
+                  key={r.id}
+                  leading={
+                    r.share !== undefined ? (
+                      <i className={styles.crowdDot} style={{ background: r.share === null ? 'var(--color-off)' : crowdFor(r.share).color }} aria-hidden />
+                    ) : undefined
+                  }
+                  title={r.title}
+                  detail={r.detail}
+                />
+              ))}
+            </div>
+          )}
+          <div className={styles.answerFoot}>
+            <div>
+              {answer.note && <p className={styles.note}>{answer.note}</p>}
+              {answer.device && <p className={styles.note}>{answer.device}</p>}
+            </div>
+            {mapLink && (
+              <Button variant="ghost" size="sm" href={mapLink} icon={<MapIcon aria-hidden />}>
+                Show on map
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+      <ExampleQuestions onAsk={onAsk} />
     </div>
   );
 }

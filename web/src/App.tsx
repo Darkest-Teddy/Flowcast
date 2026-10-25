@@ -1,8 +1,9 @@
-import { createBrowserRouter, RouterProvider } from 'react-router';
-import { RequireAuth, SessionProvider } from './auth/session';
+import { createBrowserRouter, RouterProvider, useMatch } from 'react-router';
+import { RequireAuth, SessionProvider, useSession } from './auth/session';
 import { AdminLayout } from './layouts/AdminLayout';
 import { StudentLayout } from './layouts/StudentLayout';
 import Home from './pages/Home';
+import Landing from './pages/Landing';
 import SignIn from './pages/SignIn';
 import Welcome from './pages/Welcome';
 import Schedule from './pages/Schedule';
@@ -26,13 +27,29 @@ import Users from './pages/admin/Users';
 import AgentBrain from './pages/admin/AgentBrain';
 import AdminSettings from './pages/admin/AdminSettings';
 
+/**
+ * The student area. `/` itself is public: a signed-out visitor gets the landing page there, while
+ * every page under it still sends them to /signin. Signed-in people get Home in the student layout.
+ */
+function StudentArea() {
+  const { session, ready } = useSession();
+  const atIndex = useMatch('/') !== null;
+  if (ready && !session && atIndex) return <Landing />;
+  return (
+    <RequireAuth>
+      <StudentLayout />
+    </RequireAuth>
+  );
+}
+
 const router = createBrowserRouter([
   { path: '/signin', element: <SignIn /> },
+  { path: '/landing', element: <Landing /> }, // the landing page for everyone, signed in or not
   { path: '/welcome', element: <RequireAuth><Welcome /></RequireAuth> },
   { path: '/clubs/register', element: <RequireAuth><ClubApply /></RequireAuth> },
   {
     path: '/',
-    element: <RequireAuth><StudentLayout /></RequireAuth>,
+    element: <StudentArea />,
     children: [
       { index: true, element: <Home /> },
       { path: 'schedule', element: <Schedule /> },
