@@ -2,6 +2,7 @@ import { useId, type FormEvent, type KeyboardEvent, type ReactNode } from 'react
 import { ArrowUp, Map as MapIcon, RotateCcw, Square } from 'lucide-react';
 import { crowdFor } from '@theme/tokens';
 import type { ChatResponse } from '@map/chatContract';
+import { LiveVoice } from '@map/LiveVoice';
 import { Button, Tag } from '../../ui';
 import { parseMarkdown } from '../../lib/chatMarkdown';
 import { MAX_QUESTION_CHARS, type ChatMessage } from '../../lib/chatHistory';
@@ -199,6 +200,7 @@ export function Composer({
           {value.length}/{MAX_QUESTION_CHARS}
           <span className="visually-hidden"> characters</span>
         </span>
+        <LiveVoice compact />
         {busy ? (
           <button type="button" className={styles.send} onClick={onStop} aria-label="Stop answering">
             <Square aria-hidden />
