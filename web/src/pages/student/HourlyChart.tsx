@@ -28,7 +28,7 @@ export function HourlyChart({
   const peak = hours.length ? hours.reduce((a, b) => (b.share > a.share ? b : a)) : null;
   const n = Math.max(1, hours.length);
   return (
-    <figure className={`${styles.chart} ${tall ? styles.tall : ''}`} style={{ '--n': n } as CSSProperties}>
+    <figure className={`${styles.chart} ${tall ? styles.tall : ''} ${n > 16 ? styles.dense : ''}`} style={{ '--n': n } as CSSProperties}>
       <div className={styles.plot}>
         <div className={styles.grid} aria-hidden>
           {GRID.map((g) => (
@@ -65,7 +65,7 @@ export function HourlyChart({
       </div>
       <div className={styles.axis} aria-hidden>
         {hours.map((h, i) => (
-          <span key={h.hour}>{i % 3 === 0 ? formatHour(h.hour) : ''}</span>
+          <span key={h.hour} data-major={i % 6 === 0 || undefined}>{i % 3 === 0 ? formatHour(h.hour) : ''}</span>
         ))}
       </div>
     </figure>

@@ -130,6 +130,28 @@
   gap: var(--space-2);
 }
 
+/*
+ * Phones: beside the card, the mic left it too narrow for the mode toggle and the submit button to
+ * share a row, so the button dropped to a line of its own. The card takes the full width and the
+ * mic sits in its first row, centred on the field (8px padding + half the 32px field - 22px).
+ */
+@media (max-width: 640px) {
+  .searchControls {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .searchControls > :last-child {
+    position: absolute;
+    top: 2px;
+    right: var(--space-2);
+  }
+
+  .searchControls input {
+    padding-right: var(--control-height-touch);
+  }
+}
+
 .status {
   display: flex;
   justify-content: center;

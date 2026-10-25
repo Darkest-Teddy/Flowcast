@@ -225,6 +225,18 @@
   white-space: nowrap;
 }
 
+/* A whole day in a narrow chart (a phone): every third hour gives "12 AM" about 40px and the labels
+   run together, so only every sixth is kept. Measured on the chart, not the screen. */
+.dense {
+  container-type: inline-size;
+}
+
+@container (max-width: 480px) {
+  .dense .axis span:not([data-major]) {
+    visibility: hidden;
+  }
+}
+
 /* ---------- Motion ---------- */
 
 /* Bars grow up from the axis, left to right, when the chart mounts (Home replays it per place). */

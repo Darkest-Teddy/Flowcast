@@ -15,7 +15,8 @@ const quietestOf = (f: HourlyForecast) => f.hours.reduce((a, b) => (b.share < a.
 const describe = (share: number) => `${formatPercent(share)} ${crowdFor(share).label}`;
 
 /** "Tue 9 AM", in the reader's locale. */
-const when = (h: HourFigure) => `${formatWeekday(`${h.date}T12:00:00`)} ${formatHour(h.hour)}`;
+// Non-breaking spaces: a narrow row wraps between times, never inside one ("Sun 4 / PM").
+const when = (h: HourFigure) => `${formatWeekday(`${h.date}T12:00:00`)} ${formatHour(h.hour)}`.replace(/ /g, ' ');
 const figure = (week: PlaceWeek, h: HourFigure) => (week.measure === 'share' && h.share !== null ? describe(h.share) : `${h.students} simulated students`);
 
 /**

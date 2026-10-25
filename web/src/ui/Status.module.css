@@ -67,6 +67,13 @@
   background: linear-gradient(to right, color-mix(in srgb, var(--c) 72%, white), var(--c));
 }
 
+/* Phones: a shorter bar, so a row's place name keeps the width (the % and level word carry it). */
+@media (max-width: 560px) {
+  .meter {
+    width: 40px;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .meter b {
     transform-origin: left;

@@ -1,5 +1,6 @@
 /* Get started: a step rail over one glass card at a time. */
 .flow {
+  --slide: 24px; /* how far each step slides in from */
   max-width: 640px;
   margin: 0 auto;
   padding-top: var(--space-8);
@@ -379,14 +380,14 @@
 @keyframes enter {
   from {
     opacity: 0;
-    transform: translateX(24px);
+    transform: translateX(var(--slide));
   }
 }
 
 @keyframes enterBack {
   from {
     opacity: 0;
-    transform: translateX(-24px);
+    transform: translateX(calc(-1 * var(--slide)));
   }
 }
 
@@ -568,6 +569,17 @@
 @media (max-width: 560px) {
   .flow {
     padding-top: var(--space-4);
+  }
+
+  /* At 520px the drifting glow overhangs the screen and the whole page scrolls sideways; at 80% of
+     the column its widest drift (translate -42%, scale 1.08) still ends inside the gutter. */
+  .flow::before {
+    width: 80%;
+  }
+
+  /* The card fills the column, so the slide stays inside the 16px gutter. */
+  .flow {
+    --slide: 12px;
   }
 
   .stepLabel {
