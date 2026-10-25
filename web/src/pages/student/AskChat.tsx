@@ -4,7 +4,8 @@ import type { AgentMessage } from '@map/askClient';
 import { appendExchange } from '@map/askConversation';
 import { api } from '../../data/api';
 import { config } from '../../config';
-import { routeQuestion } from '../../lib/askRouting';
+import { buildPersonalSchedule } from '../../lib/personalSchedule';
+import { isPersonalQuestion, routeQuestion } from '../../lib/askRouting';
 import { answerMapLink, remoteAnswerPoints } from '../../lib/askMapLink';
 import { Button, ListRow } from '../../ui';
 import { agentAnswer, answerQuestion, type Answer, type CampusData } from './campusSearch';
@@ -21,7 +22,7 @@ interface Turn {
   status: string;
 }
 
-export function AskChat({ data, visible, composer }: { data: CampusData; visible: boolean; composer?: (ask: (question: string) => Promise<void>, pending: boolean, resetToken: number) => ReactNode }) {
+export function AskChat({ data, visible, composer, scheduleAvailable = false }: { data: CampusData; scheduleAvailable?: boolean; visible: boolean; composer?: (ask: (question: string) => Promise<void>, pending: boolean, resetToken: number) => ReactNode }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [resetToken, setResetToken] = useState(0);
   const [draft, setDraft] = useState('');
@@ -71,17 +72,19 @@ export function AskChat({ data, visible, composer }: { data: CampusData; visible
     setDraft('');
     setPending(true);
     const homeName = data.locations.find((location) => location.id === data.homeLocationId)?.name ?? null;
+    const personalSchedule = scheduleAvailable ? buildPersonalSchedule(data.schedule, at) : undefined;
     const outcome = await routeQuestion(question, (sanitized) => api.askCampus(
-      sanitized, at, controller.signal, () => update({ status: 'Simulating today…' }), history.current,
+      sanitized, at, controller.signal, () => update({ status: 'Simulating today…' }), history.current, personalSchedule,
     ), homeName, {
       afterDevice: afterDevice.current,
+      scheduleShared: !!personalSchedule,
       locationNames: data.locations.flatMap((location) => [location.name, location.short]),
     });
     if (controller.signal.aborted || active.current !== controller) return;
     if (outcome.source === 'agent') {
       history.current = appendExchange(history.current, outcome.question, outcome.answer.answer);
       afterDevice.current = false;
-      update({ answer: agentAnswer(outcome.answer, outcome.question), source: 'Ask server · campus simulation',
+      update({ answer: agentAnswer(outcome.answer, outcome.question), source: personalSchedule ? 'Ask server · your schedule and campus data' : 'Ask server · campus simulation',
         mapLink: answerMapLink(config.mapUrl, remoteAnswerPoints(outcome.answer)), status: '' });
     } else if (outcome.source === 'device') {
       const privateTurn = outcome.reason !== 'failed';
@@ -89,7 +92,9 @@ export function AskChat({ data, visible, composer }: { data: CampusData; visible
       afterDevice.current = true;
       const answer: Answer = outcome.reason === 'privateFollowup'
         ? { text: 'Which building do you mean? Name the campus building in a new question. On-device answers are not shared with the Ask server.', rows: [], focus: [] }
-        : answerQuestion(question, data, at);
+        : !scheduleAvailable && isPersonalQuestion(question)
+          ? { text: 'Your schedule could not be loaded. Try again or open Calendars.', rows: [], focus: [] }
+          : answerQuestion(question, data, at);
       const source = privateTurn
         ? 'On this device · this answer stays here. Campus conversation context has been cleared.'
         : `On-device fallback · ${outcome.reason === 'failed' && outcome.error.kind === 'notConfigured' ? 'Ask server is not configured' : 'Ask server could not answer'}.`;
@@ -105,13 +110,14 @@ export function AskChat({ data, visible, composer }: { data: CampusData; visible
   return (
     <>
     {composer?.(ask, pending, resetToken)}
+    {visible && <p className={styles.note}>Ask shares your next two weeks of imported classes with the AI.</p>}
     <section hidden={!visible || (!!composer && turns.length === 0)} aria-label="Ask Flowcast conversation" className={styles.wrap}>
       <div className={styles.card}>
         <div className={styles.head}>
           <h2>Ask Flowcast</h2>
           <Button variant="ghost" size="sm" onClick={newChat}>New chat</Button>
         </div>
-        {turns.length === 0 && <p className={styles.answer}>Your personal schedule stays on this device.</p>}
+        {turns.length === 0 && <p className={styles.answer}>Ask about your classes or campus.</p>}
         {turns.length > 0 && <p className={styles.note}>Answers reflect when you asked and don’t refresh automatically.</p>}
         <div role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text">
           {turns.map((turn) => (

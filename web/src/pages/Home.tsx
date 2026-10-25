@@ -61,7 +61,7 @@ export default function Home() {
         <p className={styles.status}>{calendarStatus}</p>
       </div>
 
-      <AskChat visible={mode === 'ask'} composer={(ask, pending, resetToken) => (
+      <AskChat scheduleAvailable={schedule.data !== null} visible={mode === 'ask'} composer={(ask, pending, resetToken) => (
         <div className={mode === 'ask' ? styles.askDock : undefined}>
         <SearchBar placeholder="Search buildings, events, clubs and classes" mode={mode}
           resetToken={resetToken} onModeChange={setMode} pending={mode === 'ask' && pending}

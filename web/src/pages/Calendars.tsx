@@ -103,14 +103,15 @@ export default function Calendars() {
             </div>
           </> : <p>No schedule imported.</p>}
         </section>
-        <label className={styles.file}>
-          <span>Schedule file (.ics, up to 1 MB)</span>
-          <input ref={fileInput} type="file" accept=".ics,text/calendar" disabled={busy} onChange={(event) => {
+        <div className={styles.file}>
+          <Button variant="secondary" disabled={busy} onClick={() => fileInput.current?.click()}>Choose schedule file</Button>
+          <span className={styles.detail} id="schedule-file-hint">.ics file · Up to 1 MB</span>
+          <input hidden aria-label="Schedule file" aria-describedby="schedule-file-hint" ref={fileInput} type="file" accept=".ics,text/calendar" disabled={busy} onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = '';
             void chooseFile(file);
           }} />
-        </label>
+        </div>
         {busy && <p role="status">Updating schedule…</p>}
         {status && <p role="status">{status}</p>}
         {preview && <section className={styles.card} aria-label="Schedule preview">

@@ -6,6 +6,7 @@
 // Never here: stays, trips, agent ids, source assignments or activities, bike rides, live
 // transit feeds, source URL lists, or the private bundle unless FLOWCAST_ASK_PRIVATE_BUNDLE=1.
 
+import type { PersonalSchedule } from '../../map-client/src/personalSchedule';
 import type { AskContext } from '../../map-client/src/insights';
 import { ASK_ASSUMPTIONS } from '../../map-client/src/insights';
 import { LEVELS } from '../../map-client/src/layers/crowdLevels';
@@ -52,7 +53,7 @@ export interface AskFacts {
 }
 
 /** The Ask context on the server: the shared one plus the facts above. */
-export type ServerAskContext = AskContext & { facts?: AskFacts };
+export type ServerAskContext = AskContext & { facts?: AskFacts; personalSchedule?: PersonalSchedule };
 
 export const clip = (text: string | null | undefined, max = 200) =>
   !text ? null : text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;

@@ -87,3 +87,14 @@ test('unavailable or malformed config gives an actionable error and can be retri
     assert.equal(calls, 2);
   }
 });
+
+test('cancelled Google sign-in retains the requested study page through retry', async () => {
+  const s = setup();
+  await s.auth.signIn('/study', 'https://app.test');
+  assert.equal(s.stored.get('flowcast.auth.return'), '/study');
+  await assert.rejects(s.auth.completeCallback('https://app.test/auth/callback?error=access_denied', () => {}));
+  assert.equal(s.stored.get('flowcast.auth.return'), '/study');
+  await s.auth.signIn(s.stored.get('flowcast.auth.return'), 'https://app.test');
+  assert.equal(await s.auth.completeCallback('https://app.test/auth/callback?code=single-use', () => {}), '/study');
+  assert.equal(s.stored.has('flowcast.auth.return'), false);
+});

@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Link, useLocation, Navigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useLocation, Navigate } from 'react-router';
 import { useSession } from '../auth/session';
-import { safeReturnRoute } from '../auth/client';
+import { savedReturnRoute, safeReturnRoute } from '../auth/client';
+import { AuthFrame } from '../auth/AuthFrame';
 import { config } from '../config';
-import { Button, Logo } from '../ui';
+import { Button } from '../ui';
 import styles from './SignIn.module.css';
 
 export default function SignIn() {
@@ -12,7 +13,12 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as { from?: string } | null)?.from;
+  const from = safeReturnRoute((location.state as { from?: string } | null)?.from ?? savedReturnRoute());
+  useEffect(() => {
+    const returned = () => setBusy(false);
+    window.addEventListener('pageshow', returned);
+    return () => window.removeEventListener('pageshow', returned);
+  }, []);
 
   async function signIn() {
     setBusy(true);
@@ -28,35 +34,27 @@ export default function SignIn() {
   if (ready && session) return <Navigate to={safeReturnRoute(from)} replace />;
 
   return (
-    <main className={styles.screen}>
-      <div className={styles.column}>
-        <div className={styles.brand}>
-          <Logo className={styles.mark} />
-          <span>{config.appName}</span>
-        </div>
-
-        <h1 className={styles.title}>Sign in to Flowcast</h1>
+    <AuthFrame title="Sign in to Flowcast">
         <p className={styles.lede}>
-          Use your Google account to save your Flowcast profile and preferences.
+          Keep your schedule and followed clubs in one place.
         </p>
-
-        <Button variant="primary" size="lg" className={styles.google} onClick={signIn} disabled={busy || !ready}>
-          {busy ? 'Opening Google…' : 'Continue with Google'}
+        <Button variant="accent" size="lg" className={styles.google} onClick={signIn} disabled={busy || !ready} aria-busy={busy || !ready}>
+          {!ready ? 'Checking your account…' : busy ? 'Opening Google…' : 'Continue with Google'}
         </Button>
-        {(error || sessionError) && (
+        {!busy && (error || sessionError) && (
           <p className={styles.error} role="alert">
             {error || sessionError}
           </p>
         )}
 
         <p className={styles.fine}>
-          Sign-in uses your Google identity. It does not grant access to your Google Calendar.
+          Google Calendar stays private. Import your schedule after signing in.
         </p>
 
-        <p className={styles.footer}>
-          <Link to="/landing">Explore public campus data</Link>
-        </p>
-      </div>
-    </main>
+        <div className={styles.browse}>
+          <p>No account needed for the campus map.</p>
+          <Button href={config.mapUrl} size="lg" className={styles.publicMap}>Explore the map</Button>
+        </div>
+    </AuthFrame>
   );
 }

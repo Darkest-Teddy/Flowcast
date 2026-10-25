@@ -3,6 +3,8 @@
 // which the Vite dev and preview servers proxy (see vite.config.ts). Parsing is separate from fetching
 // so it can be tested offline.
 
+import type { PersonalSchedule } from './personalSchedule';
+
 export type AskCampus = 'charles-river' | 'fenway' | 'medical';
 
 export interface AgentMessage {
@@ -11,6 +13,7 @@ export interface AgentMessage {
 }
 
 export interface AgentRequest {
+  personalSchedule?: PersonalSchedule;
   question: string;
   history?: AgentMessage[];
   /** 0 = Monday … 6 = Sunday. */

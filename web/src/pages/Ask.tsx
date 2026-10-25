@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { ArrowRight, ChevronDown, Eraser } from 'lucide-react';
-import { useSession } from '../auth/session';
 import { api } from '../data/api';
 import { bostonClock, isPersonalQuestion } from '../lib/askRouting';
 import { plainText } from '../lib/chatMarkdown';
@@ -22,7 +21,7 @@ import { config } from '../config';
 import { Button, Page, PageHeader } from '../ui';
 import { Composer, ContextControls, MessageItem, PendingItem } from './ask/Chat';
 import { Directory, StartServerHint } from './ask/Directory';
-import { answerQuestion, type CampusData } from './student/campusSearch';
+import { buildPersonalSchedule } from '../lib/personalSchedule';
 import styles from './Ask.module.css';
 
 const parseStored = (body: unknown) => parseChatBody(body, config.mapUrl);
@@ -52,6 +51,7 @@ function nowContext(campus: ChatContext['campus'] = 'charles-river'): ChatContex
 let nextId = 0;
 const newId = () => `m${Date.now().toString(36)}${(nextId++).toString(36)}`;
 
+/** Questions to start with when the directory can't load. */
 const STARTERS = [
   { topic: 'Find a study spot', question: 'Which library is least crowded right now?' },
   { topic: 'Grab a bite', question: 'Is Warren dining open now?' },
@@ -59,7 +59,6 @@ const STARTERS = [
   { topic: 'Plan your day', question: 'Where is my next class?' },
 ];
 
-const DEVICE_NOTE = 'Calculated from your schedule, without sending it to AI.';
 
 function errorAnnouncement(error: ChatError): string {
   if (error.kind === 'notConfigured') return 'Answers need the Ask server’s OpenAI key.';
@@ -69,7 +68,6 @@ function errorAnnouncement(error: ChatError): string {
 }
 
 export default function Ask() {
-  const { session } = useSession();
   const [params, setParams] = useSearchParams();
 
   const [messages, setMessages] = useState<ChatMessage[]>(loadStored);
@@ -131,35 +129,32 @@ export default function Ask() {
     scrollTo.current = user.id;
     setDraft('');
 
-    // Personal questions never leave the device (lib/askRouting): answered here from the schedule.
-    if (isPersonalQuestion(q)) {
-      setPending('Checking your schedule on this device…');
-      setAnnouncement('Checking your schedule on this device.');
-      try {
-        const [locations, schedule, hourly, places, geo, events, clubs] = await Promise.all([
-          api.getLocations(), api.getSchedule(), api.getHourlyForecasts(), api.getPlaceForecasts(), api.getCampusGeo(),
-          api.getCampusEvents().catch(() => []), api.getClubs(),
-        ]);
-        const data: CampusData = { locations, schedule, hourly, places, geo, events, clubs, homeLocationId: session?.user.homeLocationId ?? null };
-        const answer = answerQuestion(q, data);
-        if (!messagesRef.current.some((m) => m.id === user.id)) return;
-        finish(
-          { id: newId(), role: 'assistant', status: 'device', text: answer.text, rows: answer.rows, note: [answer.note, DEVICE_NOTE].filter(Boolean).join(' ') },
-          `Answered on this device. ${answer.text}`,
-        );
-      } catch {
-        if (!messagesRef.current.some((m) => m.id === user.id)) return;
+    const ctrl = new AbortController();
+    controller.current = ctrl;
+    setPending('Checking your schedule…');
+    setAnnouncement('Checking your schedule.');
+    const request = buildChatRequest(before, q, contextRef.current);
+    try {
+      request.personalSchedule = buildPersonalSchedule(await api.getSchedule());
+    } catch {
+      if (!ctrl.signal.aborted && isPersonalQuestion(q)) {
         const text = 'Your schedule could not be loaded. Try again or open Calendars.';
+        controller.current = null;
         finish({ id: newId(), role: 'assistant', status: 'device', text, rows: [], note: '' }, text);
+        return;
+      }
+    }
+    if (ctrl.signal.aborted) {
+      if (controller.current === ctrl) {
+        controller.current = null;
+        pendingRef.current = false;
+        setPending(null);
+        setAnnouncement('Stopped.');
       }
       return;
     }
-
-    const ctrl = new AbortController();
-    controller.current = ctrl;
     setPending('Thinking…');
     setAnnouncement('Thinking.');
-    const request = buildChatRequest(before, q, contextRef.current);
     const result = await api.chat(request, ctrl.signal, (sec) => {
       if (ctrl.signal.aborted) return;
       setPending(`Warming up the simulation… asking again in ${sec} s`);
@@ -175,7 +170,7 @@ export default function Ask() {
     } else {
       finish({ id: newId(), role: 'assistant', status: 'error', error: result.error, question: q }, errorAnnouncement(result.error));
     }
-  }, [commit, finish, session]);
+  }, [commit, finish]);
 
   const stop = () => controller.current?.abort();
 
@@ -249,7 +244,7 @@ export default function Ask() {
       {chatOff && (
         <div className={styles.banner} role="note">
           <strong>Answers need the Ask server’s OpenAI key.</strong>
-          <span>The directory still works, and questions about your own schedule are answered on this device.</span>
+          <span>The directory and your calendar still work.</span>
         </div>
       )}
       {unreachable && (
@@ -288,7 +283,7 @@ export default function Ask() {
               </div>
             </details>
             <Composer value={draft} onChange={setDraft} onSend={() => void send(draft)} onStop={stop} busy={busy} textareaRef={textareaRef} />
-            <p className={styles.disclosure}>Crowds are simulated, not live. Answers include sources. Questions about your own schedule stay on this device.</p>
+            <p className={styles.disclosure}>Crowds are simulated, not live. Answers include sources. Your next two weeks of imported classes are shared with the AI.</p>
           </div>
           {empty && (
             <ul className={styles.starters} aria-label="Try a question">

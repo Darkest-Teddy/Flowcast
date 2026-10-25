@@ -4,6 +4,7 @@
 // Same honesty checks as /api/ask: wording the project rules out is reworded or refused, and an
 // answer with a number no tool returned is counted.
 
+import { personalScheduleInstructions } from './personalSchedule';
 import { Agent, MaxTurnsExceededError, Runner, assistant, user, type AgentInputItem, type Model } from '@openai/agents';
 import type { ChatResponse, ChatTurn } from '../../map-client/src/chatContract';
 import { formatClock } from '../../map-client/src/sim/playback';
@@ -23,7 +24,7 @@ export const MAX_ANSWER_CHARS = 2000;
 function instructions(ctx: ChatContext): string {
   return [
     'You answer questions about the Boston University campus for Flowcast, a 3D campus model filled with simulated students, in a chat that can follow up on earlier turns.',
-    `The page shows ${WEEKDAYS[ctx.weekday]} at ${formatClock(ctx.time)} on the ${ctx.campus} campus${ctx.date ? `, for the event date ${ctx.date}` : ' of the representative reference week'}. "Now" means that time.`,
+    `The page shows ${WEEKDAYS[ctx.weekday]} at ${formatClock(ctx.time)} on the ${ctx.campus} campus${ctx.date ? `, for the event date ${ctx.date}` : ' of the representative reference week'}. For public map questions, "now" means that time.`,
     '',
     'Tools cover: crowding (rank_places_by_crowd, place_day, campus_overview, model_basis), places and hours (place_info, find_places), classes (find_course, free_rooms), walking (walking_route), ' +
       'events (list_events, event_impact), transit (transit_near), Bluebikes (bluebikes), housing (housing), population (population_summary), published counts (published_counts, library_gate_counts), ' +
@@ -40,7 +41,7 @@ function instructions(ctx: ChatContext): string {
     '- Call simulation outputs "simulated", "modeled" or "projected". Never call them predictions, measurements or live counts, and never describe the model’s quality as accuracy; say how it compares with published counts (model_validation).',
     '- If modeled=false, say the simulation doesn’t model that place that day. If percent is null, give the student count and say the capacity isn’t comparable. If isEstimate=true, the walk is a straight-line estimate.',
     '- If a course code is ambiguous, ask which of the listed courses the user means. If a place name is unknown, call find_places before giving up.',
-    '- You know nobody’s personal schedule, fatigue or other personal data, and the map is shown on shared screens. For "my next class" and similar, say so and suggest asking by course code or on their Flowcast home page.',
+    personalScheduleInstructions(ctx.personalSchedule !== undefined),
     '- Transit times are scheduled, not live. Bluebikes figures are typical-day averages from the published trip history. Fire response times are modeled from uncalibrated assumptions, not Boston Fire Department data.',
     '- Charts and tables are attached to your reply automatically from your tool calls, so mention only the few figures that answer the question.',
     '- Lead with the answer. Do not describe Flowcast, its tools, the model, or your process. Keep necessary uncertainty brief: for example, "Hours unknown" rather than a paragraph about unavailable information. Mention opening hours only when asked or when they affect whether a place can be visited. Do not end with suggested questions.',

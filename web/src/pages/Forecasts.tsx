@@ -3,7 +3,7 @@ import { crowdFor, crowdScale } from '@theme/tokens';
 import { api, locationName, useResource } from '../data/api';
 import type { HourlyForecast } from '../data/types';
 import { formatHour, formatPercent } from '../lib/format';
-import { Button, CrowdMeter, EmptyState, ListRow, Loading, Page, PageHeader, SectionList } from '../ui';
+import { Button, CrowdMeter, EmptyState, ListRow, Loading, Page, PageHeader, SectionList, SelectField } from '../ui';
 import { HourlyChart } from './student/HourlyChart';
 import styles from './Forecasts.module.css';
 
@@ -72,12 +72,17 @@ export default function Forecasts() {
     <Page>
       {header}
       <div className={styles.controls}>
-        <label>Place <select value={selected} onChange={(event) => setParams(event.target.value === 'all' ? {} : { place: event.target.value }, { replace: true })}>
+        <SelectField label="Place" value={selected} onChange={(event) => setParams(event.target.value === 'all' ? {} : { place: event.target.value }, { replace: true })}>
           <option value="all">All places</option>
           {forecasts.map((f) => <option key={f.locationId} value={f.locationId}>{name(f.locationId)}</option>)}
-        </select></label>
+        </SelectField>
         <Legend />
       </div>
+
+      {shown.some(f => f.basis) && <details className={styles.basis}>
+        <summary>About these projections</summary>
+        {[...new Set(shown.map(f => f.basis).filter(Boolean))].map(basis => <p key={basis}>{basis}</p>)}
+      </details>}
 
       <div className={`${styles.places} ${selected === 'all' ? styles.grid : ''}`}>
         {shown.map((f) => {
@@ -93,7 +98,6 @@ export default function Forecasts() {
                   <span className={styles.sep}>Quietest {describe(quiet.share)} at {formatHour(quiet.hour)}</span>
                 </p>
               </header>
-              {f.basis && <details><summary>About this projection</summary><p>{f.basis}</p></details>}
               <HourlyChart hours={f.hours} label={`Hourly forecast for ${full}`} tall={selected !== 'all'} />
               {selected !== 'all' && (
                 <div className={styles.hourList}>

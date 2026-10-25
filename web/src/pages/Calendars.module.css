@@ -48,7 +48,6 @@
   gap: var(--space-4);
 }
 
-.file input,
 .room select {
   max-width: 100%;
   min-width: 0;
@@ -106,3 +105,5 @@
     padding: var(--space-4);
   }
 }
+
+.file { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }

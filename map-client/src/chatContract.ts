@@ -6,6 +6,8 @@
 // number a person sees comes from a tool. Visuals are built by the server from tool outputs and
 // are never written by the model.
 
+import type { PersonalSchedule } from './personalSchedule';
+
 import type { AgentShow, AskCampus } from './askClient';
 
 // ---------------------------------------------------------------- POST /api/chat
@@ -17,6 +19,7 @@ export interface ChatTurn {
 }
 
 export interface ChatRequest {
+  personalSchedule?: PersonalSchedule;
   /** The conversation so far, oldest first, at most 12 turns; the last turn is the new user question. */
   messages: ChatTurn[];
   /** 0 = Monday … 6 = Sunday: the reference-week day the question is about by default. */

@@ -2,7 +2,12 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export function safeReturnRoute(value: unknown): string {
   // Keep only known app paths; queries/fragments could contain credentials or redirect instructions.
-  return typeof value === 'string' && /^\/(?:ask|schedule|forecasts|events|event-impact|clubs(?:\/register)?|profile|calendars|privacy|settings|welcome|club(?:\/calendar)?|admin(?:\/(?:data-sources|simulation|live|clubs|users|agent-brain|settings))?)?$/.test(value) ? value : '/';
+  return typeof value === 'string' && /^\/(?:ask|schedule|study|forecasts|events|event-impact|clubs(?:\/register)?|profile|calendars|privacy|settings|welcome|club(?:\/calendar)?|admin(?:\/(?:data-sources|simulation|live|clubs|users|agent-brain|settings))?)?$/.test(value) ? value : '/';
+}
+
+export function savedReturnRoute(): string {
+  try { return safeReturnRoute(window.sessionStorage.getItem('flowcast.auth.return')); }
+  catch { return '/'; }
 }
 
 export function createAuthClient(fetcher: typeof fetch = (...args) => fetch(...args), factory = createClient) {
@@ -41,11 +46,7 @@ export function createAuthClient(fetcher: typeof fetch = (...args) => fetch(...a
       const url = new URL(href);
       const code = url.searchParams.get('code');
       const failed = url.searchParams.has('error') || url.searchParams.has('error_description') || new URLSearchParams(url.hash.slice(1)).has('error');
-      let next = '/';
-      try {
-        next = safeReturnRoute(window.sessionStorage.getItem('flowcast.auth.return'));
-        window.sessionStorage.removeItem('flowcast.auth.return');
-      } catch { /* A blocked storage area cannot supply a return route. */ }
+      const next = savedReturnRoute();
       // Remove credentials before any network work and retain the promise across StrictMode remounts.
       clean();
       callback = (async () => {
@@ -53,6 +54,7 @@ export function createAuthClient(fetcher: typeof fetch = (...args) => fetch(...a
         if (!code) throw new Error('This sign-in link is missing its authorization code. Please sign in again.');
         const { error } = await (await getClient()).auth.exchangeCodeForSession(code);
         if (error) throw new Error('This sign-in link could not be verified. Please sign in again in the browser where you started.');
+        try { window.sessionStorage.removeItem('flowcast.auth.return'); } catch { /* Storage may be blocked. */ }
         return next;
       })();
       return callback;

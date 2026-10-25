@@ -38,11 +38,12 @@ export default function Study() {
     now, from, minutes, amenities, openOnly, lateOnly, fitsOnly, maxWalk, sort }),
   [spots.data, locations.data, geo.data, hours.data, forecasts.data, schedule.data, schedule.error, now, from, minutes, amenities, openOnly, lateOnly, fitsOnly, maxWalk, sort]);
   function reset() { setAmenities([]); setOpenOnly(false); setLateOnly(false); setFitsOnly(false); setMaxWalk(null); }
+  const filterCount = amenities.length + Number(openOnly) + Number(lateOnly) + Number(fitsOnly) + Number(maxWalk !== null);
   const resources = [spots, locations, geo, hours, forecasts, schedule, profile];
   const loading = resources.some(r => r.loading);
 
   return <Page>
-    <PageHeader title="Find a study spot" />
+    <PageHeader title="Find a study spot" description="Choose a space for the time you have." />
     <section className={styles.filters} aria-label="Study preferences">
       <div className={styles.controls}>
         <SelectField label="Starting building" value={from} onChange={e => setOrigin(e.target.value)}>
@@ -59,13 +60,16 @@ export default function Study() {
       <fieldset className={styles.amenities}><legend>What do you need?</legend>
         {amenityKeys.map(key => <label key={key}><input type="checkbox" checked={amenities.includes(key)} onChange={e => setAmenities(current => e.target.checked ? [...current, key] : current.filter(a => a !== key))} />{amenityLabels[key]}</label>)}
       </fieldset>
+      <details className={styles.moreFilters}><summary>Hours & class conflicts{(openOnly || lateOnly || fitsOnly) && ` · ${Number(openOnly) + Number(lateOnly) + Number(fitsOnly)} selected`}</summary>
       <div className={styles.checks}>
         <label><input type="checkbox" checked={openOnly} onChange={e => setOpenOnly(e.target.checked)} />Library open at arrival</label>
         <label><input type="checkbox" checked={lateOnly} onChange={e => setLateOnly(e.target.checked)} />Library open at 10 PM today</label>
         <label><input type="checkbox" checked={fitsOnly} onChange={e => setFitsOnly(e.target.checked)} />Full session fits before class</label>
       </div>
-      <p className={styles.muted}>Only verified amenities match filters. Room access and seats aren’t guaranteed.</p>
-      <details className={styles.muted}><summary>How estimates work</summary>
+      </details>
+      {!from && <p className={styles.muted}>Choose your starting building to compare walks and check how much study time fits.</p>}
+      <details className={styles.muted}><summary>About these results</summary>
+        <p>Only verified amenities match filters. Seats and room access aren’t guaranteed. Crowd projections describe the building, not available seats.</p>
         <p>Confirm your starting building. Walking estimates use saved routes at 1.4 m/s and allow five minutes before class. All times are Boston time.</p>
         <p>Hours are from a saved snapshot; check current hours before leaving. Individual seat power and current bookings are unknown.</p>
       </details>
@@ -78,7 +82,7 @@ export default function Study() {
       <SelectField label="Sort by" value={sort} onChange={e => setSort(e.target.value as typeof sort)}>
         <option value="time">Most usable study time</option><option value="walk">Shortest walk</option><option value="crowd">Lowest projected crowd</option>
       </SelectField>
-      <Button variant="ghost" size="sm" onClick={reset}>Clear filters</Button>
+      {filterCount > 0 && <Button variant="ghost" size="sm" onClick={reset}>Clear filters ({filterCount})</Button>}
     </div>
     {loading ? <Loading label="Loading study spaces" /> : results.length === 0 ? <EmptyState title="No confirmed matches" body="Try fewer filters. Spaces with unverified amenities or hours may be excluded." action={<Button onClick={reset}>Clear filters</Button>} /> : <div className={styles.results}>
       {results.map(result => {
@@ -87,20 +91,25 @@ export default function Study() {
         const mapLink = point ? answerMapLink(config.mapUrl, [point]) : null;
         const unknown = amenityKeys.filter(key => spot.amenities[key] === undefined);
         return <article key={spot.id} className={styles.spot}>
-          <div className={styles.spotHeading}><div><h2>{spot.name}</h2><p className={styles.muted}>{spot.area}</p></div>
-            <p className={styles.time}>{result.usable === null ? 'Time unconfirmed' : `${result.usable} min estimated study time`}</p>
+          <div className={styles.spotHeading}>
+            <p className={styles.availability}>{result.open === null ? 'Hours unconfirmed' : result.open ? `Library open ${result.walk === null ? 'now' : 'at arrival'}` : `Library closed ${result.walk === null ? 'now' : 'at arrival'}`}</p>
+            <h2>{spot.name}</h2><p className={styles.muted}>{spot.area}</p>
           </div>
-          <p>{result.walk === null ? 'Walk time unavailable' : `${result.walk} min walk · arrive ${bostonTime(result.arrival)}`} · {result.open === null ? 'Library hours unconfirmed' : result.open ? `Library open ${result.walk === null ? 'now' : 'at arrival'}` : `Library closed ${result.walk === null ? 'now' : 'at arrival'}`}</p>
-          {result.reason && <p className={styles.muted}>{result.reason}</p>}
-          {result.leaveAt !== null && <p>Study until {bostonTime(result.leaveAt)}{result.next && <> · {result.onwardWalk} min walk to {result.next.title}, plus a 5 min buffer</>}.</p>}
+          <dl className={styles.metrics}>
+            <div><dt>Walk</dt><dd>{result.walk === null ? '—' : `${result.walk} min`}</dd></div>
+            <div><dt>Study time</dt><dd>{result.usable === null ? '—' : `${result.usable} min`}</dd></div>
+            <div><dt>Projected crowd</dt><dd>{result.crowd === null ? '—' : `${Math.round(result.crowd * 100)}%`}</dd></div>
+          </dl>
+          {result.reason && result.reason !== 'Closed at your estimated arrival.' && (from || !schedule.data || defaults.current) && <p className={styles.muted}>{result.reason}</p>}
+          {result.leaveAt !== null && <p className={styles.session}>Arrive {bostonTime(result.arrival)} · Study until {bostonTime(result.leaveAt)}{result.next && <> · {result.onwardWalk} min walk to {result.next.title}, plus a 5 min buffer</>}.</p>}
           <ul className={styles.features}>{amenityKeys.filter(key => spot.amenities[key] === true).map(key => <li key={key}>{amenityLabels[key]}</li>)}</ul>
           <p>{spot.notes}</p>
-          <p className={styles.muted}>{result.crowd === null ? 'No crowd projection for this arrival.' : `Projected building crowd: ${Math.round(result.crowd * 100)}% · not seat availability`}</p>
-          <details><summary>Sources & unverified amenities</summary>
+          <details><summary>Space details & sources</summary>
+            {result.crowd === null && <p>No crowd projection for this arrival.</p>}
             {unknown.length > 0 && <p>Not verified: {unknown.map(key => amenityLabels[key].toLowerCase()).join(', ')}.</p>}
             <p><a href={spot.sourceUrl} target="_blank" rel="noreferrer">BU space details</a> · Checked {spot.checkedAt}</p>
           </details>
-          <div className={styles.actions}><Button href={spot.sourceUrl} target="_blank" rel="noreferrer" size="sm">Details & booking</Button><Button href={spot.hoursUrl} target="_blank" rel="noreferrer" size="sm" variant="ghost">Check current hours</Button>{mapLink && <Button href={mapLink} size="sm" variant="ghost">View building on map</Button>}</div>
+          <div className={styles.actions}><Button href={spot.sourceUrl} target="_blank" rel="noreferrer" size="sm">Details & booking</Button><Button href={spot.hoursUrl} target="_blank" rel="noreferrer" size="sm" variant="ghost">Check current hours</Button>{mapLink && <Button href={mapLink} size="sm" variant="ghost">View on map</Button>}</div>
         </article>;
       })}
     </div>}

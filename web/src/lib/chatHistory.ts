@@ -71,8 +71,7 @@ export function weekdayOfDate(date: string): number | null {
 /**
  * The turns sent with a new question: earlier question-and-answer pairs the server answered, oldest
  * first, then the new question; at most `max` turns, never starting with an answer. Personal
- * questions answered on this device, failed questions and dev samples are left out, so a schedule
- * never reaches the server through the history.
+ * questions answered on this device, failed questions and dev samples are left out.
  */
 export function historyForRequest(messages: ChatMessage[], question: string, max = MAX_TURNS): ChatTurn[] {
   const pairs: ChatTurn[] = [];

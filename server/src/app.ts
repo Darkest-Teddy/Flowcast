@@ -1,6 +1,8 @@
 // HTTP API for Ask. POST /api/ask runs one agent question against the simulation for the day and
 // time the map is showing. The OpenAI key stays here; browsers only talk to this endpoint.
 
+import { personalScheduleSchema } from './personalSchedule';
+import type { PersonalSchedule } from '../../map-client/src/personalSchedule';
 import type pg from 'pg';
 import { dashboardRouter } from './dashboard/router';
 import { isIP } from 'node:net';
@@ -24,6 +26,7 @@ const historySchema = z.array(z.discriminatedUnion('role', [
   .refine((history) => history.reduce((total, message) => total + message.content.length, 0) <= MAX_HISTORY_LENGTH, 'History is too long');
 
 export const AskRequest = z.object({
+  personalSchedule: personalScheduleSchema.optional(),
   question: z.string().trim().min(1).max(300),
   history: historySchema.optional(),
   weekday: z.number().int().min(0).max(6),
@@ -34,6 +37,7 @@ export const AskRequest = z.object({
 const isDate = (d: string) => !Number.isNaN(Date.parse(`${d}T12:00:00Z`)) && new Date(`${d}T12:00:00Z`).toISOString().slice(0, 10) === d;
 
 export const ChatRequest = z.object({
+  personalSchedule: personalScheduleSchema.optional(),
   messages: z.array(z.discriminatedUnion('role', [
     z.object({ role: z.literal('user'), text: z.string().trim().min(1).max(300) }),
     z.object({ role: z.literal('assistant'), text: z.string().max(2000) }),
@@ -125,9 +129,9 @@ export function createApp(options: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', options.trustProxyHops ?? Number(process.env.TRUST_PROXY_HOPS ?? 0));
-  // A chat request carries up to 12 turns (64 KB); an ask request with its history up to 128 KB.
+  // Ask and chat requests, including optional personal context, are limited to 128 KB.
   // The first parser to run wins.
-  app.use('/api/chat', express.json({ limit: '64kb' }));
+  app.use('/api/chat', express.json({ limit: '128kb' }));
   // JSON escaping can expand a 1 MiB calendar to six times its UTF-8 size.
   app.use(/^\/api\/dashboard\/schedule(?:\/preview)?\/?$/i, express.json({ limit: 6 * 1024 * 1024 + 4096 }));
   app.use(express.json({ limit: '128kb' }));
@@ -150,10 +154,10 @@ export function createApp(options: AppOptions) {
       res.status(503).json({ error: 'Ask is not configured on this server (no OpenAI key).' });
       return;
     }
-    const { question, weekday, time, campus: campusId, history } = parsed.data;
+    const { question, weekday, time, campus: campusId, history, personalSchedule } = parsed.data;
     const playback = ready(weekday, req, res);
     if (!playback) return;
-    await run(res, 'ask', (signal) => ask(question, contextFor(playback, weekday, time, campusId), signal, history));
+    await run(res, 'ask', (signal) => ask(question, contextFor(playback, weekday, time, campusId, personalSchedule), signal, history));
   });
 
   /**
@@ -176,7 +180,7 @@ export function createApp(options: AppOptions) {
     return playback;
   }
 
-  function contextFor(playback: NonNullable<ReturnType<CampusModel['ready']>>, weekday: number, time: number, campusId: string): ServerAskContext {
+  function contextFor(playback: NonNullable<ReturnType<CampusModel['ready']>>, weekday: number, time: number, campusId: string, personalSchedule?: PersonalSchedule): ServerAskContext {
     return {
       locations: campus.locations,
       walkRoutes: campus.walkRoutes,
@@ -187,6 +191,7 @@ export function createApp(options: AppOptions) {
       campus: campusId,
       data: campus.facts.data,
       facts: campus.facts,
+      ...(personalSchedule === undefined ? {} : { personalSchedule }),
     };
   }
 
@@ -233,10 +238,10 @@ export function createApp(options: AppOptions) {
       res.status(503).json({ error: 'Chat is not configured on this server (no OpenAI key).' });
       return;
     }
-    const { messages, weekday, time, campus: campusId, date } = parsed.data;
+    const { messages, weekday, time, campus: campusId, date, personalSchedule } = parsed.data;
     const playback = ready(weekday, req, res);
     if (!playback) return;
-    const ctx: ChatContext = { ...contextFor(playback, weekday, time, campusId), date: date ?? null };
+    const ctx: ChatContext = { ...contextFor(playback, weekday, time, campusId, personalSchedule), date: date ?? null };
     await run(res, 'chat', (signal) => chat({ messages }, ctx, signal));
   });
 

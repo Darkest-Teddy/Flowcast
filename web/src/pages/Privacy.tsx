@@ -7,7 +7,7 @@ import { Button, ListRow, Page, PageHeader, SectionHeading, SectionList } from '
 import styles from './Privacy.module.css';
 
 const kept = [
-  { title: 'Your imported schedule', detail: 'Selected classes and room mappings are saved to your account, not shared with the campus model' },
+  { title: 'Your imported schedule', detail: 'Saved to your account. Ask sends up to two weeks of classes, times and rooms to the AI with each question; they do not enter the campus simulation.' },
   { title: 'Your profile', detail: 'The name, dorm, meal times, study spot and avatar colour you enter' },
   { title: 'Your preferences', detail: 'Notification preferences and club follows saved to your Flowcast account' },
 ];

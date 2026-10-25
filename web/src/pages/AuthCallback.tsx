@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { auth } from '../auth/client';
+import { AuthFrame } from '../auth/AuthFrame';
+import { Button, Loading } from '../ui';
+import { config } from '../config';
 import styles from './SignIn.module.css';
 
 export default function AuthCallback() {
@@ -14,8 +17,11 @@ export default function AuthCallback() {
       .catch((e: Error) => { if (active) setError(e.message); });
     return () => { active = false; };
   }, [navigate]);
-  return <main className={styles.screen}><div className={styles.column}>
-    <h1 className={styles.title}>Google sign-in</h1>
-    {error ? <><p role="alert" className={styles.error}>{error}</p><Link to="/signin">Try signing in again</Link></> : <p role="status">Completing sign-in…</p>}
-  </div></main>;
+  return <AuthFrame title={error ? 'Sign-in didn’t finish' : 'Finishing sign-in'}>
+    {error ? <>
+      <p role="alert" className={styles.error}>{error}</p>
+      <Button to="/signin" variant="accent" size="lg" className={styles.google}>Try again</Button>
+      <div className={styles.browse}><Button href={config.mapUrl} size="lg" className={styles.publicMap}>Explore the map</Button></div>
+    </> : <div className={styles.progress}><Loading label="Connecting your Flowcast account…" /></div>}
+  </AuthFrame>;
 }
