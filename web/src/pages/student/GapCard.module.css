@@ -1,0 +1,16 @@
+.card {
+  composes: glass from global;
+  margin-block: var(--space-6);
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
+  overflow-wrap: anywhere;
+}
+.card h2 { font-size: var(--text-xl); margin-top: var(--space-1); }
+.card h2 + p { margin-top: var(--space-2); }
+.muted { color: var(--color-ink-secondary); font-size: var(--text-sm); }
+.options { list-style: none; margin: var(--space-4) 0 0; padding: 0; }
+.option { padding-block: var(--space-3); border-top: 1px solid var(--color-hairline-soft); }
+.option p + p { margin-top: var(--space-1); }
+.detail { color: var(--color-ink-secondary); font-size: var(--text-sm); }
+.dot { display: inline-block; width: 0.6em; height: 0.6em; border-radius: 50%; margin-right: 0.3em; vertical-align: 0.05em; }
+.note { margin-top: var(--space-4); color: var(--color-ink-tertiary); font-size: var(--text-xs); }

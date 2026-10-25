@@ -50,6 +50,11 @@ export const STOP_RADIUS_METRES = 35;
 export const STOP_FALLBACK_METRES = 120;
 /** Boarders reach the stop this long before the departure (gated: the entry is the arrival). */
 export const BOARD_WAIT_SECONDS: [number, number] = [60, 480];
+/** With a timetable, riders turn up at random between the previous departure and theirs (so the
+ * wait is up to one headway, half on average, longer on infrequent routes), plus a little slack. */
+export const BOARD_EARLY_SECONDS: [number, number] = [30, 120];
+/** Longest headway that sets a wait: past it riders time their arrival to the timetable instead. */
+export const MAX_RANDOM_ARRIVAL_HEADWAY_SECONDS = 20 * 60;
 export const WALK_SPEED: [number, number] = [1.2, 1.55];
 const BUCKET = 300;
 const MODELS = 12;
@@ -449,7 +454,15 @@ export class PublicCrowd {
             this.rides.push({ kind, route: series.route, direction, stop: series.stop.mapStopId, time });
           } else {
             // Gated entries happen as the rider reaches the gates; APC boardings at the departure.
-            const reach = gated ? time : time - between(`${key}|w`, BOARD_WAIT_SECONDS);
+            // The previous departure the same way sets the wait (random arrival); without a timetable, the fixed spread.
+            const departures = visits?.departures;
+            let previous = -Infinity;
+            if (departures) for (const d of departures) { if (d >= time) break; previous = d; }
+            const headway = Math.min(MAX_RANDOM_ARRIVAL_HEADWAY_SECONDS, time - previous);
+            const wait = Number.isFinite(headway) && headway > 0
+              ? unit(`${key}|w`) * headway + between(`${key}|e`, BOARD_EARLY_SECONDS)
+              : between(`${key}|w`, BOARD_WAIT_SECONDS);
+            const reach = gated ? time : time - wait;
             const walker = add({ route: route.route, from: far, to: m, depart: reach - distance / speed, speed, purpose: 'board', stop: series.stop.mapStopId });
             this.rides.push({ kind, route: series.route, direction, stop: series.stop.mapStopId, time, waitStart: reach });
             // Then they stand at the stop until their vehicle leaves (inside the gates, out of sight, at a gated station).

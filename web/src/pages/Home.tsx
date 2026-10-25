@@ -20,6 +20,7 @@ import { AskChat } from './student/AskChat';
 import { SearchResults } from './student/SearchResults';
 import { bostonDay, bostonTime } from '../lib/departure';
 import { DepartureCard, useDepartureClock } from './student/DepartureCard';
+import { GapCard } from './student/GapCard';
 import { useCampusTransit } from '../lib/transitTimetables';
 import styles from './Home.module.css';
 
@@ -34,6 +35,7 @@ export default function Home() {
   const profile = useResource(api.getProfile);
   const events = useResource(api.getCampusEvents);
   const clubs = useResource(api.getClubs);
+  const hours = useResource(api.getPlaceHours);
 
   const [search, setSearch] = useState<string | null>(null);
   const [mode, setMode] = useState<SearchMode>('search');
@@ -94,6 +96,12 @@ export default function Home() {
       {[locations, schedule, places, hourly, geo, profile, events, clubs].filter((resource) => resource.error).map((resource, index) => (
         <p role="alert" key={index}>{resource.error?.message} <Button variant="ghost" size="sm" onClick={resource.reload}>Try again</Button></p>
       ))}
+
+      <GapCard schedule={schedule.data ?? []} locations={locations.data ?? []}
+        geo={geo.data ?? { positions: {}, walkMeters: {} }} hours={hours.data ?? {}} forecasts={hourly.data ?? []}
+        profile={profile.data ?? null} now={now}
+        homeLocationId={profile.data ? profile.data.homeLocationId : session?.user.homeLocationId ?? null}
+        loading={schedule.loading || locations.loading || geo.loading || profile.loading || hours.loading} />
 
       <DepartureCard items={schedule.data ?? []} locations={locations.data ?? []}
         geo={geo.data ?? { positions: {}, walkMeters: {} }} now={now}

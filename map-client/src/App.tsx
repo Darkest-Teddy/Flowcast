@@ -2120,6 +2120,12 @@ export default function App() {
 
           <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
 
+          {askContext && (
+            <HudAsk>
+              <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
+            </HudAsk>
+          )}
+
           {/* Bottom left, under the join card: what the three colours mean. */}
           <HudLegend levels={legendLevels} />
 
@@ -2166,12 +2172,6 @@ export default function App() {
           >
             <span className="weather-chip-slot" ref={setWeatherChip} />
           </HudStatus>
-
-          {askContext && (
-            <HudAsk>
-              <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
-            </HudAsk>
-          )}
 
           {/*
             The bottom-left slot: the invitation to join, or the details of the character you just
