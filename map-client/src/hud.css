@@ -283,6 +283,14 @@
 /* ---------------------------------------------------------------------------
  * Ask, bottom centre
  * ------------------------------------------------------------------------- */
+/*
+ * The container itself is invisible. The input is the pill, and the answer and
+ * the example questions stack above it in their own card, so nothing spills out
+ * of the rounded shape and the bar keeps a fixed height whatever Ask is doing.
+ *
+ * column-reverse does the stacking without reordering the DOM: AskPanel renders
+ * form, answer, examples, and this draws them bottom-up.
+ */
 .hud-ask {
   position: absolute;
   left: 50%;
@@ -290,8 +298,86 @@
   transform: translateX(-50%);
   width: min(560px, calc(100vw - 420px));
   min-width: 280px;
-  padding: 6px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.hud-ask .ask {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+}
+
+/* The pill. */
+.hud-ask .ask-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 16px;
   border-radius: 999px;
+  background: var(--glass-fill-strong, rgb(28 32 38 / 0.72));
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.34);
+}
+
+.hud-ask .ask-form input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  border: 0;
+  background: none;
+  color: var(--color-ink, #f5f5f7);
+}
+
+.hud-ask .ask-form input:focus {
+  outline: none;
+}
+
+.hud-ask .ask-form button {
+  flex: none;
+  height: 34px;
+  border-radius: 999px;
+}
+
+/* Answer and examples: one card above the pill, never taller than the view. */
+.hud-ask .ask-answer:not(:empty),
+.hud-ask .ask-examples {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--glass-fill-strong, rgb(28 32 38 / 0.72));
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.34);
+}
+
+.hud-ask .ask-answer:not(:empty) {
+  max-height: 46vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* One row that scrolls, rather than wrapping into a block that pushes the map. */
+.hud-ask .ask-examples {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.hud-ask .ask-examples::-webkit-scrollbar {
+  display: none;
+}
+
+.hud-ask .ask-examples button {
+  flex: none;
+  white-space: nowrap;
 }
 
 /* ---------------------------------------------------------------------------

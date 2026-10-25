@@ -253,7 +253,9 @@ export default function App() {
   const lightModeRef = useRef<LightPreset | 'auto'>('auto');
   const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>(START_QUESTION ? 'ask' : 'crowds');
+  // Never 'ask': that lives in the bar at the bottom of the screen, and a start
+  // question is handed to it directly rather than by opening a panel.
+  const [tab, setTab] = useState<Tab>('crowds');
   // Which top tab is lit. Opens on the map itself, with nothing covering it.
   const [view, setView] = useState<View>('live');
   // The sheet: open on wide screens, a peek on phones (half height when ?ask= has an answer to show).
@@ -1315,8 +1317,12 @@ export default function App() {
       : []),
   ];
 
-  // Tabs in the order shown (Bikes only with the Bluebikes data).
-  const tabs: Tab[] = ['ask', 'crowds', 'data', 'transit', 'traffic', ...(bikes ? ['bikes' as const] : []), 'weather', 'incidents'];
+  /*
+   * Sub-tabs inside the panel. 'ask' is not among them: Ask is the bar at the
+   * bottom of the screen now, and listing it here as well would be the same
+   * thing in two places.
+   */
+  const tabs: Tab[] = ['crowds', 'data', 'transit', 'traffic', ...(bikes ? ['bikes' as const] : []), 'weather', 'incidents'];
   const onTabKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const at = tabs.indexOf(tab);
     const next = e.key === 'ArrowRight' ? tabs[(at + 1) % tabs.length]
@@ -1427,7 +1433,8 @@ export default function App() {
             {hud.outdoors ? <span><b>{hud.outdoors.toLocaleString()}</b> by the river</span> : null}
           </p>
         )}
-        actions={<span className="weather-chip-slot" ref={setWeatherChip} />}
+        /* The weather chip lives in the top-right status now; it can only be
+           portalled into one slot, and setting the ref twice would race. */
       >
         <div className="sheet-context">
           <p className="model-note">
@@ -1468,13 +1475,12 @@ export default function App() {
             onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
             siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
         )}
-        {hud && (
-          <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={tab !== 'ask'}>
-            {askContext
-              ? <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
-              : <p className="muted" role="status">Loading the day…</p>}
-          </section>
-        )}
+        {/*
+          Ask is the bar at the bottom of the screen, not a panel here as well.
+          It is rendered once, unconditionally, for the same reason main began
+          keeping this section mounted and merely hidden: multi-turn chat has to
+          keep its history when you look at something else.
+        */}
         {hud && tab === 'crowds' && (
           <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
             {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
