@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import type { CampusGeo, CampusLocation, ScheduleItem } from '../../data/types';
 import { config } from '../../config';
 import { answerMapLink } from '../../lib/askMapLink';
-import { bostonDateTime, bostonTime, getDeparturePlan } from '../../lib/departure';
+import { bostonDay, bostonDateTime, bostonTime, getDeparturePlan } from '../../lib/departure';
 import { departureBasisLabel, exclusionLabel, type TransitPlan } from '../../lib/transitDeparture';
 import { useCampusTransit, useLiveDepartures } from '../../lib/transitTimetables';
 import { SelectField } from '../../ui';
@@ -25,9 +25,9 @@ export function useDepartureClock() {
   return now;
 }
 
-export function DepartureCard({ items, locations, geo, homeLocationId, now, loading }: {
+export function DepartureCard({ items, locations, geo, homeLocationId, now, loading, compact = false }: {
   items: ScheduleItem[]; locations: CampusLocation[]; geo: CampusGeo;
-  homeLocationId: string | null; now: number; loading: boolean;
+  homeLocationId: string | null; now: number; loading: boolean; compact?: boolean;
 }) {
   const [selection, setSelection] = useState<{ target: string; id: string } | null>(null);
   const [buffer, setBuffer] = useState(5);
@@ -48,23 +48,31 @@ export function DepartureCard({ items, locations, geo, homeLocationId, now, load
   const points = [plan.fromLocationId ? geo.positions[plan.fromLocationId] : undefined, geo.positions[target.locationId]]
     .filter((point): point is [number, number] => !!point);
   const mapLink = plan.routeStatus === 'ready' ? answerMapLink(config.mapUrl, points) : null;
+  const routeControls = <>
+    <div className={styles.controls}>
+      <SelectField label="From" value={plan.fromLocationId ?? ''} onChange={(event) => setSelection({ target: target.id, id: event.target.value })}>
+        <option value="">Choose a building</option>
+        {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+      </SelectField>
+      <SelectField label="Arrival buffer" value={buffer} onChange={(event) => setBuffer(Number(event.target.value))}>
+        {[0, 5, 10].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
+      </SelectField>
+    </div>
+    {plan.originSource !== 'selected' && <p className={styles.muted}>{plan.originSource === 'schedule' ? 'Starting point from your schedule. Change it if needed.' : plan.originSource === 'home' ? 'Starting from your saved home.' : 'Choose a starting building for a departure estimate.'}</p>}
+  </>;
   return <section className={styles.card} aria-label="Class departure">
     {plan.current && plan.next && <p className={styles.muted}>In progress: {plan.current.title} · until {bostonTime(plan.current.end)} Boston time</p>}
+    {compact && plan.leaveBy !== null && <div className={styles.nextAction} aria-live="polite">
+      <p className={styles.actionLabel}>Leave by</p>
+      <time className={styles.actionTime} dateTime={new Date(plan.leaveBy).toISOString()}>{bostonTime(plan.leaveBy)}</time>
+      {bostonDay(plan.leaveBy) !== bostonDay(now) && <p className={styles.muted}>{bostonDateTime(plan.leaveBy)}</p>}
+    </div>}
     <p className={styles.muted}>{plan.next ? 'Next class' : 'Class in progress'} · {bostonDateTime(target.start)}–{bostonTime(target.end)}</p>
     <h2>{target.title}</h2>
     <p>{target.locationText || destination?.name || 'Building not mapped'}</p>
-    <div className={styles.controls}>
-      <SelectField label="From" value={plan.fromLocationId ?? ''} onChange={(event) => setSelection({ target: target.id, id: event.target.value })}>
-          <option value="">Choose a building</option>
-          {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-        </SelectField>
-      <SelectField label="Arrival buffer" value={buffer} onChange={(event) => setBuffer(Number(event.target.value))}>
-          {[0, 5, 10].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
-        </SelectField>
-    </div>
-    {plan.originSource !== 'selected' && <p className={styles.muted}>{plan.originSource === 'schedule' ? 'Starting point from your schedule. Change it if needed.' : plan.originSource === 'home' ? 'Starting from your saved home.' : 'Choose a starting building for a departure estimate.'}</p>}
+    {!compact && routeControls}
     {plan.leaveBy !== null ? <div aria-live="polite">
-      <p className={styles.departure}>Leave by {bostonDateTime(plan.leaveBy)}</p>
+      {!compact && <p className={styles.departure}>Leave by {bostonDateTime(plan.leaveBy)}</p>}
       <p>{plan.walkMinutes} min walk · {buffer} min buffer{mapLink && <> · <a href={mapLink}>View route area</a></>}</p>
       {now >= plan.leaveBy && <p>{plan.lateMinutes ? `Leave now · arriving ${plan.lateMinutes} min after your ${bostonTime(plan.arrivalTarget!)} arrival target.` : 'Leave now'}</p>}
     </div> : <p>{plan.routeStatus === 'unmapped-destination' ? 'Departure unavailable: class building is not mapped.' : plan.routeStatus === 'no-route' ? 'No walking route between these buildings.' : null}</p>}
@@ -73,6 +81,10 @@ export function DepartureCard({ items, locations, geo, homeLocationId, now, load
     {(plan.overlap || plan.ambiguousCurrent || (plan.connectionShortfallMinutes ?? 0) > 0) && <p role="alert" className={styles.warning}>
       {plan.overlap || plan.ambiguousCurrent ? 'Classes overlap. Confirm your starting building.' : `The previous class ends too late for this connection (${plan.connectionShortfallMinutes} min short, including buffer). Confirm your starting building.`}
     </p>}
+    {compact && <details className={styles.adjustments} open={!plan.fromLocationId || undefined}>
+      <summary>Adjust starting point & arrival buffer</summary>
+      {routeControls}
+    </details>}
   </section>;
 }
 
