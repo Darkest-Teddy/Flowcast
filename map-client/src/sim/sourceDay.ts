@@ -1749,8 +1749,9 @@ function buildWeek(base: DayData, data: CampusData, transit?: TransitService): (
           let choice = fraction(`${seed}:venue`) * totalWeight;
           const selected = candidates.find(candidate => { choice -= candidate.weight; return choice < 0; });
           if (selected) {
-            reserve(selected.keys); stops = selected.proposed; currentPlan = planDay(agent, stops)!; modeledActivities++;
+            // A table's host is marked before the day is planned, so they walk to it (campus rides skip group hosts).
             if (social) openTable(slot, selected.stop, selected.proposed[selected.proposed.indexOf(selected.stop) - 1], fraction(`${seed}:meal-group-size`));
+            reserve(selected.keys); stops = selected.proposed; currentPlan = planDay(agent, stops)!; modeledActivities++;
           } else unavailableActivities++;
         }
       }

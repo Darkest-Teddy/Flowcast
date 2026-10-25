@@ -159,8 +159,12 @@ test('friends walking to and from a shared meal keep walking together', () => {
   for (const meal of day.sourceActivities) {
     if (meal.kind !== 'dining' || !(meal.groupSize > 1)) continue;
     const walks = tripsOf.get(meal.agentId) ?? [];
-    const into = walks.filter((trip) => trip.to === meal.locationId && trip.timestamps.at(-1) <= meal.startSec + 1e-6).sort((a, b) => b.timestamps[0] - a.timestamps[0])[0];
-    const out = walks.filter((trip) => trip.from === meal.locationId && trip.timestamps[0] >= meal.endSec - 1e-6).sort((a, b) => a.timestamps[0] - b.timestamps[0])[0];
+    // The person's last walk before the meal and first after it, if they lead to and from it (someone
+    // already there, say after breakfast at the same hall, walked to an earlier visit, not to this one).
+    const before = walks.filter((trip) => trip.timestamps.at(-1) <= meal.startSec + 1e-6).sort((a, b) => b.timestamps.at(-1) - a.timestamps.at(-1))[0];
+    const after = walks.filter((trip) => trip.timestamps[0] >= meal.endSec - 1e-6).sort((a, b) => a.timestamps[0] - b.timestamps[0])[0];
+    const into = before?.to === meal.locationId ? before : undefined;
+    const out = after?.from === meal.locationId ? after : undefined;
     if (into) assert.ok(!(into.from === 'off-campus' && egressEnds.has(`${meal.agentId}|${into.timestamps[0]}`)), 'nobody rides to a group meal');
     if (out) assert.ok(!(out.to === 'off-campus' && accessEnds.has(`${meal.agentId}|${Math.round(out.timestamps.at(-1) * 1000)}`)), 'nobody rides away from one');
     checked++;
