@@ -6,6 +6,10 @@ const themeDir = fileURLToPath(new URL('../theme', import.meta.url));
 const mapDir = fileURLToPath(new URL('../map-client', import.meta.url));
 
 /** /map and /map/?at=12:15 load map.html, the 3D map's own page, from this same server. */
+/** Ask (server/): only these two paths go to the Ask server, so the key never reaches the browser. */
+const askTarget = process.env.FLOWCAST_API_URL || 'http://127.0.0.1:8787';
+const askProxy = Object.fromEntries(['/api/ask', '/api/health'].map((path) => [path, { target: askTarget, changeOrigin: true }]));
+
 function mapPage(): Plugin {
   const rewrite: Connect.NextHandleFunction = (req, _res, next) => {
     if (req.url && /^\/map\/?(\?|$)/.test(req.url)) req.url = req.url.replace(/^\/map\/?/, '/map.html');
@@ -36,6 +40,8 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5174,
       fs: { allow: ['.', themeDir, mapDir] }, // theme and map live outside this app's folder
+      proxy: askProxy,
     },
+    preview: { proxy: askProxy },
   };
 });

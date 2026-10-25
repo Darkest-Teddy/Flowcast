@@ -792,7 +792,10 @@ html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background:
   font-weight: 700;
   cursor: pointer;
 }
+.ask-form button:disabled { opacity: 0.75; cursor: progress; }
 .ask-answer { margin-top: 12px; }
+.ask-answer:empty { margin-top: 0; }
+.ask-status { margin: 0 0 8px; font-size: 13px; }
 .ask-text { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
 .ask-answer ol { list-style: none; margin: 0 0 6px; padding: 0; }
 .ask-note { margin: 6px 0; line-height: 1.4; }
