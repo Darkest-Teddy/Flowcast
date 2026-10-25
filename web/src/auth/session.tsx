@@ -1,6 +1,7 @@
 import { createContext, Fragment, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { api, resetAccountData } from '../data/api';
+import { CROWD_STORAGE_KEY } from '../lib/crowdReports';
 import { auth } from './client';
 import type { Role, Session } from '../data/types';
 
@@ -80,6 +81,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Hide private pages while the SDK revokes and removes the browser session.
       setReady(false);
       clearAccount(null);
+      // Which suggested places this browser would ask about stays with the student who saw them.
+      try { window.localStorage.removeItem(CROWD_STORAGE_KEY); } catch { /* Storage may be disabled. */ }
       try { await auth.signOut(); setError(null); }
       catch (e) { setError(e instanceof Error ? e.message : 'Sign-out failed.'); throw e; }
       finally { setReady(true); }

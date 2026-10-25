@@ -8,6 +8,7 @@ import { answerMapLink } from '../lib/askMapLink';
 import { config } from '../config';
 import { Button, EmptyState, Loading, Page, PageHeader, SelectField } from '../ui';
 import { useDepartureClock } from './student/DepartureCard';
+import { CrowdReportNow, rememberCrowdSuggestion } from './student/CrowdReport';
 import styles from './Study.module.css';
 
 const amenityLabels: Record<StudyAmenity, string> = { quiet: 'Silent study', group: 'Group work', outlets: 'Power outlets', whiteboard: 'Whiteboard', food: 'Food allowed' };
@@ -108,8 +109,9 @@ export default function Study() {
             {result.crowd === null && <p>No crowd projection for this arrival.</p>}
             {unknown.length > 0 && <p>Not verified: {unknown.map(key => amenityLabels[key].toLowerCase()).join(', ')}.</p>}
             <p><a href={spot.sourceUrl} target="_blank" rel="noreferrer">BU space details</a> · Checked {spot.checkedAt}</p>
+            <CrowdReportNow locationId={spot.locationId} name={spot.name} />
           </details>
-          <div className={styles.actions}><Button href={spot.sourceUrl} target="_blank" rel="noreferrer" size="sm">Details & booking</Button><Button href={spot.hoursUrl} target="_blank" rel="noreferrer" size="sm" variant="ghost">Check current hours</Button>{mapLink && <Button href={mapLink} size="sm" variant="ghost">View on map</Button>}</div>
+          <div className={styles.actions}><Button href={spot.sourceUrl} target="_blank" rel="noreferrer" size="sm" onClick={() => rememberCrowdSuggestion(spot.locationId, result.arrival, 'study')}>Details & booking</Button><Button href={spot.hoursUrl} target="_blank" rel="noreferrer" size="sm" variant="ghost">Check current hours</Button>{mapLink && <Button href={mapLink} size="sm" variant="ghost" onClick={() => rememberCrowdSuggestion(spot.locationId, result.arrival, 'study')}>View on map</Button>}</div>
         </article>;
       })}
     </div>}

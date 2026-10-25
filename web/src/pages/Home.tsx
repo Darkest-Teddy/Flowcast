@@ -21,6 +21,7 @@ import { SearchResults } from './student/SearchResults';
 import { bostonDay, bostonTime } from '../lib/departure';
 import { DepartureCard, useDepartureClock } from './student/DepartureCard';
 import { GapCard } from './student/GapCard';
+import { CrowdReportPrompt } from './student/CrowdReport';
 import { useCampusTransit } from '../lib/transitTimetables';
 import styles from './Home.module.css';
 
@@ -96,6 +97,8 @@ export default function Home() {
       {[locations, schedule, places, hourly, geo, profile, events, clubs].filter((resource) => resource.error).map((resource, index) => (
         <p role="alert" key={index}>{resource.error?.message} <Button variant="ghost" size="sm" onClick={resource.reload}>Try again</Button></p>
       ))}
+
+      <CrowdReportPrompt locations={locations.data ?? []} />
 
       <GapCard schedule={schedule.data ?? []} locations={locations.data ?? []}
         geo={geo.data ?? { positions: {}, walkMeters: {} }} hours={hours.data ?? {}} forecasts={hourly.data ?? []}

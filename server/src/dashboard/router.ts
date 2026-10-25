@@ -10,6 +10,7 @@ import type { Snapshot } from './import';
 import { authConfig, createUserVerifier, DashboardAuthError, type AuthConfig, type VerifiedUser, type VerifyUser } from './auth';
 import { emptySchedule, previewSchedule, ScheduleError, scheduleState, validateSchedule } from './schedule';
 import type { ScheduleImportState } from '../../../web/src/data/types';
+import { addCrowdReport, createCrowdThrottle, crowdReportBody, crowdReportQuery, readCrowdReports, reportBucket, type CrowdThrottle } from './crowdReports';
 
 const time = z.union([z.literal(''), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)]);
 const location = z.string().min(1).max(160).nullable();
@@ -51,9 +52,11 @@ export function publicBestTimes(impact: Snapshot['impact'], campus: Snapshot['ca
   });
 }
 
-export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUser; authConfig?: () => AuthConfig; eventSlots?: (query: SlotQuery) => SlotResult } = {}) {
+export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUser; authConfig?: () => AuthConfig; eventSlots?: (query: SlotQuery) => SlotResult; crowdThrottle?: CrowdThrottle; now?: () => Date } = {}) {
   const config = options.authConfig ?? authConfig;
   const verifyUser = options.verifyUser ?? createUserVerifier(config);
+  const crowdThrottle = options.crowdThrottle ?? createCrowdThrottle();
+  const now = options.now ?? (() => new Date());
   const router = Router();
   router.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -79,8 +82,9 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   }
   router.get('/auth/config', (_req, res) => { res.json(config()); });
   router.use(async (req, res, next) => {
-    // Public reads: the snapshot, and event slots (published schedules and model figures, nothing personal).
-    if ((req.method === 'GET' || req.method === 'HEAD') && /^\/(public|event-slots)\/?$/i.test(req.path)) { next(); return; }
+    // Public reads: the snapshot, event slots (published schedules and model figures, nothing personal)
+    // and anonymous crowd-report counts.
+    if ((req.method === 'GET' || req.method === 'HEAD') && /^\/(public|event-slots|crowd-reports)\/?$/i.test(req.path)) { next(); return; }
     const token = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization ?? '')?.[1];
     if (!token) throw new DashboardAuthError(401);
     res.locals.dashboardUser = await verifyUser(token);
@@ -117,6 +121,24 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
     const bestTimes = publicBestTimes(impact, campus, day);
     const events = impact.events.map((e) => ({ id: e.id, title: e.name, locationId: e.locationId, venue: e.locationName, start: e.start, end: e.end, organizer: e.organizer, clubId: e.organizer?.trim() ? organizerId(e.organizer.trim()) : null, source: 'terrier-central', sourceUrl: e.sourceUrl, mapStatus: e.status }));
     res.json({ locations: locationsFromBundle(impact), geo, events, impact, ...forecasts, bestTimes, clubs: clubsFromBundle(impact) });
+  });
+  // "Was it busy?": anonymous counts per place, Boston date and hour. Shown beside the model, never fed into it.
+  router.get('/crowd-reports', async (req, res) => {
+    const parsed = crowdReportQuery.safeParse(req.query);
+    if (!parsed.success) { res.status(400).json({ error: 'days must be between 1 and 14.' }); return; }
+    res.json(await readCrowdReports(pool!, now(), parsed.data.days));
+  });
+  router.post('/crowd-reports', async (req, res) => {
+    const parsed = crowdReportBody.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: 'Send locationId, answer (quiet, ok or packed) and optionally at (ISO time).' }); return; }
+    const bucket = reportBucket(parsed.data.at ? new Date(parsed.data.at) : now(), now());
+    if (!bucket) { res.status(400).json({ error: 'Reports must be about the last few hours.' }); return; }
+    const { impact } = await snapshot();
+    if (!locationsFromBundle(impact).some((l) => l.id === parsed.data.locationId)) { res.status(400).json({ error: 'Unknown campus location.' }); return; }
+    // The account id is used only for the in-memory throttle, as a keyed hash; it is never stored with the count.
+    if (!crowdThrottle.take((res.locals.dashboardUser as VerifiedUser).id, parsed.data.locationId)) { res.status(429).json({ error: 'You already reported this place recently.' }); return; }
+    await addCrowdReport(pool!, parsed.data.locationId, bucket, parsed.data.answer);
+    res.status(204).end();
   });
   router.get('/me', async (req, res) => {
     const g = await account(res);

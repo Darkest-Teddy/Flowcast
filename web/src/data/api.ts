@@ -14,7 +14,7 @@ import type { PersonalSchedule } from '@map/personalSchedule';
 import type { ChatRequest } from '@map/chatContract';
 import type {
   AdminSettings, AdminUser, AgentBrain, ApplicationStatus, CalendarConnection, CalendarImport,
-  CampusEvent, CampusLocation, ClubApplication, ClubDetails, DataSource, EventImpactData,
+  CampusEvent, CampusLocation, ClubApplication, ClubDetails, CrowdAnswer, CrowdReportSummary, DataSource, EventImpactData,
   NotificationPrefs, Profile, ScheduleItem, ScheduleImportState, SchedulePreview, SimulationSettings, StatRange, Suggestion, WeekStat,
 } from './types';
 
@@ -100,6 +100,15 @@ export const api = {
   /** Rooms and evenings for a club event (GET /api/dashboard/event-slots). Reads schedules and model figures; never books. */
   getEventSlots: (plan: EventPlan) => dashboard.request<unknown>(`/event-slots?${eventSlotsQuery(plan)}`).then(parseEventSlots),
   getCampusGeo: () => dashboard.getPublic().then((data) => data.geo),
+  /** Anonymous "Was it busy?" counts for the last week (public read). Shown beside projections, never fed into them. */
+  async getCrowdReports(): Promise<CrowdReportSummary> {
+    const response = await fetch('/api/dashboard/crowd-reports', { cache: 'no-store', headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('Student crowd reports are unavailable.');
+    return response.json();
+  },
+  /** Adds one anonymous count for this place and Boston hour. `at` (when the student was there) is rounded to the hour by the server. */
+  reportCrowd: (locationId: string, answer: CrowdAnswer, at?: number) =>
+    dashboard.request<void>('/crowd-reports', 'POST', { locationId, answer, ...(at === undefined ? {} : { at: new Date(at).toISOString() }) }),
   getSuggestions: (): Promise<Suggestion[]> => unsupported('Personalized suggestions'),
   acceptSuggestion: (_id: string): Promise<Suggestion[]> => unsupported('Schedule suggestions'),
   async askCampus(question: string, at: Date, signal?: AbortSignal, onWarming?: (retryAfterSec: number) => void, history?: AgentMessage[], personalSchedule?: PersonalSchedule): Promise<AgentResult> {

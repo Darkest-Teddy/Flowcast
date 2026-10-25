@@ -15,7 +15,7 @@ interface CommonProps {
 
 type ButtonProps = CommonProps & ButtonHTMLAttributes<HTMLButtonElement> & { to?: undefined; href?: undefined };
 type LinkProps = CommonProps & { to: string; href?: undefined; 'aria-label'?: string };
-type AnchorProps = CommonProps & { href: string; to?: undefined; target?: string; rel?: string; 'aria-label'?: string };
+type AnchorProps = CommonProps & { href: string; to?: undefined; target?: string; rel?: string; 'aria-label'?: string; onClick?: () => void };
 
 /** One button for everything: a <button>, an in-app link (`to`) or an external link (`href`). */
 export function Button(props: ButtonProps | LinkProps | AnchorProps) {
@@ -32,7 +32,7 @@ export function Button(props: ButtonProps | LinkProps | AnchorProps) {
     return <Link to={props.to} className={cls} aria-label={props['aria-label']}>{inner}</Link>;
   }
   if ('href' in props && props.href !== undefined) {
-    return <a href={props.href} target={props.target} rel={props.rel} className={cls} aria-label={props['aria-label']}>{inner}</a>;
+    return <a href={props.href} target={props.target} rel={props.rel} className={cls} aria-label={props['aria-label']} onClick={props.onClick}>{inner}</a>;
   }
   const { variant: _v, size: _s, icon: _i, className: _c, children: _ch, ...rest } = props as ButtonProps;
   return <button type="button" {...rest} className={cls}>{inner}</button>;

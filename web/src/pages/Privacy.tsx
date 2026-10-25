@@ -77,6 +77,7 @@ export default function Privacy() {
       </div>
 
       <p className={styles.notice}>Your Flowcast profile is linked to your Google sign-in. Appearance settings are stored separately on this browser and are not removed by deleting your profile.</p>
+      <p className={styles.notice}>“Was it busy?” answers are stored only as anonymous counts per place and Boston hour (Quiet, OK or Packed), never with your account, schedule or exact time, so they are not part of your download or deletion. This browser remembers which suggestions it already asked about. Student reports are shown beside crowd projections and never change them.</p>
 
       <SectionHeading>Your data</SectionHeading>
       <div className={styles.actions}>
