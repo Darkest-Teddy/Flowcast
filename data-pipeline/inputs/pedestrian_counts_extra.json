@@ -1,0 +1,4332 @@
+{
+ "note": "Hand-transcribed public pedestrian counts; see sources[].notes for pages. Read by fetch_calibration_observations.py.",
+ "sources": [
+  {
+   "id": "bu-cds-pnf-2018",
+   "title": "BU Data Sciences Center Project Notification Form (AECOM, 2018): pedestrian crosswalk counts",
+   "url": "https://www.bu.edu/community/files/2018/10/BU-Data-Sciences-Center-PNF-Final-Draft-9-27-18.pdf",
+   "rawUrl": "https://www.bu.edu/community/files/2019/04/BUDataSciences-Vol-2.pdf",
+   "license": "Public filing (BPDA Article 80); facts reused with citation",
+   "period": "2018-04-12 (Thursday, spring term): 07:00-09:00, 11:00-13:00, 16:00-18:00 in 15-minute bins",
+   "notes": "Peak hours from Fig 5-6/5-7 (PDF pp.133-134); 15-minute rows from the raw PDI sheets in Volume 2 (St Marys p.163, Cummington p.167, Granby p.171, Hinsdale p.174, Silber/Blandford p.178, Bay State/Granby p.156, Bay State/Silber p.159). Comm Ave crossings are counted per half (westbound \"upper\" N*, eastbound \"lower\" S*)."
+  },
+  {
+   "id": "bu-tmp-2013",
+   "title": "BU Charles River Campus 2013-2023 Transportation Master Plan (Tetra Tech, Jan 2013): midday pedestrian counts",
+   "url": "https://www.bu.edu/community/files/2016/03/2013-2023-BU-Charles-River-Campus-Transportation-Master-Plan_January-17-2013.pdf",
+   "license": "Public filing (BPDA); facts reused with citation",
+   "period": "2012-03-20 (Tuesday, spring term), 12:00-14:00 in 15-minute bins",
+   "notes": "PDI \"Peds and Bicycles\" sheets in the appendix (PDF pp.147-435). Comm Ave crossings are counted once per leg (not split at the median). The 12:15 and 13:45 spikes are class changes."
+  },
+  {
+   "id": "bmc-imp-2021",
+   "title": "Boston Medical Center Institutional Master Plan 2021-2031, appendix: PDI pedestrian counts for VHB",
+   "url": "https://www.bostonplans.org/getattachment/3a581fc0-10ce-42c8-8d09-d41dc0d304d7",
+   "license": "Public filing (BPDA); facts reused with citation",
+   "period": "2019-12-05 (Thursday, the week before BU finals): 07:00-09:00 and 16:00-18:00 in 15-minute bins",
+   "notes": "Transcribed from the PDF text of the PDI sheets (pages listed per series); each row checked: leg totals add to the printed intersection total."
+  }
+ ],
+ "sites": {
+  "comm-stmarys": {
+   "name": "Commonwealth Avenue at St Mary's Street",
+   "streets": [
+    "Commonwealth Avenue",
+    "Saint Mary's Street"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.10657,
+    42.35001
+   ]
+  },
+  "comm-cummington": {
+   "name": "Commonwealth Avenue at Cummington Mall",
+   "streets": [
+    "Commonwealth Avenue",
+    "Cummington Mall"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.10503,
+    42.34983
+   ]
+  },
+  "comm-granby": {
+   "name": "Commonwealth Avenue at Granby Street",
+   "streets": [
+    "Commonwealth Avenue",
+    "Granby Street"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.10366,
+    42.34966
+   ]
+  },
+  "comm-hinsdale": {
+   "name": "Commonwealth Avenue at Hinsdale Mall",
+   "streets": [
+    "Commonwealth Avenue",
+    "Hinsdale Mall"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.10286,
+    42.34946
+   ]
+  },
+  "comm-silber": {
+   "name": "Commonwealth Avenue at Silber Way/Blandford Mall",
+   "streets": [
+    "Commonwealth Avenue",
+    "Silber Way"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.10057,
+    42.34938
+   ]
+  },
+  "baystate-granby": {
+   "name": "Bay State Road at Granby Street/Back Street",
+   "streets": [
+    "Bay State Road",
+    "Granby Street"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.10344,
+    42.35061
+   ]
+  },
+  "baystate-silber": {
+   "name": "Silber Way at Bay State Road",
+   "streets": [
+    "Silber Way",
+    "Bay State Road"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.10036,
+    42.35033
+   ]
+  },
+  "comm-buick": {
+   "name": "Commonwealth Avenue at Buick Street/St Paul Street",
+   "streets": [
+    "Commonwealth Avenue",
+    "Buick Street"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.11578,
+    42.35117
+   ]
+  },
+  "comm-bubridge": {
+   "name": "Commonwealth Avenue at BU Bridge/Essex Street",
+   "streets": [
+    "Commonwealth Avenue",
+    "Essex Street"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.11095,
+    42.35055
+   ]
+  },
+  "comm-universityrd": {
+   "name": "Commonwealth Avenue at University Road/Carlton Street",
+   "streets": [
+    "Commonwealth Avenue",
+    "University Road"
+   ],
+   "area": "charles-river",
+   "fallback": [
+    -71.10963,
+    42.35043
+   ]
+  },
+  "albany-northampton": {
+   "name": "Albany Street at Northampton Street/Crosstown Drive",
+   "streets": [
+    "Northampton Street",
+    "Albany Street"
+   ],
+   "area": "medical",
+   "fallback": [
+    -71.074,
+    42.3323
+   ],
+   "fallbackRadius": 250
+  },
+  "albany-massave": {
+   "name": "Massachusetts Avenue at Albany Street",
+   "streets": [
+    "Massachusetts Avenue",
+    "Albany Street"
+   ],
+   "area": "medical",
+   "fallback": [
+    -71.0727,
+    42.3337
+   ],
+   "fallbackRadius": 250
+  },
+  "albany-shapiro": {
+   "name": "Albany Street at Shapiro Drive",
+   "streets": [
+    "Shapiro Drive",
+    "Albany Street"
+   ],
+   "area": "medical",
+   "fallback": [
+    -71.0718,
+    42.3345
+   ],
+   "fallbackRadius": 250
+  },
+  "albany-econcord": {
+   "name": "Albany Street at East Concord Street",
+   "streets": [
+    "East Concord Street",
+    "Albany Street"
+   ],
+   "area": "medical",
+   "fallback": [
+    -71.0705,
+    42.3355
+   ],
+   "fallbackRadius": 250
+  },
+  "albany-stoughton": {
+   "name": "Albany Street at East Stoughton Street",
+   "streets": [
+    "East Stoughton Street",
+    "Albany Street"
+   ],
+   "area": "medical",
+   "fallback": null,
+   "fallbackRadius": 250
+  },
+  "albany-enewton": {
+   "name": "Albany Street at East Newton Street",
+   "streets": [
+    "East Newton Street",
+    "Albany Street"
+   ],
+   "area": "medical",
+   "fallback": [
+    -71.0688,
+    42.3372
+   ],
+   "fallbackRadius": 250
+  },
+  "harrison-massave": {
+   "name": "Massachusetts Avenue at Harrison Avenue",
+   "streets": [
+    "Massachusetts Avenue",
+    "Harrison Avenue"
+   ],
+   "area": "medical",
+   "fallback": [
+    -71.0755,
+    42.3337
+   ],
+   "fallbackRadius": 250
+  },
+  "harrison-espringfield": {
+   "name": "Harrison Avenue at East Springfield Street/BMC Place",
+   "streets": [
+    "East Springfield Street",
+    "Harrison Avenue"
+   ],
+   "area": "medical",
+   "fallback": [
+    -71.074,
+    42.3348
+   ],
+   "fallbackRadius": 250
+  },
+  "harrison-econcord": {
+   "name": "Harrison Avenue at East Concord Street",
+   "streets": [
+    "East Concord Street",
+    "Harrison Avenue"
+   ],
+   "area": "medical",
+   "fallback": [
+    -71.0726,
+    42.3361
+   ],
+   "fallbackRadius": 250
+  },
+  "harrison-enewton": {
+   "name": "Harrison Avenue at East Newton Street",
+   "streets": [
+    "East Newton Street",
+    "Harrison Avenue"
+   ],
+   "area": "medical",
+   "fallback": [
+    -71.0712,
+    42.3378
+   ],
+   "fallbackRadius": 250
+  },
+  "econcord-bmcplace": {
+   "name": "East Concord Street at BMC Place/walkway",
+   "streets": null,
+   "area": "medical",
+   "fallback": [
+    -71.0718,
+    42.3356
+   ],
+   "fallbackRadius": 250
+  },
+  "econcord-shapiro": {
+   "name": "East Concord Street at Shapiro Drive",
+   "streets": null,
+   "area": "medical",
+   "fallback": [
+    -71.0712,
+    42.3358
+   ],
+   "fallbackRadius": 250
+  }
+ },
+ "counts": [
+  {
+   "site": "comm-stmarys",
+   "source": "bu-cds-pnf-2018",
+   "date": "2018-04-12",
+   "weekday": 3,
+   "method": "half-leg",
+   "page": "Vol 2 PDF p.163",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "NE": 30,
+      "SE": 15,
+      "S": 11,
+      "NW": 36,
+      "SW": 22
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "NE": 13,
+      "SE": 10,
+      "S": 20,
+      "NW": 38,
+      "SW": 31
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "NE": 36,
+      "SE": 37,
+      "S": 37,
+      "NW": 67,
+      "SW": 58
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "NE": 68,
+      "SE": 58,
+      "S": 58,
+      "NW": 91,
+      "SW": 77
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "NE": 32,
+      "SE": 25,
+      "S": 56,
+      "NW": 78,
+      "SW": 47
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "NE": 34,
+      "SE": 35,
+      "S": 40,
+      "NW": 85,
+      "SW": 60
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "NE": 45,
+      "SE": 36,
+      "S": 57,
+      "NW": 69,
+      "SW": 57
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "NE": 89,
+      "SE": 75,
+      "S": 57,
+      "NW": 127,
+      "SW": 85
+     }
+    },
+    {
+     "start": "11:00",
+     "end": "11:15",
+     "legs": {
+      "NE": 108,
+      "SE": 118,
+      "S": 54,
+      "NW": 151,
+      "SW": 91
+     }
+    },
+    {
+     "start": "11:15",
+     "end": "11:30",
+     "legs": {
+      "NE": 55,
+      "SE": 44,
+      "S": 58,
+      "NW": 83,
+      "SW": 63
+     }
+    },
+    {
+     "start": "11:30",
+     "end": "11:45",
+     "legs": {
+      "NE": 50,
+      "SE": 39,
+      "S": 64,
+      "NW": 95,
+      "SW": 76
+     }
+    },
+    {
+     "start": "11:45",
+     "end": "12:00",
+     "legs": {
+      "NE": 77,
+      "SE": 62,
+      "S": 74,
+      "NW": 125,
+      "SW": 108
+     }
+    },
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "NE": 174,
+      "SE": 129,
+      "S": 93,
+      "NW": 182,
+      "SW": 128
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "NE": 199,
+      "SE": 222,
+      "S": 73,
+      "NW": 207,
+      "SW": 246
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "NE": 104,
+      "SE": 115,
+      "S": 120,
+      "NW": 120,
+      "SW": 142
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "NE": 74,
+      "SE": 109,
+      "S": 103,
+      "NW": 152,
+      "SW": 170
+     }
+    },
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "NE": 79,
+      "SE": 84,
+      "S": 91,
+      "NW": 147,
+      "SW": 143
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "NE": 98,
+      "SE": 100,
+      "S": 65,
+      "NW": 132,
+      "SW": 113
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "NE": 91,
+      "SE": 82,
+      "S": 79,
+      "NW": 123,
+      "SW": 89
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "NE": 173,
+      "SE": 143,
+      "S": 76,
+      "NW": 217,
+      "SW": 139
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "NE": 116,
+      "SE": 85,
+      "S": 47,
+      "NW": 149,
+      "SW": 131
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "NE": 124,
+      "SE": 102,
+      "S": 71,
+      "NW": 130,
+      "SW": 127
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "NE": 90,
+      "SE": 80,
+      "S": 67,
+      "NW": 140,
+      "SW": 123
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "NE": 129,
+      "SE": 92,
+      "S": 57,
+      "NW": 130,
+      "SW": 117
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "comm-cummington",
+   "source": "bu-cds-pnf-2018",
+   "date": "2018-04-12",
+   "weekday": 3,
+   "method": "half-leg",
+   "page": "Vol 2 PDF p.167",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "NE": 9,
+      "SE": 13,
+      "S": 11
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "NE": 3,
+      "SE": 3,
+      "S": 27
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "NE": 14,
+      "SE": 15,
+      "S": 36
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "NE": 49,
+      "SE": 43,
+      "S": 55
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "NE": 20,
+      "SE": 16,
+      "S": 69
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "NE": 19,
+      "SE": 31,
+      "S": 31
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "NE": 50,
+      "SE": 30,
+      "S": 57
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "NE": 79,
+      "SE": 70,
+      "S": 78
+     }
+    },
+    {
+     "start": "11:00",
+     "end": "11:15",
+     "legs": {
+      "NE": 79,
+      "SE": 78,
+      "S": 77
+     }
+    },
+    {
+     "start": "11:15",
+     "end": "11:30",
+     "legs": {
+      "NE": 45,
+      "SE": 43,
+      "S": 70
+     }
+    },
+    {
+     "start": "11:30",
+     "end": "11:45",
+     "legs": {
+      "NE": 61,
+      "SE": 54,
+      "S": 75
+     }
+    },
+    {
+     "start": "11:45",
+     "end": "12:00",
+     "legs": {
+      "NE": 70,
+      "SE": 56,
+      "S": 83
+     }
+    },
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "NE": 177,
+      "SE": 176,
+      "S": 94
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "NE": 232,
+      "SE": 206,
+      "S": 110
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "NE": 101,
+      "SE": 86,
+      "S": 81
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "NE": 79,
+      "SE": 74,
+      "S": 95
+     }
+    },
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "NE": 56,
+      "SE": 54,
+      "S": 86
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "NE": 96,
+      "SE": 87,
+      "S": 88
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "NE": 115,
+      "SE": 108,
+      "S": 86
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "NE": 177,
+      "SE": 133,
+      "S": 100
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "NE": 106,
+      "SE": 65,
+      "S": 88
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "NE": 68,
+      "SE": 66,
+      "S": 91
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "NE": 67,
+      "SE": 63,
+      "S": 89
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "NE": 105,
+      "SE": 77,
+      "S": 101
+     }
+    }
+   ],
+   "notes": "NW and SW legs (3-7 people/hour in Fig 5-6/5-7) are not in the transcribed 15-minute rows; totals exclude them."
+  },
+  {
+   "site": "comm-granby",
+   "source": "bu-cds-pnf-2018",
+   "date": "2018-04-12",
+   "weekday": 3,
+   "method": "half-leg",
+   "page": "Vol 2 PDF p.171",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 12,
+      "SE": 5,
+      "NE": 9,
+      "SW": 9,
+      "NW": 3
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 11,
+      "SE": 6,
+      "NE": 6,
+      "SW": 8,
+      "NW": 7
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 21,
+      "SE": 26,
+      "NE": 34,
+      "SW": 22,
+      "NW": 18
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 47,
+      "SE": 30,
+      "NE": 35,
+      "SW": 62,
+      "NW": 51
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 21,
+      "SE": 11,
+      "NE": 27,
+      "SW": 27,
+      "NW": 31
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 22,
+      "SE": 15,
+      "NE": 25,
+      "SW": 30,
+      "NW": 19
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 18,
+      "SE": 29,
+      "NE": 21,
+      "SW": 38,
+      "NW": 17
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 65,
+      "SE": 54,
+      "NE": 62,
+      "SW": 75,
+      "NW": 45
+     }
+    },
+    {
+     "start": "11:00",
+     "end": "11:15",
+     "legs": {
+      "N": 87,
+      "SE": 43,
+      "NE": 49,
+      "SW": 97,
+      "NW": 77
+     }
+    },
+    {
+     "start": "11:15",
+     "end": "11:30",
+     "legs": {
+      "N": 74,
+      "SE": 32,
+      "NE": 34,
+      "SW": 51,
+      "NW": 46
+     }
+    },
+    {
+     "start": "11:30",
+     "end": "11:45",
+     "legs": {
+      "N": 79,
+      "SE": 47,
+      "NE": 40,
+      "SW": 60,
+      "NW": 54
+     }
+    },
+    {
+     "start": "11:45",
+     "end": "12:00",
+     "legs": {
+      "N": 64,
+      "SE": 45,
+      "NE": 62,
+      "SW": 70,
+      "NW": 83
+     }
+    },
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "N": 132,
+      "SE": 88,
+      "NE": 110,
+      "SW": 120,
+      "NW": 93
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "N": 168,
+      "SE": 133,
+      "NE": 125,
+      "SW": 202,
+      "NW": 183
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "N": 104,
+      "SE": 62,
+      "NE": 60,
+      "SW": 70,
+      "NW": 61
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "N": 75,
+      "SE": 64,
+      "NE": 61,
+      "SW": 66,
+      "NW": 55
+     }
+    },
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 52,
+      "SE": 27,
+      "NE": 27,
+      "SW": 46,
+      "NW": 27
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 69,
+      "SE": 21,
+      "NE": 18,
+      "SW": 67,
+      "NW": 42
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 101,
+      "SE": 61,
+      "NE": 57,
+      "SW": 93,
+      "NW": 51
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 180,
+      "SE": 90,
+      "NE": 85,
+      "SW": 114,
+      "NW": 121
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 99,
+      "SE": 34,
+      "NE": 34,
+      "SW": 90,
+      "NW": 68
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 82,
+      "SE": 36,
+      "NE": 22,
+      "SW": 71,
+      "NW": 47
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 79,
+      "SE": 36,
+      "NE": 42,
+      "SW": 45,
+      "NW": 38
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 106,
+      "SE": 49,
+      "NE": 62,
+      "SW": 90,
+      "NW": 77
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "comm-hinsdale",
+   "source": "bu-cds-pnf-2018",
+   "date": "2018-04-12",
+   "weekday": 3,
+   "method": "half-leg",
+   "page": "Vol 2 PDF p.174",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "S": 9
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "S": 22
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "S": 31
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "S": 72
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "S": 21
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "S": 78
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "S": 39
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "S": 119
+     }
+    },
+    {
+     "start": "11:00",
+     "end": "11:15",
+     "legs": {
+      "S": 142
+     }
+    },
+    {
+     "start": "11:15",
+     "end": "11:30",
+     "legs": {
+      "S": 102
+     }
+    },
+    {
+     "start": "11:30",
+     "end": "11:45",
+     "legs": {
+      "S": 104
+     }
+    },
+    {
+     "start": "11:45",
+     "end": "12:00",
+     "legs": {
+      "S": 129
+     }
+    },
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "S": 219
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "S": 152
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "S": 131
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "S": 131
+     }
+    },
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "S": 125
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "S": 134
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "S": 152
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "S": 144
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "S": 156
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "S": 131
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "S": 142
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "S": 109
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "comm-silber",
+   "source": "bu-cds-pnf-2018",
+   "date": "2018-04-12",
+   "weekday": 3,
+   "method": "half-leg",
+   "page": "Vol 2 PDF p.178",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 16,
+      "SE": 6,
+      "NE": 12,
+      "S": 6,
+      "SW": 4,
+      "NW": 10
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 17,
+      "SE": 25,
+      "NE": 31,
+      "S": 20,
+      "SW": 8,
+      "NW": 11
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 37,
+      "SE": 29,
+      "NE": 57,
+      "S": 10,
+      "SW": 12,
+      "NW": 13
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 75,
+      "SE": 115,
+      "NE": 194,
+      "S": 29,
+      "SW": 32,
+      "NW": 47
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 49,
+      "SE": 54,
+      "NE": 96,
+      "S": 29,
+      "SW": 15,
+      "NW": 36
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 43,
+      "SE": 38,
+      "NE": 60,
+      "S": 15,
+      "SW": 17,
+      "NW": 23
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 56,
+      "SE": 51,
+      "NE": 80,
+      "S": 26,
+      "SW": 25,
+      "NW": 24
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 64,
+      "SE": 89,
+      "NE": 158,
+      "S": 38,
+      "SW": 30,
+      "NW": 28
+     }
+    },
+    {
+     "start": "11:00",
+     "end": "11:15",
+     "legs": {
+      "N": 121,
+      "SE": 122,
+      "NE": 139,
+      "S": 43,
+      "SW": 30,
+      "NW": 53
+     }
+    },
+    {
+     "start": "11:15",
+     "end": "11:30",
+     "legs": {
+      "N": 115,
+      "SE": 52,
+      "NE": 67,
+      "S": 36,
+      "SW": 24,
+      "NW": 50
+     }
+    },
+    {
+     "start": "11:30",
+     "end": "11:45",
+     "legs": {
+      "N": 77,
+      "SE": 99,
+      "NE": 123,
+      "S": 29,
+      "SW": 21,
+      "NW": 50
+     }
+    },
+    {
+     "start": "11:45",
+     "end": "12:00",
+     "legs": {
+      "N": 99,
+      "SE": 103,
+      "NE": 142,
+      "S": 75,
+      "SW": 35,
+      "NW": 53
+     }
+    },
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "N": 209,
+      "SE": 172,
+      "NE": 155,
+      "S": 79,
+      "SW": 70,
+      "NW": 65
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "N": 192,
+      "SE": 199,
+      "NE": 245,
+      "S": 111,
+      "SW": 72,
+      "NW": 137
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "N": 113,
+      "SE": 118,
+      "NE": 157,
+      "S": 66,
+      "SW": 31,
+      "NW": 60
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "N": 127,
+      "SE": 106,
+      "NE": 131,
+      "S": 60,
+      "SW": 38,
+      "NW": 54
+     }
+    },
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 84,
+      "SE": 85,
+      "NE": 90,
+      "S": 44,
+      "SW": 22,
+      "NW": 48
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 102,
+      "SE": 83,
+      "NE": 84,
+      "S": 46,
+      "SW": 29,
+      "NW": 76
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 143,
+      "SE": 117,
+      "NE": 203,
+      "S": 63,
+      "SW": 35,
+      "NW": 144
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 162,
+      "SE": 157,
+      "NE": 200,
+      "S": 62,
+      "SW": 58,
+      "NW": 86
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 87,
+      "SE": 108,
+      "NE": 145,
+      "S": 72,
+      "SW": 31,
+      "NW": 86
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 88,
+      "SE": 97,
+      "NE": 134,
+      "S": 67,
+      "SW": 25,
+      "NW": 68
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 80,
+      "SE": 97,
+      "NE": 127,
+      "S": 60,
+      "SW": 26,
+      "NW": 81
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 123,
+      "SE": 119,
+      "NE": 108,
+      "S": 56,
+      "SW": 33,
+      "NW": 85
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "baystate-granby",
+   "source": "bu-cds-pnf-2018",
+   "date": "2018-04-12",
+   "weekday": 3,
+   "method": "leg",
+   "page": "Fig 5-6/5-7 (PDF pp.133-134)",
+   "bins": [
+    {
+     "start": "08:00",
+     "end": "09:00",
+     "legs": {
+      "N": 68,
+      "E": 59,
+      "S": 103,
+      "W": 12
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "18:00",
+     "legs": {
+      "N": 50,
+      "E": 160,
+      "S": 252,
+      "W": 68
+     }
+    }
+   ],
+   "notes": "Peak hours only (AM 8-9, PM 5-6); the 15-minute sheets were not transcribed."
+  },
+  {
+   "site": "baystate-silber",
+   "source": "bu-cds-pnf-2018",
+   "date": "2018-04-12",
+   "weekday": 3,
+   "method": "leg",
+   "page": "Fig 5-6/5-7 (PDF pp.133-134)",
+   "bins": [
+    {
+     "start": "08:00",
+     "end": "09:00",
+     "legs": {
+      "N": 62,
+      "E": 37,
+      "S": 123,
+      "W": 45
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "18:00",
+     "legs": {
+      "N": 147,
+      "E": 144,
+      "S": 166,
+      "W": 209
+     }
+    }
+   ],
+   "notes": "Peak hours only (AM 8-9, PM 5-6); the 15-minute sheets were not transcribed."
+  },
+  {
+   "site": "comm-silber",
+   "source": "bu-tmp-2013",
+   "date": "2012-03-20",
+   "weekday": 1,
+   "method": "leg",
+   "page": "Appendix PDI sheets (PDF pp.147-435)",
+   "bins": [
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "N": 208,
+      "E": 115,
+      "S": 107,
+      "W": 90
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "N": 667,
+      "E": 342,
+      "S": 281,
+      "W": 355
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "N": 195,
+      "E": 156,
+      "S": 125,
+      "W": 88
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "N": 120,
+      "E": 147,
+      "S": 150,
+      "W": 84
+     }
+    },
+    {
+     "start": "13:00",
+     "end": "13:15",
+     "legs": {
+      "N": 116,
+      "E": 81,
+      "S": 63,
+      "W": 43
+     }
+    },
+    {
+     "start": "13:15",
+     "end": "13:30",
+     "legs": {
+      "N": 146,
+      "E": 86,
+      "S": 102,
+      "W": 70
+     }
+    },
+    {
+     "start": "13:30",
+     "end": "13:45",
+     "legs": {
+      "N": 230,
+      "E": 106,
+      "S": 136,
+      "W": 137
+     }
+    },
+    {
+     "start": "13:45",
+     "end": "14:00",
+     "legs": {
+      "N": 548,
+      "E": 350,
+      "S": 367,
+      "W": 371
+     }
+    }
+   ],
+   "notes": "Midday only; Comm Ave legs counted once per crossing."
+  },
+  {
+   "site": "comm-granby",
+   "source": "bu-tmp-2013",
+   "date": "2012-03-20",
+   "weekday": 1,
+   "method": "leg",
+   "page": "Appendix PDI sheets (PDF pp.147-435)",
+   "bins": [
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "N": 238,
+      "E": 98,
+      "W": 112
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "N": 532,
+      "E": 329,
+      "W": 273
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "N": 218,
+      "E": 132,
+      "W": 107
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "N": 171,
+      "E": 106,
+      "W": 120
+     }
+    },
+    {
+     "start": "13:00",
+     "end": "13:15",
+     "legs": {
+      "N": 151,
+      "E": 68,
+      "W": 74
+     }
+    },
+    {
+     "start": "13:15",
+     "end": "13:30",
+     "legs": {
+      "N": 127,
+      "E": 78,
+      "W": 80
+     }
+    },
+    {
+     "start": "13:30",
+     "end": "13:45",
+     "legs": {
+      "N": 199,
+      "E": 111,
+      "W": 95
+     }
+    },
+    {
+     "start": "13:45",
+     "end": "14:00",
+     "legs": {
+      "N": 494,
+      "E": 359,
+      "W": 355
+     }
+    }
+   ],
+   "notes": "Midday only; Comm Ave legs counted once per crossing."
+  },
+  {
+   "site": "comm-stmarys",
+   "source": "bu-tmp-2013",
+   "date": "2012-03-20",
+   "weekday": 1,
+   "method": "leg",
+   "page": "Appendix PDI sheets (PDF pp.147-435)",
+   "bins": [
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "E": 117,
+      "S": 158,
+      "W": 186
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "E": 308,
+      "S": 265,
+      "W": 328
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "E": 163,
+      "S": 184,
+      "W": 225
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "E": 145,
+      "S": 136,
+      "W": 203
+     }
+    },
+    {
+     "start": "13:00",
+     "end": "13:15",
+     "legs": {
+      "E": 83,
+      "S": 118,
+      "W": 185
+     }
+    },
+    {
+     "start": "13:15",
+     "end": "13:30",
+     "legs": {
+      "E": 75,
+      "S": 135,
+      "W": 142
+     }
+    },
+    {
+     "start": "13:30",
+     "end": "13:45",
+     "legs": {
+      "E": 101,
+      "S": 175,
+      "W": 171
+     }
+    },
+    {
+     "start": "13:45",
+     "end": "14:00",
+     "legs": {
+      "E": 343,
+      "S": 319,
+      "W": 405
+     }
+    }
+   ],
+   "notes": "Midday only; Comm Ave legs counted once per crossing."
+  },
+  {
+   "site": "comm-buick",
+   "source": "bu-tmp-2013",
+   "date": "2012-03-20",
+   "weekday": 1,
+   "method": "leg",
+   "page": "Appendix PDI sheets (PDF pp.147-435)",
+   "bins": [
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "N": 270,
+      "E": 83,
+      "S": 209,
+      "W": 99
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "N": 225,
+      "E": 62,
+      "S": 206,
+      "W": 84
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "N": 315,
+      "E": 61,
+      "S": 155,
+      "W": 80
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "N": 373,
+      "E": 71,
+      "S": 133,
+      "W": 81
+     }
+    },
+    {
+     "start": "13:00",
+     "end": "13:15",
+     "legs": {
+      "N": 198,
+      "E": 75,
+      "S": 102,
+      "W": 88
+     }
+    },
+    {
+     "start": "13:15",
+     "end": "13:30",
+     "legs": {
+      "N": 166,
+      "E": 50,
+      "S": 137,
+      "W": 91
+     }
+    },
+    {
+     "start": "13:30",
+     "end": "13:45",
+     "legs": {
+      "N": 246,
+      "E": 28,
+      "S": 109,
+      "W": 60
+     }
+    },
+    {
+     "start": "13:45",
+     "end": "14:00",
+     "legs": {
+      "N": 499,
+      "E": 58,
+      "S": 95,
+      "W": 69
+     }
+    }
+   ],
+   "notes": "Midday only; Comm Ave legs counted once per crossing."
+  },
+  {
+   "site": "comm-bubridge",
+   "source": "bu-tmp-2013",
+   "date": "2012-03-20",
+   "weekday": 1,
+   "method": "leg",
+   "page": "Appendix PDI sheets (PDF pp.147-435)",
+   "bins": [
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "N": 298,
+      "E": 15,
+      "S": 74,
+      "W": 5
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "N": 361,
+      "E": 9,
+      "S": 83,
+      "W": 10
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "N": 342,
+      "E": 11,
+      "S": 62,
+      "W": 7
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "N": 274,
+      "E": 9,
+      "S": 62,
+      "W": 8
+     }
+    },
+    {
+     "start": "13:00",
+     "end": "13:15",
+     "legs": {
+      "N": 187,
+      "E": 5,
+      "S": 59,
+      "W": 8
+     }
+    },
+    {
+     "start": "13:15",
+     "end": "13:30",
+     "legs": {
+      "N": 175,
+      "E": 4,
+      "S": 55,
+      "W": 14
+     }
+    },
+    {
+     "start": "13:30",
+     "end": "13:45",
+     "legs": {
+      "N": 246,
+      "E": 0,
+      "S": 84,
+      "W": 9
+     }
+    },
+    {
+     "start": "13:45",
+     "end": "14:00",
+     "legs": {
+      "N": 570,
+      "E": 6,
+      "S": 207,
+      "W": 12
+     }
+    }
+   ],
+   "notes": "Midday only; Comm Ave legs counted once per crossing."
+  },
+  {
+   "site": "comm-universityrd",
+   "source": "bu-tmp-2013",
+   "date": "2012-03-20",
+   "weekday": 1,
+   "method": "leg",
+   "page": "Appendix PDI sheets (PDF pp.147-435)",
+   "bins": [
+    {
+     "start": "12:00",
+     "end": "12:15",
+     "legs": {
+      "N": 359,
+      "E": 32,
+      "S": 88,
+      "W": 0
+     }
+    },
+    {
+     "start": "12:15",
+     "end": "12:30",
+     "legs": {
+      "N": 229,
+      "E": 56,
+      "S": 160,
+      "W": 0
+     }
+    },
+    {
+     "start": "12:30",
+     "end": "12:45",
+     "legs": {
+      "N": 298,
+      "E": 35,
+      "S": 86,
+      "W": 0
+     }
+    },
+    {
+     "start": "12:45",
+     "end": "13:00",
+     "legs": {
+      "N": 467,
+      "E": 28,
+      "S": 76,
+      "W": 0
+     }
+    },
+    {
+     "start": "13:00",
+     "end": "13:15",
+     "legs": {
+      "N": 305,
+      "E": 36,
+      "S": 53,
+      "W": 0
+     }
+    },
+    {
+     "start": "13:15",
+     "end": "13:30",
+     "legs": {
+      "N": 192,
+      "E": 24,
+      "S": 61,
+      "W": 0
+     }
+    },
+    {
+     "start": "13:30",
+     "end": "13:45",
+     "legs": {
+      "N": 248,
+      "E": 49,
+      "S": 89,
+      "W": 0
+     }
+    },
+    {
+     "start": "13:45",
+     "end": "14:00",
+     "legs": {
+      "N": 442,
+      "E": 73,
+      "S": 213,
+      "W": 0
+     }
+    }
+   ],
+   "notes": "Midday only; Comm Ave legs counted once per crossing."
+  },
+  {
+   "site": "albany-northampton",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.308",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 6,
+      "E": 40,
+      "S": 3,
+      "W": 4
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 7,
+      "E": 26,
+      "S": 4,
+      "W": 8
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 7,
+      "E": 24,
+      "S": 5,
+      "W": 12
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 45,
+      "E": 43,
+      "S": 7,
+      "W": 7
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 19,
+      "E": 24,
+      "S": 5,
+      "W": 13
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 9,
+      "E": 31,
+      "S": 7,
+      "W": 3
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 19,
+      "E": 29,
+      "S": 9,
+      "W": 5
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 23,
+      "E": 24,
+      "S": 6,
+      "W": 4
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-northampton",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.316",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 19,
+      "E": 12,
+      "S": 2,
+      "W": 10
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 11,
+      "E": 23,
+      "S": 6,
+      "W": 10
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 15,
+      "E": 33,
+      "S": 4,
+      "W": 5
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 29,
+      "E": 23,
+      "S": 4,
+      "W": 10
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 28,
+      "E": 24,
+      "S": 5,
+      "W": 11
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 18,
+      "E": 17,
+      "S": 3,
+      "W": 8
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 18,
+      "E": 21,
+      "S": 7,
+      "W": 12
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 11,
+      "E": 14,
+      "S": 1,
+      "W": 1
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-massave",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.324",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 23,
+      "E": 86,
+      "S": 42,
+      "W": 22
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 20,
+      "E": 56,
+      "S": 20,
+      "W": 26
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 27,
+      "E": 66,
+      "S": 33,
+      "W": 40
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 56,
+      "E": 126,
+      "S": 47,
+      "W": 78
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 24,
+      "E": 56,
+      "S": 44,
+      "W": 31
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 20,
+      "E": 53,
+      "S": 50,
+      "W": 72
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 24,
+      "E": 80,
+      "S": 56,
+      "W": 56
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 51,
+      "E": 88,
+      "S": 46,
+      "W": 68
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-massave",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.332",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 30,
+      "E": 55,
+      "S": 32,
+      "W": 59
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 32,
+      "E": 80,
+      "S": 30,
+      "W": 60
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 42,
+      "E": 72,
+      "S": 55,
+      "W": 76
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 42,
+      "E": 81,
+      "S": 46,
+      "W": 52
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 38,
+      "E": 100,
+      "S": 56,
+      "W": 67
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 45,
+      "E": 85,
+      "S": 46,
+      "W": 45
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 47,
+      "E": 54,
+      "S": 41,
+      "W": 31
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 25,
+      "E": 57,
+      "S": 25,
+      "W": 39
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-shapiro",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.340",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 48,
+      "E": 5,
+      "S": 9,
+      "W": 31
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 47,
+      "E": 1,
+      "S": 11,
+      "W": 41
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 69,
+      "E": 0,
+      "S": 12,
+      "W": 46
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 83,
+      "E": 1,
+      "S": 14,
+      "W": 47
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 64,
+      "E": 1,
+      "S": 4,
+      "W": 47
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 77,
+      "E": 2,
+      "S": 17,
+      "W": 46
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 67,
+      "E": 3,
+      "S": 8,
+      "W": 38
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 75,
+      "E": 1,
+      "S": 7,
+      "W": 43
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-shapiro",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.348",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 89,
+      "E": 4,
+      "S": 12,
+      "W": 21
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 70,
+      "E": 2,
+      "S": 8,
+      "W": 19
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 77,
+      "E": 3,
+      "S": 18,
+      "W": 26
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 82,
+      "E": 1,
+      "S": 15,
+      "W": 20
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 71,
+      "E": 3,
+      "S": 16,
+      "W": 2
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 51,
+      "E": 5,
+      "S": 26,
+      "W": 2
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 36,
+      "E": 2,
+      "S": 11,
+      "W": 2
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 36,
+      "E": 1,
+      "S": 11,
+      "W": 2
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-econcord",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.356",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 60,
+      "E": 30,
+      "S": 32,
+      "W": 16
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 59,
+      "E": 47,
+      "S": 41,
+      "W": 25
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 134,
+      "E": 106,
+      "S": 52,
+      "W": 10
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 103,
+      "E": 59,
+      "S": 49,
+      "W": 16
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 68,
+      "E": 59,
+      "S": 24,
+      "W": 23
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 54,
+      "E": 51,
+      "S": 47,
+      "W": 42
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 55,
+      "E": 53,
+      "S": 28,
+      "W": 23
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 72,
+      "E": 67,
+      "S": 37,
+      "W": 23
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-econcord",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.364",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 71,
+      "E": 70,
+      "S": 46,
+      "W": 28
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 66,
+      "E": 83,
+      "S": 25,
+      "W": 26
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 50,
+      "E": 58,
+      "S": 52,
+      "W": 27
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 86,
+      "E": 73,
+      "S": 52,
+      "W": 20
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 78,
+      "E": 88,
+      "S": 39,
+      "W": 22
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 42,
+      "E": 47,
+      "S": 39,
+      "W": 23
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 47,
+      "E": 59,
+      "S": 19,
+      "W": 11
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 34,
+      "E": 31,
+      "S": 15,
+      "W": 4
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-stoughton",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.372",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 44,
+      "E": 38,
+      "S": 17,
+      "W": 2
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 45,
+      "E": 33,
+      "S": 21,
+      "W": 9
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 45,
+      "E": 38,
+      "S": 35,
+      "W": 1
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 82,
+      "E": 81,
+      "S": 47,
+      "W": 15
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 50,
+      "E": 37,
+      "S": 23,
+      "W": 5
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 62,
+      "E": 46,
+      "S": 33,
+      "W": 22
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 59,
+      "E": 49,
+      "S": 51,
+      "W": 1
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 62,
+      "E": 44,
+      "S": 69,
+      "W": 25
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-stoughton",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.380",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 72,
+      "E": 67,
+      "S": 68,
+      "W": 6
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 69,
+      "E": 57,
+      "S": 55,
+      "W": 4
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 57,
+      "E": 57,
+      "S": 57,
+      "W": 5
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 73,
+      "E": 69,
+      "S": 43,
+      "W": 1
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 58,
+      "E": 57,
+      "S": 69,
+      "W": 5
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 60,
+      "E": 50,
+      "S": 59,
+      "W": 4
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 53,
+      "E": 46,
+      "S": 41,
+      "W": 2
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 35,
+      "E": 28,
+      "S": 31,
+      "W": 5
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-enewton",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.388",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 41,
+      "E": 9,
+      "S": 7,
+      "W": 11
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 9,
+      "E": 16,
+      "S": 6,
+      "W": 15
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 34,
+      "E": 19,
+      "S": 13,
+      "W": 25
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 41,
+      "E": 49,
+      "S": 40,
+      "W": 48
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 30,
+      "E": 34,
+      "S": 22,
+      "W": 19
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 33,
+      "E": 29,
+      "S": 19,
+      "W": 23
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 41,
+      "E": 28,
+      "S": 16,
+      "W": 27
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 73,
+      "E": 40,
+      "S": 42,
+      "W": 21
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "albany-enewton",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.396",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 45,
+      "E": 39,
+      "S": 32,
+      "W": 32
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 41,
+      "E": 33,
+      "S": 28,
+      "W": 17
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 35,
+      "E": 34,
+      "S": 28,
+      "W": 23
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 43,
+      "E": 39,
+      "S": 18,
+      "W": 12
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 56,
+      "E": 56,
+      "S": 40,
+      "W": 27
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 33,
+      "E": 34,
+      "S": 26,
+      "W": 20
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 25,
+      "E": 28,
+      "S": 19,
+      "W": 19
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 17,
+      "E": 20,
+      "S": 19,
+      "W": 11
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "harrison-massave",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.404",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 8,
+      "E": 16,
+      "S": 23,
+      "W": 16
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 17,
+      "E": 21,
+      "S": 29,
+      "W": 17
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 17,
+      "E": 30,
+      "S": 31,
+      "W": 28
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 19,
+      "E": 31,
+      "S": 51,
+      "W": 28
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 22,
+      "E": 17,
+      "S": 26,
+      "W": 20
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 18,
+      "E": 32,
+      "S": 45,
+      "W": 23
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 11,
+      "E": 36,
+      "S": 52,
+      "W": 30
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 19,
+      "E": 38,
+      "S": 39,
+      "W": 26
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "harrison-massave",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.412",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 17,
+      "E": 51,
+      "S": 35,
+      "W": 26
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 23,
+      "E": 35,
+      "S": 19,
+      "W": 31
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 16,
+      "E": 37,
+      "S": 49,
+      "W": 21
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 18,
+      "E": 44,
+      "S": 32,
+      "W": 18
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 15,
+      "E": 42,
+      "S": 52,
+      "W": 32
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 18,
+      "E": 36,
+      "S": 30,
+      "W": 20
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 20,
+      "E": 31,
+      "S": 34,
+      "W": 21
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 26,
+      "E": 36,
+      "S": 40,
+      "W": 24
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "harrison-espringfield",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.420",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 14,
+      "E": 6,
+      "S": 10,
+      "W": 2
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 18,
+      "E": 12,
+      "S": 18,
+      "W": 6
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 18,
+      "E": 25,
+      "S": 36,
+      "W": 3
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 19,
+      "E": 30,
+      "S": 26,
+      "W": 5
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 20,
+      "E": 16,
+      "S": 18,
+      "W": 7
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 29,
+      "E": 24,
+      "S": 35,
+      "W": 14
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 28,
+      "E": 16,
+      "S": 37,
+      "W": 12
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 17,
+      "E": 19,
+      "S": 29,
+      "W": 8
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "harrison-espringfield",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.428",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 11,
+      "E": 10,
+      "S": 15,
+      "W": 7
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 19,
+      "E": 24,
+      "S": 18,
+      "W": 6
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 16,
+      "E": 7,
+      "S": 20,
+      "W": 6
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 19,
+      "E": 10,
+      "S": 27,
+      "W": 6
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 32,
+      "E": 27,
+      "S": 47,
+      "W": 19
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 17,
+      "E": 21,
+      "S": 33,
+      "W": 5
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 13,
+      "E": 16,
+      "S": 15,
+      "W": 7
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 15,
+      "E": 16,
+      "S": 32,
+      "W": 6
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "harrison-econcord",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.436",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 12,
+      "E": 0,
+      "S": 14,
+      "W": 8
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 15,
+      "E": 6,
+      "S": 17,
+      "W": 7
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 28,
+      "E": 12,
+      "S": 23,
+      "W": 15
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 23,
+      "E": 16,
+      "S": 21,
+      "W": 21
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 16,
+      "E": 7,
+      "S": 18,
+      "W": 22
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 26,
+      "E": 12,
+      "S": 28,
+      "W": 20
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 29,
+      "E": 11,
+      "S": 34,
+      "W": 22
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 22,
+      "E": 15,
+      "S": 22,
+      "W": 23
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "harrison-econcord",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.444",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 14,
+      "E": 14,
+      "S": 28,
+      "W": 34
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 17,
+      "E": 8,
+      "S": 39,
+      "W": 24
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 16,
+      "E": 12,
+      "S": 29,
+      "W": 34
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 19,
+      "E": 14,
+      "S": 34,
+      "W": 23
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 16,
+      "E": 11,
+      "S": 45,
+      "W": 26
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 21,
+      "E": 17,
+      "S": 42,
+      "W": 36
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 24,
+      "E": 11,
+      "S": 22,
+      "W": 26
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 20,
+      "E": 15,
+      "S": 39,
+      "W": 22
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "harrison-enewton",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.452",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 15,
+      "E": 15,
+      "S": 12,
+      "W": 17
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 6,
+      "E": 16,
+      "S": 16,
+      "W": 17
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 9,
+      "E": 12,
+      "S": 26,
+      "W": 38
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 11,
+      "E": 33,
+      "S": 19,
+      "W": 46
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 6,
+      "E": 9,
+      "S": 21,
+      "W": 29
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 17,
+      "E": 18,
+      "S": 20,
+      "W": 47
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 18,
+      "E": 24,
+      "S": 20,
+      "W": 44
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 18,
+      "E": 11,
+      "S": 25,
+      "W": 47
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "harrison-enewton",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.460",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 17,
+      "E": 49,
+      "S": 28,
+      "W": 49
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 14,
+      "E": 19,
+      "S": 34,
+      "W": 28
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 15,
+      "E": 25,
+      "S": 22,
+      "W": 48
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 14,
+      "E": 21,
+      "S": 32,
+      "W": 51
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 18,
+      "E": 32,
+      "S": 31,
+      "W": 37
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 15,
+      "E": 17,
+      "S": 27,
+      "W": 35
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 17,
+      "E": 19,
+      "S": 22,
+      "W": 25
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 14,
+      "E": 11,
+      "S": 20,
+      "W": 25
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "econcord-bmcplace",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.468",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 1,
+      "E": 1,
+      "S": 44,
+      "W": 10
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 3,
+      "E": 2,
+      "S": 55,
+      "W": 11
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 1,
+      "E": 8,
+      "S": 64,
+      "W": 25
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 3,
+      "E": 9,
+      "S": 105,
+      "W": 23
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 8,
+      "E": 8,
+      "S": 101,
+      "W": 19
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 3,
+      "E": 12,
+      "S": 96,
+      "W": 22
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 5,
+      "E": 2,
+      "S": 104,
+      "W": 27
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 3,
+      "E": 7,
+      "S": 120,
+      "W": 29
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "econcord-bmcplace",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.476",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 6,
+      "E": 9,
+      "S": 119,
+      "W": 33
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 6,
+      "E": 2,
+      "S": 110,
+      "W": 35
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 0,
+      "E": 2,
+      "S": 115,
+      "W": 23
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 4,
+      "E": 9,
+      "S": 99,
+      "W": 29
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 7,
+      "E": 4,
+      "S": 149,
+      "W": 32
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 7,
+      "E": 7,
+      "S": 103,
+      "W": 32
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 6,
+      "E": 7,
+      "S": 76,
+      "W": 31
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 0,
+      "E": 4,
+      "S": 77,
+      "W": 19
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "econcord-shapiro",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.484",
+   "bins": [
+    {
+     "start": "07:00",
+     "end": "07:15",
+     "legs": {
+      "N": 7,
+      "E": 8,
+      "S": 3,
+      "W": 49
+     }
+    },
+    {
+     "start": "07:15",
+     "end": "07:30",
+     "legs": {
+      "N": 11,
+      "E": 15,
+      "S": 2,
+      "W": 50
+     }
+    },
+    {
+     "start": "07:30",
+     "end": "07:45",
+     "legs": {
+      "N": 9,
+      "E": 29,
+      "S": 1,
+      "W": 60
+     }
+    },
+    {
+     "start": "07:45",
+     "end": "08:00",
+     "legs": {
+      "N": 7,
+      "E": 23,
+      "S": 1,
+      "W": 77
+     }
+    },
+    {
+     "start": "08:00",
+     "end": "08:15",
+     "legs": {
+      "N": 11,
+      "E": 27,
+      "S": 5,
+      "W": 67
+     }
+    },
+    {
+     "start": "08:15",
+     "end": "08:30",
+     "legs": {
+      "N": 11,
+      "E": 41,
+      "S": 3,
+      "W": 63
+     }
+    },
+    {
+     "start": "08:30",
+     "end": "08:45",
+     "legs": {
+      "N": 8,
+      "E": 19,
+      "S": 2,
+      "W": 87
+     }
+    },
+    {
+     "start": "08:45",
+     "end": "09:00",
+     "legs": {
+      "N": 20,
+      "E": 50,
+      "S": 3,
+      "W": 95
+     }
+    }
+   ],
+   "notes": ""
+  },
+  {
+   "site": "econcord-shapiro",
+   "source": "bmc-imp-2021",
+   "date": "2019-12-05",
+   "weekday": 3,
+   "method": "leg",
+   "page": "PDF p.492",
+   "bins": [
+    {
+     "start": "16:00",
+     "end": "16:15",
+     "legs": {
+      "N": 9,
+      "E": 21,
+      "S": 3,
+      "W": 66
+     }
+    },
+    {
+     "start": "16:15",
+     "end": "16:30",
+     "legs": {
+      "N": 13,
+      "E": 36,
+      "S": 2,
+      "W": 56
+     }
+    },
+    {
+     "start": "16:30",
+     "end": "16:45",
+     "legs": {
+      "N": 10,
+      "E": 26,
+      "S": 0,
+      "W": 61
+     }
+    },
+    {
+     "start": "16:45",
+     "end": "17:00",
+     "legs": {
+      "N": 12,
+      "E": 20,
+      "S": 8,
+      "W": 62
+     }
+    },
+    {
+     "start": "17:00",
+     "end": "17:15",
+     "legs": {
+      "N": 9,
+      "E": 34,
+      "S": 7,
+      "W": 68
+     }
+    },
+    {
+     "start": "17:15",
+     "end": "17:30",
+     "legs": {
+      "N": 4,
+      "E": 24,
+      "S": 2,
+      "W": 60
+     }
+    },
+    {
+     "start": "17:30",
+     "end": "17:45",
+     "legs": {
+      "N": 2,
+      "E": 32,
+      "S": 4,
+      "W": 27
+     }
+    },
+    {
+     "start": "17:45",
+     "end": "18:00",
+     "legs": {
+      "N": 5,
+      "E": 15,
+      "S": 4,
+      "W": 33
+     }
+    }
+   ],
+   "notes": ""
+  }
+ ]
+}
