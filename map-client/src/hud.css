@@ -61,7 +61,6 @@
 .hud-ask .ask-form,
 .hud-ask .ask-transcript,
 .hud-campus-menu,
-.hud-tag-menu,
 .hud-month {
   background: var(--hud-fill);
   box-shadow: var(--glass-inner-shadow), var(--glass-shadow);
@@ -97,7 +96,7 @@
  * Not accent blue, which is the Quiet crowd colour on this map (theme/crowd.ts),
  * and not a hue per button, which made six lit toggles six different signals.
  */
-.hud :is(.hud-rail-button[aria-pressed='true'], .hud-tabs [role='tab'][aria-selected='true'], .hud-speeds button[aria-pressed='true'], .hud-step[aria-pressed='true'], .hud-live-toggle[aria-pressed='true'], .hud-campus-menu button[aria-checked='true'], .hud-tag-menu button[aria-checked='true']) {
+.hud :is(.hud-rail-button[aria-pressed='true'], .hud-tabs [role='tab'][aria-selected='true'], .hud-speeds button[aria-pressed='true'], .hud-step[aria-pressed='true'], .hud-live-toggle[aria-pressed='true'], .hud-campus-menu button[aria-checked='true']) {
   background: var(--map-selected);
   color: var(--color-ink);
   font-weight: var(--weight-semibold);
@@ -254,71 +253,6 @@
 .hud-rail-button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
-}
-
-/* Above the divider: what is drawn. Below it: how buildings are labelled. */
-.hud-rail-divider {
-  height: 1px;
-  margin: var(--space-1) var(--space-1);
-  background: var(--map-hairline);
-}
-
-.hud-rail-tags {
-  position: relative;
-}
-
-/* Opens to the right of its button, clear of the rail. */
-.hud-tag-menu {
-  position: absolute;
-  top: calc(-1 * var(--space-2));
-  left: calc(var(--hud-button) + var(--space-2) + var(--hud-gap));
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 248px;
-  padding: var(--space-2);
-  border-radius: var(--radius-panel);
-}
-
-.hud-tag-menu-head {
-  margin: var(--space-1) var(--space-3) var(--space-1);
-  color: var(--map-ink-secondary);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-}
-
-.hud-tag-menu button {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-2) var(--space-3);
-  border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
-  color: var(--color-ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-standard);
-}
-
-@media (hover: hover) {
-  .hud-tag-menu button:hover {
-    background: var(--map-hover);
-  }
-}
-
-.hud-tag-menu-label {
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-}
-
-.hud-tag-menu-detail {
-  color: var(--map-ink-secondary);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-regular);
-  line-height: var(--leading-snug);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1229,21 +1163,6 @@
     justify-content: space-between;
     overflow-x: auto;
     overscroll-behavior: contain;
-  }
-
-  .hud-rail-divider {
-    width: 1px;
-    height: auto;
-    margin: var(--space-2) 0;
-  }
-
-  /* The tag flyout opens upward from the sheet rather than off the screen. */
-  .hud-tag-menu {
-    top: auto;
-    bottom: calc(100% + var(--space-3));
-    left: auto;
-    right: 0;
-    width: min(248px, calc(100vw - 2 * var(--hud-inset)));
   }
 
   .hud-ask {

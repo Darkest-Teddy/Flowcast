@@ -7,7 +7,7 @@ import { HudAsk, HudBrand, HudDate, HudIcons, HudLegend, HudRail, HudStatus, Hud
 import { agentLayers, loadCharacterModels, type Character, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { CROWD_LEVELS } from './layers/crowdLevels';
-import { activityDisplay, BuildingTags, type BuildingTagsHandle, type TagMode } from './BuildingTags';
+import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
 import { orderPlaces, PlacesPanel, type Category } from './panel/Places';
 import { BuildingDetail, FIRST_HOUR, LAST_HOUR, type HourSample } from './panel/BuildingDetail';
 import { BikesPanel, TransitPanel, type DockRow, type ShuttleRow, type StopRow } from './panel/TransitBikes';
@@ -171,23 +171,6 @@ function wallClockDate(): string { return BOSTON_DATE.format(new Date()); }
 const PARKING_KEY = 'flowcast.parking';
 function storedParking(): boolean {
   try { return localStorage.getItem(PARKING_KEY) === '1'; } catch { return false; }
-}
-/*
- * How much of the campus is labelled, remembered between visits.
- *
- * Focus is the default: a full pill for what the open panel is talking about and
- * a level marker for everything else. The campus has enough buildings that
- * labelling all of them at once is the thing that made the old map unreadable.
- */
-const TAG_MODE_KEY = 'flowcast.tagMode';
-function storedTagMode(): TagMode {
-  try {
-    const saved = localStorage.getItem(TAG_MODE_KEY);
-    if (saved === 'focus' || saved === 'all' || saved === 'off') return saved;
-  } catch {
-    // Private browsing refuses reads; the default is right anyway.
-  }
-  return 'focus';
 }
 /** The map's weather look for a scenario's weather (live weather otherwise). */
 const SCENARIO_LOOK: Record<string, WeatherMode> = { clear: 'clear', rain: 'rain', 'heavy-rain': 'rain', drizzle: 'rain', snow: 'snow', thunderstorm: 'thunderstorm', heatwave: 'heatwave', fog: 'fog' };
@@ -389,16 +372,6 @@ export default function App() {
   const playingRef = useRef(true);
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
-  /*
-   * How much of the campus is labelled. A preference about how the map reads
-   * rather than something you re-pick each visit, so it is persisted; the frame
-   * loop reads it through a ref because it never re-creates the map.
-   */
-  const [tagMode, setTagMode] = useState<TagMode>(storedTagMode);
-  const tagModeRef = useRef(tagMode);
-  tagModeRef.current = tagMode;
-  /** The buildings the open panel is listing: they keep a full pill in Focus. */
-  const focusRef = useRef<ReadonlySet<string>>(new Set());
   /* Which tab is open, for the handlers the map holds onto across renders. */
   const viewRef = useRef<View | null>(null);
   /* Analytics: which of the three subjects, and how the places list is cut. */
@@ -1147,8 +1120,6 @@ export default function App() {
           project: basemap.project,
           camera: basemap.getCamera(),
           roofHeights,
-          tagMode: tagModeRef.current,
-          focusIds: focusRef.current,
         });
         // The what-if's area, re-projected every frame: its shape depends on the
         // camera, and a circle that lagged the map would be describing a different
@@ -2000,31 +1971,6 @@ export default function App() {
   const listedPlaces = view === 'analytics' && analyticsSub === 'places'
     ? orderPlaces(searchedPlaces, category, sort).slice(0, listExpanded ? 8 : 3)
     : [];
-  /*
-   * What keeps a full pill in Focus mode: whatever the open panel is talking
-   * about. For Analytics that is the rows on screen; for Log it is every
-   * building the circle catches, so the radius you are dragging and the
-   * buildings it will act on are the same thing on the map.
-   */
-  const focusIds = view === 'log'
-    ? whatIfZone.chips.map((b) => ranked.find((o) => o.location.id === b.id)?.location.building)
-    : listedPlaces.map((o) => o.location.building);
-  const focusKey = focusIds.join('|');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  focusRef.current = useMemo(
-    () => new Set(focusIds.filter((id): id is string => Boolean(id))),
-    [focusKey],
-  );
-
-  const pickTagMode = (mode: TagMode) => {
-    setTagMode(mode);
-    try {
-      localStorage.setItem(TAG_MODE_KEY, mode);
-    } catch {
-      // Private browsing refuses writes; the choice still holds for this session.
-    }
-  };
-
   viewRef.current = view;
 
   /** Picking the open tab closes it, so the map uncovered needs no tab of its own. */
@@ -2129,7 +2075,7 @@ export default function App() {
 
           {/* The views and the layers: two corners on a wide screen, one bottom sheet on a phone (hud.css). */}
           <div className="hud-dock">
-            <HudRail items={railItems} tagMode={tagMode} onTagMode={pickTagMode} />
+            <HudRail items={railItems} />
             <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
           </div>
 

@@ -863,53 +863,6 @@ select.tool { padding: 0 8px 0 12px; }
   to { transform: scale(3.2); opacity: 0; }
 }
 
-/*
- * The compact marker: one building reduced to its level.
- *
- * In Focus mode every building the open panel is not talking about wears this
- * instead of a pill, which is what keeps a campus of eighty buildings from
- * reading as eighty pills. Its name and figure live in the tooltip and the
- * accessible name, and clicking it selects the building exactly as a pill does.
- *
- * It stands on the same stem and roof dot as a pill, and that is the point: a
- * mark floating free over a roof does not say which roof it belongs to, and on
- * a pitched 3D view it reads as a bubble above the building rather than a label
- * on it. The line is what attaches a tag to its building, so the compact form
- * keeps it.
- *
- * Hidden unless the tag is explicitly in marker form, so a tag that has not been
- * given a form yet shows its pill rather than both at once.
- */
-.btag-marker {
-  display: none;
-  position: absolute;
-  left: 0;
-  bottom: var(--stem);
-  translate: -50% 0;
-  transform-origin: 50% 100%;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 1.5px solid rgb(var(--lv));
-  border-radius: 999px;
-  background: rgba(13, 16, 23, 0.88);
-  color: rgb(var(--lv));
-  cursor: pointer;
-  transition: scale 0.16s ease, border-color 0.18s ease;
-}
-.btag[data-form='marker'] .btag-marker { display: grid; }
-.btag-marker svg { display: block; width: 12px; height: 12px; stroke-width: 2.2; }
-/* A place with no modelled level keeps the plain dot the pill falls back to. */
-.btag-marker-dot { width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--lv)); }
-@media (hover: hover) {
-  .btag-marker:hover { scale: 1.15; }
-}
-.btag-marker:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; }
-/* One form at a time. The stem and roof dot are shared furniture and stay up. */
-.btag[data-form='marker'] .btag-pill,
-.btag[data-form='marker'] .btag-card { display: none; }
-
 /* Stem from the card down to the roof, ending in a glowing dot. */
 .btag-stem {
   position: absolute;
@@ -943,10 +896,7 @@ select.tool { padding: 0 8px 0 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   .btag-pulse::after { animation: none; }
-  .btag-card, .btag-pill, .btag-fill, .btag, .btag-marker { transition: none; }
-  /* The marker's hover growth is the only size change here; drop it rather than
-     snapping, so hover still reads through the border colour alone. */
-  .btag-marker:hover { scale: 1; }
+  .btag-card, .btag-pill, .btag-fill, .btag { transition: none; }
 }
 
 /* Transit, shuttle and Bluebikes tags (TransitTags.tsx, tags/glassTags.ts): the building tags'

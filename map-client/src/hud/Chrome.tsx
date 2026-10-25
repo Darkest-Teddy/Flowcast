@@ -20,7 +20,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 /* Type only: the modes belong to the tag layer that implements them, and the
    rail's menu must offer exactly those three. No runtime dependency. */
-import type { TagMode } from '../BuildingTags';
 import { MARK_PATH, MARK_VIEWBOX } from '../../../theme/mark';
 
 /* ---------------------------------------------------------------------------
@@ -323,32 +322,8 @@ export interface RailItem {
   onSelect: () => void;
 }
 
-const TAG_MODES: { id: TagMode; label: string; detail: string }[] = [
-  { id: 'focus', label: 'Focus', detail: 'Tags for what the panel shows; the rest as symbols' },
-  { id: 'all', label: 'All buildings', detail: 'Every tag, full size' },
-  { id: 'off', label: 'Off', detail: 'No tags; glow only' },
-];
-
-/*
- * The layers, and how the buildings are labelled.
- *
- * The toggles come first, then a divider, then the tag control. The divider is
- * not decoration: everything above it adds something to the map, while the
- * button below it changes how the map annotates what is already there.
- */
-export function HudRail({
-  items,
-  tagMode,
-  onTagMode,
-}: {
-  items: RailItem[];
-  tagMode?: TagMode;
-  onTagMode?: (mode: TagMode) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const tags = useRef<HTMLDivElement>(null);
-  useDismiss(open, tags, () => setOpen(false));
-
+/* The layer toggles down the left edge. */
+export function HudRail({ items }: { items: RailItem[] }) {
   return (
     <nav className="hud-rail" aria-label="Map layers">
       {items.map((item) => (
@@ -366,47 +341,6 @@ export function HudRail({
           {item.icon}
         </button>
       ))}
-
-      {tagMode && onTagMode && (
-        <>
-          <span className="hud-rail-divider" aria-hidden="true" />
-
-          <div className="hud-rail-tags" ref={tags}>
-            <button
-              type="button"
-              className="hud-rail-button"
-              aria-expanded={open}
-              aria-haspopup="menu"
-              aria-label="Building tags"
-              title="Building tags"
-              onClick={() => setOpen((v) => !v)}
-            >
-              <HudIcons.person2 />
-            </button>
-
-            {open && (
-              <div className="hud-tag-menu" role="menu" aria-label="Building tags">
-                <p className="hud-tag-menu-head">Building tags</p>
-                {TAG_MODES.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={tagMode === m.id}
-                    onClick={() => {
-                      onTagMode(m.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="hud-tag-menu-label">{m.label}</span>
-                    <span className="hud-tag-menu-detail">{m.detail}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      )}
     </nav>
   );
 }
