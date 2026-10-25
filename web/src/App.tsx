@@ -3,6 +3,7 @@ import { RequireAuth, SessionProvider, useSession } from './auth/session';
 import { AdminLayout } from './layouts/AdminLayout';
 import { StudentLayout } from './layouts/StudentLayout';
 import Home from './pages/Home';
+import Ask from './pages/Ask';
 import Landing from './pages/Landing';
 import SignIn from './pages/SignIn';
 import Welcome from './pages/Welcome';
@@ -52,6 +53,7 @@ const router = createBrowserRouter([
     element: <StudentArea />,
     children: [
       { index: true, element: <Home /> },
+      { path: 'ask', element: <Ask /> },
       { path: 'schedule', element: <Schedule /> },
       { path: 'forecasts', element: <Forecasts /> },
       { path: 'events', element: <Events /> },

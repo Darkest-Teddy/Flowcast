@@ -1,0 +1,126 @@
+.banner {
+  composes: glass from global;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-card);
+  font-size: var(--text-sm);
+}
+
+.banner p {
+  margin: 0;
+}
+
+/* Conversation, with the directory as a side column on wide screens. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, calc(var(--sidebar-width) + var(--space-20)));
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  /* Tall enough that the composer sits at the bottom of the window even with no messages. */
+  min-height: calc(100dvh - var(--topbar-height) - var(--space-32) - var(--space-16));
+}
+
+.aside {
+  position: sticky;
+  top: calc(var(--topbar-height) + var(--space-4));
+  max-height: calc(100dvh - var(--topbar-height) - var(--space-8));
+  overflow-y: auto;
+  border-radius: var(--radius-card);
+  min-width: 0;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Keep a message's top clear of the sticky top bar when it scrolls into view. */
+.list > li {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-4));
+  scroll-margin-bottom: calc(var(--space-32) + var(--space-8));
+}
+
+.intro {
+  padding: var(--space-6) 0 var(--space-2);
+}
+
+.introTitle {
+  font-size: var(--text-xl);
+}
+
+.introBody {
+  margin-top: var(--space-2);
+  max-width: 62ch;
+  color: var(--color-ink-secondary);
+}
+
+.examples {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.exampleGroup {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.groupTitle {
+  color: var(--color-ink-secondary);
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-text);
+}
+
+/* The composer stays at the bottom of the window as the conversation scrolls. */
+.dock {
+  position: sticky;
+  bottom: var(--space-4);
+  z-index: 3;
+  margin-top: auto;
+}
+
+@media (max-width: 1080px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  /* Narrow: the directory collapses above the conversation. */
+  .aside {
+    position: static;
+    order: -1;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .chat {
+    min-height: calc(100dvh - var(--topbar-height) - var(--space-32) - var(--space-32));
+  }
+}
+
+@media (max-width: 860px) {
+  /* Above the phone tab bar (its height and gap come from the app shell). */
+  .dock {
+    bottom: calc(var(--tab-bar-height) + var(--dock-gap) * 2 + env(safe-area-inset-bottom));
+  }
+
+  .list > li {
+    scroll-margin-bottom: calc(var(--tab-bar-height) + var(--space-32) + var(--space-8));
+  }
+}

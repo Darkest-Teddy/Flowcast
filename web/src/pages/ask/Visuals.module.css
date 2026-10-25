@@ -1,0 +1,360 @@
+/* A visual inside an answer: a tile on the answer's glass, not glass on glass. */
+.card {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-tile);
+  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-text);
+  line-height: var(--leading-snug);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-capsule);
+  background: var(--glass-fill-strong);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.toggle svg {
+  width: var(--space-4);
+  height: var(--space-4);
+  color: var(--color-ink-secondary);
+}
+
+.toggle:hover {
+  background: var(--color-surface-hover);
+}
+
+.body {
+  min-width: 0;
+}
+
+.note {
+  margin-top: var(--space-3);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+/* Table view */
+.tableWrap {
+  overflow-x: auto;
+  max-width: 100%;
+  border-radius: var(--radius-panel);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Line chart */
+.chartWrap {
+  min-width: 0;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lineKey {
+  display: inline-block;
+  width: var(--space-4);
+  height: 2px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.unit {
+  font-size: var(--text-xs);
+  color: var(--color-ink-tertiary);
+}
+
+.plot {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.svg {
+  display: block;
+  overflow: visible;
+  touch-action: pan-y;
+  border-radius: var(--radius-sm);
+}
+
+.grid {
+  stroke: var(--color-hairline-soft);
+  stroke-width: 1;
+}
+
+.baseline {
+  stroke: var(--color-hairline);
+  stroke-width: 1;
+}
+
+.yTick,
+.xTick {
+  fill: var(--color-ink-tertiary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.marker {
+  stroke: var(--color-ink-tertiary);
+  stroke-width: 1;
+}
+
+.markerLabel {
+  fill: var(--color-ink-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.endLabel {
+  fill: var(--color-ink-secondary);
+  font-size: var(--text-xs);
+}
+
+.crosshair {
+  stroke: var(--color-ink-secondary);
+  stroke-width: 1;
+}
+
+/* End-dots carry a 2px ring in the surface colour so they stay legible over the lines. */
+.dot {
+  stroke: var(--color-surface);
+  stroke-width: 2;
+}
+
+.hit {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.tooltip,
+.barTip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--glass-fill-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-inner-shadow), var(--shadow-overlay);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.tooltip {
+  top: var(--space-2);
+}
+
+.tipHead {
+  color: var(--color-ink-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.tipRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.tipRow strong {
+  color: var(--color-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.tipRow span,
+.tipSub {
+  color: var(--color-ink-secondary);
+}
+
+/* Bar chart */
+.bars {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+  gap: var(--space-1) 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.barRow {
+  position: relative;
+  display: grid;
+  grid-column: 1 / -1;
+  /* One set of columns for every row, so all bars share a baseline. */
+  grid-template-columns: subgrid;
+  align-items: center;
+  column-gap: var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.barOn {
+  background: var(--color-surface-hover);
+}
+
+.barLabel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.barDetail {
+  color: var(--color-ink-tertiary);
+  font-size: var(--text-xs);
+}
+
+.track {
+  display: block;
+  height: var(--space-3);
+  border-left: 1px solid var(--color-hairline);
+}
+
+/* 4px rounded data end, square at the baseline. */
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.barValue {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.barTip {
+  left: 40%;
+  bottom: calc(100% - var(--space-1));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-1);
+  max-width: min(320px, 80vw);
+  white-space: normal;
+}
+
+.barTip strong {
+  font-weight: var(--weight-semibold);
+}
+
+.tipSub {
+  flex-basis: 100%;
+  font-size: var(--text-xs);
+}
+
+/* Stat tiles */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--space-32) + var(--space-2))), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.stat {
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+  min-width: 0;
+}
+
+.stat dt {
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+.stat dd {
+  margin: 0;
+}
+
+.statValue {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-snug);
+  overflow-wrap: anywhere;
+}
+
+.statDetail {
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 560px) {
+  .card {
+    padding: var(--space-3);
+  }
+
+  /* Phones: label on its own line, the bar and its value under it. */
+  .bars {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .barRow {
+    row-gap: var(--space-1);
+  }
+
+  .barLabel {
+    grid-column: 1 / -1;
+  }
+}

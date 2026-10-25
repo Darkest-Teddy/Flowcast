@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Map as MapIcon } from 'lucide-react';
+import { Map as MapIcon, MessagesSquare } from 'lucide-react';
 import { crowdFor } from '@theme/tokens';
 import { config } from '../../config';
 import type { CampusGeo } from '../../data/types';
@@ -160,11 +160,16 @@ function AskAnswer({ query, data, clear, onAsk }: { query: string; data: CampusD
               {answer.note && <p className={styles.note}>{answer.note}</p>}
               {answer.device && <p className={styles.note}>{answer.device}</p>}
             </div>
-            {mapLink && (
-              <Button variant="ghost" size="sm" href={mapLink} icon={<MapIcon aria-hidden />}>
-                Show on map
+            <div className={styles.answerActions}>
+              {mapLink && (
+                <Button variant="ghost" size="sm" href={mapLink} icon={<MapIcon aria-hidden />}>
+                  Show on map
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" to={`/ask?q=${encodeURIComponent(query)}`} icon={<MessagesSquare aria-hidden />}>
+                Continue in chat
               </Button>
-            )}
+            </div>
           </div>
         </>
       )}
