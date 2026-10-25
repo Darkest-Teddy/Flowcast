@@ -60,7 +60,7 @@ test('API forwards GET, POST, status, Host, Origin and cookies', async (t) => {
     res.end(JSON.stringify({ method: req.method, url: req.url, host: req.headers.host, origin: req.headers.origin, authorization: req.headers.authorization, cookie: req.headers.cookie, body }));
   }));
   const host = await fixture(t, { apiUrl: upstream });
-  for (const path of ['/api/dashboard/auth/config', '/api/dashboard/me', '/api/dashboard/session?x=1', '/api/dashboard?x=1', '/api/ask', '/api/health']) {
+  for (const path of ['/api/dashboard/auth/config', '/api/dashboard/me', '/api/dashboard/session?x=1', '/api/dashboard?x=1', '/api/chat', '/api/chat/directory', '/api/ask', '/api/health']) {
     for (const method of ['GET', 'POST']) {
       const body = method === 'POST' ? JSON.stringify({ name: 'A student' }) : undefined;
       const response = await fetch(host + path, { method, headers: { Origin: host, Authorization: 'Bearer test-access-token', Cookie: 'session=abc', 'Content-Type': 'application/json' }, body });
@@ -145,7 +145,7 @@ test('API failures are sanitized JSON and unknown routes never reach SPA', async
     }
   }
   const host = await fixture(t);
-  for (const path of ['/api', '/api/unknown', '/api/asking', '/api/dashboard-other', '/api/health/extra']) {
+  for (const path of ['/api', '/api/unknown', '/api/asking', '/api/dashboard-other', '/api/chatter', '/api/chat-other', '/api/health/extra']) {
     const response = await fetch(host + path);
     assert.equal(response.status, 404);
     assert.deepEqual(await response.json(), { error: 'API route not found' });
