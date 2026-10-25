@@ -1,284 +1,203 @@
-/*
- * Home is a bento: the summary cards and the main cards share one four-column grid (see .bento),
- * with --space-4 between every card, so edges line up from top to bottom.
- */
-.hero {
-  padding-top: var(--space-8);
-  text-align: center;
+.home {
+  --color-ink-tertiary: var(--color-ink-secondary);
+  padding-block: var(--space-4) var(--space-8);
 }
 
-.date {
-  margin-bottom: var(--space-2);
-  color: var(--color-ink-tertiary);
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
-}
-
-.headline {
-  font-size: var(--text-3xl);
-  font-weight: var(--weight-semibold);
-  text-wrap: balance;
-}
-
-.setup {
+.header {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-5);
-  margin-top: var(--space-6);
-  padding: var(--space-3) var(--space-5);
-  border: 1px dashed var(--color-hairline);
-  border-radius: var(--radius-card);
-  font-size: var(--text-sm);
-}
-
-.setupTitle {
-  font-weight: var(--weight-medium);
-}
-
-.setupTitle span {
-  margin-left: var(--space-2);
-  color: var(--color-ink-tertiary);
-  font-weight: var(--weight-regular);
-}
-
-.setupStart {
-  order: 1;
-  margin-left: auto;
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-capsule);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  font-weight: var(--weight-medium);
-  transition: background-color var(--duration-base) var(--ease-standard);
-}
-
-.setupStart:hover {
-  background: var(--color-accent-hover);
-  text-decoration: none;
-}
-
-.setup ul {
-  display: flex;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-5);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.setup li.done {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-ink-tertiary);
-  text-decoration: line-through;
-}
-
-.setup li.done svg {
-  width: 14px;
-  height: 14px;
-  color: var(--color-ok);
-}
-
-/*
- * Bento. Four equal columns; each card sits in a cell that spans one, two or four of them (w1, w2,
- * w4) and optionally two rows (h2), and every card stretches to its cell, so the cards in a row
- * share their edges and a short card is an empty box rather than a hole. Dense packing lets a
- * later small card fill a slot beside a tall one.
- */
-.bento {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-auto-flow: row dense;
   gap: var(--space-4);
-  margin-top: var(--space-4);
-}
-
-.cell {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-/* The card fills its cell; module margins on cards (DepartureCard, GapCard) don't apply in here. */
-.bento .cell > * {
-  flex: 1;
-  margin: 0;
-}
-
-.w1 { grid-column: span 1; }
-.w2 { grid-column: span 2; }
-.w4 { grid-column: 1 / -1; }
-.h2 { grid-row: span 2; }
-
-/* Cards that only show up sometimes (your next gap) sit full width between the grids. */
-.strip > * {
-  margin-block: var(--space-4) 0;
-}
-
-.chartBlock {
-  display: grid;
-  gap: var(--space-3);
-  padding-block: var(--space-3);
-}
-
-.status {
-  display: flex;
-  justify-content: center;
-  margin: var(--space-2) 0 var(--space-4);
-  color: var(--color-ink-secondary);
-}
-
-/* The map is where "Where are you headed?" leads, so it sits right under the greeting. */
-.mapButton {
   margin-bottom: var(--space-6);
 }
 
-.status > span {
-  white-space: normal;
-  color: var(--color-ink-secondary);
+.header h1 {
+  margin-top: var(--space-2);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
 }
 
-.where {
-  margin-left: var(--space-2);
-  color: var(--color-ink-tertiary);
+.date, .note {
+  color: var(--color-ink-secondary);
   font-size: var(--text-sm);
 }
 
-.crowdDot {
-  display: block;
-  width: var(--space-2);
-  height: var(--space-2);
-  border-radius: var(--radius-xs);
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-/* Tablets: two columns, wide cards take the whole row, nothing spans two rows. */
+.actions a, .error button {
+  min-height: 44px;
+}
+
+.departure a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.content {
+  display: grid;
+  gap: var(--space-10);
+}
+
+.primary, .secondary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: start;
+}
+
+.primary {
+  composes: glass from global;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  padding: var(--space-8);
+  border-radius: var(--radius-card);
+}
+
+.schedule {
+  border-left: 1px solid var(--color-hairline);
+  padding-left: var(--space-8);
+}
+
+.secondary {
+  gap: var(--space-10);
+}
+
+.campus {
+  padding-inline: var(--space-2);
+}
+
+.sectionTitle {
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-4);
+}
+
+.departure, .list {
+  min-width: 0;
+}
+
+/* Reuse the existing cards' behavior, with their surfaces supplied by the parent. */
+.departure > section, .list > section, .planningBody > section, .planningBody > details {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.departure h2 {
+  font-size: var(--text-xl);
+}
+
+.departure :is(h2, p) {
+  max-width: 100%;
+}
+
+.list > section > a {
+  min-height: 44px;
+  color: var(--color-ink);
+}
+
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--text-sm);
+}
+
+.note {
+  padding-block: var(--space-3);
+}
+
+.filter {
+  padding-block: var(--space-3);
+}
+
+.filter button {
+  min-height: 44px;
+  color: var(--color-ink);
+}
+
+.planning {
+  border-top: 1px solid var(--color-hairline);
+  margin-top: calc(-1 * var(--space-4));
+}
+
+.planning > summary {
+  min-height: 44px;
+  padding-block: var(--space-4);
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+}
+
+.planning > summary span {
+  margin-left: var(--space-3);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+}
+
+.planningBody {
+  display: grid;
+  gap: var(--space-6);
+  padding-block: var(--space-4);
+}
+
+.error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+.home :is(a, button, select, summary):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
 @media (max-width: 900px) {
-  .bento {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .primary, .secondary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
   }
 
-  .w2 { grid-column: 1 / -1; }
-  .h2 { grid-row: auto; }
+  .schedule {
+    border-left: 0;
+    border-top: 1px solid var(--color-hairline);
+    padding: var(--space-4) 0 0;
+  }
 }
 
 @media (max-width: 560px) {
-  .hero {
-    padding-top: var(--space-4);
+  .primary {
+    padding: var(--space-5);
   }
 
-  .headline {
+  .header h1 {
     font-size: var(--text-2xl);
   }
 
-  /* The place or venue goes on its own line under the name. */
-  .where {
+  .planning > summary span {
     display: block;
-    margin-left: 0;
-  }
-}
-
-.forecastNote {
-  padding-block: var(--space-3);
-  color: var(--color-ink-secondary);
-  font-size: var(--text-sm);
-}
-.forecastNote summary { cursor: pointer; }
-.forecastNote p { margin-top: var(--space-2); }
-
-.eventFilter {
-  display: flex;
-  padding-block: var(--space-3);
-}
-
-/*
- * Depth: every card on the dashboard floats a little higher than the app's default glass, with a
- * deeper, softer shadow and a stronger frost over the map backdrop, and lifts on hover. The shadow
- * colour is per theme (a cool slate in light, plain black in dark, where a light-on-dark lift reads
- * as a glow instead).
- */
-.hero,
-.setup,
-.bento,
-.strip {
-  --dash-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.05),
-    0 10px 24px -8px rgba(15, 23, 42, 0.12),
-    0 28px 56px -24px rgba(15, 23, 42, 0.22);
-  --dash-shadow-hover:
-    0 1px 2px rgba(15, 23, 42, 0.06),
-    0 14px 30px -8px rgba(15, 23, 42, 0.16),
-    0 36px 70px -24px rgba(15, 23, 42, 0.28);
-}
-
-:global(:root[data-theme='dark']) :is(.hero, .setup, .bento, .strip) {
-  --dash-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 16px 40px -12px rgba(0, 0, 0, 0.7);
-  --dash-shadow-hover: 0 1px 2px rgba(0, 0, 0, 0.5), 0 22px 50px -12px rgba(0, 0, 0, 0.8);
-}
-
-@media (prefers-color-scheme: dark) {
-  :global(:root:not([data-theme])) :is(.hero, .setup, .bento, .strip) {
-    --dash-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 16px 40px -12px rgba(0, 0, 0, 0.7);
-    --dash-shadow-hover: 0 1px 2px rgba(0, 0, 0, 0.5), 0 22px 50px -12px rgba(0, 0, 0, 0.8);
-  }
-}
-
-.bento .cell > *,
-.strip > * {
-  box-shadow: var(--glass-inner-shadow), var(--dash-shadow);
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 1.5)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(calc(var(--glass-blur) * 1.5)) saturate(var(--glass-saturate));
-  transition:
-    box-shadow var(--duration-base) var(--ease-standard),
-    transform var(--duration-base) var(--ease-standard);
-}
-
-.bento .cell > *:hover,
-.strip > *:hover {
-  box-shadow: var(--glass-inner-shadow), var(--dash-shadow-hover);
-}
-
-/* The summary cards are small enough to lift without the page feeling like it moves. */
-@media (prefers-reduced-motion: no-preference) {
-  .w1 > *:hover {
-    transform: translateY(-2px);
-  }
-}
-
-/* The setup strip sits on the map, so give it the same frost as the cards. */
-.setup {
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  background: color-mix(in srgb, var(--glass-fill) 60%, transparent);
-}
-
-/*
- * Entrance: each card rises a few pixels and fades in, in reading order (--i from Home.tsx), so
- * the bento fills in tile by tile. Only opacity and transform, so it stays smooth on phones;
- * reduced motion skips it outright rather than leaning on the global 0ms rule, which would still
- * hold each group invisible for its delay.
- */
-@media (prefers-reduced-motion: no-preference) {
-  .reveal {
-    animation: rise 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
-    animation-delay: calc(var(--i, 0) * 60ms);
+    margin: var(--space-1) 0 0;
   }
 
-  .chartBlock p {
-    animation: fade 360ms ease-out both;
+  .list > section > div > div,
+  .list > section > div > a {
+    flex-wrap: wrap;
   }
-}
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
-@keyframes fade {
-  from {
-    opacity: 0;
+  .list > section > div > div > span,
+  .list > section > div > a > span {
+    white-space: normal;
   }
 }
