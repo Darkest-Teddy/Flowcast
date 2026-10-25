@@ -110,9 +110,3 @@
 }
 .forecastNote summary { cursor: pointer; }
 .forecastNote p { margin-top: var(--space-2); }
-
-.askDock {
-  position: sticky;
-  top: calc(var(--space-3) + env(safe-area-inset-top));
-  z-index: 6;
-}

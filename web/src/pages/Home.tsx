@@ -62,11 +62,9 @@ export default function Home() {
       </div>
 
       <AskChat scheduleAvailable={schedule.data !== null} visible={mode === 'ask'} composer={(ask, pending, resetToken) => (
-        <div className={mode === 'ask' ? styles.askDock : undefined}>
         <SearchBar placeholder="Search buildings, events, clubs and classes" mode={mode}
           resetToken={resetToken} onModeChange={setMode} pending={mode === 'ask' && pending}
           onSubmit={(query, selectedMode) => { if (selectedMode === 'ask') void ask(query); else setSearch(query); }} />
-        </div>
       )} data={{
         locations: locations.data ?? [], schedule: schedule.data ?? [],
         events: events.data ?? [], clubs: clubs.data ?? [],

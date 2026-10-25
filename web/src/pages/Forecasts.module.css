@@ -100,6 +100,14 @@
   margin-top: var(--space-6);
 }
 
+.hourList summary {
+  min-height: var(--control-height-touch);
+  padding-block: var(--space-3);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
 /* The hour list sits inside the place's card: drop its own glass so cards don't nest. */
 .hourList > section {
   padding: 0;

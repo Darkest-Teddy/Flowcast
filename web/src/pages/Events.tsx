@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, useResource } from '../data/api';
 import { formatDayLabel } from '../lib/format';
-import { Button, EmptyState, Loading, Page, PageHeader, SectionList, Segmented, Tag } from '../ui';
+import { Button, EmptyState, Loading, Page, PageHeader, SectionList, Segmented } from '../ui';
 import { AgendaRow } from './student/AgendaRow';
 import { groupByDay, isUpcoming } from './student/days';
 import { eventDate, eventVenue, mapStatusText } from './student/events';
@@ -71,10 +71,8 @@ export default function Events() {
                   meta={`${eventVenue(e)}${e.organizer ? `, hosted by ${e.organizer}` : ''}`}
                   note={mapStatusText(e)}
                   aside={
-                    e.mapStatus === 'simulated' ? (
+                    e.mapStatus === 'simulated' && (
                       <Button size="sm" to={`/event-impact?date=${eventDate(e)}`}>Crowd impact</Button>
-                    ) : (
-                      <Tag>Not on map</Tag>
                     )
                   }
                 />

@@ -100,13 +100,14 @@ export default function Forecasts() {
               </header>
               <HourlyChart hours={f.hours} label={`Hourly forecast for ${full}`} tall={selected !== 'all'} />
               {selected !== 'all' && (
-                <div className={styles.hourList}>
+                <details className={styles.hourList}>
+                  <summary>Hour-by-hour values</summary>
                   <SectionList title="Hour by hour">
                     {f.hours.map((h) => (
                       <ListRow key={h.hour} title={formatHour(h.hour)} trailing={<CrowdMeter share={h.share} />} />
                     ))}
                   </SectionList>
-                </div>
+                </details>
               )}
             </section>
           );
