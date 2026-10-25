@@ -1,7 +1,11 @@
 import type { Stay } from './playback';
 
+/** Each place's stay starts and ends, both sorted ascending. Plain data, so it can cross threads. */
+export type OccupancyEvents = ReadonlyMap<string, { readonly starts: readonly number[]; readonly ends: readonly number[] }>;
+
 export interface OccupancyIndex {
   countsAt(time: number): Map<string, number>;
+  readonly events: OccupancyEvents;
 }
 
 function through(sorted: readonly number[], time: number): number {
@@ -56,12 +60,18 @@ export function* occupancyIndexSteps(stays: readonly Stay[], chunk = 4096): Gene
     yield;
     events.starts.sort((a, b) => a - b); events.ends.sort((a, b) => a - b);
   }
+  return occupancyIndexFrom(locations);
+}
+
+/** The index over already-sorted events, such as another index's `events`. */
+export function occupancyIndexFrom(events: OccupancyEvents): OccupancyIndex {
   return {
+    events,
     countsAt(time) {
       const counts = new Map<string, number>();
       if (!Number.isFinite(time)) return counts;
-      for (const [location, events] of locations) {
-        const count = through(events.starts, time) - through(events.ends, time);
+      for (const [location, { starts, ends }] of events) {
+        const count = through(starts, time) - through(ends, time);
         if (count) counts.set(location, count);
       }
       return counts;
