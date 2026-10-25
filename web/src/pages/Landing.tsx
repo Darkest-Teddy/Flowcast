@@ -3,6 +3,7 @@ import { ArrowRight, Menu, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { crowdFor, crowdScale } from '@theme/tokens';
 import { config } from '../config';
+import { Logo } from '../ui/Logo';
 import { api, useResource } from '../data/api';
 import { formatPercent } from '../lib/format';
 import { CampusScene } from './landing/CampusScene';
@@ -149,6 +150,7 @@ function LandingNav() {
     <header className={styles.navBar} data-theme="dark">
       <nav aria-label="Main" className={styles.nav}>
         <a href="#top" className={styles.brand} onClick={(e) => goToSection(e, 'top')}>
+          <Logo className={styles.mark} />
           Flowcast
         </a>
         <ul className={styles.navLinks}>{links}</ul>

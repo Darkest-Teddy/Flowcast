@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useSession } from '../auth/session';
 import { config } from '../config';
-import { Button } from '../ui';
+import { Button, Logo } from '../ui';
 import styles from './SignIn.module.css';
 
 export default function SignIn() {
@@ -36,7 +36,7 @@ export default function SignIn() {
     <main className={styles.screen}>
       <div className={styles.column}>
         <div className={styles.brand}>
-          <span className={styles.mark} aria-hidden />
+          <Logo className={styles.mark} />
           <span>{config.appName}</span>
         </div>
 

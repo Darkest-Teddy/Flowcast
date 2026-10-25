@@ -1305,7 +1305,7 @@ export default function App() {
         onCover={onSheetCover}
         header={
           <>
-            <h1>Flowcast</h1>
+            <h1><img className="sheet-logo" src="/favicon.svg" alt="" width={24} height={24} />Flowcast</h1>
             <p className="sheet-summary">{currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]}</p>
           </>
         }

@@ -23,10 +23,9 @@
 }
 
 .mark {
-  width: var(--space-5);
-  height: var(--space-5);
-  border-radius: var(--radius-sm);
-  background: var(--color-strong);
+  flex: none;
+  width: 24px;
+  height: 24px;
 }
 
 .stage {

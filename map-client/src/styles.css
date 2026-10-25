@@ -1069,3 +1069,6 @@ select.tool { padding: 0 8px 0 12px; }
 }
 @keyframes clean-hint { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .clean-hint { animation: none; opacity: 0.9; } }
+
+/* Brand mark beside the sheet title (the favicon art). */
+.sheet-logo { width: 24px; height: 24px; margin-right: var(--space-2); vertical-align: -4px; }
