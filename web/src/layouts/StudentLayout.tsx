@@ -17,7 +17,7 @@ import {
   Menu,
   Users,
 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, NavLink } from 'react-router';
 import { useSession } from '../auth/session';
 import { config } from '../config';
 import { Avatar } from '../ui';
@@ -88,10 +88,10 @@ export function StudentLayout() {
         sidebarFooter={
           session && (
             <div className={styles.footer}>
-              <Link to="/profile" className={styles.profile} title="Your profile">
+              <NavLink to="/profile" className={({ isActive }) => `${styles.profile} ${isActive ? styles.profileOn : ''}`} title="Your profile">
                 <Avatar name={session.user.name || 'Google user'} />
                 <span className={styles.name} data-rail="hide">{session.user.name || 'Google user'}</span>
-              </Link>
+              </NavLink>
               {hasRole('admin') && <Link to="/admin" className={styles.admin} data-rail="hide">Admin</Link>}
             </div>
           )
