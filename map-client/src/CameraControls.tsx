@@ -11,25 +11,31 @@ interface Props {
   basemap: Basemap | null;
   /** The current campus's locations; the tour visits a handful of them. */
   locations: CampusLocation[];
+  /** The intro's camera moves are still running: the spin on load waits for them. */
+  intro?: boolean;
 }
 
 const IDLE: CameraControllerState = { spinning: false, touring: false, preset: null, landmark: null };
 const noopSubscribe = () => () => {};
 
-export function CameraControls({ basemap, locations }: Props) {
+export function CameraControls({ basemap, locations, intro = false }: Props) {
   const [camera, setCamera] = useState<CameraController | null>(null);
 
   useEffect(() => {
     if (!basemap) return;
     const controller = new CameraController(basemap);
     setCamera(controller);
-    if (shouldAutoSpin()) controller.autoStart();
     if (import.meta.env.DEV) Object.assign(window, { __flowcastCamera: controller });
     return () => {
       controller.dispose();
       setCamera(null);
     };
   }, [basemap]);
+
+  // Spin on load, once the intro has flown in (both would turn the camera).
+  useEffect(() => {
+    if (camera && !intro && shouldAutoSpin()) camera.autoStart();
+  }, [camera, intro]);
 
   const state = useSyncExternalStore(camera?.subscribe ?? noopSubscribe, camera?.getState ?? (() => IDLE));
 

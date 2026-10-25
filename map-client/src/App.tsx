@@ -59,6 +59,7 @@ import { bikeLayers, bikeTooltip, loadBikeModels } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
 import { IntroScreen, createLoadProgress, introScale } from './IntroScreen';
 import { INTRO_VIEW, introZoom } from './intro';
+import { prefersReducedMotion } from './map/camera';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
@@ -152,6 +153,26 @@ const OCCUPANCY_REFRESH_MS = 500;
 const FROM_INTRO = !VIEW_IN_URL;
 const NO_PADDING = { top: 0, left: 0, right: 0, bottom: 0 };
 const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const nextFrames = (n: number) => new Promise<void>((resolve) => { const step = (left: number) => (left ? requestAnimationFrame(() => step(left - 1)) : resolve()); step(n); });
+/** Waits for the view's tiles, or `capMs` at most. */
+async function tilesIn(basemap: Basemap, capMs: number) {
+  const from = performance.now();
+  await nextFrames(2);
+  while (!basemap.tilesLoaded() && performance.now() - from < capMs) await nextFrames(1);
+}
+/**
+ * The intro's camera, like GTA V's character switch: from the still's framing straight up over
+ * campus (looking down), back down in two quick drops, then a swoop that tilts and turns into the
+ * opening view. Zooms are relative to the still's, which depends on the window's shape.
+ */
+const INTRO_RISE = 2.2; // zoom levels above the still
+const INTRO_STEPS: { zoomUp: number; pitch?: number; ms: number; hold: number }[] = [
+  { zoomUp: INTRO_RISE, pitch: 0, ms: 900, hold: 250 }, // up into the sky
+  { zoomUp: INTRO_RISE / 2, ms: 420, hold: 150 }, // and down in two drops
+  { zoomUp: 0, ms: 420, hold: 150 },
+];
+const INTRO_SWOOP_MS = 1000;
 /** ?ask=least+crowded+library opens the Ask tab with that question answered. */
 const START_QUESTION = params.get('ask');
 
@@ -221,7 +242,10 @@ export default function App() {
   const [parkingError, setParkingError] = useState<string | null>(null);
 
   const [loadProgress] = useState(createLoadProgress);
-  const introRef = useRef(FROM_INTRO); // the intro still is up and the camera is held at its framing
+  const introRef = useRef(FROM_INTRO); // the intro owns the camera (no panel padding) until it has flown in
+  // 'still': the intro still covers the loading map; 'sky': the live map's camera is rising and
+  // dropping (desaturated, interface hidden); 'swoop': into the opening view, the interface coming in.
+  const [introPhase, setIntroPhase] = useState<'still' | 'sky' | 'swoop' | 'done'>(FROM_INTRO ? 'still' : 'done');
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
   const [hud, setHud] = useState<Hud | null>(null);
   const [range, setRange] = useState<[number, number]>([0, 86400]);
@@ -437,8 +461,23 @@ export default function App() {
       const venueEvents = loadEventSources();
       // Observed counts for the public crowd; without them the map shows students only.
       const observationsLoad = loadObservations().catch(() => null);
+      const basemapLoad = track('Drawing the map', createBasemap(mapElement, shownLight, FROM_INTRO ? { ...INTRO_VIEW, zoom: introZoom(mapElement.clientWidth, mapElement.clientHeight) } : INITIAL_VIEW));
+      // Under the still, fetch the tiles the intro's camera will pass through (each view in turn,
+      // briefly), so the rise and the drops draw without gaps; then back to the still's framing.
+      const warmed = FROM_INTRO ? basemapLoad.then(async (map) => {
+        const width = mapElement.clientWidth;
+        const height = mapElement.clientHeight;
+        map.setLimits(false);
+        const views = [...INTRO_STEPS.map((step) => ({ ...INTRO_VIEW, zoom: introZoom(width, height) - step.zoomUp, pitch: step.pitch ?? 0 })), INITIAL_VIEW];
+        for (const view of views) {
+          if (cancelled) return;
+          map.jumpTo({ ...view, padding: NO_PADDING });
+          await tilesIn(map, 1500);
+        }
+        map.jumpTo({ ...INTRO_VIEW, zoom: introZoom(width, height), padding: NO_PADDING });
+      }).catch(() => {}) : Promise.resolve();
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields, , signs] = await Promise.all([
-        track('Drawing the map', createBasemap(mapElement, shownLight, FROM_INTRO ? { ...INTRO_VIEW, zoom: introZoom(mapElement.clientWidth, mapElement.clientHeight) } : INITIAL_VIEW)),
+        basemapLoad,
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
         track('Dressing the students', loadCharacterModels() as Promise<LoadedModels>),
         // Transit and bikes are extras: the campus view must still start if they can't load.
@@ -643,25 +682,48 @@ export default function App() {
       // Dev-only handle for poking at layers from the browser console.
       if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, get incident() { return incidentRunRef.current; }, transitRef, bikesRef, populationBase, quality } });
       // Lift the intro once the first frames are drawn and the view's tiles are in (or after 4 s
-      // regardless). From the intro still: line the live map up with the still's current framing
-      // (it has been pushing in), fade the still out over it, then fly in to the opening view with
-      // the panels' padding. With a view from the URL: sweep in from a wider, turned view.
+      // regardless). From the intro still: the live map takes over at the still's exact framing (no
+      // fade: the two are the same picture) and its camera runs the intro (INTRO_STEPS). With a
+      // view from the URL: sweep in from a wider, turned view.
+      const dropIn = async () => {
+        const width = mapElement.clientWidth;
+        const height = mapElement.clientHeight;
+        let stopped = false; // a drag or wheel during the intro hands the camera to the user
+        const unsubscribe = basemap.onUserInteraction(() => { stopped = true; });
+        basemap.jumpTo({ ...INTRO_VIEW, zoom: introZoom(width, height, introScale()), padding: NO_PADDING });
+        await nextFrames(2);
+        loadProgress.finish();
+        if (!prefersReducedMotion()) {
+          setIntroPhase('sky');
+          for (const step of INTRO_STEPS) {
+            if (cancelled || stopped) break;
+            basemap.easeTo({ zoom: introZoom(width, height) - step.zoomUp, pitch: step.pitch, duration: step.ms, easing: easeInOutCubic });
+            await sleep(step.ms + step.hold);
+          }
+        }
+        setIntroPhase('swoop');
+        if (!cancelled && !stopped) {
+          basemap.easeTo({ ...INITIAL_VIEW, padding: paddingRef.current, duration: INTRO_SWOOP_MS, easing: easeInOutCubic });
+          await sleep(INTRO_SWOOP_MS);
+        }
+        unsubscribe();
+        if (cancelled) return;
+        introRef.current = false;
+        basemap.setLimits(true);
+        if (stopped) basemap.setViewPadding(paddingRef.current);
+        setIntroPhase('done');
+      };
       const revealFrom = performance.now();
       const reveal = () => {
         if (cancelled) return;
         if (!basemap.tilesLoaded() && performance.now() - revealFrom < 4000) return void requestAnimationFrame(reveal);
-        if (introRef.current) {
-          introRef.current = false;
-          basemap.jumpTo({ ...INTRO_VIEW, zoom: introZoom(mapElement.clientWidth, mapElement.clientHeight, introScale()), padding: NO_PADDING });
-          setTimeout(() => { if (!cancelled) basemap.easeTo({ ...INITIAL_VIEW, padding: paddingRef.current, duration: 3200, easing: easeInOutCubic }); }, 350);
-        } else {
-          const camera = basemap.getCamera();
-          basemap.jumpTo({ zoom: camera.zoom - 0.9, bearing: camera.bearing - 25, pitch: Math.max(0, camera.pitch - 15) });
-          basemap.easeTo({ ...camera, duration: 2200 });
-        }
+        if (FROM_INTRO) return void dropIn();
+        const camera = basemap.getCamera();
+        basemap.jumpTo({ zoom: camera.zoom - 0.9, bearing: camera.bearing - 25, pitch: Math.max(0, camera.pitch - 15) });
+        basemap.easeTo({ ...camera, duration: 2200 });
         loadProgress.finish();
       };
-      requestAnimationFrame(() => requestAnimationFrame(reveal));
+      void warmed.then(() => requestAnimationFrame(() => requestAnimationFrame(reveal)));
 
       // The crowd glow and tags stand on the detailed models' roofs, not the shorter footprints.
       // Deferred campuses (buildings.ts): load their models once the view comes near them.
@@ -1302,7 +1364,7 @@ export default function App() {
   );
 
   return (
-    <div className={clean ? 'app is-clean' : 'app'}>
+    <div className={`app${clean ? ' is-clean' : ''}${introPhase === 'still' || introPhase === 'sky' ? ' is-intro' : ''}${introPhase === 'sky' ? ' is-sky' : ''}${introPhase === 'swoop' ? ' is-swoop' : ''}`}>
       {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
@@ -1690,7 +1752,7 @@ export default function App() {
               {SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}
               {!SPEEDS.includes(speed) && <option value={speed}>{speed}×</option>}
             </select>
-            {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}
+            {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} intro={introPhase !== 'done'} />}
             <Popover title="Layers" hint="Map layers and lighting" className="layers" label={<><LayersIcon /> <span className="tool-word">Layers</span></>}>
               <ul className="layer-list">
                 <LayerSwitch label="MBTA" detail="Trains, buses and BU shuttles" on={showTransit} onToggle={toggleTransit} />

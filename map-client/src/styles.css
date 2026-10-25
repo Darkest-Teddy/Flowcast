@@ -1082,3 +1082,14 @@ select.tool { padding: 0 8px 0 12px; }
 
 /* Brand mark beside the sheet title (the favicon art). */
 .sheet-logo { width: 24px; height: 24px; margin-right: var(--space-2); vertical-align: -4px; }
+
+/* The intro (App.tsx, INTRO_STEPS): while the camera rises and drops, only the map shows, greyed like
+   GTA V's view from the sky; the colour and the interface come back with the swoop into the view. */
+.app .map { transition: filter 0.6s ease; }
+.app.is-sky .map { filter: saturate(0.3); }
+.app.is-intro :is(.sheet, .toolbar, .sheet-dim, .perf, .btags, .gtags) { visibility: hidden; }
+.app.is-swoop :is(.sheet, .toolbar, .perf, .btags, .gtags) { animation: intro-interface-in 0.6s ease both; }
+@keyframes intro-interface-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .app.is-swoop :is(.sheet, .toolbar, .perf, .btags, .gtags) { animation: none; }
+}

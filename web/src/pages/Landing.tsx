@@ -102,7 +102,7 @@ export default function Landing() {
         </a>
         <LandingNav />
         <main id="main" tabIndex={-1} className={styles.main}>
-          <Hero day={day} loading={impact.loading} />
+          <Hero day={day} />
           <Preview day={day} error={impact.error} reload={impact.reload} />
           <HowItWorks sources={sources.data} />
           <Features day={day} event={event} />
@@ -193,20 +193,20 @@ interface TagSpot {
   y: number;
 }
 
-function Hero({ day, loading }: { day: DayForecast | null; loading: boolean }) {
+function Hero({ day }: { day: DayForecast | null }) {
   const stageRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
   const [spots, setSpots] = useState<Record<string, TagSpot | null>>({});
 
   // Tags point at roofs in the still of the map. It covers the stage (centred, object-fit: cover),
   // so a roof's spot is its place in the shot, scaled about the centre. A tag that would leave the
-  // stage or run into the forecast card is hidden.
+  // stage or run into the headline is hidden.
   const measure = useCallback(() => {
     const stage = stageRef.current;
     if (!stage) return;
     const box = stage.getBoundingClientRect();
     const scale = coverScale(box.width, box.height);
-    const card = cardRef.current?.getBoundingClientRect();
+    const cards = textRef.current ? [textRef.current.getBoundingClientRect()] : [];
     const next: Record<string, TagSpot | null> = {};
     for (const tag of HERO_TAGS) {
       const [ax, ay] = INTRO_ANCHORS[tag.place];
@@ -214,14 +214,9 @@ function Hero({ day, loading }: { day: DayForecast | null; loading: boolean }) {
       const y = (ay - INTRO_SHOT.height / 2) * scale + box.height / 2;
       const top = y - tag.stem - 34;
       // The pills are centred on their roof and up to ~260px wide ("Warren Towers (Tower A) · Busy 68%").
-      let show = x > 130 && x < box.width - 130 && top > 8;
-      if (card && show) {
-        const cl = card.left - box.left;
-        const cr = card.right - box.left;
-        const ct = card.top - box.top;
-        if (x > cl - 110 && x < cr + 110 && y > ct - 20) show = false;
-      }
-      next[tag.place] = show ? { x, y } : null;
+      const tagBox = { left: box.left + x - 130, right: box.left + x + 130, top: box.top + top, bottom: box.top + y };
+      const clear = cards.every((c) => tagBox.right < c.left - 8 || tagBox.left > c.right + 8 || tagBox.bottom < c.top - 8 || tagBox.top > c.bottom + 8);
+      next[tag.place] = x > 130 && x < box.width - 130 && top > 8 && clear ? { x, y } : null;
     }
     setSpots(next);
   }, []);
@@ -237,12 +232,10 @@ function Hero({ day, loading }: { day: DayForecast | null; loading: boolean }) {
 
   // The still in the light the map opens in now: the same picture the map's intro starts from.
   const [still] = useState(() => introSources(presetNow()));
-  const mugar = day?.share('mugar', HERO_HOUR) ?? null;
-  const next = [1, 2, 3, 4].map((k) => Math.min(LAST_HOUR, HERO_HOUR + k));
 
   return (
     <section id="top" tabIndex={-1} className={`${styles.dark} ${styles.hero}`} data-theme="dark" aria-labelledby="hero-title">
-      <div className={styles.heroText}>
+      <div ref={textRef} className={styles.heroText}>
         <p className={styles.heroEyebrow}>Crowd forecasts for Boston University</p>
         <h1 id="hero-title" className={styles.heroTitle}>
           See how busy campus is before you go.
@@ -295,40 +288,6 @@ function Hero({ day, loading }: { day: DayForecast | null; loading: boolean }) {
               </div>
             );
           })}
-
-        <div ref={cardRef} className={styles.heroCard}>
-          {day && mugar != null ? (
-            <>
-              <p className={styles.heroCardWhen}>
-                Simulation · {day.date} · {hourLabel(HERO_HOUR)}
-              </p>
-              <p className={styles.heroCardPlace}>{day.place('mugar')?.name}</p>
-              <p className={styles.heroCardNow}>
-                <Dot share={mugar} size="lg" />
-                <span>{reading(mugar)}</span>
-              </p>
-              <ol className={styles.heroNext} aria-label="Next four hours">
-                {next.map((hour) => {
-                  const share = day.share('mugar', hour);
-                  return (
-                    <li key={hour}>
-                      <span className={styles.heroNextBar} aria-hidden>
-                        {share != null && <span style={{ height: `${Math.max(3, Math.min(100, share * 100))}%`, background: crowdFor(share).color }} />}
-                      </span>
-                      <span className={styles.heroNextHour}>{hourLabel(hour)}</span>
-                      <span className={styles.heroNextValue}>
-                        {share != null ? formatPercent(share) : 'Unavailable'}
-                        {share != null && <span className="visually-hidden"> {crowdFor(share).label}</span>}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </>
-          ) : (
-            <p className={styles.heroCardWhen}>{loading ? 'Loading the forecast…' : 'Forecast unavailable. See the forecast panel below.'}</p>
-          )}
-        </div>
       </div>
     </section>
   );

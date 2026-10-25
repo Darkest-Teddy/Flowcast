@@ -47,6 +47,8 @@ export interface Basemap {
   /** Animated move; `fly: true` uses the zoom-out arc of flyTo. Skipped (jumps) under prefers-reduced-motion. */
   easeTo(move: CameraMove): void;
   jumpTo(camera: Partial<CameraState> & { padding?: ViewPadding }): void;
+  /** Lift (false) or restore (true) the camera's limits to central Boston: the intro rises above them. */
+  setLimits(on: boolean): void;
   /** True while an animated camera move (ours or the app's flyTo) is running. */
   isEasing(): boolean;
   /** Steepest pitch the map allows. */
@@ -96,6 +98,8 @@ interface CameraMap {
   easeTo(options: object): unknown;
   flyTo(options: object): unknown;
   jumpTo(options: object): unknown;
+  setMaxBounds(bounds: [[number, number], [number, number]] | null): unknown;
+  setMinZoom(zoom: number | null): unknown;
   isEasing(): boolean;
   getCanvasContainer(): HTMLElement;
   on(type: string, listener: (e: { originalEvent?: Event }) => void): unknown;
@@ -143,6 +147,10 @@ function cameraApi(map: CameraMap, maxPitch: number) {
       else map.easeTo(options);
     },
     jumpTo: (camera: Partial<CameraState> & { padding?: ViewPadding }) => map.jumpTo(camera),
+    setLimits: (on: boolean) => {
+      map.setMinZoom(on ? BOSTON_LIMITS.minZoom : null);
+      map.setMaxBounds(on ? BOSTON_LIMITS.maxBounds : null);
+    },
     isEasing: () => map.isEasing(),
     maxPitch,
     onUserInteraction: (cb: (kind: UserInteraction) => void) => {

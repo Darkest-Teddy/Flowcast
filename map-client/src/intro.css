@@ -1,16 +1,13 @@
-/* Startup overlay (IntroScreen.tsx): the intro still over the loading map. Only transform and
-   opacity animate, so the compositor does the work while the main thread parses models and builds
-   the population. The progress line is art over a photo: its own light ink in both themes. */
+/* Startup overlay (IntroScreen.tsx): the intro still over the loading map, no backdrop of its own.
+   Only transform animates, so the compositor does the work while the main thread parses models and
+   builds the population. The progress line is art over a photo: its own light ink in both themes. */
 
 .intro {
   position: absolute;
   inset: 0;
   z-index: 50;
   overflow: hidden;
-  background: #0b0d12;
-  transition: opacity 0.9s ease;
 }
-.intro.intro-out { opacity: 0; pointer-events: none; }
 
 /* Covers the window exactly as the live map will (centred, object-fit: cover; intro.ts works out
    the matching zoom), pushing in slowly like a camera moving toward campus. */
@@ -22,8 +19,6 @@
   object-fit: cover;
   animation: intro-push 30s cubic-bezier(0.2, 0.6, 0.35, 1) both;
 }
-/* Hold the framing the live map was lined up with while the still fades. */
-.intro-out .intro-still { animation-play-state: paused; }
 @keyframes intro-push {
   from { transform: scale(1); }
   to { transform: scale(1.1); }
@@ -36,9 +31,7 @@
   width: min(320px, calc(100% - 64px));
   transform: translateX(-50%);
   text-align: center;
-  transition: opacity 0.3s ease;
 }
-.intro-out .intro-progress { opacity: 0; }
 .intro-step {
   margin: 0 0 10px;
   color: #fff;
@@ -90,5 +83,4 @@
 
 @media (prefers-reduced-motion: reduce) {
   .intro-still { animation: none; }
-  .intro { transition-duration: 0.2s; }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import type { LightPreset } from './map/basemap';
 import { INTRO_KEY, introSources } from './intro';
 import './intro.css';
@@ -79,28 +79,20 @@ export function introScale(): number {
 /**
  * Full-screen startup overlay: a still of the map at the intro camera, pushing in slowly while the
  * map loads underneath, with a slim progress line. When `progress` reports ready the app has put
- * the live map at the same framing; the still fades into it and unmounts.
+ * the live map at the same framing, so the overlay simply goes (no fade: it's the same picture)
+ * and the live map's camera carries on (App.tsx, INTRO_STEPS).
  */
 export function IntroScreen({ progress, preset }: { progress: LoadProgress; preset: LightPreset }) {
   const state = useSyncExternalStore(progress.subscribe, progress.get);
   const [still] = useState(() => stillFor(preset));
-  const [gone, setGone] = useState(false);
   // The bar eases between real counts; start it slightly filled so it never sits empty.
   const fraction = state.ready ? 1 : state.total ? 0.04 + 0.92 * (state.done / state.total) : 0.04;
 
-  useEffect(() => {
-    if (!state.ready) return;
-    // Matches the .intro-out transition (shorter when motion is reduced); then drop the overlay entirely.
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const timer = setTimeout(() => setGone(true), reduce ? 250 : 1000);
-    return () => clearTimeout(timer);
-  }, [state.ready]);
-
-  if (gone) return null;
-  const step = state.ready ? 'Ready' : state.pending[0] ?? (state.total ? 'Placing students' : 'Starting up');
+  if (state.ready && !state.error) return null;
+  const step = state.pending[0] ?? (state.total ? 'Placing students' : 'Starting up');
 
   return (
-    <div className={`loader intro${state.ready ? ' intro-out' : ''}${state.error ? ' intro-failed' : ''}`} aria-busy={!state.ready && !state.error}>
+    <div className={`loader intro${state.error ? ' intro-failed' : ''}`} aria-busy={!state.error}>
       {/* The page's static copy (map.html) shows the same still before this mounts; drop it once ours is up. */}
       <img
         className="intro-still"
@@ -118,7 +110,7 @@ export function IntroScreen({ progress, preset }: { progress: LoadProgress; pres
         </div>
       ) : (
         <div className="intro-progress">
-          <p className="intro-step" aria-live="polite">{step}{state.ready ? '' : '…'}</p>
+          <p className="intro-step" aria-live="polite">{step}…</p>
           <div className="intro-bar" role="progressbar" aria-label="Loading the map" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)}>
             <span style={{ transform: `scaleX(${fraction})` }} />
           </div>
