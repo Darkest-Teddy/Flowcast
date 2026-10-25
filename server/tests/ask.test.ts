@@ -146,8 +146,27 @@ test('walking route between a place and a course gives meters, minutes and a pat
 test('course lookup gives the next published meeting', async () => {
   const { out } = await call('find_course', { code: 'CAS CS 132' });
   assert.equal(out.courseCode, 'CAS CS 132');
-  assert.ok(out.next.building && out.next.room && out.next.day);
-  assert.ok(out.sectionsByBuilding.length >= 1);
+  assert.ok(out.next.building && out.next.room && out.next.day && out.next.floor);
+  assert.ok(out.sections.length >= 1);
+  for (const s of out.sections) for (const m of s.meets) assert.ok(out.buildings[m.building], `building ${m.building} is described`);
+});
+
+test('course lookup answers with building and floor, a section, and title words', async () => {
+  const { out } = await call('find_course', { code: 'cs112 a1' });
+  assert.equal(out.courseCode, 'CAS CS 112');
+  assert.equal(out.sectionFound, true);
+  assert.deepEqual(out.sections.map((s: { section: string }) => s.section), ['A1']);
+  const meet = out.sections[0].meets[0];
+  assert.equal(meet.floor, /^B\d/.test(meet.room) ? 'Basement' : meet.floor);
+  assert.match(meet.floor, /^(Basement|Ground floor|\d+(st|nd|rd|th) floor|room .+)$/);
+  const big = await call('find_course', { code: 'CS 111' });
+  assert.ok(JSON.stringify(big.out).length < 2500, 'compact output for a course with many sections');
+  assert.ok(big.out.moreSections > 0);
+  assert.match(out.buildings[meet.building].address ?? '', /Commonwealth|Cummington|Street|Mall/);
+  assert.match(out.floorRule, /room number/);
+  const title = await call('find_course', { code: 'intro to CS' });
+  assert.ok(title.out.ambiguous.some((c: string) => c.startsWith('CAS CS 111 Introduction to Computer Science')));
+  assert.match((await call('find_course', { code: 'zzzz qqqq' })).out.error, /no published course title/);
 });
 
 test('a code naming two courses is ambiguous instead of mixing their sections', async () => {

@@ -7,6 +7,7 @@
 // transit feeds, source URL lists, or the private bundle unless FLOWCAST_ASK_PRIVATE_BUNDLE=1.
 
 import type { PersonalSchedule } from '../../map-client/src/personalSchedule';
+import type { ClassDirectory } from '../../map-client/src/classSearch';
 import type { AskContext } from '../../map-client/src/insights';
 import { ASK_ASSUMPTIONS } from '../../map-client/src/insights';
 import { LEVELS } from '../../map-client/src/layers/crowdLevels';
@@ -50,6 +51,8 @@ export interface AskFacts {
   allLocations: CampusLocation[];
   /** The extra datasets only the chat tools read (chatData.ts); absent in minimal fixtures. */
   chat?: ChatFacts;
+  /** Building names/addresses and published instructors for find_course (class-directory.json); absent in minimal fixtures. */
+  classDirectory?: ClassDirectory;
 }
 
 /** The Ask context on the server: the shared one plus the facts above. */

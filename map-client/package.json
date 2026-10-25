@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "prepare:data": "python3 ../data-pipeline/build_map_data.py && python3 ../data-pipeline/build_runtime_data.py && python3 ../data-pipeline/build_mobility_data.py && python3 ../data-pipeline/build_shuttle_schedule.py && node scripts/build-event-impact.mjs --if-stale",
+    "prepare:data": "python3 ../data-pipeline/build_map_data.py && python3 ../data-pipeline/build_class_directory.py && python3 ../data-pipeline/build_runtime_data.py && python3 ../data-pipeline/build_mobility_data.py && python3 ../data-pipeline/build_shuttle_schedule.py && node scripts/build-event-impact.mjs --if-stale",
     "prebuild": "npm run prepare:data",
     "test": "node --test tests/*.test.mjs",
     "validate:behavior": "node scripts/validate-behavior.mjs",

@@ -11,6 +11,9 @@ import { bostonClock } from '../lib/askRouting';
 import { eventSlotsQuery, parseEventSlots, type EventPlan } from '../lib/eventSlots';
 import { parseChatResponse, parseDirectoryResponse, type ChatResult, type DirectoryResult } from '../lib/chatParse';
 import type { PersonalSchedule } from '@map/personalSchedule';
+import type { ClassDirectory } from '../../../map-client/src/classSearch';
+import type { CampusData as CampusBundle } from '../../../map-client/src/data/campusData';
+import type { ClassFinderData } from '../lib/classFinder';
 import type { ChatRequest } from '@map/chatContract';
 import type {
   AdminSettings, AdminUser, AgentBrain, ApplicationStatus, CalendarConnection, CalendarImport,
@@ -66,7 +69,32 @@ function pause(ms: number, signal?: AbortSignal): Promise<boolean> {
   });
 }
 
+/** The published class schedule and its sidecar, loaded once per page load (campus-data.json is ~3 MB). */
+let classFinderLoad: Promise<ClassFinderData & { data: CampusBundle }> | null = null;
+function loadClassFinder() {
+  classFinderLoad ??= Promise.all([
+    fetch('/data/campus-data.json').then((r) => { if (!r.ok) throw new Error('The published class schedule could not be loaded.'); return r.json() as Promise<CampusBundle>; }),
+    fetch('/data/class-directory.json').then((r) => (r.ok ? r.json() as Promise<ClassDirectory> : { buildings: {}, instructors: {} }), () => ({ buildings: {}, instructors: {} })),
+  ]).then(([data, directory]) => {
+    if (!data.locations || typeof data.locations !== 'object') throw new Error('The published class schedule is unavailable.');
+    const meetings = Object.entries(data.locations).flatMap(([locationId, l]) => (l.meetings ?? []).map((meeting) => ({ locationId, meeting })));
+    return { meetings, directory, data };
+  });
+  classFinderLoad.catch(() => { classFinderLoad = null; });
+  return classFinderLoad;
+}
+
 export const api = {
+  /** Published class meetings with building names/addresses and instructors, for class search. */
+  getClassFinder: (): Promise<ClassFinderData> => loadClassFinder().then(({ meetings, directory }) => ({ meetings, directory })),
+  /** The simulation's behaviour modifiers (behavior.json), for quoting exam-season assumptions. */
+  async getBehaviorModifiers(): Promise<{ modifiers?: { id: string; when?: { period?: string[] }; effects?: { target: string; op: string; value: number }[]; provenance?: { note?: string; source?: string } }[] }> {
+    const response = await fetch('/data/behavior.json');
+    if (!response.ok) throw new Error('The conditions model could not be loaded.');
+    return response.json();
+  },
+  /** The campus bundle (academic calendar, class meetings) for exam-season mode. */
+  getCampusBundle: (): Promise<CampusBundle> => loadClassFinder().then(({ data }) => data),
   getStudySpots: () => copy(studySpots),
   /** Published hours for every mapped place (dining halls, libraries, FitRec...), as the study finder reads them. */
   async getPlaceHours(): Promise<StudyHoursByLocation> {

@@ -8,6 +8,7 @@ import { answerMapLink } from '../lib/askMapLink';
 import { config } from '../config';
 import { Button, EmptyState, Loading, Page, PageHeader, SelectField } from '../ui';
 import { useDepartureClock } from './student/DepartureCard';
+import { StudyExamSeason } from './StudyExamSeason';
 import styles from './Study.module.css';
 
 const amenityLabels: Record<StudyAmenity, string> = { quiet: 'Silent study', group: 'Group work', outlets: 'Power outlets', whiteboard: 'Whiteboard', food: 'Food allowed' };
@@ -44,6 +45,7 @@ export default function Study() {
 
   return <Page>
     <PageHeader title="Find a study spot" description="Choose a space for the time you have." />
+    <StudyExamSeason now={now} from={from} locations={locations.data ?? []} geo={geo.data ?? emptyGeo} forecasts={forecasts.data ?? []} />
     <section className={styles.filters} aria-label="Study preferences">
       <div className={styles.controls}>
         <SelectField label="Starting building" value={from} onChange={e => setOrigin(e.target.value)}>

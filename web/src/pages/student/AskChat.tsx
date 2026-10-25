@@ -7,6 +7,7 @@ import { config } from '../../config';
 import { buildPersonalSchedule } from '../../lib/personalSchedule';
 import { isPersonalQuestion, routeQuestion } from '../../lib/askRouting';
 import { answerMapLink, remoteAnswerPoints } from '../../lib/askMapLink';
+import { isClassQuestion } from '../../lib/classFinder';
 import { Button, ListRow } from '../../ui';
 import { agentAnswer, answerQuestion, type Answer, type CampusData } from './campusSearch';
 import { ExampleQuestions } from './SearchResults';
@@ -94,7 +95,8 @@ export function AskChat({ data, visible, composer, scheduleAvailable = false }: 
         ? { text: 'Which building do you mean? Name the campus building in a new question. On-device answers are not shared with the Ask server.', rows: [], focus: [] }
         : !scheduleAvailable && isPersonalQuestion(question)
           ? { text: 'Your schedule could not be loaded. Try again or open Calendars.', rows: [], focus: [] }
-          : answerQuestion(question, data, at);
+          : answerQuestion(question, { ...data, classes: isClassQuestion(question) ? await api.getClassFinder().catch(() => null) : null }, at);
+      if (controller.signal.aborted || active.current !== controller) return;
       const source = privateTurn
         ? 'On this device · this answer stays here. Campus conversation context has been cleared.'
         : `On-device fallback · ${outcome.reason === 'failed' && outcome.error.kind === 'notConfigured' ? 'Ask server is not configured' : 'Ask server could not answer'}.`;
