@@ -362,7 +362,7 @@ test('branch libraries and cafés: found by common names, ranked, with published
 test('campus_overview: whole-map totals from the playback, compact', async () => {
   const { out, log } = await call('campus_overview', { weekday: null, time: null, campus: null });
   const pop = wednesday.populationAt(ctx.time);
-  assert.deepEqual(out.simulated, { students: pop.total, indoorsOnMap: pop.indoors, walking: pop.walking, notOnMap: pop.offCampus });
+  assert.deepEqual(out.simulated, { people: pop.total, indoorsOnMap: pop.indoors, walking: pop.walking, notOnMap: pop.offCampus });
   assert.equal(Object.values(out.indoorsByCampus as Record<string, number>).reduce((a, b) => a + b, 0), pop.indoors);
   assert.equal(Object.values(out.walkingTo as Record<string, number>).reduce((a, b) => a + b, 0), pop.walking);
   assert.equal(out.enrollment.students, 36977);

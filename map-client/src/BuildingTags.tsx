@@ -303,7 +303,8 @@ interface ActivityDisplayInput {
 }
 
 /** Labels refer to the modeled space and its denominator, not every use of its building. */
-/** Below these, a place shows "<N%" / "<N students" instead of a figure that rounds to zero. */
+/** Below these, a place shows "<N%" / "<N people" instead of a figure that rounds to zero. Counts are
+ * everyone simulated there: students and, in academic buildings, dining venues and gyms, modeled staff. */
 const NEAR_ZERO_PERCENT = 5;
 const NEAR_ZERO_STUDENTS = 3;
 
@@ -327,7 +328,7 @@ export function activityDisplay({ count, capacity: total, modeled, capacityBasis
   const primary = modeled === false ? 'Not modeled'
     : hasPercentage
       ? percent < NEAR_ZERO_PERCENT && !(allowZero && count === 0) ? `<${nearZeroPct}%${unit}` : `${percent}%${unit}`
-      : count < NEAR_ZERO_STUDENTS && !(allowZero && count === 0) ? `<${NEAR_ZERO_STUDENTS} students` : `${count.toLocaleString()} ${count === 1 ? 'student' : 'students'}`;
+      : count < NEAR_ZERO_STUDENTS && !(allowZero && count === 0) ? `<${NEAR_ZERO_STUDENTS} people` : `${count.toLocaleString()} ${count === 1 ? 'person' : 'people'}`;
   const secondary = hasPercentage ? level.label : '';
   return {
     primary,

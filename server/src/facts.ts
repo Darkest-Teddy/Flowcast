@@ -42,7 +42,7 @@ export interface AskFacts {
   day(weekday: number): DayResult;
   /** Capacity basis per location id, without source URLs. */
   basis: Record<string, CapacityBasis>;
-  populationSummary: Pick<PopulationSummary, 'total' | 'reportingPeriod' | 'campusAllocation'>;
+  populationSummary: Pick<PopulationSummary, 'total' | 'reportingPeriod' | 'campusAllocation'> & Partial<Pick<PopulationSummary, 'staff' | 'staffReportingPeriod'>>;
   pedestrians: PedestrianSite[];
   /** Short assumption statements by topic (model_basis). */
   assumptions: Record<BasisTopic, string[]>;
@@ -92,11 +92,11 @@ export function assumptionTable(data: CampusData, locations: CampusLocation[], s
   return {
     capacity: [
       'Each place has a stated capacity with a basis: a published figure, deduplicated published classroom seats, residential beds, or a configured model size. place_info gives the basis and confidence for one place.',
-      'Percent full is simulated students over that capacity. Residential and low-confidence estimated capacities are not shown as percentages.',
+      'Percent full is simulated people present (students, plus modeled faculty and staff in academic buildings, dining venues and gyms) over that capacity. Residential and low-confidence estimated capacities are not shown as percentages.',
     ],
     crowding: [
       `Crowd levels over stated capacity: ${levels}.`,
-      'Counts are simulated students present at that minute on a representative reference week, not measurements or live counts.',
+      'Counts are simulated people (students and modeled staff) present at that minute on a representative reference week, not measurements or live counts.',
     ],
     walking: [
       `Walks follow bundled OpenStreetMap pedestrian routes at ${ASK_ASSUMPTIONS.walkSpeedMps} m/s. A pair with no mapped route uses straight-line distance × ${ASK_ASSUMPTIONS.detourFactor}, marked as an estimate.`,
@@ -123,6 +123,7 @@ export function assumptionTable(data: CampusData, locations: CampusLocation[], s
     ],
     population: [
       `${summary.total.toLocaleString('en-US')} students (${summary.reportingPeriod}) are simulated; institutional enrollment is not simultaneous campus occupancy.`,
+      ...(summary.staff ? [`${summary.staff.toLocaleString('en-US')} faculty and staff (${summary.staffReportingPeriod ?? 'published employee headcount'}) are also simulated with a modeled working day: most on campus on weekdays 08:00–18:00, working in a mapped academic building, planned after every student. Their schedules are assumptions, not observed.`] : []),
       clip(summary.campusAllocation, 300) ?? '',
     ].filter(Boolean),
   };

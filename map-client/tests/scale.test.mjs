@@ -28,6 +28,8 @@ test('bundled population and weekly schedules conserve all people and physical t
     assert.ok(day.sourceStats.modeledOffCampusMeals > 0, 'off-campus meals are represented without adding people');
     for (const activity of day.sourceActivities) {
       if (activity.kind === 'off-campus-meal') continue;
+      // Employees' work blocks are in mapped academic buildings, which publish no opening hours (sim/staff.ts).
+      if (activity.kind === 'work') { assert.ok(activity.agentId.startsWith('staff:')); assert.equal(base.locations.find(l => l.id === activity.locationId)?.kind, 'classroom'); continue; }
       if (activity.kind === 'off-campus-outing') { assert.equal(activity.locationId, 'off-campus'); assert.ok(weekday >= 4, 'outings are Friday/Saturday only'); continue; }
       if (activity.kind === 'unmapped-academic') {
         const site = base.locations.find(location => location.id === activity.locationId);
@@ -82,7 +84,7 @@ test('bundled population and weekly schedules conserve all people and physical t
     }
     for (let time = 0; time < 86400; time += 900) {
       const counts = playback.populationAt(time);
-      assert.equal(counts.total, 36977);
+      assert.equal(counts.total, 36977 + 11140); // students and modeled staff
       assert.ok(counts.offCampus >= 0);
       assert.equal(counts.indoors + counts.walking + counts.offCampus, counts.total);
       assert.ok(playback.occupancyAt(time).every(o => Number.isFinite(o.share)));

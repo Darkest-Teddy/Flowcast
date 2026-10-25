@@ -47,7 +47,7 @@ const SINGULAR: Record<LocationKind, string> = {
   library: 'library', dining: 'dining hall', gym: 'gym', dorm: 'residence hall', classroom: 'academic building', outdoor: 'outdoor space', 'off-campus': 'place',
 };
 
-const MODEL_NOTE = 'Simulated students over each place’s stated capacity, on the shown day’s modeled schedule. Not a live count.';
+const MODEL_NOTE = 'Simulated people (students and modeled staff) over each place’s stated capacity, on the shown day’s modeled schedule. Not a live count.';
 
 const pct = (share: number) => `${Math.round(share * 100)}%`;
 const level = (share: number) => crowdLevel(share).label.toLowerCase();
@@ -73,7 +73,7 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
       if (!ranked.length) return { text: `There are no ${PLURAL[placeKind]} on this campus in the model.`, rows: [], show: null };
       const rows = ranked.map((r: RankedPlace) => ({
         location: r.location,
-        primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.share === null ? `${r.count.toLocaleString()} students` : `${pct(r.share)} ${crowdLevel(r.share).label}`,
+        primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.share === null ? `${r.count.toLocaleString()} people` : `${pct(r.share)} ${crowdLevel(r.share).label}`,
         secondary: [r.modeled && r.open === null ? 'Hours not published' : '', r.walk ? (r.walk.meters === 0 ? 'here' : `${r.walk.basis === 'estimate' ? '~' : ''}${r.walk.minutes} min walk`) : ''].filter(Boolean).join(' · '),
         share: r.open === false ? null : r.share,
       }));
@@ -163,7 +163,7 @@ function describe(insight: MapInsight, ctx: AskContext, byId: Map<string, Campus
         : '';
       if (now === null) {
         const count = ctx.occupancyAt(time).find((o) => o.location.id === location.id)?.count ?? 0;
-        return { text: `${location.name} has ${count.toLocaleString()} simulated students ${when(time)}. Its capacity isn't comparable, so the map shows a headcount rather than a percentage.${hoursNote}`, rows: [], note: MODEL_NOTE, show };
+        return { text: `${location.name} has ${count.toLocaleString()} simulated people ${when(time)}. Its capacity isn't comparable, so the map shows a headcount rather than a percentage.${hoursNote}`, rows: [], note: MODEL_NOTE, show };
       }
       const later = quiet && busy && quiet.time !== busy.time
         ? ` For the rest of ${WEEKDAYS[ctx.weekday]}, it's quietest at ${formatClock(quiet.time)} (${pct(quiet.share)}) and busiest at ${formatClock(busy.time)} (${pct(busy.share)}).`
@@ -195,7 +195,7 @@ function fromAgent(result: AgentAnswer, byId: Map<string, CampusLocation>): Answ
     const share = r.open === false || r.percent === null ? null : r.percent / 100;
     return [{
       location,
-      primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.percent === null ? `${r.students.toLocaleString()} students` : `${r.percent}% ${r.level ?? crowdLevel(r.percent / 100).label}`,
+      primary: !r.modeled ? 'Not modeled' : r.open === false ? 'Closed' : r.percent === null ? `${r.students.toLocaleString()} people` : `${r.percent}% ${r.level ?? crowdLevel(r.percent / 100).label}`,
       secondary: [r.modeled && r.open === null ? 'Hours not published' : '', r.walkMinutes === null ? '' : r.walkMinutes === 0 ? 'here' : `${r.walkMinutes} min walk`].filter(Boolean).join(' · '),
       share,
     }];

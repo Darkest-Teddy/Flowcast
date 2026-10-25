@@ -3,6 +3,7 @@
 // Every metric has a loss ≥ 0 (lower is better), so a proposal can be checked metric by metric.
 import type { CampusData } from '../data/campusData';
 import type { DayData } from './playback';
+import { isStaff } from './staff';
 import type { SourceDay } from './sourceDay';
 import { EVERYONE_BAND, pearson as observedPearson, peakHoursApart, seriesForWeekday, simulatedPedestrians, simulatedTransit,
   type CalibrationObservations, type ObservationBin } from '../data/observations';
@@ -220,7 +221,7 @@ export function scoreDay(input: ScoreInput): DayScore {
   const outdoor = occupancySeries(day, outdoorTimes, id => id.startsWith('outdoor:'));
   const outdoorAt = (index: number) => [...outdoor.values()].reduce((sum, row) => sum + row[index], 0) / scale;
   add({ id: 'outdoor-3am', label: 'People by the river at 03:00', value: outdoorAt(0), loss: hinge(outdoorAt(0), 5, 50), target: '≈ 0', weight: 0.5 });
-  if (normal && input.observations) for (const metric of scoreObservations(input.observations, day, weekday, scale).metrics) add(metric);
+  if (normal && input.observations) for (const metric of scoreObservations(input.observations, day, weekday, scale, staffIds(input.base)).metrics) add(metric);
   const loss = metrics.reduce((sum, metric) => sum + metric.weight * metric.loss, 0);
   return { day: input.label, metrics, loss };
 }
@@ -252,7 +253,7 @@ export interface ObservationGroup {
 }
 export interface ObservationScore {
   groups: ObservationGroup[];
-  /** Students + public (the public fill rule of publicCrowd.ts): median r and median ratio over every scored series. */
+  /** Students + staff + public (the public fill rule of publicCrowd.ts): median r and median ratio over every scored series. */
   everyone: { series: number; medianShape: number | null; medianRatio: number | null };
   studentsOnly: { series: number; medianShape: number | null; medianRatio: number | null };
   kenmoreStudentEntries: number;
@@ -268,14 +269,31 @@ const median = (values: number[]) => {
 const smooth121 = (values: readonly number[]) => values.length < 3 ? [...values]
   : values.map((v, i) => (values[Math.max(0, i - 1)] + 2 * v + values[Math.min(values.length - 1, i + 1)]) / 4);
 
-export function scoreObservations(observations: CalibrationObservations, day: Pick<SourceDay, 'trips' | 'transitRides'>, weekday: number, scale = 1): ObservationScore {
+/** Simulated BU employees (sim/staff.ts) in a roster. */
+export const staffIds = (base: DayData): ReadonlySet<string> => new Set(base.agents.filter(isStaff).map(agent => agent.id));
+
+/**
+ * `staff`: employee ids. The student metrics (timing, overflow above the students' plausible share)
+ * use students only; "everyone" is students + employees + the public fill, which covers only what
+ * the simulated BU people leave (as publicCrowd.ts does).
+ */
+export function scoreObservations(observations: CalibrationObservations, day: Pick<SourceDay, 'trips' | 'transitRides'>, weekday: number, scale = 1,
+  staff: ReadonlySet<string> = new Set()): ObservationScore {
   const { transit, pedestrian } = seriesForWeekday(observations, weekday, { primaryOnly: true });
-  type Row = { id: string; bins: ObservationBin[]; observed: number[]; students: number[]; high: number; transit: boolean };
+  type Row = { id: string; bins: ObservationBin[]; observed: number[]; students: number[]; bu: number[]; high: number; transit: boolean };
   const rows: Row[] = [];
-  for (const series of transit) rows.push({ id: series.id, bins: series.bins, observed: series.bins.map(b => b.value),
-    students: simulatedTransit(day.transitRides ?? [], series).map(v => v / scale), high: series.expectedStudentShare[1], transit: true });
-  for (const site of pedestrian) rows.push({ id: site.id, bins: site.bins, observed: site.bins.map(b => b.value),
-    students: simulatedPedestrians(day.trips, site).map(v => v / scale), high: site.expectedStudentShare[1], transit: false });
+  const rides = day.transitRides ?? [], studentRides = staff.size ? rides.filter(ride => !staff.has(ride.agent)) : rides;
+  const studentTrips = staff.size ? day.trips.filter(trip => !staff.has(trip.agent)) : day.trips;
+  for (const series of transit) {
+    const students = simulatedTransit(studentRides, series).map(v => v / scale);
+    rows.push({ id: series.id, bins: series.bins, observed: series.bins.map(b => b.value), students,
+      bu: staff.size ? simulatedTransit(rides, series).map(v => v / scale) : students, high: series.expectedStudentShare[1], transit: true });
+  }
+  for (const site of pedestrian) {
+    const students = simulatedPedestrians(studentTrips, site).map(v => v / scale);
+    rows.push({ id: site.id, bins: site.bins, observed: site.bins.map(b => b.value), students,
+      bu: staff.size ? simulatedPedestrians(day.trips, site).map(v => v / scale) : students, high: site.expectedStudentShare[1], transit: false });
+  }
   const byId = new Map(rows.map(row => [row.id, row]));
   const group = (id: string, label: string, members: Row[]): ObservationGroup => {
     let rWeight = 0, rSum = 0, pWeight = 0, pSum = 0, observedTotal = 0, studentTotal = 0, over = 0;
@@ -298,7 +316,8 @@ export function scoreObservations(observations: CalibrationObservations, day: Pi
     const parts = transit.filter(series => series.stop.mapStopId === stop && series.kind === kind && series.route === 'Green-B').map(series => byId.get(series.id)!);
     if (!parts.length) continue;
     buStops.push({ id: `${stop}-${kind}`, bins: parts[0].bins, observed: parts[0].observed.map((_, i) => parts.reduce((sum, row) => sum + row.observed[i], 0)),
-      students: parts[0].students.map((_, i) => parts.reduce((sum, row) => sum + row.students[i], 0)), high: parts[0].high, transit: true });
+      students: parts[0].students.map((_, i) => parts.reduce((sum, row) => sum + row.students[i], 0)),
+      bu: parts[0].bu.map((_, i) => parts.reduce((sum, row) => sum + row.bu[i], 0)), high: parts[0].high, transit: true });
   }
   const groups = [
     group('bu-b-line', 'Green Line B, BU stops (ons and offs)', buStops),
@@ -313,8 +332,8 @@ export function scoreObservations(observations: CalibrationObservations, day: Pi
   for (const row of rows) {
     const observedTotal = row.observed.reduce((a, b) => a + b, 0);
     if (!(observedTotal > 0)) continue;
-    const smoothed = row.transit ? smooth121(row.students) : row.students;
-    const everyone = row.students.map((v, i) => v + Math.max(0, row.observed[i] - smoothed[i]));
+    const smoothed = row.transit ? smooth121(row.bu) : row.bu;
+    const everyone = row.bu.map((v, i) => v + Math.max(0, row.observed[i] - smoothed[i]));
     const r = observedPearson(row.observed, everyone), rs = observedPearson(row.observed, row.students);
     if (r !== null) everyoneShapes.push(r);
     if (rs !== null) studentShapes.push(rs);
@@ -335,8 +354,8 @@ export function scoreObservations(observations: CalibrationObservations, day: Pi
   push({ id: 'obs-student-overflow', label: 'Students above their plausible share of a count (all series, share of counted people)', value: all.overflow,
     loss: hinge(all.overflow, 0.01, 0.2), target: '≤ 1% (band penalty)', source: 'docs/calibration-observations.md', weight: 1 });
   const everyoneShape = median(everyoneShapes), everyoneRatio = median(everyoneRatios);
-  if (everyoneShape !== null) push({ id: 'obs-everyone-shape', label: 'Students + public vs every count: median r', value: everyoneShape, loss: 1 - everyoneShape, target: 'r → 1', weight: 0.5 });
-  if (everyoneRatio !== null) push({ id: 'obs-everyone-ratio', label: 'Students + public vs every count: median total ratio', value: everyoneRatio,
+  if (everyoneShape !== null) push({ id: 'obs-everyone-shape', label: 'Students, staff and public vs every count: median r', value: everyoneShape, loss: 1 - everyoneShape, target: 'r → 1', weight: 0.5 });
+  if (everyoneRatio !== null) push({ id: 'obs-everyone-ratio', label: 'Students, staff and public vs every count: median total ratio', value: everyoneRatio,
     loss: hinge(EVERYONE_BAND[0], everyoneRatio, 0.5) + hinge(everyoneRatio, EVERYONE_BAND[1], 0.5), target: `${EVERYONE_BAND[0]}–${EVERYONE_BAND[1]}`, weight: 0.5 });
   return { groups, everyone: { series: everyoneRatios.length, medianShape: everyoneShape, medianRatio: everyoneRatio },
     studentsOnly: { series: studentRatios.length, medianShape: median(studentShapes), medianRatio: median(studentRatios) }, kenmoreStudentEntries: kenmore, metrics };
