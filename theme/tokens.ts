@@ -63,6 +63,9 @@ export function swatchFor(key: string): string {
   return swatches[h % swatches.length];
 }
 
+/** Chart series colours in their fixed order (tokens.css). One series takes the first; never cycle past four. */
+export const series = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'] as const;
+
 export type CrowdLevel = CrowdKey;
 
 /**

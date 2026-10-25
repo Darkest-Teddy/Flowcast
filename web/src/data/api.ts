@@ -7,6 +7,8 @@ import * as fx from './fixtures';
 import { campusGeo } from './campusGeo';
 import { agentConfigured, askAgentWithRetry, type AgentResult } from '@map/askClient';
 import { bostonClock } from '../lib/askRouting';
+import { parseChatResponse, parseDirectoryResponse, type ChatResult, type DirectoryResult } from '../lib/chatParse';
+import type { ChatRequest } from '@map/chatContract';
 import type {
   ApplicationStatus,
   CampusEvent,
@@ -42,6 +44,42 @@ function loadEventBundle(): Promise<EventBundle> {
   // A failed load can be retried by the page's "Try again".
   eventBundle.catch(() => { eventBundle = null; });
   return eventBundle;
+}
+
+/** A chat answer can take several tool calls; the server has its own model timeout (504) inside this. */
+const CHAT_TIMEOUT_MS = 60_000;
+
+/** One POST /api/chat. Never throws: failures come back as typed errors. */
+async function postChat(request: ChatRequest, signal?: AbortSignal): Promise<ChatResult> {
+  const timeout = AbortSignal.timeout(CHAT_TIMEOUT_MS);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(request),
+      signal: combined,
+    });
+    const body: unknown = await response.json().catch((error: unknown) => {
+      if (combined.aborted) throw error;
+      return null;
+    });
+    return parseChatResponse(response.status, body, response.headers.get('Retry-After'), config.mapUrl);
+  } catch {
+    if (signal?.aborted) return { ok: false, error: { kind: 'aborted', message: 'Stopped.' } };
+    if (timeout.aborted) return { ok: false, error: { kind: 'timeout', message: 'The answer took too long.' } };
+    return { ok: false, error: { kind: 'network', message: 'Couldn’t reach the Ask server.' } };
+  }
+}
+
+/** Waits `ms`, or resolves false early when `signal` aborts. */
+function pause(ms: number, signal?: AbortSignal): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve(false);
+    const id = setTimeout(() => { signal?.removeEventListener('abort', stop); resolve(true); }, ms);
+    const stop = () => { clearTimeout(id); resolve(false); };
+    signal?.addEventListener('abort', stop, { once: true });
+  });
 }
 
 // Mutable copies, so changes made in the UI stick for the session.
@@ -87,6 +125,38 @@ export const api = {
     const { weekday, time } = bostonClock(at);
     return askAgentWithRetry({ question: question.trim().slice(0, 300), weekday, time, campus: 'charles-river' }, signal, { onWarming });
   },
+  /**
+   * One turn of the Ask chat (POST /api/chat; shapes in map-client/src/chatContract.ts). While the
+   * server is still simulating the day (503 with Retry-After) it calls `onWarming` and asks again
+   * after the wait, up to twice. Never send personal questions or their answers here (see
+   * lib/askRouting and lib/chatHistory). Resolves to a typed error, never rejects.
+   */
+  async chat(request: ChatRequest, signal?: AbortSignal, onWarming?: (retryAfterSec: number) => void): Promise<ChatResult> {
+    let result = await postChat(request, signal);
+    for (let attempt = 0; attempt < 2 && !result.ok && result.error.kind === 'warming'; attempt++) {
+      onWarming?.(result.error.retryAfter ?? 10);
+      if (!(await pause((result.error.retryAfter ?? 10) * 1000, signal))) return { ok: false, error: { kind: 'aborted', message: 'Stopped.' } };
+      result = await postChat(request, signal);
+    }
+    return result;
+  },
+  /** What the chat can answer from (GET /api/chat/directory). Works without an OpenAI key. Never rejects. */
+  async chatDirectory(signal?: AbortSignal): Promise<DirectoryResult> {
+    try {
+      const response = await fetch('/api/chat/directory', { headers: { Accept: 'application/json' }, signal: signal ?? AbortSignal.timeout(10_000) });
+      const body: unknown = await response.json().catch(() => null);
+      return parseDirectoryResponse(response.status, body);
+    } catch {
+      return { ok: false, error: { kind: 'unreachable', message: 'The Ask server isn’t running.' } };
+    }
+  },
+  /**
+   * Development only: a fixed conversation and directory showing every visual kind, for checking
+   * the /ask page without the Ask server (/ask?sample=1). Labelled as a sample wherever it shows;
+   * production builds resolve null and don't include the fixture.
+   */
+  chatSample: (): Promise<typeof import('./chatSample').chatSample | null> =>
+    import.meta.env.DEV ? import('./chatSample').then((m) => m.chatSample) : Promise.resolve(null),
   getWeekStats: (range: StatRange = '7d') => later(range === '30d' ? fx.monthStats : fx.weekStats),
   /** Public Terrier Central events from the saved scrape, with whether each one can change map crowding. */
   getCampusEvents: (): Promise<CampusEvent[]> =>
