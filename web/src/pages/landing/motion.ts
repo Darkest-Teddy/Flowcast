@@ -58,3 +58,26 @@ export const grow: MotionProps = {
     shown: { clipPath: 'inset(-12px -12px -12px -12px)', transition: { duration: 1, ease: [0.22, 1, 0.36, 1], delay: 0.15 } },
   },
 };
+
+/** A block coming into focus as it scrolls in, after Raycast: rising and fading in out of a soft blur. */
+export const reveal: MotionProps = {
+  initial: { opacity: 0, y: 24, filter: 'blur(8px)' },
+  whileInView: { opacity: 1, y: 0, filter: 'blur(0px)' },
+  viewport: { once: true, amount: 0.4 },
+  transition: ease,
+};
+
+/** The hero's cards settling over the map one after another once the headline is in, after Felt's panels. */
+export const floatGroup: MotionProps = {
+  initial: 'hidden',
+  animate: 'shown',
+  variants: { hidden: {}, shown: { transition: { staggerChildren: 0.14, delayChildren: 0.75 } } },
+};
+
+export const floatIn: MotionProps = {
+  variants: {
+    hidden: { opacity: 0, y: 20, scale: 0.97 },
+    shown: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] } },
+  },
+};
+

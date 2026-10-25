@@ -14,6 +14,8 @@ export const LANDING_WEEKDAY = 1;
 export interface DayForecast {
   /** "2026-10-27". */
   date: string;
+  /** Every place the data covers. */
+  places: ImpactPlace[];
   place: (id: string) => ImpactPlace | undefined;
   /** Share of capacity (0–1+) at an hour of the day, or null when the place isn't simulated. */
   share: (id: string, hour: number) => number | null;
@@ -51,6 +53,7 @@ export function dayForecast(data: EventImpactData, weekday = LANDING_WEEKDAY): D
   const places = new Map(data.places.map((p) => [p.id, p]));
   return {
     date,
+    places: data.places,
     place: (id) => places.get(id),
     share(id, hour) {
       const place = places.get(id);
@@ -125,3 +128,12 @@ export function eventExample(data: EventImpactData): EventExample | null {
     after: (after[hour] ?? 0) / venue.capacity,
   };
 }
+
+/** The biggest places of a kind ('dining', 'library', 'gym'), by capacity, that have any hour of data. */
+export function placesOfKind(day: DayForecast, kind: string, count = 4): ImpactPlace[] {
+  return day.places
+    .filter((p) => p.kind === kind && HOURS.some((h) => day.share(p.id, h) != null))
+    .sort((a, b) => b.capacity - a.capacity)
+    .slice(0, count);
+}
+

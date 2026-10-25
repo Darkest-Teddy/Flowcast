@@ -1,24 +1,17 @@
 /*
- * The landing page. Light sections follow the page theme; the nav, hero, feature visuals, closing
- * and footer are always dark: they carry data-theme="dark", which tokens.css turns into the dark
- * values for that subtree. Every colour is a token.
+ * The landing page. Always dark (the page sets data-theme="dark", so every token takes its dark
+ * value): near-black and flat, after raycast.com, with glass only on the cards floating over the map,
+ * after felt.com's panels. Every colour, size and duration is a token (theme/tokens.css).
  */
 
 .page {
   --gutter: clamp(var(--space-4), 4vw, var(--space-10));
-  --section-pad: clamp(var(--space-20), 10vw, var(--space-32));
-  --title-size: clamp(var(--text-3xl), 5vw, var(--text-4xl));
-  --nav-clearance: var(--space-20); /* sections scrolled to stop below the floating nav */
+  --nav-clearance: calc(var(--landing-strip-height) + var(--space-20)); /* sections scrolled to stop below the strip and nav */
   min-height: 100%;
-  background: var(--color-canvas);
+  background: var(--landing-canvas);
+  color: var(--color-ink);
   font-size: var(--text-lg);
   line-height: var(--leading-normal);
-}
-
-/* A dark part of the page: tokens.css has switched the variables; take the ink and canvas. */
-.dark {
-  color: var(--color-ink);
-  background: var(--color-canvas);
 }
 
 .main:focus,
@@ -28,6 +21,11 @@
 
 .page section {
   scroll-margin-top: var(--nav-clearance);
+}
+
+.page :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
 }
 
 .skip {
@@ -56,10 +54,62 @@
   padding: 0 var(--gutter);
 }
 
+/* ---------- Status strip ---------- */
+
+/* One thin monospace line, after a GIS status bar: fixed above the nav, and again above the footer. */
+.stripFixed {
+  position: fixed;
+  z-index: 51;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+/* Scrolling down sends the strip and the nav up out of the way; scrolling up brings them back. */
+.stripFixed,
+.navBar {
+  transition: transform 0.35s var(--ease-standard);
+}
+
+.chromeAway {
+  transform: translateY(calc(-100% - var(--landing-strip-height) - var(--space-4)));
+}
+
+.strip {
+  height: var(--landing-strip-height);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--gutter);
+  background: var(--landing-canvas);
+  border-bottom: 1px solid var(--landing-hairline);
+  color: var(--color-ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
+  line-height: 1;
+}
+
+.strip ul {
+  display: flex;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--content-max-landing);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.strip li + li::before {
+  content: '·';
+  margin-right: var(--space-4);
+}
+
 /* ---------- Buttons ---------- */
 
 .cta,
-.glassCta {
+.ghostCta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -67,7 +117,7 @@
   font-weight: var(--weight-semibold);
   white-space: nowrap;
   text-decoration: none;
-  transition: background-color var(--duration-fast) var(--ease-standard);
+  transition: background-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
 }
 
 .cta {
@@ -80,13 +130,15 @@
   text-decoration: none;
 }
 
-.glassCta {
-  composes: glass from global;
+/* Flat, outlined: the page's second action. */
+.ghostCta {
+  border: 1px solid var(--landing-hairline);
+  background: color-mix(in srgb, var(--landing-canvas) 70%, transparent);
   color: var(--color-ink);
 }
 
-.glassCta:hover {
-  background: var(--color-surface-hover);
+.ghostCta:hover {
+  border-color: var(--color-ink-secondary);
   text-decoration: none;
 }
 
@@ -99,9 +151,9 @@
 .pillButton {
   min-height: var(--control-height-lg);
   padding: 0 var(--space-5);
-  border: 1px solid var(--color-hairline);
+  border: 1px solid var(--landing-hairline);
   border-radius: var(--radius-capsule);
-  background: var(--color-surface);
+  background: var(--landing-raised);
   color: var(--color-ink);
   font-weight: var(--weight-semibold);
   cursor: pointer;
@@ -112,7 +164,7 @@
 .navBar {
   position: fixed;
   z-index: 50;
-  top: var(--space-3);
+  top: calc(var(--landing-strip-height) + var(--space-2));
   left: 0;
   right: 0;
   padding: 0 var(--space-4);
@@ -293,15 +345,6 @@
 
 /* ---------- 01 Hero ---------- */
 
-/* The title screen. Full viewport, and the only section holding a live renderer. */
-.titleSection {
-  position: relative;
-  height: 100svh;
-  min-height: 560px;
-  overflow: hidden;
-  isolation: isolate;
-}
-
 .hero {
   position: relative;
   /* Exactly the window, like the map page: "Open the map" lands on the same picture, same framing. */
@@ -316,47 +359,32 @@
   z-index: 2;
   max-width: var(--content-max-landing);
   margin: 0 auto;
-  padding: clamp(var(--space-32), 12vw, calc(var(--space-32) + var(--space-8))) var(--gutter) 0;
+  padding: calc(var(--landing-strip-height) + clamp(var(--space-24), 11vw, var(--space-32))) var(--gutter) 0;
   text-align: center;
-}
-
-.heroEyebrow {
-  margin-bottom: var(--space-5);
-  color: var(--color-ink-secondary);
-  font-size: var(--text-md);
-  font-weight: var(--weight-medium);
 }
 
 .heroTitle,
 .closingTitle {
+  max-width: 820px;
   margin: 0 auto;
   font-size: clamp(var(--text-4xl), 7.2vw, var(--text-5xl));
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display-tight);
   line-height: var(--leading-display);
   text-wrap: balance;
 }
 
-.heroTitle {
-  max-width: 820px;
-}
-
-.heroLede,
-.closingLede {
-  margin: var(--space-6) auto 0;
-  max-width: 600px;
-  color: var(--color-ink-secondary);
-  font-size: clamp(var(--text-lg), 2.2vw, var(--text-xl));
-  line-height: 1.4;
-  text-wrap: pretty;
-}
-
-/* Over the map's bright daytime still the shade thins out here: full ink keeps the line legible. */
-.heroText .heroLede {
+/* One line, in full ink: over the map's bright daytime still the shade thins out under it. */
+.heroLede {
+  margin: var(--space-5) auto 0;
   color: var(--color-ink);
-  text-shadow: 0 1px 12px color-mix(in srgb, var(--color-canvas) 60%, transparent);
+  font-size: clamp(var(--text-lg), 2vw, var(--text-xl));
+  text-shadow: 0 1px 12px color-mix(in srgb, var(--landing-canvas) 60%, transparent);
+  text-wrap: balance;
 }
 
 .heroActions {
-  margin-top: 36px;
+  margin-top: var(--space-8);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
@@ -386,46 +414,158 @@
   inset: 0;
   background: linear-gradient(
     to bottom,
-    var(--color-canvas) 0%,
-    color-mix(in srgb, var(--color-canvas) 90%, transparent) 46%,
-    color-mix(in srgb, var(--color-canvas) 55%, transparent) 64%,
+    var(--landing-canvas) 0%,
+    color-mix(in srgb, var(--landing-canvas) 90%, transparent) 46%,
+    color-mix(in srgb, var(--landing-canvas) 55%, transparent) 64%,
     transparent 86%
   );
   pointer-events: none;
 }
 
-/* ---------- Shared section parts ---------- */
-
-.section {
-  background: var(--color-canvas);
-  padding: var(--section-pad) 0;
+/* Cards over the map at the foot of the hero, clear of the headline and the buttons. */
+.heroCards {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: var(--space-8);
+  max-width: var(--content-max-landing);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  pointer-events: none;
 }
 
-.sectionAlt {
-  background: var(--color-surface);
+/* Glass, only here and on the scenario results: blur, saturation and a bright 1px top edge
+   (--glass-inner-shadow). Its strong fill keeps ink at 4.5:1 over any map; reduced transparency
+   turns it solid (tokens.css). */
+.glassCard {
+  composes: glass-strong from global;
+  margin: 0;
+  border-radius: var(--radius-card);
+  padding: var(--space-5);
+  pointer-events: auto;
 }
 
-.eyebrow {
-  margin-bottom: var(--space-2);
+.placeCard {
+  min-width: 240px;
+}
+
+.cardLabel {
   color: var(--color-ink-secondary);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
+}
+
+.cardReading {
+  margin-top: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display);
+}
+
+.cardMeta {
+  margin-top: var(--space-2);
+  color: var(--color-ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+}
+
+.legendCard .cardMeta {
+  margin-top: 0;
+}
+
+.cardLegend {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: var(--text-sm);
+}
+
+.cardLegend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cardLegendWord {
+  min-width: 72px;
   font-weight: var(--weight-semibold);
 }
 
+.cardLegendRange {
+  color: var(--color-ink-secondary);
+}
+
+.timeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-capsule);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+}
+
+/* The accent's pulse marks the modeled day as the one the map is on. */
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: live-pulse 2.4s var(--ease-standard) infinite;
+}
+
+@keyframes live-pulse {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-accent) 25%, transparent);
+  }
+}
+
+/* ---------- Shared section parts ---------- */
+
+.section {
+  padding: var(--landing-section-gap) 0 0;
+}
+
+.sectionHead {
+  max-width: 760px;
+}
+
+/* A monospace, uppercase label in the accent, after felt.com's section labels. */
+.eyebrow {
+  margin-bottom: var(--space-4);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+}
+
 .sectionTitle {
-  font-size: var(--title-size);
+  font-size: clamp(var(--text-3xl), 5vw, var(--text-4xl));
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-display-tight);
   line-height: var(--leading-heading);
   text-wrap: balance;
 }
 
-.narrowTitle {
-  max-width: 720px;
-}
-
-.muted {
+.subline {
+  margin-top: var(--space-3);
   color: var(--color-ink-secondary);
-  font-size: var(--text-md);
-  text-wrap: pretty;
+  font-size: clamp(var(--text-lg), 1.8vw, var(--text-xl));
+  text-wrap: balance;
 }
 
 .dot {
@@ -449,25 +589,288 @@
   height: var(--space-4);
 }
 
-/* A hairline over an item, drawn in from the left as the item scrolls in (motion.ts `rule`). */
-.rule {
+/* ---------- 02 Map video ---------- */
+
+/* A large rounded window onto the map that tilts up into place as it scrolls in, after raycast.com's product window. */
+.frameStage {
+  margin-top: var(--space-12);
+  perspective: 1400px;
+}
+
+.videoFrame {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--landing-hairline);
+  border-radius: var(--radius-sheet);
+  background: var(--landing-raised);
+  box-shadow: var(--landing-frame-glow);
+  transform-origin: 50% 100%;
+}
+
+.videoFrame video,
+.videoFrame img {
   display: block;
-  height: 1px;
-  margin-bottom: var(--space-5);
-  background: var(--color-hairline);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-/* ---------- 02 Live preview ---------- */
+/* ---------- 03 Scenarios ---------- */
 
-.previewSection {
-  padding-bottom: clamp(var(--space-12), 6vw, var(--space-20));
+.scenarioBar {
+  margin-top: var(--space-12);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
 }
 
-.previewLede {
-  margin: var(--space-3) 0 var(--space-10);
-  max-width: 560px;
+/* Text tabs with a monospace tag and an underline that fills while each is up, after felt.com. */
+.scenarioTabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: var(--space-6);
+}
+
+.scenarioTab {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--control-height-touch);
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--color-ink-secondary);
-  text-wrap: pretty;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--duration-base) var(--ease-standard);
+}
+
+.scenarioTab:hover,
+.scenarioTab[aria-selected='true'] {
+  color: var(--color-ink);
+}
+
+.tabLabel {
+  display: block;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.tabSub {
+  display: block;
+  margin-top: var(--space-1);
+  overflow: hidden;
+  color: var(--color-ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tabTrack {
+  display: block;
+  height: 2px;
+  margin-top: var(--space-3);
+  overflow: hidden;
+  border-radius: 1px;
+  background: var(--landing-hairline);
+}
+
+.tabFill {
+  display: block;
+  height: 100%;
+  background: var(--color-ink);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.scenarioTab[aria-selected='true'] .tabFill {
+  transform: scaleX(1);
+}
+
+.scenarioTab[aria-selected='true'] .tabFillRunning {
+  animation: tab-fill var(--landing-scenario-ms) linear both;
+}
+
+@keyframes tab-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.pauseButton {
+  flex: none;
+  width: var(--control-height-touch);
+  height: var(--control-height-touch);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--landing-hairline);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.pauseButton:hover {
+  border-color: var(--color-ink-secondary);
+}
+
+.pauseButton svg {
+  width: var(--space-4);
+  height: var(--space-4);
+}
+
+/* A crop of the map, flat, with the result floating over it on glass. */
+.scenarioPanel {
+  position: relative;
+  min-height: 440px;
+  margin-top: var(--space-8);
+  overflow: hidden;
+  border: 1px solid var(--landing-hairline);
+  border-radius: var(--radius-sheet);
+  background: var(--landing-raised);
+}
+
+.scenarioMap img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(2.2);
+  transition: transform-origin 1.2s var(--ease-standard);
+}
+
+.scenarioMap-lunch img {
+  transform-origin: 50% 50%;
+}
+
+.scenarioMap-game img {
+  transform-origin: 44% 56%;
+}
+
+.scenarioMap-fire img {
+  transform-origin: 56% 44%;
+}
+
+.resultCard {
+  position: absolute;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  width: min(400px, calc(100% - 2 * var(--space-6)));
+}
+
+.resultTitle {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-text);
+}
+
+.resultHead {
+  margin-top: var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+}
+
+.resultRows {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+
+.resultRows li {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--landing-hairline);
+}
+
+.resultName {
+  display: block;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.resultAt {
+  color: var(--color-ink-secondary);
+  font-weight: var(--weight-regular);
+}
+
+.resultChange {
+  margin-top: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+}
+
+.resultArrow {
+  color: var(--color-ink-secondary);
+}
+
+.reading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ink-secondary);
+}
+
+.readingStrong {
+  color: var(--color-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.resultNote {
+  margin-top: var(--space-3);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ---------- 04 Hourly preview ---------- */
+
+/* A capsule segmented control with a lit top edge, after raycast.com's category tabs. */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  margin: var(--space-12) 0 var(--space-8);
+  padding: var(--space-1);
+  border: 1px solid var(--landing-hairline);
+  border-radius: var(--radius-capsule);
+  box-shadow: var(--landing-inset-highlight);
+}
+
+.segment {
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-capsule);
+  background: transparent;
+  color: var(--color-ink-secondary);
+  font: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background-color var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard);
+}
+
+.segment:hover {
+  color: var(--color-ink);
+}
+
+.segment[aria-pressed='true'] {
+  background: var(--landing-raised-2);
+  color: var(--color-ink);
 }
 
 .previewStatus {
@@ -696,266 +1099,43 @@
   border-radius: var(--radius-xs);
 }
 
-/* ---------- 03 How it works ---------- */
+/* ---------- 05 How it works, 06 FAQ ---------- */
 
-.howSection {
-  padding-top: clamp(var(--space-12), 6vw, var(--space-20));
-}
-
-.steps {
+/* Numbered cells under a hairline, after felt.com's feature grid. */
+.numbered {
   list-style: none;
-  margin: var(--space-16) 0 0;
+  margin: var(--space-12) 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 264px), 1fr));
-  gap: var(--space-12) var(--space-10);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-10) var(--space-8);
 }
 
-.step {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
+.faq {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
-.step .rule {
-  margin-bottom: 0;
+.rule {
+  display: block;
+  height: 1px;
+  margin-bottom: var(--space-4);
+  background: var(--landing-hairline);
 }
 
-.stepHead {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+.num {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-mono);
 }
 
-.stepNumber {
-  color: var(--color-ink-tertiary);
-  font-family: var(--font-display);
-  font-size: var(--text-3xl);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-display);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.stepTitle {
-  font-size: var(--text-xl);
-  letter-spacing: var(--tracking-text);
-  line-height: var(--leading-snug);
-}
-
-.facts {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.facts > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) 0;
-  border-top: 1px solid var(--color-hairline-soft);
-}
-
-.facts > div:last-child {
-  padding-bottom: 0;
-}
-
-.facts dt {
-  color: var(--color-ink-secondary);
-  font-size: var(--text-md);
-}
-
-.facts dd {
-  margin: 0;
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.facts .factWord {
-  font-size: var(--text-md);
-}
-
-.bigFact {
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--color-hairline-soft);
-}
-
-.bigFact .muted {
+.numTitle {
   margin-top: var(--space-2);
-}
-
-.levels {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.levels li {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-}
-
-.levels .muted {
-  font-size: var(--text-sm);
-}
-
-.levelName {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-}
-
-/* ---------- 04 Features ---------- */
-
-.featureLead {
-  margin-top: var(--space-16);
-  display: flex;
-  flex-wrap: wrap-reverse;
-  align-items: center;
-  gap: var(--space-8) clamp(var(--space-8), 5vw, var(--space-16));
-}
-
-.featureLeadText {
-  flex: 1 1 280px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.featureTitle {
-  font-size: var(--text-xl);
-  letter-spacing: var(--tracking-text);
-  line-height: var(--leading-snug);
-}
-
-.featureTitleLarge {
-  font-size: var(--text-2xl);
-  line-height: var(--leading-tight);
-  letter-spacing: -0.015em;
-}
-
-.featureBody {
-  color: var(--color-ink-secondary);
-  text-wrap: pretty;
-}
-
-.featureVisual {
-  flex: 1.8 1 440px;
-  position: relative;
-  min-height: clamp(320px, 38vw, 460px);
-  border-radius: var(--radius-card); /* the 24px unveil(24) animates to */
-  overflow: hidden;
-}
-
-.featureList {
-  margin-top: var(--space-20);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
-  gap: var(--space-12) var(--space-8);
-}
-
-.featureList .featureTitle {
-  margin-bottom: var(--space-2);
-}
-
-.featureList .featureBody {
-  font-size: var(--text-md);
-}
-
-.mockReadingPlain {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: var(--weight-semibold);
-  white-space: nowrap;
-}
-
-/* ---------- 05 Transparency ---------- */
-
-.transparencyGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
-  gap: var(--space-12);
-  align-items: center;
-}
-
-.transparencyBody {
-  margin-top: var(--space-5);
-  color: var(--color-ink-secondary);
-  text-wrap: pretty;
-}
-
-.evidenceTitle {
-  color: var(--color-ink-secondary);
-  font-size: var(--text-sm);
-}
-
-.evidenceList {
-  margin: var(--space-3) 0 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.evidenceList > div {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-4);
-  padding: 14px 0;
-  border-top: 1px solid var(--color-hairline-soft);
-}
-
-.evidenceList > div:last-child {
-  padding-bottom: 0;
-}
-
-.evidenceList dt {
-  color: var(--color-ink-secondary);
-  font-size: var(--text-md);
-}
-
-.evidenceList dd {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-}
-
-.modeled {
-  color: var(--color-ink-secondary);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-regular);
-}
-
-/* ---------- 06 Privacy ---------- */
-
-.promises {
-  margin-top: var(--space-12);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-  gap: var(--space-8);
-}
-
-.promises h3 {
   font-size: var(--text-lg);
-  letter-spacing: var(--tracking-text);
+  font-weight: var(--weight-semibold);
 }
 
-.promises p {
+.numBody {
   margin-top: var(--space-2);
   color: var(--color-ink-secondary);
   font-size: var(--text-md);
@@ -965,57 +1145,82 @@
 /* ---------- 07 Closing and footer ---------- */
 
 .closing {
-  position: relative;
-  overflow: hidden;
+  padding-bottom: var(--landing-section-gap);
 }
 
 .closingText {
-  position: relative;
-  z-index: 2;
   max-width: var(--content-max-landing);
   margin: 0 auto;
-  padding: clamp(var(--space-24), 12vw, calc(var(--space-32) + var(--space-6))) var(--gutter) 0;
+  padding: 0 var(--gutter);
   text-align: center;
 }
 
-.closingLede {
-  margin-top: var(--space-4);
-  max-width: 520px;
-}
-
 .closingActions {
-  margin-top: 36px;
+  margin-top: var(--space-8);
   display: flex;
   justify-content: center;
 }
 
-.closingScene {
-  position: relative;
-  height: 340px;
-  margin-top: var(--space-6);
-  opacity: 0.75;
-  -webkit-mask-image: radial-gradient(ellipse 55% 80% at 50% 70%, var(--color-ink) 30%, transparent 100%);
-  mask-image: radial-gradient(ellipse 55% 80% at 50% 70%, var(--color-ink) 30%, transparent 100%);
-}
-
-.footer {
-  padding: 0 var(--gutter) var(--space-10);
+.footer .strip {
+  border-top: 1px solid var(--landing-hairline);
 }
 
 .footerRow {
-  max-width: calc(var(--content-max-landing) - 2 * var(--gutter));
+  max-width: var(--content-max-landing);
   margin: 0 auto;
+  padding: var(--space-6) var(--gutter) var(--space-10);
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-3) var(--space-6);
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--color-hairline);
   color: var(--color-ink-secondary);
   font-size: var(--text-sm);
 }
 
+.footerRow a {
+  color: var(--color-ink);
+}
+
+/* ---------- Narrow screens and short windows ---------- */
+
 @media (max-width: 759px) {
+  /* The strip keeps the time; the counts go. */
+  .stripExtra {
+    display: none;
+  }
+
+  /* One card over the map. */
+  .legendCard,
+  .timeChip {
+    display: none;
+  }
+
+  .heroCards {
+    justify-content: center;
+    bottom: var(--space-6);
+  }
+
+  .scenarioTabs {
+    gap: var(--space-3);
+  }
+
+  .tabLabel {
+    font-size: var(--text-md);
+    white-space: nowrap;
+  }
+
+  .scenarioPanel {
+    min-height: 520px;
+  }
+
+  .resultCard {
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    width: auto;
+  }
+
+  .segment,
   .placeTab {
     min-height: var(--control-height-touch);
   }
@@ -1024,6 +1229,33 @@
     display: inline-flex;
     align-items: center;
     min-height: var(--control-height-touch);
-    min-width: var(--control-height-touch);
+  }
+}
+
+/* Short windows: the cards make room for the headline and buttons. */
+@media (max-height: 760px) {
+  .legendCard {
+    display: none;
+  }
+}
+
+@media (max-height: 640px) {
+  .heroCards {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liveDot {
+    animation: none;
+  }
+
+  .stripFixed,
+  .navBar {
+    transition: none;
+  }
+
+  .scenarioMap img {
+    transition: none;
   }
 }
