@@ -21,8 +21,9 @@ import { occupancyShare } from './sim/playback';
 const svg = (paths: string) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 
-// Lucide-style glyphs (ISC), one per kind of place.
-const ICONS: Record<LocationKind, string> = {
+// Lucide-style glyphs (ISC), one per kind of place. Exported as markup rather than components
+// because this file builds DOM by hand; the panel renders them the same way.
+export const ICONS: Record<LocationKind, string> = {
   'off-campus': '',
   outdoor: '',
   dorm: svg('<path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/>'),
@@ -34,13 +35,13 @@ const ICONS: Record<LocationKind, string> = {
 
 // The crowd levels' marks: one, two or three people. The same paths as HudIcons person1/person2/
 // person3 (hud/Chrome.tsx); theme/crowd.ts says which level takes which.
-const PERSON_ICONS: Record<CrowdLevelInfo['icon'], string> = {
+export const PERSON_ICONS: Record<CrowdLevelInfo['icon'], string> = {
   person1: svg('<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>'),
   person2: svg('<circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.2a3 3 0 0 1 0 5.6M17.5 19a5.4 5.4 0 0 0-2-4.2"/>'),
   person3: svg('<circle cx="12" cy="7.5" r="2.8"/><path d="M7 19.5a5 5 0 0 1 10 0"/><circle cx="5" cy="9.5" r="2.1"/><path d="M1.5 18.5a4 4 0 0 1 4.5-4"/><circle cx="19" cy="9.5" r="2.1"/><path d="M22.5 18.5a4 4 0 0 0-4.5-4"/>'),
 };
 
-const KIND_LABEL: Record<LocationKind, string> ={ dorm: 'Residence', classroom: 'Academic', dining: 'Dining', library: 'Library', gym: 'Athletics', outdoor: 'Outdoors', 'off-campus': 'Off map' };
+export const KIND_LABEL: Record<LocationKind, string> ={ dorm: 'Residence', classroom: 'Academic', dining: 'Dining', library: 'Library', gym: 'Athletics', outdoor: 'Outdoors', 'off-campus': 'Off map' };
 
 /** px from the roof to the bottom of the card (the stem). */
 const STEM = 16;
@@ -52,6 +53,23 @@ const MARGIN = 60;
 const MARKER = 24;
 /** Below this zoom the tags tighten up so more of them fit on the overview. */
 const COMPACT_ZOOM = 16;
+
+/*
+ * How much screen a single mark claims when zoomed out, in px.
+ *
+ * Above the compact zoom every building can have its own label and the placer
+ * sorts out the rest. Below it the campus starts collapsing into the screen,
+ * neighbouring buildings land within a few pixels of each other, and ninety
+ * marks become a mat you cannot read anything off. So the screen is divided into
+ * cells and only the most important mark in each survives: `order` is already
+ * sorted selected, then venues with an event, then busiest, so the survivor is
+ * the one worth keeping. The further out, the larger the cell, until a campus
+ * seen whole shows a handful of landmarks rather than a texture.
+ */
+function cellSize(zoom: number): number {
+  if (zoom >= COMPACT_ZOOM) return 0;
+  return Math.min(110, 30 + (COMPACT_ZOOM - zoom) * 28);
+}
 
 export interface BuildingTagsFrame {
   buildings: BuildingOccupancy[];
@@ -292,8 +310,27 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
         const order = [...anchors.keys()].sort(
           (a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || Number(Boolean(b.event)) - Number(Boolean(a.event)) || b.share - a.share,
         );
+        /*
+         * Thin the field before anything is written or measured, so what is saved
+         * is the whole per-tag cost and not only the drawing.
+         */
+        const cell = cellSize(camera.zoom);
+        const kept: BuildingOccupancy[] = [];
+        if (cell > 0) {
+          const taken = new Set<string>();
+          for (const b of order) {
+            const [x, y] = anchors.get(b)!;
+            const key = `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
+            if (taken.has(key)) continue;
+            taken.add(key);
+            kept.push(b);
+          }
+        } else {
+          kept.push(...order);
+        }
+
         const changed: Tag[] = [];
-        for (const b of order) {
+        for (const b of kept) {
           let tag = s.tags.get(b.id);
           if (!tag) {
             const id = b.id;
@@ -315,13 +352,13 @@ export function BuildingTags({ ref, onSelect }: { ref: Ref<BuildingTagsHandle>; 
          */
         const focused = tagMode === 'focus' && focusIds && focusIds.size > 0 ? focusIds : null;
         const fallback = tagMode === 'focus' && !focused
-          ? new Set(order.slice(0, FOCUS_FALLBACK).map((b) => b.id))
+          ? new Set(kept.slice(0, FOCUS_FALLBACK).map((b) => b.id))
           : null;
         const wantsPill = (id: string) =>
           tagMode === 'all' || id === selectedId || (focused?.has(id) ?? false) || (fallback?.has(id) ?? false);
 
-        const pills = order.filter((b) => wantsPill(b.id));
-        const markers = order.filter((b) => !wantsPill(b.id));
+        const pills = kept.filter((b) => wantsPill(b.id));
+        const markers = kept.filter((b) => !wantsPill(b.id));
         // Forms before measurement: a pill inside a marker-form tag is display:none
         // and would measure zero, which would then place every tag on top of itself.
         for (const b of pills) setForm(s.tags.get(b.id)!, 'pill');
