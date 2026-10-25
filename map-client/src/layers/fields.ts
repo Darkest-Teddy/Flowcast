@@ -19,6 +19,7 @@ import { load } from '@loaders.gl/core';
 import { GLTFLoader } from '@loaders.gl/gltf';
 import type { Color, Layer } from '@deck.gl/core';
 import { lowPitchDepthBias, windowHour, type Floodlights } from './buildings';
+import type { Seating } from './seatedFans';
 
 type LngLat = [number, number];
 type RGB = [number, number, number];
@@ -84,6 +85,8 @@ export interface FieldData {
   floodlit: Floodlights[];
   /** Parsed GLBs, keyed by URL. */
   models: Record<string, unknown>;
+  /** Fenway Park's seat rows from the building models' manifest, for seating game crowds. */
+  seating: Seating | null;
 }
 
 /**
@@ -120,7 +123,9 @@ export async function loadFields(url = '/data/fields.json', buildingsUrl = '/dat
   }
   const urls = [...new Set(fields.flatMap((f) => [f.props, ...f.towers.flatMap((t) => [t.model, t.litModel])]))];
   const loaded = await Promise.all(urls.map(async (u) => [u, await load(u, GLTFLoader).then((model) => mergeMaterialPrimitives(model, { materialAttributes: true })).catch(() => null)] as const));
-  return { fields, floodlit, models: Object.fromEntries(loaded.filter(([, m]) => m)) };
+  const seating: Seating | null = (manifest?.campuses ?? []).flatMap((c: { buildings: { seating?: Seating }[] }) =>
+    c.buildings.flatMap((b) => (b.seating ? [b.seating] : [])))[0] ?? null;
+  return { fields, floodlit, models: Object.fromEntries(loaded.filter(([, m]) => m)), seating };
 }
 
 /** Numeric OSM ids of the buildings the fields layer models, for basemap.excludeBuildings(). */
@@ -161,20 +166,36 @@ const TURF_TINT: Record<FieldLight, [number, number, number]> = {
   dusk: [0.95, 0.93, 0.88],
   night: [0.9, 0.9, 0.84],
 };
-const LAMP: RGB = [255, 236, 196];
+// Fenway's floodlights are LEDs (since 2019): a cool, slightly blue white, not sodium orange.
+const LAMP: RGB = [236, 243, 255];
 const GLOW = [
   { id: 'bloom', radius: 4.5, alpha: 26, minPixels: 6 },
   { id: 'halo', radius: 2.2, alpha: 80, minPixels: 3 },
   { id: 'core', radius: 0.9, alpha: 255, minPixels: 1.5 },
 ];
 // Fenway's lit field: the floodlights multiply the turf's brightness (dst * (1 + src)) under
-// the night tint, so it reads as lit grass and dirt rather than a grey wash.
+// the night tint, so it reads as lit grass and dirt rather than a grey wash. Near-neutral, like
+// LED light on grass; the stands get less (the lamps aim at the field) but enough to see the
+// seats and the crowd in them.
 const FLOODLIT_FIELD: Record<FieldLight, Color> = {
   day: [0, 0, 0, 255],
   dawn: [0, 0, 0, 255],
-  dusk: [110, 104, 82, 255],
-  night: [230, 216, 170, 255],
+  dusk: [104, 108, 100, 255],
+  night: [222, 228, 218, 255],
 };
+const FLOODLIT_STANDS: Record<FieldLight, Color> = {
+  day: [0, 0, 0, 255],
+  dawn: [0, 0, 0, 255],
+  dusk: [60, 62, 64, 255],
+  night: [150, 156, 162, 255],
+};
+/** Light shafts from each bank to the field, in the night air's haze: faint, additive. */
+const BEAM_ALPHA: Record<FieldLight, number> = { day: 0, dawn: 0, dusk: 5, night: 9 };
+/** The glow over a lit ballpark seen across the city: a wide, faint dome of light. */
+const SKY_GLOW = [
+  { id: 'sky-wide', radius: 190, alpha: 10 },
+  { id: 'sky-near', radius: 95, alpha: 16 },
+];
 const BRIGHTEN = {
   depthWriteEnabled: false,
   blend: true,
@@ -200,11 +221,24 @@ const ADDITIVE = {
 } as const;
 
 const lit = (light: FieldLight) => light === 'dusk' || light === 'night';
+function metresApart(a: LngLat, b: LngLat): number {
+  const k = 111_320;
+  return Math.hypot((a[0] - b[0]) * k * Math.cos((a[1] * Math.PI) / 180), (a[1] - b[1]) * k);
+}
+function centroid(ring: LngLat[]): LngLat {
+  let x = 0, y = 0;
+  for (const p of ring) { x += p[0]; y += p[1]; }
+  return [x / ring.length, y / ring.length];
+}
 const at = (p: LngLat, z: number): [number, number, number] => [p[0], p[1], z];
 
 interface Surface3D {
   polygon: [number, number, number][][];
   color: RGB;
+}
+/** A light shaft: the lamp bank, and the stretch of field it lands on. */
+interface Beam {
+  polygon: [number, number, number][][];
 }
 interface Line3D {
   path: [number, number, number][];
@@ -233,13 +267,13 @@ interface Glow {
 // (while their towers are lit too).
 const cache = new WeakMap<
   FieldData,
-  { fields: FieldGeometry[]; towers: TowerInstance[]; floodlit: Surface3D[]; glow: { fields: Glow[]; all: Glow[] } }
+  { fields: FieldGeometry[]; towers: TowerInstance[]; floodlit: Surface3D[]; stands: Surface3D[]; beams: Beam[]; sky: Glow[]; glow: { fields: Glow[]; all: Glow[] } }
 >();
 
 function geometry(data: FieldData) {
   let g = cache.get(data);
   if (g) return g;
-  g = { fields: [], towers: [], floodlit: [], glow: { fields: [], all: [] } };
+  g = { fields: [], towers: [], floodlit: [], stands: [], beams: [], sky: [], glow: { fields: [], all: [] } };
   for (const f of data.fields) {
     // A few cm proud of the ground (or roof deck) so nothing z-fights; lines and paint on top.
     const lift = f.followBuilding ? 0.1 : 0.05;
@@ -255,6 +289,26 @@ function geometry(data: FieldData) {
   }
   g.glow.fields = g.towers.map(({ tower: t, altitude }) => ({ position: at(t.glow, altitude + t.lampHeight), scale: t.height > 25 ? 1.3 : 1 }));
   g.floodlit = data.floodlit.map((light) => ({ polygon: [light.field.map((p) => at(p, FLOODLIT_Z))], color: [0, 0, 0] as RGB }));
+  // The stands: the bowl's slope, a step's height (0.45 m) above it so every tread and the fans on
+  // it are under the overlay, one quad per stretch of field edge (the Green Monster's are empty).
+  for (const light of data.floodlit) {
+    const b = light.bowl;
+    if (!b) continue;
+    for (let k = 0; k + 1 < b.front.length; k++) {
+      const quad = [at(b.front[k], b.low + 0.45), at(b.front[k + 1], b.low + 0.45), at(b.back[k + 1], b.high + 0.45), at(b.back[k], b.high + 0.45)];
+      if (metresApart(b.front[k], b.back[k]) < 1 && metresApart(b.front[k + 1], b.back[k + 1]) < 1) continue;
+      g.stands.push({ polygon: [quad], color: [0, 0, 0] });
+    }
+    // Shafts: each bank to a 30 m stretch of field around the middle of the diamond, facing it.
+    const centre = centroid(light.field);
+    for (const [lng, lat, z] of light.lamps) {
+      const dx = (centre[0] - lng) * Math.cos((lat * Math.PI) / 180), dy = centre[1] - lat;
+      const len = Math.hypot(dx, dy) || 1;
+      const side: LngLat = [(-dy / len) * 0.00018 / Math.cos((lat * Math.PI) / 180), (dx / len) * 0.00018];
+      g.beams.push({ polygon: [[[lng, lat, z - 0.5], [centre[0] + side[0], centre[1] + side[1], 1], [centre[0] - side[0], centre[1] - side[1], 1]]] });
+    }
+    g.sky.push({ position: [centre[0], centre[1], 30], scale: 1 });
+  }
   // Fenway's banks (some 8 x 4 m) at the fields' size: the bloom about covers a bank, so a bank
   // seen from behind doesn't sit in a wide grey disc.
   g.glow.all = [...g.glow.fields, ...data.floodlit.flatMap((light) => light.lamps.map(([lng, lat, z]): Glow => ({ position: [lng, lat, z], scale: 1 })))];
@@ -322,6 +376,7 @@ interface FieldCache {
 const fieldCache = new WeakMap<FieldData, FieldCache>();
 const NO_GLOW: Glow[] = [];
 const NO_SURFACES: Surface3D[] = [];
+const NO_BEAMS: Beam[] = [];
 
 export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk', clock, auto = false }: FieldLayerOptions) {
   let cache = fieldCache.get(data);
@@ -463,6 +518,50 @@ export function fieldLayers(data: FieldData, { zoom, lightPreset = 'dusk', clock
       // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
       slot: 'middle',
     }),
+    // The stands under the floodlights: the seats and the crowd in them, lit less than the field.
+    new FootprintPolygonLayer({
+      id: 'field-floodlit-stands',
+      data: floodlit ? g.stands : NO_SURFACES,
+      getPolygon: (s) => s.polygon,
+      getFillColor: FLOODLIT_STANDS[lightPreset],
+      filled: true,
+      material: false,
+      parameters: BRIGHTEN,
+      pickable: false,
+      updateTriggers: { getFillColor: lightPreset },
+      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+      slot: 'middle',
+    }),
+    // Light shafts from the banks through the night air to the field, and the dome of light over
+    // the park (seen from across the city). Both additive and faint; neither writes depth.
+    new SolidPolygonLayer<Beam>({
+      id: 'field-floodlight-beams',
+      data: floodlit && detail ? g.beams : NO_BEAMS,
+      getPolygon: (b) => b.polygon,
+      getFillColor: [...LAMP, BEAM_ALPHA[lightPreset]],
+      filled: true,
+      material: false,
+      parameters: ADDITIVE,
+      pickable: false,
+      updateTriggers: { getFillColor: lightPreset },
+      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+      slot: 'middle',
+    }),
+    ...SKY_GLOW.map(({ id, radius, alpha }) => new ScatterplotLayer<Glow>({
+      id: `field-${id}`,
+      data: floodlit ? g.sky : NO_GLOW,
+      getPosition: (l) => l.position,
+      getRadius: radius,
+      radiusUnits: 'meters',
+      getFillColor: [...LAMP, alpha * (lightPreset === 'night' ? 1 : 0.6)],
+      billboard: true,
+      antialiasing: true,
+      parameters: ADDITIVE,
+      pickable: false,
+      updateTriggers: { getFillColor: lightPreset },
+      // @ts-expect-error `slot` is read by @deck.gl/mapbox to place the layer in Mapbox Standard.
+      slot: 'middle',
+    })),
     // Floodlight glow: three additive discs per lamp bank (a wide faint bloom, a halo, a hot core),
     // so it reads as light rather than a grey disc. None writes depth, so they never cut into
     // each other; they keep a pixel minimum so the lit fields still sparkle on the overview,

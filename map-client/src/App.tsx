@@ -26,6 +26,7 @@ import { followLight } from './theme';
 import { loadMonuments, monumentLayers } from './layers/monuments';
 import { loadSigns, signLayers, signTooltip } from './layers/signs';
 import { fieldBuildingIds, fieldLayers, loadFields } from './layers/fields';
+import { fenwayFanLayers } from './layers/seatedFans';
 import { loadVehicleModels, transitLayers, transitTooltip, type VehicleModels } from './layers/transit';
 import { loadStreet, streetLayers, streetTooltip } from './layers/street';
 import { boatLayers, boatTooltip, loadBoats } from './layers/boats';
@@ -1267,6 +1268,7 @@ export default function App() {
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(signs ? signLayers(signs, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' }) : []),
+          ...(fields ? fenwayFanLayers(fields.seating, visitorPlanRef.current, t, basemap.getZoom()) : []),
           ...(cleanRef.current ? [] : [...(parking && parkingState ? parkingLayers(parking.data, parkingState) : [])]),
           ...placeHitLayers(monuments?.monuments ?? null, fields?.fields ?? null, basemap.getZoom()),
           ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
