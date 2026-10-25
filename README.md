@@ -175,6 +175,31 @@ Both Vite apps use the same API target, defaulting to `http://127.0.0.1:8787`. F
 
 Railway uses the repository root, `npm run build`, and `npm start` from `railway.json`. Provision PostgreSQL and run the migration/import commands with that service's secret environment before directing dashboard traffic to it. The configured `/` health check proves static hosting only; check `/api/health` and a dashboard request separately to verify API availability.
 
+Google sign-in uses Supabase Auth. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`
+(or `SUPABASE_ANON_KEY`) on the backend, alongside `DATABASE_URL`. The public configuration
+is served at `/api/dashboard/auth/config`; never use a secret or service-role key there.
+Enable Google in Supabase Authentication → Sign In / Providers using a Google OAuth web client.
+Its Google authorized redirect URI is `https://<project-ref>.supabase.co/auth/v1/callback`.
+In Supabase URL Configuration, allow each Flowcast origin's `/auth/callback` route
+(for local development, `http://127.0.0.1:5198/auth/callback`). Run the dashboard migration
+before deploying account support. Profile access is tied to the verified Supabase user;
+Google login does not grant access to Google Calendar.
+
+### Import a class schedule
+
+Open **Calendars** and upload an `.ics` export (up to 1 MB). Preview the next 120 days,
+select classes, and match room names to campus buildings before importing. A new import replaces
+only your imported schedule; it does not connect or change Google Calendar. Reimport when your
+classes change. The imported schedule is saved to your signed-in account and included in your
+data export.
+
+Home shows your next class and a leave-by time using saved campus walking routes at 1.4 m/s,
+rounded up to whole minutes, plus an arrival buffer (5 minutes by default). Confirm the **From**
+building: it starts from your earlier class or profile home, not GPS. Unmapped buildings and
+missing routes do not receive guessed departure times. Schedule times are shown in Boston time.
+
+
+
 **Run the tests:**
 
 ```bash

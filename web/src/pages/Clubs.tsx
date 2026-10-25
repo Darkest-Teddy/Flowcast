@@ -24,7 +24,7 @@ export default function Clubs() {
   const header = (
     <PageHeader
       title="Clubs"
-      description="Organizers named in BU’s published event listings. Follows are saved by Flowcast and linked to this browser."
+      description="Organizers from BU’s public event listings."
     />
   );
 
@@ -102,7 +102,7 @@ export default function Clubs() {
       )}
 
       <p className={styles.footnote}>
-        These listings identify event organizers; they do not certify club membership or officer status.
+        Listings do not verify membership or officer status.
       </p>
     </Page>
   );

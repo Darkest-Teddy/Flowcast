@@ -1,6 +1,9 @@
 // HTTP API for Ask. POST /api/ask runs one agent question against the simulation for the day and
 // time the map is showing. The OpenAI key stays here; browsers only talk to this endpoint.
 
+import { VoiceRequest, type Voice } from './voice';
+import { personalScheduleSchema } from './personalSchedule';
+import type { PersonalSchedule } from '../../map-client/src/personalSchedule';
 import type pg from 'pg';
 import { dashboardRouter } from './dashboard/router';
 import { isIP } from 'node:net';
@@ -24,6 +27,7 @@ const historySchema = z.array(z.discriminatedUnion('role', [
   .refine((history) => history.reduce((total, message) => total + message.content.length, 0) <= MAX_HISTORY_LENGTH, 'History is too long');
 
 export const AskRequest = z.object({
+  personalSchedule: personalScheduleSchema.optional(),
   question: z.string().trim().min(1).max(300),
   history: historySchema.optional(),
   weekday: z.number().int().min(0).max(6),
@@ -34,6 +38,7 @@ export const AskRequest = z.object({
 const isDate = (d: string) => !Number.isNaN(Date.parse(`${d}T12:00:00Z`)) && new Date(`${d}T12:00:00Z`).toISOString().slice(0, 10) === d;
 
 export const ChatRequest = z.object({
+  personalSchedule: personalScheduleSchema.optional(),
   messages: z.array(z.discriminatedUnion('role', [
     z.object({ role: z.literal('user'), text: z.string().trim().min(1).max(300) }),
     z.object({ role: z.literal('assistant'), text: z.string().max(2000) }),
@@ -46,6 +51,7 @@ export const ChatRequest = z.object({
 
 export interface AppOptions {
   dashboardPool?: pg.Pool;
+  voice?: Voice;
   campus: CampusModel;
   ask: (question: string, ctx: ServerAskContext, signal: AbortSignal, history?: AgentMessage[]) => Promise<AskResult>;
   /** One chat turn (chat.ts); without it /api/chat answers 503 and the directory says chat is unavailable. */
@@ -125,16 +131,37 @@ export function createApp(options: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', options.trustProxyHops ?? Number(process.env.TRUST_PROXY_HOPS ?? 0));
-  // A chat request carries up to 12 turns (64 KB); an ask request with its history up to 128 KB.
+  // Ask and chat requests, including optional personal context, are limited to 128 KB.
   // The first parser to run wins.
-  app.use('/api/chat', express.json({ limit: '64kb' }));
+  app.use('/api/chat', express.json({ limit: '128kb' }));
+  // JSON escaping can expand a 1 MiB calendar to six times its UTF-8 size.
+  app.use(/^\/api\/dashboard\/schedule(?:\/preview)?\/?$/i, express.json({ limit: 6 * 1024 * 1024 + 4096 }));
   app.use(express.json({ limit: '128kb' }));
   app.use('/api/dashboard', dashboardRouter(options.dashboardPool));
   let domains: DataDomain[] | undefined;
   const directory = () => (domains ??= options.directory?.() ?? buildDirectory(campus));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, model: options.model, keyConfigured: options.keyConfigured, privateBundle: campus.privateBundle });
+    res.json({ ok: true, model: options.model, keyConfigured: options.keyConfigured, privateBundle: campus.privateBundle, voiceAvailable: options.keyConfigured && Boolean(options.voice) });
+  });
+
+  app.post('/api/voice/session', async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const parsed = VoiceRequest.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Send { sdp: a nonempty SDP offer of at most 65536 characters }.' });
+      return;
+    }
+    const voice = options.voice;
+    if (!options.keyConfigured || !voice) {
+      res.status(503).json({ error: 'Voice is not configured on this server.' });
+      return;
+    }
+    if (!perClient(clientKey(req.ip)) || !overall('all')) {
+      res.status(429).json({ error: 'Too many requests. Try again later.' });
+      return;
+    }
+    await run(res, 'voice', (signal) => voice(parsed.data.sdp, signal));
   });
 
   app.post('/api/ask', async (req: Request, res: Response) => {
@@ -148,10 +175,10 @@ export function createApp(options: AppOptions) {
       res.status(503).json({ error: 'Ask is not configured on this server (no OpenAI key).' });
       return;
     }
-    const { question, weekday, time, campus: campusId, history } = parsed.data;
+    const { question, weekday, time, campus: campusId, history, personalSchedule } = parsed.data;
     const playback = ready(weekday, req, res);
     if (!playback) return;
-    await run(res, 'ask', (signal) => ask(question, contextFor(playback, weekday, time, campusId), signal, history));
+    await run(res, 'ask', (signal) => ask(question, contextFor(playback, weekday, time, campusId, personalSchedule), signal, history));
   });
 
   /**
@@ -174,7 +201,7 @@ export function createApp(options: AppOptions) {
     return playback;
   }
 
-  function contextFor(playback: NonNullable<ReturnType<CampusModel['ready']>>, weekday: number, time: number, campusId: string): ServerAskContext {
+  function contextFor(playback: NonNullable<ReturnType<CampusModel['ready']>>, weekday: number, time: number, campusId: string, personalSchedule?: PersonalSchedule): ServerAskContext {
     return {
       locations: campus.locations,
       walkRoutes: campus.walkRoutes,
@@ -185,11 +212,12 @@ export function createApp(options: AppOptions) {
       campus: campusId,
       data: campus.facts.data,
       facts: campus.facts,
+      ...(personalSchedule === undefined ? {} : { personalSchedule }),
     };
   }
 
-  /** Runs the paid model call with the timeout and disconnect handling both endpoints share. */
-  async function run(res: Response, what: 'ask' | 'chat', answer: (signal: AbortSignal) => Promise<object>) {
+  /** Runs a paid upstream call with shared timeout and disconnect handling. */
+  async function run(res: Response, what: 'ask' | 'chat' | 'voice', answer: (signal: AbortSignal) => Promise<object>) {
     // The timeout covers only the paid model run; a client that leaves cancels it.
     const timeout = AbortSignal.timeout(options.timeoutMs ?? 25_000);
     const disconnect = new AbortController();
@@ -207,7 +235,7 @@ export function createApp(options: AppOptions) {
       }
       const timedOut = timeout.aborted;
       // Log the failure kind, not the question: questions can carry personal details.
-      console.error(`${what} failed: ${timedOut ? 'timeout' : error instanceof Error ? error.name : 'unknown'}`);
+      console.error(`${what} failed: ${timedOut ? 'timeout' : what === 'voice' ? 'upstream failure' : error instanceof Error ? error.name : 'unknown'}`);
       res.status(timedOut ? 504 : 502).json({ error: timedOut ? 'The answer took too long. Try again.' : 'Couldn’t get an answer right now.' });
     } finally {
       done?.();
@@ -231,10 +259,10 @@ export function createApp(options: AppOptions) {
       res.status(503).json({ error: 'Chat is not configured on this server (no OpenAI key).' });
       return;
     }
-    const { messages, weekday, time, campus: campusId, date } = parsed.data;
+    const { messages, weekday, time, campus: campusId, date, personalSchedule } = parsed.data;
     const playback = ready(weekday, req, res);
     if (!playback) return;
-    const ctx: ChatContext = { ...contextFor(playback, weekday, time, campusId), date: date ?? null };
+    const ctx: ChatContext = { ...contextFor(playback, weekday, time, campusId, personalSchedule), date: date ?? null };
     await run(res, 'chat', (signal) => chat({ messages }, ctx, signal));
   });
 

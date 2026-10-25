@@ -46,7 +46,9 @@ export interface Basemap {
   getCamera(): CameraState;
   /** Animated move; `fly: true` uses the zoom-out arc of flyTo. Skipped (jumps) under prefers-reduced-motion. */
   easeTo(move: CameraMove): void;
-  jumpTo(camera: Partial<CameraState>): void;
+  jumpTo(camera: Partial<CameraState> & { padding?: ViewPadding }): void;
+  /** Lift (false) or restore (true) the camera's limits to central Boston: the intro rises above them. */
+  setLimits(on: boolean): void;
   /** True while an animated camera move (ours or the app's flyTo) is running. */
   isEasing(): boolean;
   /** Steepest pitch the map allows. */
@@ -82,6 +84,7 @@ export interface CameraMove extends Partial<CameraState> {
   duration?: number;
   easing?: (t: number) => number;
   fly?: boolean;
+  padding?: ViewPadding;
 }
 
 export type UserInteraction = 'press' | 'release' | 'gesture';
@@ -95,6 +98,8 @@ interface CameraMap {
   easeTo(options: object): unknown;
   flyTo(options: object): unknown;
   jumpTo(options: object): unknown;
+  setMaxBounds(bounds: [[number, number], [number, number]] | null): unknown;
+  setMinZoom(zoom: number | null): unknown;
   isEasing(): boolean;
   getCanvasContainer(): HTMLElement;
   on(type: string, listener: (e: { originalEvent?: Event }) => void): unknown;
@@ -141,7 +146,11 @@ function cameraApi(map: CameraMap, maxPitch: number) {
       if (fly) map.flyTo(options);
       else map.easeTo(options);
     },
-    jumpTo: (camera: Partial<CameraState>) => map.jumpTo(camera),
+    jumpTo: (camera: Partial<CameraState> & { padding?: ViewPadding }) => map.jumpTo(camera),
+    setLimits: (on: boolean) => {
+      map.setMinZoom(on ? BOSTON_LIMITS.minZoom : null);
+      map.setMaxBounds(on ? BOSTON_LIMITS.maxBounds : null);
+    },
     isEasing: () => map.isEasing(),
     maxPitch,
     onUserInteraction: (cb: (kind: UserInteraction) => void) => {
@@ -205,6 +214,8 @@ function viewFromUrl() {
 }
 
 export const INITIAL_VIEW = viewFromUrl();
+/** True when the URL sets any part of the camera (then the map opens there, not from the intro still). */
+export const VIEW_IN_URL = ['lng', 'lat', 'zoom', 'pitch', 'bearing'].some((key) => new URLSearchParams(window.location.search).has(key));
 
 // Keep the camera (and so tile loading) to the campuses and central Boston: West Campus /
 // Nickerson to downtown and the Seaport edge, the Cambridge riverbank to the Medical Campus.
@@ -296,7 +307,7 @@ function tameInteractions(map: {
   map.doubleClickZoom.disable();
 }
 
-export async function createBasemap(container: HTMLElement, lightPreset: LightPreset): Promise<Basemap> {
+export async function createBasemap(container: HTMLElement, lightPreset: LightPreset, start: CameraState = INITIAL_VIEW): Promise<Basemap> {
   const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
   if (token) {
@@ -308,7 +319,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       // Standard defaults to a globe, which flips deck.gl into GlobeView, where text labels and
       // the 3D characters silently don't draw. One campus is flat anyway.
       projection: 'mercator',
-      ...INITIAL_VIEW,
+      ...start,
       ...BOSTON_LIMITS,
       // 4x MSAA. Speed mode starts without it (it can only be chosen when the map is created).
       antialias: quality.msaa,
@@ -541,7 +552,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
   const map = new maplibregl.Map({
     container,
     style: 'https://tiles.openfreemap.org/styles/liberty',
-    ...INITIAL_VIEW,
+    ...start,
     ...BOSTON_LIMITS,
     maxPitch: 85, // the default 60 is too flat for the street-level view
     canvasContextAttributes: { antialias: quality.msaa },

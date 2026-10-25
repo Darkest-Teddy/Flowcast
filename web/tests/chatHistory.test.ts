@@ -102,3 +102,8 @@ test('stored conversations round-trip and junk is dropped', () => {
   const junk = [{ id: 'x', role: 'assistant', status: 'answer', response: { answer: '' } }, { role: 'user', text: 'no id' }, 5];
   assert.deepEqual(restoreConversation(JSON.stringify(junk), parseChatBody), []);
 });
+
+test('legacy development samples cannot be restored as genuine answers', () => {
+  const raw = JSON.stringify([{ id: 'old-demo', role: 'assistant', status: 'answer', response: response('made-up'), sample: true }]);
+  assert.deepEqual(restoreConversation(raw, (body) => body as ChatResponse), []);
+});

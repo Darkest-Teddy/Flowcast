@@ -1,14 +1,16 @@
 import { createBrowserRouter, RouterProvider, useMatch } from 'react-router';
-import { RequireAuth, SessionProvider, useSession } from './auth/session';
+import { mayBeSignedIn, RequireAuth, SessionProvider, useSession } from './auth/session';
 import { AdminLayout } from './layouts/AdminLayout';
 import { StudentLayout } from './layouts/StudentLayout';
 import Home from './pages/Home';
 import Ask from './pages/Ask';
 import Landing from './pages/Landing';
 import SignIn from './pages/SignIn';
+import AuthCallback from './pages/AuthCallback';
 import Welcome from './pages/Welcome';
 import Schedule from './pages/Schedule';
 import Forecasts from './pages/Forecasts';
+import Study from './pages/Study';
 import Events from './pages/Events';
 import EventImpact from './pages/EventImpact';
 import Clubs from './pages/Clubs';
@@ -35,7 +37,8 @@ import AdminSettings from './pages/admin/AdminSettings';
 function StudentArea() {
   const { session, ready } = useSession();
   const atIndex = useMatch('/') !== null;
-  if (ready && !session && atIndex) return <Landing />;
+  // Signed out: no stored sign-in means the landing page right away, without waiting for the check.
+  if (atIndex && !session && (ready || !mayBeSignedIn())) return <Landing />;
   return (
     <RequireAuth>
       <StudentLayout />
@@ -44,6 +47,7 @@ function StudentArea() {
 }
 
 const router = createBrowserRouter([
+  { path: '/auth/callback', element: <AuthCallback /> },
   { path: '/signin', element: <SignIn /> },
   { path: '/landing', element: <Landing /> }, // the landing page for everyone, signed in or not
   { path: '/welcome', element: <RequireAuth><Welcome /></RequireAuth> },
@@ -56,6 +60,7 @@ const router = createBrowserRouter([
       { path: 'ask', element: <Ask /> },
       { path: 'schedule', element: <Schedule /> },
       { path: 'forecasts', element: <Forecasts /> },
+      { path: 'study', element: <Study /> },
       { path: 'events', element: <Events /> },
       { path: 'event-impact', element: <EventImpact /> },
       { path: 'clubs', element: <Clubs /> },

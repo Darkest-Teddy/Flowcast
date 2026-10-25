@@ -32,6 +32,15 @@ export function loadCharacterModels(): Promise<LoadedModels> {
   return Promise.all(CHARACTER_MODELS.map((url) => load(url, GLTFLoader).then(mergeSkinnedMeshes)));
 }
 
+const phaseCache = new Map<string, number>();
+/** phaseOf for the default phase count, computed once per id (it runs for every walker every frame). */
+function cachedPhase(id: string, phases: number): number {
+  if (phases !== PHASES) return phaseOf(id, phases);
+  let phase = phaseCache.get(id);
+  if (phase === undefined) phaseCache.set(id, (phase = phaseOf(id, phases)));
+  return phase;
+}
+
 export function phaseOf(id: string, phases = PHASES): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
@@ -50,10 +59,11 @@ export function walkerScale(zoom: number) {
 export interface AgentLayerOptions {
   zoom: number;
   highlightId?: string | null;
+  runningIds?: ReadonlySet<string>;
 }
 
-/** Which Kenney clip a set of characters plays: 'walk' for walkers, 'idle' for people standing about. */
-export type CharacterClip = 'walk' | 'idle';
+/** Kenney clips for walking, standing, and fleeing. */
+export type CharacterClip = 'walk' | 'idle' | 'sprint';
 
 export interface CharacterLayerOptions extends AgentLayerOptions {
   /** Layer id prefix; one layer per model and phase, `${id}-${model}-${phase}`. */
@@ -66,12 +76,51 @@ export interface CharacterLayerOptions extends AgentLayerOptions {
 
 const NOBODY: WalkingAgent[] = [];
 
+/** A character that is drawn but never picked (no hover, no tooltip), even inside a pickable layer:
+ *  people sitting by the river share the idle layers of riders waiting at stops. */
+export type Character = WalkingAgent & { unpickable?: true };
+
+/**
+ * ScenegraphLayer whose `unpickable` instances are left out of the picking pass (collapsed outside
+ * the clip volume there, drawn as usual otherwise): they neither answer a pick nor hide what's
+ * behind them, exactly as if drawn in a layer of their own with `pickable: false`, but without that
+ * layer's extra draws. (deck picks ScenegraphLayer instances by gl_InstanceID, with no per-instance
+ * picking colours to clear.)
+ */
+class CharacterLayer extends ScenegraphLayer<Character, { getUnpickable?: (d: Character) => number }> {
+  static layerName = 'CharacterLayer';
+  static defaultProps = {
+    ...ScenegraphLayer.defaultProps,
+    getUnpickable: { type: 'accessor', value: (d: Character) => (d.unpickable ? 1 : 0) },
+  } as typeof ScenegraphLayer.defaultProps;
+
+  initializeState() {
+    super.initializeState();
+    this.getAttributeManager()!.addInstanced({ instanceUnpickable: { size: 1, accessor: 'getUnpickable' } });
+  }
+
+  getShaders() {
+    const shaders = super.getShaders();
+    const inject = shaders.inject ?? {};
+    return {
+      ...shaders,
+      inject: {
+        ...inject,
+        'vs:#decl': `${inject['vs:#decl'] ?? ''}\nin float instanceUnpickable;\n`,
+        'vs:DECKGL_FILTER_GL_POSITION': `${inject['vs:DECKGL_FILTER_GL_POSITION'] ?? ''}
+  if (picking.isActive > 0.5 && instanceUnpickable > 0.5) position = vec4(0.0, 0.0, 2.0, 1.0);
+`,
+      },
+    };
+  }
+}
+
 function* positionsOf(agents: WalkingAgent[]) {
   for (const a of agents) yield a.position;
 }
 
 /** Characters bucketed by model and animation phase into GPU-instanced layers, all playing one clip. */
-export function characterLayers(items: WalkingAgent[], models: LoadedModels, time: number, options: CharacterLayerOptions) {
+export function characterLayers(items: Character[], models: LoadedModels, time: number, options: CharacterLayerOptions) {
   const { zoom, highlightId = null, id, clip = 'walk', pickable = true } = options;
   // Idle: one layer per model (each model sways at its own offset), since every extra layer is
   // another render pass in interleaved mode.
@@ -80,14 +129,14 @@ export function characterLayers(items: WalkingAgent[], models: LoadedModels, tim
   // cadence, so the crowd still doesn't march in step): 12 draws instead of 36. The other phase
   // layers stay in the list, empty and hidden, so zooming back in re-uploads nothing.
   const usedPhases = clip === 'walk' && zoom < PHASED_FROM_ZOOM ? 1 : phases;
-  const animationFor = (model: number, phase: number) => (clip === 'walk' ? WALK_ANIMATIONS[model % WALK_ANIMATIONS.length][phase] : IDLE_ANIMATIONS[model % IDLE_ANIMATIONS.length]);
+  const animationFor = (model: number, phase: number) => (clip === 'walk' ? WALK_ANIMATIONS[model % WALK_ANIMATIONS.length][phase]
+    : clip === 'sprint' ? SPRINT_ANIMATIONS[model % SPRINT_ANIMATIONS.length] : IDLE_ANIMATIONS[model % IDLE_ANIMATIONS.length]);
   const sizeScale = walkerScale(zoom);
-  const buckets = new Map<string, WalkingAgent[]>();
+  // Bucket index model * phases + phase (the phase is a hash of the id, remembered per id).
+  const buckets: Character[][] = [];
   for (const agent of items) {
-    const key = `${agent.model % models.length}-${usedPhases > 1 ? phaseOf(agent.id, phases) : 0}`;
-    const list = buckets.get(key) ?? [];
-    list.push(agent);
-    buckets.set(key, list);
+    const key = (agent.model % models.length) * phases + (usedPhases > 1 ? cachedPhase(agent.id, phases) : 0);
+    (buckets[key] ??= []).push(agent);
   }
 
   const layers = [];
@@ -97,12 +146,12 @@ export function characterLayers(items: WalkingAgent[], models: LoadedModels, tim
       const layerId = `${id}-${key}`;
       // Same people as last frame: same array, so only positions (and headings, when one turns)
       // are re-uploaded instead of every attribute of the model.
-      const data = stableList(layerId, buckets.get(key) ?? NOBODY, (a) => a.id);
+      const data = stableList(layerId, buckets[model * phases + phase] ?? NOBODY, (a) => a.id);
       // Off-screen buckets skip their draws. A character is under a model unit wide and tall, so
       // sizeScale metres all round is ample (culling.ts adds a screen margin for sizeMinPixels).
       setCullBox(layerId, boxAround(positionsOf(data), sizeScale, sizeScale));
       layers.push(
-        new ScenegraphLayer<WalkingAgent>({
+        new CharacterLayer({
           id: layerId,
           data,
           scenegraph: models[model] as never,
@@ -130,8 +179,19 @@ export function characterLayers(items: WalkingAgent[], models: LoadedModels, tim
 }
 
 export function agentLayers(walking: WalkingAgent[], models: LoadedModels, time: number, options: AgentLayerOptions) {
+  if (options.runningIds?.size) {
+    const runners: WalkingAgent[] = [], others: WalkingAgent[] = [];
+    for (const person of walking) (options.runningIds.has(person.id) ? runners : others).push(person);
+    return [...characterLayers(others, models, time, { ...options, id: 'agents', clip: 'walk' }),
+      ...characterLayers(runners, models, time, { ...options, id: 'agents-running', clip: 'sprint' })];
+  }
   return characterLayers(walking, models, time, { ...options, id: 'agents', clip: 'walk' });
 }
+
+const SPRINT_ANIMATIONS = CHARACTER_MODELS.map((_, model) => ({
+  '*': { playing: false },
+  sprint: { playing: true, startTime: model * 0.047, speed: 1 + (model % 4) * 0.06 },
+}));
 
 // Per model and phase: phases a third of a stride apart, and each model offset and paced a little
 // differently, so even with one layer per model (the overview) neighbours don't share a stride.

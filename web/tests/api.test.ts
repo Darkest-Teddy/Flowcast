@@ -101,3 +101,55 @@ test('export returns actual server data and preserves server errors', async () =
   });
   assert.deepEqual(await client.request('/export'), { profile: { name: 'Postgres profile' }, following: ['saved-id'] });
 });
+
+test('private requests use the latest bearer while public requests never acquire one', async () => {
+  let token = 'first';
+  let authCalls = 0;
+  const seen: Array<[string, string | null]> = [];
+  const client = createDashboardClient(async (url, init) => {
+    seen.push([String(url), new Headers(init?.headers).get('Authorization')]);
+    return json({});
+  }, async () => { authCalls++; return { Authorization: `Bearer ${token}` }; });
+  await client.getPublic();
+  await client.getMe();
+  token = 'refreshed';
+  await client.request('/export');
+  assert.equal(authCalls, 2);
+  assert.deepEqual(seen, [['/api/dashboard/public', null], ['/api/dashboard/me', 'Bearer first'], ['/api/dashboard/export', 'Bearer refreshed']]);
+});
+
+test('account reset rejects old reads and queued mutations before they can acquire the next user token', async () => {
+  const oldRead = deferred<Response>();
+  const oldWrite = deferred<Response>();
+  let token = 'A';
+  const calls: Array<[string, string | null]> = [];
+  const client = createDashboardClient(async (url, init) => {
+    calls.push([String(url), new Headers(init?.headers).get('Authorization')]);
+    if (token === 'A') return init?.method === 'GET' ? oldRead.promise : oldWrite.promise;
+    return json({ profile: { name: 'B' } });
+  }, async () => ({ Authorization: `Bearer ${token}` }));
+  const read = client.getMe();
+  await new Promise((r) => setImmediate(r));
+  const write = client.mutate('/profile', 'PATCH', { name: 'A' });
+  const queued = client.mutate('/preferences', 'PATCH', { packedRoute: true });
+  const rejected = [read, write, queued].map((p) => assert.rejects(p, /Account changed/));
+  await new Promise((r) => setImmediate(r));
+  client.reset();
+  token = 'B';
+  assert.equal((await client.getMe()).profile.name, 'B');
+  oldRead.resolve(json({ profile: { name: 'A' } }));
+  oldWrite.resolve(json({}));
+  await Promise.all(rejected);
+  assert.deepEqual(calls, [['/api/dashboard/me', 'Bearer A'], ['/api/dashboard/profile', 'Bearer A'], ['/api/dashboard/me', 'Bearer B']]);
+});
+
+test('an account switch while acquiring a token prevents the request entirely', async () => {
+  const token = deferred<Record<string, string>>();
+  let calls = 0;
+  const client = createDashboardClient(async () => { calls++; return json({}); }, () => token.promise);
+  const result = client.request('/export');
+  client.reset();
+  token.resolve({ Authorization: 'Bearer B' });
+  await assert.rejects(result, /Account changed/);
+  assert.equal(calls, 0);
+});

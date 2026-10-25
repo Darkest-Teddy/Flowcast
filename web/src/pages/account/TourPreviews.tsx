@@ -10,17 +10,20 @@ const crowd = (level: number) => crowdScale[level].color;
 
 function Frame({ children, sidebar = true }: { children: ReactNode; sidebar?: boolean }) {
   return (
-    <div className={`${styles.frame} ${sidebar ? '' : styles.noSide}`} aria-hidden>
-      {sidebar && (
-        <div className={styles.side}>
-          <i className={styles.brand} />
-          {[70, 55, 62, 48, 58].map((n, i) => (
-            <i key={i} className={styles.line} style={w(n)} />
-          ))}
-        </div>
-      )}
-      <div className={styles.main}>{children}</div>
-    </div>
+    <figure className={styles.preview}>
+      <figcaption className={styles.caption}>Interface illustration · not account data or a forecast</figcaption>
+      <div className={`${styles.frame} ${sidebar ? '' : styles.noSide}`} aria-hidden>
+        {sidebar && (
+          <div className={styles.side}>
+            <i className={styles.brand} />
+            {[70, 55, 62, 48, 58].map((n, i) => (
+              <i key={i} className={styles.line} style={w(n)} />
+            ))}
+          </div>
+        )}
+        <div className={styles.main}>{children}</div>
+      </div>
+    </figure>
   );
 }
 

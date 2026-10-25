@@ -12,8 +12,8 @@ in order of preference:
   * "estimate": footprint area x levels / 30 m^2 per space per level (labelled as an estimate).
 Every lot carries that provenance (`capacityBasis`, `capacityNote`, `sourceUrl`, `osm`).
 
-Events: the venues' published schedules where we have them (EVENTS below, with sources), else
-clearly-labelled samples (`sample: true`). Cars per event are estimates (attendance x share who
+Events: the venues' published schedules where we have them (with sources).
+Nickerson soccer dates and times come from the saved event calendar. Cars per event are estimates (attendance x share who
 drive and park off-street / people per car); see VENUES.
 
 Writes map-client/public/data/parking.json:
@@ -29,6 +29,7 @@ import json
 import math
 import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -241,6 +242,28 @@ MGM_SHOWS = [
 ]
 
 
+def soccer_events(calendar_path=OUT.with_name("event-calendar.json")):
+    """Reuse collected BU Athletics times; never substitute an invented fixture."""
+    calendar = json.loads(calendar_path.read_text())
+    out = []
+    for row in calendar["events"]:
+        if (row.get("venueId") != "nickerson" or row.get("kind") != "bu-soccer"
+                or row.get("timeTbd") or not row.get("start") or not row.get("sourceUrl")
+                or row.get("status") in ("cancelled", "canceled", "postponed")):
+            continue
+        start = datetime.fromisoformat(row["start"]).astimezone(ZoneInfo("America/New_York"))
+        item = event("soccer", row["name"], start.date().isoformat(), start.strftime("%H:%M"),
+                     "BU Athletics via event-calendar.json; parking demand modeled", row["sourceUrl"])
+        item.update(id=row["id"], demandBasis="modeled", demandNote="Assumed 800 attendees × 0.30 driving share ÷ 2.5 people per car, rounded to tens; not measured demand.",
+                    endBasis="modeled two-hour duration", fetchedAt=row.get("fetchedAt"))
+        if row.get("end"):
+            end = datetime.fromisoformat(row["end"]).astimezone(ZoneInfo("America/New_York"))
+            item["end"] = int((end - start.replace(hour=0, minute=0, second=0)).total_seconds())
+            item["endBasis"] = "event-calendar"
+        out.append(item)
+    return out
+
+
 def build_events():
     out = redsox_events()
     out += [event("hockey", f"BU hockey v {opp}", day, start, "College Hockey Inc. 2026-27 BU schedule (tentative)", HOCKEY_URL)
@@ -254,13 +277,8 @@ def build_events():
         out.append(event("move-in", f"BU move-in ({who})", day, "08:00", "BU Today, Move-In 2026; hours assumed 8 am-6 pm", move_in, end="18:00"))
     out.append(event("commencement", "BU Commencement", "2027-05-16", "11:00", "BU Commencement page (Sunday May 16, 2027, Nickerson Field); time assumed",
                      "https://www.bu.edu/commencement/", end="14:00"))
-    # No published schedule found for BU soccer at Nickerson this fall: one clearly-labelled sample.
-    out.append(event("soccer", "BU soccer at Nickerson (sample)", "2026-10-28", "19:00", "Sample: no published 2026 schedule found",
-                     "https://goterriers.com/", sample=True))
+    out.extend(soccer_events())
     return out
-
-
-EVENTS = build_events()
 
 
 # --------------------------------------------------------------------------------------------
@@ -400,6 +418,7 @@ def build_lot(cfg, element):
 
 
 def main():
+    events = build_events()
     elements = fetch_elements()
     lots = []
     for cfg in LOTS:
@@ -414,7 +433,7 @@ def main():
         "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "lots": lots,
         "venues": venues,
-        "events": sorted(EVENTS, key=lambda e: (e["date"], e["start"], e["id"])),
+        "events": sorted(events, key=lambda e: (e["date"], e["start"], e["id"])),
         "notes": NOTES,
         "sources": SOURCES,
     }
@@ -422,7 +441,7 @@ def main():
     by_basis = {}
     for lot in lots:
         by_basis[lot["capacityBasis"]] = by_basis.get(lot["capacityBasis"], 0) + 1
-    print(f"Wrote {OUT.relative_to(HERE.parent)}: {len(lots)} lots ({by_basis}), {sum(l['capacity'] for l in lots):,} spaces, {len(EVENTS)} events")
+    print(f"Wrote {OUT.relative_to(HERE.parent)}: {len(lots)} lots ({by_basis}), {sum(l['capacity'] for l in lots):,} spaces, {len(events)} events")
 
 
 NOTES = [

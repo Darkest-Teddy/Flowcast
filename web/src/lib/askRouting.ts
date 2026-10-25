@@ -1,10 +1,3 @@
-// Which Ask Flowcast questions may leave the device. Questions that need the person's own schedule
-// ("where is my next class?") are answered here from their calendar and never sent to the Ask
-// server: personal schedules stay in the owner's session. A question that only names the person's
-// home ("how far is Mugar from my dorm?") is sent with the home's place name in place of "my dorm",
-// and nothing else from the profile. Everything else goes to the server's agent as asked, with this
-// device's answer as the fallback. No imports, so node --test can run it directly.
-
 const SCHEDULE_WORDS = '(class|classes|course|courses|lecture|lectures|section|sections|lab|labs|seminar|seminars|schedule|calendar|timetable|day|week|exam|exams)';
 
 /** Questions that can only be answered from the person's own schedule. */
@@ -13,6 +6,8 @@ const NEEDS_SCHEDULE = [
   /\bnext (class|lecture|section|lab|seminar)\b/,
   /\bbetween (my )?classes\b/,
   /\bwhat('?s| is) next\b/,
+  /\bwhen (?:should|must|can) i (?:leave|depart|head out)\b/,
+  /\b(?:am i late|can i make it|leave.by time)\b/,
   /\bwhen do i\b/, // when do I have class, when do I need to leave
   /\b(i|i'?m|me)\b.*\b(class|classes|schedule|calendar|lecture|timetable)\b/, // do I have class, am I late for class
 ];
@@ -22,7 +17,7 @@ const HOME_REF = /\b(?:my|our) (?:dorm room|dorm|room|residence hall|residence|h
 
 const normalize = (question: string) => question.replace(/[’‘]/g, "'");
 
-/** True when a question needs the asker's own schedule, so it stays on this device. */
+/** True when a question needs the asker's own schedule. */
 export function isPersonalQuestion(question: string): boolean {
   const q = ` ${normalize(question).toLowerCase()} `;
   return NEEDS_SCHEDULE.some((re) => re.test(q));
@@ -36,13 +31,9 @@ export function mentionsHome(question: string): boolean {
 
 export type AskPlan = { local: true } | { local: false; question: string };
 
-/**
- * What to do with one question: keep it on the device when it needs the person's schedule, or when
- * it names their home and the profile has none; otherwise send it, with "my dorm" and the like
- * replaced by `homeName` (the profile's home place, never anything else from the profile).
- */
-export function planQuestion(question: string, homeName: string | null): AskPlan {
-  if (isPersonalQuestion(question)) return { local: true };
+/** Personal questions use the agent only when schedule context is explicitly supplied. */
+export function planQuestion(question: string, homeName: string | null, scheduleShared = false): AskPlan {
+  if (!scheduleShared && isPersonalQuestion(question)) return { local: true };
   if (!mentionsHome(question)) return { local: false, question };
   if (!homeName) return { local: true };
   return { local: false, question: normalize(question).replace(new RegExp(HOME_REF.source, 'gi'), () => homeName) };
@@ -66,18 +57,13 @@ export type AskOutcome<A, E> =
   | { source: 'device'; reason: 'failed'; error: E }
   | { source: 'cancelled' };
 
-/**
- * Routes one question (see planQuestion): personal ones are answered on the device without calling
- * `agent`; the rest go to `agent` (with the home substituted), and a failure says so, so the page
- * can answer on the device and label it. `question` in an agent outcome is the text that was sent.
- */
 export async function routeQuestion<A, E extends { kind: string }>(
   question: string,
   agent: (question: string) => Promise<{ ok: true; value: A } | { ok: false; error: E }>,
   homeName: string | null = null,
   context?: ConversationPrivacy,
 ): Promise<AskOutcome<A, E>> {
-  const plan = planQuestion(question, homeName);
+  const plan = planQuestion(question, homeName, context?.scheduleShared);
   if (plan.local) return { source: 'device', reason: 'personal' };
   if (needsPrivateClarification(question, context)) return { source: 'device', reason: 'privateFollowup' };
   const result = await agent(plan.question);
@@ -87,6 +73,7 @@ export async function routeQuestion<A, E extends { kind: string }>(
 }
 
 export interface ConversationPrivacy {
+  scheduleShared?: boolean;
   afterDevice: boolean;
   locationNames: string[];
 }

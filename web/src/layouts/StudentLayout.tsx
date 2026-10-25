@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  BookOpen,
   CalendarDays,
   CalendarRange,
   CalendarSync,
@@ -14,13 +15,13 @@ import {
   Ticket,
   Upload,
   UserRound,
-  UserRoundCog,
+  Menu,
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { useSession } from '../auth/session';
 import { config } from '../config';
-import { Avatar, Button } from '../ui';
+import { Avatar } from '../ui';
 import { AppShell, type NavItem, type NavSection, type TabBarConfig } from './AppShell';
 import styles from './LayoutFooter.module.css';
 
@@ -30,9 +31,12 @@ export function StudentLayout() {
   const home: NavItem = { to: '/', label: 'Home', icon: Home, end: true };
   const ask: NavItem = { to: '/ask', label: 'Ask Flowcast', icon: MessagesSquare };
   const schedule: NavItem = { to: '/schedule', label: 'Schedule', icon: CalendarDays };
+  const study: NavItem = { to: '/study', label: 'Study spots', icon: BookOpen };
   const forecasts: NavItem = { to: '/forecasts', label: 'Forecasts', icon: Gauge };
   const events: NavItem = { to: '/events', label: 'Events', icon: Ticket };
   const eventImpact: NavItem = { to: '/event-impact', label: 'Event impact', icon: CalendarRange };
+  const map: NavItem = { to: config.mapUrl, label: 'Campus map', icon: Map, external: true };
+  const welcome: NavItem = { to: '/welcome', label: 'Get started', icon: Sparkles };
   const clubs: NavItem = { to: '/clubs', label: 'Clubs', icon: Users };
   const account: NavSection = {
     label: 'Account',
@@ -53,25 +57,23 @@ export function StudentLayout() {
       }
     : null;
 
-  const sections: NavSection[] = [{ items: [home, ask, schedule, forecasts, events, eventImpact, clubs] }, account];
+  const sections: NavSection[] = [{ items: [home, ask, schedule, study, forecasts, events, eventImpact, clubs, map] }, account, { items: [welcome] }];
   if (club) sections.push(club);
 
-  // Phones: five tabs, and an Account tab whose menu holds the rest of the sidebar, plus the
-  // top bar's Get started (no room for it up there) and the Admin link from the sidebar footer.
   const tabBar: TabBarConfig = {
     tabs: [home, schedule, forecasts, events, clubs],
     more: {
-      label: 'Account',
-      icon: UserRoundCog,
+      label: 'More',
+      icon: Menu,
       header: session && (
         <div className={styles.footer}>
-          <Avatar name={session.user.name || 'Local visitor'} />
-          <span className={styles.name}>{session.user.name || 'Local visitor'}</span>
+          <Avatar name={session.user.name || 'Google user'} />
+          <span className={styles.name}>{session.user.name || 'Google user'}</span>
         </div>
       ),
       sections: [
         account,
-        { label: 'More', items: [ask, eventImpact, { to: '/welcome', label: 'Get started', icon: Sparkles }] },
+        { label: 'More', items: [study, ask, eventImpact, map, welcome] },
         ...(club ? [club] : []),
         ...(hasRole('admin') ? [{ label: 'Admin', items: [{ to: '/admin', label: 'Admin area', icon: LayoutGrid }] }] : []),
       ],
@@ -82,17 +84,11 @@ export function StudentLayout() {
     <AppShell
       sections={sections}
       tabBar={tabBar}
-      topbarActions={
-        <>
-          <Button variant="ghost" to="/welcome" className={styles.wideOnly}>Get started</Button>
-          <Button variant="primary" href={config.mapUrl} icon={<Map aria-hidden />}>Open the map</Button>
-        </>
-      }
       sidebarFooter={
         session && (
           <div className={styles.footer}>
-            <Avatar name={session.user.name || 'Local visitor'} />
-            <span className={styles.name}>{session.user.name || 'Local visitor'}</span>
+            <Avatar name={session.user.name || 'Google user'} />
+            <span className={styles.name}>{session.user.name || 'Google user'}</span>
             {hasRole('admin') && <Link to="/admin" className={styles.admin}>Admin</Link>}
           </div>
         )

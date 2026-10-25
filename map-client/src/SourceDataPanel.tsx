@@ -161,8 +161,6 @@ export function SourceDataPanel({ data, locations, selectedBuilding, campus, wee
                 <strong>{location.name}</strong>
                 <span>{entry.text || 'Hours not published'}</span>
                 <span className="source-caption">{entry.date ?? `${WEEKDAYS[entry.weekday!]} hours`}</span>
-                {entry.qualifier && <details><summary>Details</summary><p>{entry.qualifier}</p></details>}
-                {(entry.serviceSourceUrls ?? [entry.sourceUrl]).map((url, sourceIndex) => <a key={url} href={url} target="_blank" rel="noreferrer">Hours source{entry.serviceSourceUrls ? ` ${sourceIndex + 1}` : ''}</a>)}
               </div>
             )))}
           </>}

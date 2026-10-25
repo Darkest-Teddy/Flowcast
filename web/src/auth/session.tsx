@@ -1,53 +1,92 @@
-// A browser-linked guest profile, not an authenticated Google account.
-
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, Fragment, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { api } from '../data/api';
+import { api, resetAccountData } from '../data/api';
+import { auth } from './client';
 import type { Role, Session } from '../data/types';
 
 interface SessionState {
   session: Session | null;
   ready: boolean;
-  startLocalSession: () => Promise<void>;
+  error: string | null;
+  signIn: (from?: string) => Promise<void>;
   refreshSession: () => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
   hasRole: (role: Role) => boolean;
 }
-
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [identity, setIdentity] = useState<string | null>(null);
+  const userId = useRef<string | null>(null);
+  const revision = useRef(0);
+
+  function clearAccount(id: string | null) {
+    revision.current++;
+    userId.current = id;
+    resetAccountData();
+    setSession(null);
+    setIdentity(id);
+  }
+
+  async function refreshSession() {
+    const version = ++revision.current;
+    try {
+      const { data, error: sdkError } = await (await auth.getClient()).auth.getSession();
+      if (sdkError) throw sdkError;
+      if (version !== revision.current) return;
+      if (!data.session) { clearAccount(null); setReady(true); return; }
+      const profile = await api.getSession();
+      if (version === revision.current) { setSession(profile); setError(null); setReady(true); }
+    } catch (e) {
+      if (version === revision.current) {
+        setSession(null);
+        setError(e instanceof Error ? e.message : 'Your Flowcast profile could not be loaded.');
+        setReady(true);
+      }
+    }
+  }
 
   useEffect(() => {
     let active = true;
-    api.getSession().then((s) => {
-      if (active) setSession(s);
-    }).catch(() => {
-      if (active) setSession(null);
-    }).finally(() => {
-      if (active) setReady(true);
-    });
-    return () => { active = false; };
+    let unsubscribe: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    auth.getClient().then((client) => {
+      if (!active) return;
+      const { data } = client.auth.onAuthStateChange((_event, sdkSession) => {
+        if (!active) return;
+        const id = sdkSession?.user.id ?? null;
+        if (id !== userId.current || !sdkSession) {
+          clearAccount(id);
+          setReady(!sdkSession);
+        }
+        clearTimeout(timer);
+        // Do not call SDK methods while onAuthStateChange holds its session lock.
+        if (sdkSession) timer = setTimeout(() => { if (active) void refreshSession(); }, 0);
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+      void refreshSession();
+    }).catch((e: Error) => { if (active) { setError(e.message); setReady(true); } });
+    return () => { active = false; revision.current++; clearTimeout(timer); unsubscribe?.(); };
   }, []);
 
   const value: SessionState = {
-    session,
-    ready,
-    async startLocalSession() {
-      setSession(await api.getSession());
-    },
-    async refreshSession() {
-      setSession(await api.getSession());
-    },
-    signOut() {
-      setSession(null);
+    session, ready, error,
+    signIn: (from) => auth.signIn(from, window.location.origin),
+    refreshSession,
+    async signOut() {
+      // Hide private pages while the SDK revokes and removes the browser session.
+      setReady(false);
+      clearAccount(null);
+      try { await auth.signOut(); setError(null); }
+      catch (e) { setError(e instanceof Error ? e.message : 'Sign-out failed.'); throw e; }
+      finally { setReady(true); }
     },
     hasRole: (role) => session?.roles.includes(role) ?? false,
   };
-
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+  return <SessionContext.Provider value={value}><Fragment key={identity}>{children}</Fragment></SessionContext.Provider>;
 }
 
 export function useSession(): SessionState {
@@ -56,11 +95,25 @@ export function useSession(): SessionState {
   return ctx;
 }
 
-/** Sends signed-out visitors to /signin, and non-admins away from admin pages. */
+/**
+ * Whether this browser holds a Supabase sign-in (supabase-js keeps it in localStorage as
+ * sb-<project>-auth-token). Read synchronously, so `/` can show the landing page at once to a
+ * visitor who has never signed in instead of waiting for the session check.
+ */
+export function mayBeSignedIn(): boolean {
+  try {
+    for (let i = 0; i < localStorage.length; i++) if (/^sb-.+-auth-token$/.test(localStorage.key(i) ?? '')) return true;
+    return false;
+  } catch {
+    return true; // storage blocked: wait for the check
+  }
+}
+
 export function RequireAuth({ role, children }: { role?: Role; children: ReactNode }) {
   const { session, ready, hasRole } = useSession();
   const location = useLocation();
-  if (!ready) return null;
+  // The check takes about a second: keep the page blank rather than flash a loading message.
+  if (!ready) return <p role="status" className="visually-hidden">Loading your account…</p>;
   if (!session) return <Navigate to="/signin" replace state={{ from: location.pathname }} />;
   if (role && !hasRole(role)) return <Navigate to="/" replace />;
   return <>{children}</>;

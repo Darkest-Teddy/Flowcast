@@ -1,61 +1,60 @@
-import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useLocation, Navigate } from 'react-router';
 import { useSession } from '../auth/session';
+import { savedReturnRoute, safeReturnRoute } from '../auth/client';
+import { AuthFrame } from '../auth/AuthFrame';
 import { config } from '../config';
-import { Button, Logo } from '../ui';
+import { Button } from '../ui';
 import styles from './SignIn.module.css';
 
 export default function SignIn() {
-  const { ready, startLocalSession } = useSession();
-  const navigate = useNavigate();
+  const { ready, session, signIn: googleSignIn, error: sessionError } = useSession();
   const location = useLocation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as { from?: string } | null)?.from;
+  const from = safeReturnRoute((location.state as { from?: string } | null)?.from ?? savedReturnRoute());
+  useEffect(() => {
+    const returned = () => setBusy(false);
+    window.addEventListener('pageshow', returned);
+    return () => window.removeEventListener('pageshow', returned);
+  }, []);
 
   async function signIn() {
     setBusy(true);
     setError(null);
     try {
-      await startLocalSession();
-      navigate(from?.startsWith('/') && !from.startsWith('//') && from !== '/signin' ? from : '/', { replace: true });
+      await googleSignIn(from);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Couldn’t open a browsing session. Please try again.');
+      setError(error instanceof Error ? error.message : 'Couldn’t start Google sign-in. Please try again.');
       setBusy(false);
     }
   }
 
+  if (ready && session) return <Navigate to={safeReturnRoute(from)} replace />;
+
   return (
-    <main className={styles.screen}>
-      <div className={styles.column}>
-        <div className={styles.brand}>
-          <Logo className={styles.mark} />
-          <span>{config.appName}</span>
-        </div>
-
-        <h1 className={styles.title}>Browse campus</h1>
+    <AuthFrame title="Sign in to Flowcast">
         <p className={styles.lede}>
-          Explore BU places, published events and model-derived crowd projections. No account is required.
+          Keep your schedule and followed clubs in one place.
         </p>
-
-        <Button variant="primary" size="lg" className={styles.google} onClick={signIn} disabled={busy || !ready}>
-          {busy ? 'Opening…' : 'Continue to campus'}
+        <Button variant="accent" size="lg" className={styles.google} onClick={signIn} disabled={busy || !ready} aria-busy={busy || !ready}>
+          {!ready ? 'Checking your account…' : busy ? 'Opening Google…' : 'Continue with Google'}
         </Button>
-        {error && (
+        {!busy && (error || sessionError) && (
           <p className={styles.error} role="alert">
-            {error}
+            {error || sessionError}
           </p>
         )}
 
         <p className={styles.fine}>
-          Google sign-in and calendar connection are unavailable. You can enter an optional profile saved by Flowcast and linked to this browser.
+          Google Calendar stays private. Import your schedule after signing in.
         </p>
 
-        <p className={styles.footer}>
-          <Link to="/profile">Edit your profile</Link>
-        </p>
-      </div>
-    </main>
+        <div className={styles.browse}>
+          <p>No account needed for the campus map.</p>
+          <Button href={config.mapUrl} size="lg" className={styles.publicMap}>Explore the map</Button>
+        </div>
+    </AuthFrame>
   );
 }

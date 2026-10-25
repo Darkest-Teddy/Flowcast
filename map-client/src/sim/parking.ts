@@ -67,6 +67,9 @@ export interface ParkingEvent {
   /** True for a placeholder (no published schedule for that date). */
   sample: boolean;
   source: string;
+  demandBasis?: 'modeled';
+  demandNote?: string;
+  endBasis?: string;
   sourceUrl: string;
 }
 
@@ -257,7 +260,7 @@ export function createParkingModel(data: ParkingData): ParkingModel {
 
 /** The events on `date` (the data's own plus any extra ones, e.g. campus events), by start time. */
 export function eventsOn(model: ParkingModel, date: string, extra: readonly ParkingEvent[] = []): ParkingEvent[] {
-  return [...model.data.events, ...extra].filter((e) => e.date === date && model.venues.has(e.venue)).sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+  return [...model.data.events, ...extra].filter((e) => !e.sample && e.date === date && model.venues.has(e.venue)).sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
 }
 
 interface Fill {

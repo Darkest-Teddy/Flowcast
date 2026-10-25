@@ -9,6 +9,12 @@
 const GBFS_STATUS = 'https://gbfs.lyft.com/gbfs/1.1/bos/en/station_status.json';
 const POLL_MS = 60_000; // the feed's own ttl
 const MAX_BACKOFF_MS = 300_000;
+export const DOCK_MAX_AGE_MS = 120_000;
+
+export function freshDock(status: DockStatus | undefined, now = Date.now()): status is DockStatus {
+  return !!status && Number.isFinite(status.reportedAt) && status.reportedAt > 0
+    && now >= status.reportedAt && now - status.reportedAt <= DOCK_MAX_AGE_MS;
+}
 
 export interface BikeStation {
   id: string; // trip-data station id, e.g. "A32003"
@@ -76,7 +82,10 @@ export class BikeReplay {
   readonly trips: BikeTrip[];
   private readonly longest: number;
 
-  constructor(readonly data: BikeData) {
+  readonly data: BikeData;
+
+  constructor(data: BikeData) {
+    this.data = data;
     this.trips = [...data.trips].sort((a, b) => a.timestamps[0] - b.timestamps[0]);
     this.longest = Math.max(0, ...this.trips.map((t) => t.timestamps[t.timestamps.length - 1] - t.timestamps[0]));
   }
@@ -137,7 +146,7 @@ export function activityCurve(stations: BikeStation[], binSeconds: number): numb
 
 export interface DockStatus {
   bikes: number; // includes e-bikes
-  ebikes: number;
+  ebikes: number | null;
   docks: number;
   renting: boolean;
   returning: boolean;
@@ -157,10 +166,13 @@ export class BluebikesFeed {
   private timer = 0;
   private stopped = false;
 
+  private readonly onChange: (state: DockFeedState) => void;
+
   constructor(
     stations: BikeStation[],
-    private readonly onChange: (state: DockFeedState) => void,
+    onChange: (state: DockFeedState) => void,
   ) {
+    this.onChange = onChange;
     this.ids = new Set(stations.flatMap((s) => (s.gbfsId ? [s.gbfsId] : [])));
   }
 
@@ -188,11 +200,12 @@ export class BluebikesFeed {
   }
 
   status(station: BikeStation): DockStatus | undefined {
-    return station.gbfsId ? this.state.docks.get(station.gbfsId) : undefined;
+    const status = station.gbfsId ? this.state.docks.get(station.gbfsId) : undefined;
+    return !this.state.error && freshDock(status) ? status : undefined;
   }
 
   private async poll() {
-    const res = await fetch(GBFS_STATUS);
+    const res = await fetch(GBFS_STATUS, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error(`Bluebikes status returned ${res.status}`);
     const json = (await res.json()) as {
       data: {
@@ -210,9 +223,11 @@ export class BluebikesFeed {
     const docks = new Map<string, DockStatus>();
     for (const s of json.data.stations) {
       if (!this.ids.has(s.station_id)) continue;
+      if (![s.num_bikes_available, s.num_docks_available].every((n) => Number.isInteger(n) && n >= 0)
+        || !Number.isFinite(s.last_reported) || s.last_reported <= 0) continue;
       docks.set(s.station_id, {
         bikes: s.num_bikes_available,
-        ebikes: s.num_ebikes_available ?? 0,
+        ebikes: Number.isInteger(s.num_ebikes_available) && s.num_ebikes_available! >= 0 && s.num_ebikes_available! <= s.num_bikes_available ? s.num_ebikes_available! : null,
         docks: s.num_docks_available,
         renting: s.is_renting === 1,
         returning: s.is_returning === 1,
@@ -232,7 +247,7 @@ export function formatDate(iso: string): string {
 
 export interface DockEstimate {
   bikes: number;
-  ebikes: number;
+  ebikes: number | null;
   docks: number; // empty docks
   estimated: boolean; // false = straight from the live feed
 }
@@ -249,15 +264,19 @@ export function estimateDock(
   binSeconds: number,
   now: number,
   target: number,
-): DockEstimate {
+): DockEstimate | undefined {
+  if (!freshDock(live)) return undefined;
   if (live && Math.abs(target - now) < 120) return { bikes: live.bikes, ebikes: live.ebikes, docks: live.docks, estimated: false };
   // Usable size: what the live feed sees (some docks are out of service), else the dock's size.
-  const size = live ? live.bikes + live.docks : (station.capacity ?? 15); // 15 is a common Bluebikes dock size
+  const size = live.bikes + live.docks;
   const bins = station.profile.arrivals.length;
-  const net = (bin: number) => station.profile.arrivals[(bin + bins) % bins] - station.profile.departures[(bin + bins) % bins];
-  // Without a live reading, anchor at half full at 4 AM (docks are quietest then) and run forward.
-  let level = live ? live.bikes : size / 2;
-  let from = live ? now : 4 * 3600;
+  const net = (bin: number) => station.profile.arrivals[((bin % bins) + bins) % bins] - station.profile.departures[((bin % bins) + bins) % bins];
+  if (!Number.isFinite(binSeconds) || binSeconds <= 0 || bins === 0
+    || station.profile.departures.length !== bins
+    || ![...station.profile.arrivals, ...station.profile.departures].every((n) => Number.isFinite(n) && n >= 0)
+    || !Number.isFinite(now) || !Number.isFinite(target)) return undefined;
+  let level = live.bikes;
+  let from = now;
   const to = target;
   const dir = to >= from ? 1 : -1;
   while (dir * (to - from) > 0) {
@@ -269,6 +288,6 @@ export function estimateDock(
     from = next;
   }
   const bikes = Math.round(level);
-  const ebikeShare = live && live.bikes > 0 ? live.ebikes / live.bikes : 0.3;
-  return { bikes, ebikes: Math.round(bikes * ebikeShare), docks: Math.max(0, Math.round(size - level)), estimated: true };
+  const ebikeShare = live.bikes > 0 && live.ebikes !== null ? live.ebikes / live.bikes : null;
+  return { bikes, ebikes: ebikeShare === null ? null : Math.round(bikes * ebikeShare), docks: Math.max(0, Math.round(size - level)), estimated: true };
 }

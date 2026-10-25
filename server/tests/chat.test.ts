@@ -107,7 +107,8 @@ test('transit_near: scheduled departures in the next hour from the published tim
   assert.match(out.method, /not live/);
   const shuttle = (await call('transit_near', { place: 'CAS', weekday: null, time: '12:30', mode: 'shuttle' })).out;
   assert.ok(shuttle.stops.every((s: any) => s.kind === 'shuttle'));
-  assert.match(shuttle.timetables, /2024–25/);
+  assert.equal(shuttle.stops.length, 0);
+  assert.match(shuttle.method, /historical baseline excluded/);
 });
 
 test('housing, population_summary and academic_calendar give published aggregates with their basis', async () => {
@@ -259,7 +260,7 @@ function checkVisual(v: Visual) {
 test('visuals come from tool outputs: a day line with the asked time, a ranking, an event comparison', async () => {
   const log = await run([
     ['place_day', { place: 'Mugar', weekday: null, time: null }],
-    ['rank_places_by_crowd', { kind: 'dining', weekday: null, time: null, near: null, order: null, openOnly: null }],
+    ['rank_places_by_crowd', { kind: 'dining', weekday: null, time: null, near: null, order: null, openOnly: null, campus: null }],
     ['event_impact', { date: '2026-10-29', place: null }],
   ]);
   const visuals = buildVisuals(log.results);
@@ -281,6 +282,18 @@ test('visuals come from tool outputs: a day line with the asked time, a ranking,
   assert.ok(impact.marker);
 });
 
+test('missing Sunday library hours produce no ranking visual instead of crashing on omitted counts', async () => {
+  const sunday = await campus.playback(6);
+  const { out, log } = await call('rank_places_by_crowd', {
+    kind: 'library', weekday: null, time: '01:19', near: null, order: null, openOnly: null, campus: null,
+  }, { ...ctx, weekday: 6, time: 4740, occupancyAt: (t) => sunday.occupancyAt(t) });
+  assert.ok(out.hoursNotInData);
+  assert.equal(out.leastCrowded, null);
+  assert.ok(out.places.length > 0);
+  assert.ok(out.places.every((p: any) => !('students' in p) && !('percent' in p)));
+  assert.deepEqual(buildVisuals(log.results), []);
+});
+
 test('at most four visuals, de-duplicated, and percentages are never clamped', () => {
   const day = (place: string, pct: number) => ({ tool: 'place_day', value: { place, day: 'Wednesday', modeled: true, now: { time: '12:30 PM' }, hours: { columns: ['hour', 'open', 'percent', 'students'], rows: [[11, 1, 90, 900], [12, 1, pct, 1300], [13, 0, 20, 10]] } } });
   const results = [day('A', 130), day('B', 50), day('A', 131), day('C', 10), day('D', 10), day('E', 10), { tool: 'place_day', value: { error: 'x' } }];
@@ -299,7 +312,7 @@ test('every new domain produces a visual with provenance, and citations name dir
     ['bluebikes', { near: 'Mugar' }], ['transit_near', { place: 'CAS', weekday: null, time: null, mode: null }], ['housing', { residence: null, time: null }],
     ['population_summary', {}], ['model_validation', { day: null }], ['weather_effects', { condition: 'rain', temperatureF: 50 }],
     ['emergency_info', { place: 'CDS', time: null }], ['parking_lots', { near: 'Agganis Arena', buOnly: null }], ['library_gate_counts', { weekday: null }],
-    ['what_if_scenarios', { scenario: 'snow-day' }], ['published_counts', { source: 'fitrec_visits', weekday: 2 }], ['campus_overview', { weekday: null, time: null }],
+    ['what_if_scenarios', { scenario: 'snow-day' }], ['published_counts', { source: 'fitrec_visits', weekday: 2 }], ['campus_overview', { weekday: null, time: null, campus: null }],
     ['free_rooms', { building: 'CDS', weekday: null, time: null }], ['list_events', { weekday: null, place: null }],
   ]);
   // One at a time, so each kind is checked.
@@ -314,7 +327,7 @@ test('every new domain produces a visual with provenance, and citations name dir
   assert.equal(kinds.population_summary, 'published');
   assert.equal(kinds.weather_effects, 'assumption');
   assert.equal(kinds.emergency_info, 'simulated');
-  assert.equal(kinds.transit_near, 'mixed'); // shuttle stops near CAS
+  assert.equal(kinds.transit_near, 'published'); // historic shuttle baseline is excluded
 
   const catalog = datasetCatalog(campus);
   const kindOf = (name: string) => campus.locations.find((l) => l.name === name)?.kind;
@@ -328,7 +341,7 @@ test('every new domain produces a visual with provenance, and citations name dir
   for (const d of ['bikes', 'transit', 'housing', 'population', 'counts', 'conditions', 'emergencies', 'parking', 'crowds', 'classes', 'events']) {
     assert.ok(sources.some((s) => s.domain === d), d);
   }
-  assert.ok(sources.some((s) => s.label.startsWith('BU Shuttle')));
+  assert.ok(!sources.some((s) => s.label.startsWith('BU Shuttle')), 'excluded historic shuttle timetable is not cited as current service');
   assert.deepEqual(citationsFor([{ tool: 'place_day', value: { error: 'x' } }], catalog, kindOf), []);
   // place_day cites the hours of that kind of place.
   const lib = citationsFor((await run([['place_day', { place: 'Mugar', weekday: null, time: null }]])).results, catalog, kindOf);
@@ -336,7 +349,7 @@ test('every new domain produces a visual with provenance, and citations name dir
 });
 
 test('follow-ups are 0–3 server-written questions; map links use only the map’s parameters', async () => {
-  const log = await run([['rank_places_by_crowd', { kind: 'library', weekday: null, time: '15:00', near: null, order: null, openOnly: null }], ['place_day', { place: 'Mugar', weekday: null, time: '15:00' }]]);
+  const log = await run([['rank_places_by_crowd', { kind: 'library', weekday: null, time: '15:00', near: null, order: null, openOnly: null, campus: null }], ['place_day', { place: 'Mugar', weekday: null, time: '15:00' }]]);
   const f = followUpsFor(log.results, ['least crowded library?']);
   assert.ok(f.length >= 1 && f.length <= 3);
   assert.equal(new Set(f).size, f.length);
@@ -393,7 +406,7 @@ test('multi-turn: earlier turns reach the model as history, in order, before the
   // The instructions carry the shown moment and the chat format.
   const instructions = String(model.calls[0].request.systemInstructions);
   assert.match(instructions, /Wednesday at 12:30 PM/);
-  assert.match(instructions, /120 words/);
+  assert.match(instructions, /under 45 words/);
 });
 
 test('chat answers keep the honesty checks: reworded, refused, unsupported numbers counted', async () => {
@@ -573,4 +586,12 @@ test('GET /api/chat/directory describes every domain from the loaded data, with 
   try {
     assert.equal((await (await fetch(`${withKey.url}/api/chat/directory`)).json()).chatAvailable, true);
   } finally { withKey.close(); }
+});
+
+
+test('transit_near refuses a different date with the same weekday', async () => {
+  const { out } = await call('transit_near', { place: 'CAS', weekday: null, time: '12:30', mode: 'mbta' }, { ...ctx, date: '2026-11-04' });
+  assert.equal(out.kind, 'unavailable');
+  assert.equal(out.date, '2026-11-04');
+  assert.match(out.note, /matching weekday/);
 });

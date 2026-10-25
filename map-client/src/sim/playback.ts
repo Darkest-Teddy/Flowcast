@@ -209,6 +209,17 @@ function bearingBetween(a: [number, number], b: [number, number]): number {
   return (Math.atan2(y, x) / toRad + 360) % 360;
 }
 
+// A segment's bearing never changes, so it is worked out once per route (every trip on a route
+// shares its path array) instead of with seven trig calls per walker per frame.
+const segmentBearings = new WeakMap<[number, number][], Float64Array>();
+function segmentBearing(path: [number, number][], i: number): number {
+  let bearings = segmentBearings.get(path);
+  if (!bearings) segmentBearings.set(path, (bearings = new Float64Array(path.length).fill(NaN)));
+  let bearing = bearings[i];
+  if (Number.isNaN(bearing)) bearing = bearings[i] = bearingBetween(path[i - 1], path[i]);
+  return bearing;
+}
+
 /** The lookups a Playback is built on (see indexPlayback). */
 export interface PlaybackIndex {
   agents: Map<string, Agent>;
@@ -240,9 +251,11 @@ export function* indexPlayback(data: DayData, chunk = 4096): Generator<void, Pla
   const casualties = validateCasualties(data.casualties, agents);
   const casualtyByAgent = new Map<string, CasualtyEvent>();
   for (const event of casualties) casualtyByAgent.set(event.agentId, event);
+  const doorway = doorways(data);
   // Walks are cut at an agent's casualty event, so neither markers nor trails show later movement.
   // The clipped copies are built once: trail candidates stay stable and rewinding needs no rebuild.
-  for (const original of data.trips) {
+  for (const routed of data.trips) {
+    const original = doorway(routed);
     const event = casualtyByAgent.get(original.agent);
     const trip = event ? clipTrip(original, event.at) : original;
     if (!trip) continue;
@@ -391,8 +404,10 @@ export class Playback {
       if (trip.timestamps[0] > t || t >= trip.timestamps[trip.timestamps.length - 1]) continue;
       const agentId = trip.agent;
       const ts = trip.timestamps;
-      let i = 1;
-      while (ts[i] <= t) i++;
+      // First timestamp after t (timestamps never decrease): a binary search, since every frame
+      // places thousands of walkers along routes of dozens of points.
+      let i = 1, hi = ts.length - 1;
+      while (i < hi) { const mid = (i + hi) >>> 1; if (ts[mid] <= t) i = mid + 1; else hi = mid; }
       const a = trip.path[i - 1];
       const b = trip.path[i];
       const f = ts[i] === ts[i - 1] ? 0 : (t - ts[i - 1]) / (ts[i] - ts[i - 1]);
@@ -400,7 +415,7 @@ export class Playback {
         id: agentId,
         model: this.agents.get(agentId)!.model,
         position: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 0],
-        bearing: bearingBetween(a, b),
+        bearing: segmentBearing(trip.path, i),
         to: trip.to,
       });
     }
@@ -536,6 +551,75 @@ function validateCasualties(events: readonly CasualtyEvent[] | undefined, agents
     if (event.buildingId !== undefined && typeof event.buildingId !== 'string') throw new Error(`Invalid casualty building for ${id}`);
   }
   return [...events].sort((a, b) => a.at - b.at || (a.agentId < b.agentId ? -1 : a.agentId > b.agentId ? 1 : 0));
+}
+
+/** Walk routes start and end on the path network, often 20–100 m from the building, so walkers
+ * would appear and vanish on the pavement. Each walk instead leaves from the nearest point on its
+ * origin's footprint and ends on its destination's. The walk keeps its departure and arrival times
+ * (stays and counts are unchanged) and covers the doorway legs by walking a little faster; a walk
+ * that would need more than MAX_DOORWAY_PACE keeps its network ends. Places without a footprint
+ * (stops, gateways, off-campus) keep their ends as they are. */
+const MAX_DOORWAY_METRES = 150;
+const MAX_DOORWAY_PACE = 2; // m/s
+
+function doorways(data: DayData): (trip: Trip) => Trip {
+  const rings = new Map<string, [number, number][][]>();
+  for (const building of data.buildings ?? []) {
+    const list = rings.get(building.id) ?? [];
+    list.push(building.polygon); rings.set(building.id, list);
+  }
+  const buildingOf = new Map(data.locations.map((location) => [location.id, location.building]));
+  const cache = new Map<string, [number, number] | null>();
+  const door = (location: string, from: [number, number]): [number, number] | null => {
+    const key = `${location}|${from[0]},${from[1]}`;
+    if (cache.has(key)) return cache.get(key)!;
+    const polygons = rings.get(buildingOf.get(location) ?? '') ?? [];
+    let best: [number, number] | null = null, bestMetres = MAX_DOORWAY_METRES;
+    if (!polygons.some((polygon) => contains(polygon, from))) {
+      for (const polygon of polygons) for (let i = 0; i < polygon.length; i++) {
+        const point = nearestOnSegment(from, polygon[i], polygon[(i + 1) % polygon.length]);
+        const metres = metresBetween(from, point);
+        if (metres < bestMetres) { best = point; bestMetres = metres; }
+      }
+    }
+    cache.set(key, best);
+    return best;
+  };
+  return (trip) => {
+    const { path, timestamps } = trip;
+    if (path.length < 2) return trip;
+    const start = door(trip.from, path[0]), end = door(trip.to, path[path.length - 1]);
+    if (!start && !end) return trip;
+    const first = timestamps[0], seconds = timestamps[timestamps.length - 1] - first;
+    const nextPath = [...(start ? [start] : []), ...path, ...(end ? [end] : [])];
+    const along = [0];
+    for (let i = 1; i < nextPath.length; i++) along.push(along[i - 1] + metresBetween(nextPath[i - 1], nextPath[i]));
+    const length = along[along.length - 1];
+    if (!(seconds > 0) || length / seconds > MAX_DOORWAY_PACE) return trip;
+    return { ...trip, path: nextPath, timestamps: along.map((metres) => first + metres / length * seconds) };
+  };
+}
+
+function metresBetween(a: [number, number], b: [number, number]): number {
+  return Math.hypot((b[0] - a[0]) * 111320 * Math.cos(a[1] * Math.PI / 180), (b[1] - a[1]) * 111320);
+}
+
+function nearestOnSegment(p: [number, number], a: [number, number], b: [number, number]): [number, number] {
+  // Planar in degrees with longitude scaled to latitude; exact enough within one building.
+  const k = Math.cos(p[1] * Math.PI / 180);
+  const dx = (b[0] - a[0]) * k, dy = b[1] - a[1];
+  const span = dx * dx + dy * dy;
+  const f = span === 0 ? 0 : Math.max(0, Math.min(1, (((p[0] - a[0]) * k) * dx + (p[1] - a[1]) * dy) / span));
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+}
+
+function contains(polygon: [number, number][], [x, y]: [number, number]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i], [xj, yj] = polygon[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
 /** The part of a walk before `at`, ending at its interpolated position; null when the walk starts at or after `at`. */

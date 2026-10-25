@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { crowdFor } from '@theme/tokens';
+import { LiveVoice } from '@map/LiveVoice';
 import { useSession } from '../auth/session';
 import { api, locationName, useResource } from '../data/api';
-import { formatDayTime, formatPercent, formatRelative, formatTime, isToday } from '../lib/format';
+import { formatDayTime, formatPercent, formatTime, isToday } from '../lib/format';
 import {
   Avatar,
   Button,
@@ -17,6 +18,8 @@ import {
 import { eventVenue } from './student/events';
 import { AskChat } from './student/AskChat';
 import { SearchResults } from './student/SearchResults';
+import { bostonDay, bostonTime } from '../lib/departure';
+import { DepartureCard, useDepartureClock } from './student/DepartureCard';
 import styles from './Home.module.css';
 
 export default function Home() {
@@ -26,20 +29,19 @@ export default function Home() {
   const places = useResource(api.getPlaceForecasts);
   const hourly = useResource(api.getHourlyForecasts);
   const geo = useResource(api.getCampusGeo);
-  const suggestions = useResource(api.getSuggestions);
+  const profile = useResource(api.getProfile);
   const events = useResource(api.getCampusEvents);
   const clubs = useResource(api.getClubs);
 
   const [search, setSearch] = useState<string | null>(null);
   const [mode, setMode] = useState<SearchMode>('search');
-  const [accepting, setAccepting] = useState<string | null>(null);
-  const [acceptedCount, setAcceptedCount] = useState(0);
+  const now = useDepartureClock();
 
   const place = (id: string) => locationName(locations.data, id);
   const loadingText = 'Loading…';
 
   const today = (schedule.data ?? [])
-    .filter((s) => isToday(s.start))
+    .filter((s) => Number.isFinite(Date.parse(s.start)) && bostonDay(s.start) === bostonDay(now))
     .sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
   const upcomingEvents = (events.data ?? [])
     .filter((e) => Date.parse(e.end ?? e.start) >= Date.now())
@@ -47,26 +49,11 @@ export default function Home() {
     .slice(0, 5);
   const followed = (clubs.data ?? []).filter((c) => c.following);
 
-  const accept = (id: string) => {
-    setAccepting(id);
-    api
-      .acceptSuggestion(id)
-      .then((rest) => {
-        suggestions.setData(rest);
-        setAcceptedCount((n) => n + 1);
-        schedule.reload();
-      })
-      .finally(() => setAccepting(null));
-  };
-
-  const calendarStatus =
-    session?.calendarConnected && session.calendarSyncedAt ? (
-      <StatusBadge tone="ok">Google Calendar synced {formatRelative(session.calendarSyncedAt)}</StatusBadge>
-    ) : (
-      <StatusBadge tone="off">
-        No personal calendar data. <Link to="/calendars">Calendar availability</Link>
-      </StatusBadge>
-    );
+  const calendarStatus = schedule.data?.length ? (
+    <StatusBadge tone="ok">{schedule.data.length} imported {schedule.data.length === 1 ? 'class' : 'classes'} · <Link to="/calendars">Manage import</Link></StatusBadge>
+  ) : (
+    <StatusBadge tone="off">{schedule.loading ? 'Loading your schedule. ' : 'No imported classes. '}<Link to="/calendars">Import .ics schedule</Link></StatusBadge>
+  );
 
   return (
     <Page>
@@ -75,20 +62,19 @@ export default function Home() {
         <p className={styles.status}>{calendarStatus}</p>
       </div>
 
-      <SearchBar
-        placeholder="Search buildings, events, clubs and classes"
-        mode={mode}
-        onModeChange={setMode}
-        onSubmit={(query) => setSearch(query)}
-      />
-
-      <AskChat visible={mode === 'ask'} data={{
+      <AskChat scheduleAvailable={schedule.data !== null} visible={mode === 'ask'} composer={(ask, pending, resetToken) => (
+        <SearchBar placeholder="Search buildings, events, clubs and classes" mode={mode}
+          resetToken={resetToken} onModeChange={setMode} pending={mode === 'ask' && pending}
+          onSubmit={(query, selectedMode) => { if (selectedMode === 'ask') void ask(query); else setSearch(query); }} />
+      )} data={{
         locations: locations.data ?? [], schedule: schedule.data ?? [],
         events: events.data ?? [], clubs: clubs.data ?? [],
         hourly: hourly.data ?? [], places: places.data ?? [],
         geo: geo.data ?? { positions: {}, walkMeters: {} },
         homeLocationId: session?.user.homeLocationId ?? null,
       }} />
+
+      <LiveVoice />
 
       {mode === 'search' && search && (
         <SearchResults query={search} onClear={() => setSearch(null)}
@@ -101,43 +87,21 @@ export default function Home() {
           }} />
       )}
 
-      {[locations, schedule, places, hourly, geo, suggestions, events, clubs].filter((resource) => resource.error).map((resource, index) => (
+      {[locations, schedule, places, hourly, geo, profile, events, clubs].filter((resource) => resource.error).map((resource, index) => (
         <p role="alert" key={index}>{resource.error?.message} <Button variant="ghost" size="sm" onClick={resource.reload}>Try again</Button></p>
       ))}
 
-      <div className={styles.forYou}>
-        <SectionList
-          title="For you"
-          empty={
-            suggestions.loading ? (
-              loadingText
-            ) : acceptedCount > 0 ? (
-              <>
-                Added to your day. <Link to="/schedule">See your schedule</Link>
-              </>
-            ) : (
-              'No personal suggestions are available without a connected schedule.'
-            )
-          }
-        >
-          {(suggestions.data ?? []).map((g) => (
-            <div key={g.id} className={styles.suggestion}>
-              <p>{g.text}</p>
-              <Button onClick={() => accept(g.id)} disabled={accepting === g.id}>
-                {g.actionLabel}
-              </Button>
-            </div>
-          ))}
-        </SectionList>
-      </div>
+      <DepartureCard items={schedule.data ?? []} locations={locations.data ?? []}
+        geo={geo.data ?? { positions: {}, walkMeters: {} }} now={now}
+        homeLocationId={profile.data ? profile.data.homeLocationId : session?.user.homeLocationId ?? null}
+        loading={schedule.loading || locations.loading || geo.loading || profile.loading} />
 
-      <p className={styles.status}>{places.data?.[0]?.basis ?? 'Campus crowd figures are model-derived projections, not live head counts.'}</p>
       <div className={styles.columns}>
         <SectionList
-          title="Today"
+          title="Today · Boston time"
           count={schedule.data ? today.length : undefined}
           to="/schedule"
-          empty={schedule.loading ? loadingText : 'No personal calendar data is connected.'}
+          empty={schedule.loading ? loadingText : 'No imported classes today.'}
         >
           {today.map((item) => (
             <ListRow
@@ -145,10 +109,10 @@ export default function Home() {
               title={
                 <>
                   {item.title}
-                  <span className={styles.where}>{place(item.locationId)}</span>
+                  <span className={styles.where}>{item.locationText || (item.locationId ? place(item.locationId) : 'Building not mapped')}</span>
                 </>
               }
-              detail={formatTime(item.start)}
+              detail={bostonTime(item.start)}
             />
           ))}
         </SectionList>
@@ -158,6 +122,8 @@ export default function Home() {
           to="/forecasts"
           empty={places.loading ? loadingText : 'No comparable crowd projection is available for this hour.'}
         >
+          <p className={styles.forecastNote}>Modeled crowd levels, not live head counts.</p>
+          {!places.data?.length && <p className={styles.forecastNote}>{places.loading ? loadingText : 'No comparable crowd projection is available for this hour.'}</p>}
           {(places.data ?? []).slice(0, 6).map((p) => {
             const level = crowdFor(p.share);
             return (
@@ -169,16 +135,13 @@ export default function Home() {
               />
             );
           })}
+          <ListRow title="Find a study spot" subtitle="Amenities and walking time" to="/study" />
+          {places.data?.[0]?.basis && <details className={styles.forecastNote}><summary>About these projections</summary><p>{places.data[0].basis}</p></details>}
         </SectionList>
 
 
       </div>
 
-      <SectionList title="Published campus data">
-        <ListRow title="Mapped places" detail={locations.data ? `${locations.data.length} locations` : loadingText} />
-        <ListRow title="Upcoming public events" detail={events.data ? `${events.data.filter((event) => Date.parse(event.end ?? event.start) >= Date.now()).length} in the saved listings` : loadingText} to="/events" />
-        <ListRow title="Event organizers" detail={clubs.data ? `${clubs.data.length} named in public listings` : loadingText} to="/clubs" />
-      </SectionList>
 
       <div className={styles.bottom}>
         <SectionList
