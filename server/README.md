@@ -2,7 +2,7 @@
 
 The Ask server. `POST /api/ask` answers one campus question with an OpenAI agent (`gpt-6-luna` by default, via `@openai/agents`) that reads the same simulation, walking routes, class schedule and opening hours the map plays. The model only picks tools and words the reply; every number comes from a tool. The OpenAI key stays on this server.
 
-It loads the public campus bundle, builds the population, and simulates each weekday of the reference week (2026-10-26 to 2026-11-01) in the background at startup, one day at a time.
+It loads the public campus bundle, builds the population, and simulates each weekday of the reference week (2026-10-26 to 2026-11-01) in the background at startup, one day at a time. A day build blocks the event loop for several seconds, so no build starts while an answer is being worked out (it waits up to 30 s); otherwise the prebuild stalled the first answers past the timeout.
 
 The realtime backend in the plan (`.plans/campus-digital-twin-spec.md` Section 8) is not built yet.
 

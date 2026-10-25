@@ -139,6 +139,8 @@ export function createApp(options: AppOptions) {
       data: campus.facts.data,
       facts: campus.facts,
     };
+    // Day builds block the event loop, so none starts while this answer runs (campus.ts InFlight).
+    const done = campus.asks?.begin();
     try {
       const result = await ask(question, ctx, signal);
       if (!disconnect.signal.aborted) res.json(result);
@@ -151,6 +153,8 @@ export function createApp(options: AppOptions) {
       // Log the failure kind, not the question: questions can carry personal details.
       console.error(`ask failed: ${timedOut ? 'timeout' : error instanceof Error ? error.name : 'unknown'}`);
       res.status(timedOut ? 504 : 502).json({ error: timedOut ? 'The answer took too long. Try again.' : 'Couldn’t get an answer right now.' });
+    } finally {
+      done?.();
     }
   });
 

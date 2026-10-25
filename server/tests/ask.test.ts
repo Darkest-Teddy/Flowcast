@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { RunContext } from '@openai/agents';
 import { ScriptedModel, assistantMessage, functionCall } from '@openai/agents/testing';
-import { BuildCache, chooseBundle, daysCachedFrom, loadCampusModel, PRIVATE_BUNDLE, PUBLIC_BUNDLE, type CampusModel } from '../src/campus';
+import { BuildCache, BUILD_WAIT_MS, InFlight, chooseBundle, daysCachedFrom, loadCampusModel, PRIVATE_BUNDLE, PUBLIC_BUNDLE, type CampusModel } from '../src/campus';
 import { askMeetings } from '../../map-client/src/insights';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -199,6 +199,31 @@ test('a closed dining hall is never the quietest: closed rows rank after open an
   const all = await rank({});
   assert.ok(all.out.places.length <= 10 && all.out.more > 0);
   assert.equal(all.out.date, '2026-10-28');
+});
+
+test('weekend dining: hours not in the data for the date give no ranking and name the days that have them', async () => {
+  // Saturday's hours with Wednesday's crowd (only the hours matter here). The dining halls' dated
+  // hours end on Friday 30 October, before the reference weekend.
+  const saturday: ServerAskContext = { ...ctx, weekday: 5, facts: { ...facts, day: () => ({ playback: wednesday }) } };
+  const { out, map } = await call('rank_places_by_crowd', { kind: 'dining', weekday: null, time: '12:30', near: null, order: null, openOnly: null }, saturday);
+  assert.equal(out.leastCrowded, null);
+  assert.equal(out.date, '2026-10-31');
+  assert.match(out.hoursNotInData.note, /aren't in the data for Saturday 2026-10-31/);
+  assert.equal(out.hoursNotInData.daysWithPublishedHours, 'Monday to Friday');
+  for (const p of out.places) assert.equal('percent' in p || 'students' in p, false, p.name);
+  assert.deepEqual(map, { show: null, rows: [] });
+  const most = await call('rank_places_by_crowd', { kind: 'dining', weekday: null, time: '12:30', near: null, order: 'most', openOnly: null }, saturday);
+  assert.equal(most.out.mostCrowded, null);
+  // place_day names no quietest or busiest hour for that date; place_info says which days have hours.
+  const day = (await call('place_day', { place: 'Marciano Commons', weekday: null, time: null }, saturday)).out;
+  assert.equal(day.quietestOpen, null);
+  assert.equal(day.busiestOpen, null);
+  assert.equal(day.hoursNotInData.daysWithPublishedHours, 'Monday to Friday');
+  const info = (await call('place_info', { place: 'Marciano Commons', weekday: null, time: null }, saturday)).out;
+  assert.equal(info.openNow, null);
+  assert.equal(info.daysWithPublishedHours, 'Monday to Friday');
+  // A weekday is ranked as before.
+  assert.ok((await rank({ kind: 'dining', time: '12:30' })).out.leastCrowded);
 });
 
 test('another day that is not built says so, and asks for it to be built', async () => {
@@ -475,6 +500,46 @@ test('day builds are deduped, failed builds retried, and the cache is LRU-bounde
   assert.equal(daysCachedFrom({}), 7);
   assert.equal(daysCachedFrom({ FLOWCAST_ASK_DAYS_CACHED: '3' }), 3);
   assert.equal(daysCachedFrom({ FLOWCAST_ASK_DAYS_CACHED: 'x' }), 7);
+});
+
+test('day builds wait while an answer is being worked out, so the week prebuild never stalls it', async () => {
+  const asks = new InFlight();
+  const builds: number[] = [];
+  const cache = new BuildCache<number, number>((d) => { builds.push(d); return d; }, 7, () => asks.settled(BUILD_WAIT_MS));
+  const end = asks.begin();
+  const second = asks.begin();
+  assert.equal(asks.count, 2);
+  const built = cache.get(4);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(builds, []); // held while answers run
+  assert.equal(cache.isBuilding(4), true);
+  end();
+  end(); // ending twice counts once
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(builds, []);
+  second();
+  assert.equal(await built, 4);
+  assert.deepEqual(builds, [4]);
+  // Nothing in flight: builds start at once; steady traffic can't hold a build past the cap.
+  assert.equal(await cache.get(5), 5);
+  asks.begin();
+  const t0 = Date.now();
+  await asks.settled(30);
+  assert.ok(Date.now() - t0 >= 25);
+});
+
+test('the endpoint marks each model run in flight until it settles', async () => {
+  const asks = new InFlight();
+  const counts: number[] = [];
+  const app = createApp({ campus: { ...fakeCampus(), asks }, keyConfigured: true, model: 'test',
+    ask: async () => { counts.push(asks.count); if (counts.length === 2) throw new Error('model'); return answer; } });
+  const s = await serve(app);
+  try {
+    assert.equal((await post(s.url, valid)).status, 200);
+    assert.equal((await post(s.url, valid)).status, 502);
+    assert.deepEqual(counts, [1, 1]);
+    assert.equal(asks.count, 0);
+  } finally { s.close(); }
 });
 
 // ---------------------------------------------------------------- the endpoint

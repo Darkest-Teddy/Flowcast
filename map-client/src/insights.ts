@@ -136,6 +136,32 @@ export function openAt(locationId: string, weekday: number, timeSec: number, dat
 }
 
 /**
+ * Reference-week weekdays (0 = Monday) on which any of these places has published hours for its
+ * date. Used to say which days to ask about when the asked day has none (the dining halls' dated
+ * hours end before the reference weekend).
+ */
+export function daysWithPublishedHours(locationIds: string[], data: CampusData): number[] {
+  const days: number[] = [];
+  for (let w = 0; w < 7; w++) {
+    const date = dateForWeekday(data, w);
+    if (locationIds.some((id) => {
+      const s = data.locations[id];
+      return s?.hoursStatus === 'published' && openingHoursForDate(s.hours, date, w).length > 0;
+    })) days.push(w);
+  }
+  return days;
+}
+
+/** "Monday to Friday", "Monday, Wednesday and Friday": weekdays (0 = Monday) in words. */
+export function dayList(days: number[], names: readonly string[]): string {
+  if (!days.length) return '';
+  const consecutive = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
+  if (consecutive && days.length > 2) return `${names[days[0]]} to ${names[days[days.length - 1]]}`;
+  const words = days.map((d) => names[d]);
+  return words.length === 1 ? words[0] : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+}
+
+/**
  * Published meetings by map location, with each meeting's intervals replaced by the ones that apply
  * in the simulated reference week (validFrom/validTo and the academic calendar), the same intervals
  * the simulation schedules. A meeting with none is left out.

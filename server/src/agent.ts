@@ -36,6 +36,7 @@ function instructions(ctx: ServerAskContext): string {
     'Rules:',
     '- Get every number, place, time and course from a tool. Never estimate or recall one yourself. If no tool can answer, say what you can answer instead.',
     '- Closed is not quiet: a place with open=false is closed by its published hours; never call it quiet, empty or least crowded. Unknown hours (open=null) are not closed: say its hours aren’t published.',
+    '- If a tool gives hoursNotInData, the opening hours for that date aren’t in the data: say that plainly for the day and date, name no place as quietest or busiest, and suggest asking about one of daysWithPublishedHours instead.',
     '- Published counts (published_counts, evidence items) are observed data from their own period. Call them published counts, give their period, and never mix them with simulated figures.',
     '- If a tool gives afterMidnightNote, say the place is open then but the simulation doesn’t model visits after midnight; never call it empty.',
     '- For another day, pass the weekday parameter (0 = Monday). If a tool returns available=false, say that day is still being simulated and to try again shortly.',

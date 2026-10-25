@@ -18,6 +18,8 @@ import {
   comparable,
   courseMentions,
   coursesFor,
+  dayList,
+  daysWithPublishedHours,
   nextMeeting,
   openAt,
   placeMentions,
@@ -222,6 +224,26 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
         walkMinutes: r.walk?.minutes ?? null,
       }));
       const best = ranked[0] && rankTier(ranked[0]) === 0 ? ranked[0] : null;
+      // Nothing open by published hours, and some places have no hours in the data for this date
+      // (the dining halls' dated hours end before the reference weekend): a ranking of those would
+      // read as an answer, so the tool says the hours are missing and which days have them.
+      const unknownHours = !ranked.some((r) => rankTier(r) <= 1) ? ranked.filter((r) => rankTier(r) === 2) : [];
+      if (unknownHours.length && dctx.data) {
+        const days = daysWithPublishedHours(unknownHours.map((r) => r.location.id), dctx.data);
+        const { day, date } = dayDate(dctx, dctx.weekday);
+        return result({
+          day, date,
+          time: formatClock(at),
+          from: from?.label ?? null,
+          [most ? 'mostCrowded' : 'leastCrowded']: null,
+          hoursNotInData: {
+            note: `Opening hours for these places aren't in the data for ${day} ${date}, so they can't be ranked. Say so, don't name any of them as ${most ? 'busiest' : 'quietest'}, and suggest asking about a day with published hours.`,
+            daysWithPublishedHours: dayList(days, WEEKDAYS) || null,
+          },
+          places: ranked.slice(0, MAX_ROWS).map((r) => ({ id: r.location.id, name: r.location.name, open: r.open ?? null, modeled: r.modeled })),
+          ...(ranked.length > MAX_ROWS ? { more: ranked.length - MAX_ROWS } : {}),
+        }, { tool: 'rank_places_by_crowd', show: null, rows: [] });
+      }
       // When no place qualifies the map selects nothing, rather than keeping an earlier selection.
       const walk = best?.walk && best.walk.meters > 0 ? best.walk : null;
       const show: MapShow | null = best
@@ -358,6 +380,9 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
       const anyAfterMidnight = hourly.some((x) => x.afterMidnight) || now.afterMidnight;
       const today = data?.locations[loc.id];
       const hoursEntries = data ? openingHoursForDate(today?.hours ?? [], dateForWeekday(data, dctx.weekday), dctx.weekday) : [];
+      // Published hours exist for other dates but not this one: no quietest or busiest "open" hour.
+      const missingHours = Boolean(data && today?.hoursStatus === 'published' && !hoursEntries.length);
+      const missingDays = missingHours && data ? dayList(daysWithPublishedHours([loc.id], data), WEEKDAYS) : '';
       return result({
         place: loc.name,
         ...dayDate(dctx, dctx.weekday),
@@ -372,8 +397,14 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
           ...(o.modeled && !now.afterMidnight ? { students: now.count } : {}),
         },
         hours: { columns: o.modeled ? ['hour', 'open', 'percent', 'students'] : ['hour', 'open', 'percent'], rows: shown.map(row) },
-        quietestOpen: pick((a, b) => a < b),
-        busiestOpen: pick((a, b) => a > b),
+        quietestOpen: missingHours ? null : pick((a, b) => a < b),
+        busiestOpen: missingHours ? null : pick((a, b) => a > b),
+        ...(missingHours ? {
+          hoursNotInData: {
+            note: `Opening hours for this place aren't in the data for ${WEEKDAYS[dctx.weekday]} ${dateForWeekday(data!, dctx.weekday)}: say so, don't say it is open, closed, quiet or busy then, and suggest a day with published hours.`,
+            daysWithPublishedHours: missingDays || null,
+          },
+        } : {}),
         ...(anyAfterMidnight ? { afterMidnightNote: 'Open after midnight by the previous day’s hours, but simulated stays end at midnight: not modeled after midnight, not empty.' } : {}),
       }, { tool: 'place_day', show: { route: null, select: loc.id, points: [loc.position] }, rows: [] });
     },
@@ -413,6 +444,8 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
         openNow: state.open,
         nextChange: state.open === null ? null : nextHoursChange(data, loc.id, w, at),
         ...(state.open === null ? { hoursNote: 'Hours aren’t published for that date; do not say it is open or closed.' } : {}),
+        ...(state.open === null && source?.hoursStatus === 'published' && !entries.length
+          ? { daysWithPublishedHours: dayList(daysWithPublishedHours([loc.id], data), WEEKDAYS) || null } : {}),
         capacity: loc.capacity,
         capacityBasis: basis?.basis ?? loc.capacityBasis ?? null,
         confidence: basis?.confidence ?? null,

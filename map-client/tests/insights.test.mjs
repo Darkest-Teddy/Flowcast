@@ -7,7 +7,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   try { return nextResolve(specifier, context); }
   catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
 } });
-const { ask, walkBetween, nextMeeting, meetingsFor, coursesFor, parseTime, placeMentions, courseMentions, openAt, rankByCrowd, rankTier, busyOutlook } = await import('../src/insights.ts');
+const { ask, walkBetween, nextMeeting, meetingsFor, coursesFor, parseTime, placeMentions, courseMentions, openAt, rankByCrowd, rankTier, busyOutlook, daysWithPublishedHours, dayList } = await import('../src/insights.ts');
 
 const loc = (id, name, short, kind, position, capacity, extra = {}) => ({ id, name, short, kind, position, capacity, building: `way/${id}`, campus: 'charles-river', ...extra });
 const locations = [
@@ -241,4 +241,17 @@ test('an empty venue without published hours gets no percent and ranks after mea
   const occ = (t) => occupancyAt(t).map((o) => (o.location.id === 'pardee' ? { ...o, count: 0, share: 0 } : o));
   const a = ask('least crowded library', ctx({ time: 8 * 3600, occupancyAt: occ, data }));
   assert.deepEqual(a.ranked.map((r) => [r.location.id, r.share === null]), [['mugar', false], ['pardee', true]]);
+});
+
+test('days with published hours: the dining halls have none for the reference weekend', () => {
+  const data = JSON.parse(readFileSync(new URL('../public/data/campus-data.json', import.meta.url), 'utf8'));
+  const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  assert.deepEqual(daysWithPublishedHours(['marciano', 'warren-dining'], data), [0, 1, 2, 3, 4]);
+  assert.equal(openAt('marciano', 5, 12 * 3600, data).open, null);
+  assert.deepEqual(daysWithPublishedHours(['not-a-place'], data), []);
+  assert.equal(dayList([0, 1, 2, 3, 4], WEEKDAYS), 'Monday to Friday');
+  assert.equal(dayList([0, 2, 4], WEEKDAYS), 'Monday, Wednesday and Friday');
+  assert.equal(dayList([5, 6], WEEKDAYS), 'Saturday and Sunday');
+  assert.equal(dayList([3], WEEKDAYS), 'Thursday');
+  assert.equal(dayList([], WEEKDAYS), '');
 });
