@@ -45,10 +45,11 @@ const Join = lazy(() => import('./pages/Join'));
  * every page under it still sends them to /signin. Signed-in people get Home in the student layout.
  */
 function StudentArea() {
-  const { session, ready } = useSession();
+  const { session, ready, profileFailed } = useSession();
   const atIndex = useMatch('/') !== null;
   // Signed out: no stored sign-in means the landing page right away, without waiting for the check.
-  if (atIndex && !session && (ready || !mayBeSignedIn())) return <Landing />;
+  // Signed in with a profile that didn't load: RequireAuth shows AccountError instead.
+  if (atIndex && !session && !profileFailed && (ready || !mayBeSignedIn())) return <Landing />;
   return (
     <RequireAuth>
       <StudentLayout />

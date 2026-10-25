@@ -42,6 +42,12 @@
 .browse p { margin-bottom: var(--space-3); }
 .footer { display: block; width: fit-content; margin: var(--space-4) auto 0; padding: var(--space-3); color: var(--color-ink-secondary); font-size: var(--text-sm); }
 .progress { padding-top: var(--space-6); }
+/* AccountError: the retry and sign-in-again buttons, stacked full width. */
+.actions { display: grid; gap: var(--space-3); margin-top: var(--space-6); }
+.actions > * { width: 100%; min-height: 48px; }
+.details { margin-top: var(--space-4); color: var(--color-ink-secondary); font-size: var(--text-sm); }
+.details summary { width: fit-content; cursor: pointer; }
+.details p { margin-top: var(--space-2); font-family: var(--font-mono); font-size: var(--text-xs); }
 @media (max-width: 560px) {
   .card { padding: var(--space-6); }
 }
