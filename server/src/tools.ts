@@ -224,6 +224,15 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
         walkMinutes: r.walk?.minutes ?? null,
       }));
       const best = ranked[0] && rankTier(ranked[0]) === 0 ? ranked[0] : null;
+      if (!ranked.length) {
+        return result({
+          ...dayDate(dctx, dctx.weekday),
+          time: formatClock(at),
+          [most ? 'mostCrowded' : 'leastCrowded']: null,
+          places: [],
+          note: `The map has no ${kind ?? 'place'} places on the ${dctx.campus} campus${openOnly ? ' open at this time' : ''}. Say so; find_places with a campus of null lists them elsewhere.`,
+        }, { tool: 'rank_places_by_crowd', show: null, rows: [] });
+      }
       // Nothing open by published hours, and some places have no hours in the data for this date
       // (the dining halls' dated hours end before the reference weekend): a ranking of those would
       // read as an answer, so the tool says the hours are missing and which days have them.
@@ -532,13 +541,14 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
       const boston = (iso: string) => {
         const d = new Date(iso);
         const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-        const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
-        return { date, time };
+        const [h, m] = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d).split(':').map(Number);
+        // "7:00 PM", the form answers use, so the model never converts times itself.
+        return { date, time: formatClock(h * 3600 + m * 60), sortKey: h * 60 + m };
       };
       const dated = data.events.map((e) => ({ e, start: boston(e.start), end: e.end ? boston(e.end) : null }));
       const inWeek = dated.filter((x) => week.includes(x.start.date));
       const matches = dated.filter((x) => dates.includes(x.start.date) && (!p || x.e.locationId === p.location.id))
-        .sort((a, b) => (a.start.date + a.start.time).localeCompare(b.start.date + b.start.time));
+        .sort((a, b) => a.start.date.localeCompare(b.start.date) || a.start.sortKey - b.start.sortKey);
       return result({
         scope: weekday === null ? `reference week ${week[0]} to ${week[6]}` : `${WEEKDAYS[weekday]} ${week[weekday]}`,
         ...(p ? { place: p.location.name } : {}),
@@ -645,7 +655,7 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
           period: `${usage.periodStart} to ${usage.periodEnd}`,
           ...(weekday === null
             ? { scope: 'average entries per hour over the published days', days: new Set(chosen.map((o) => o.date)).size }
-            : { day: WEEKDAYS[weekday], observedDate: chosen[0]?.date ?? null }),
+            : { day: WEEKDAYS[weekday], observedDate: chosen[0]?.date ?? null, totalVisits: rows.reduce((sum, o) => sum + o.visits, 0), reportedHours: rows.length }),
           hours: { columns: ['hour', 'visits'], rows: rows.map((o) => [o.hour, o.visits]) },
           busiestHour: extreme((a, b) => a > b),
           quietestHour: extreme((a, b) => a < b),

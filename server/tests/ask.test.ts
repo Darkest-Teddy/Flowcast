@@ -8,7 +8,7 @@ import { askMeetings } from '../../map-client/src/insights';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createTools, mapOutput, newToolLog, nextHoursChange, resolvePlace } from '../src/tools';
-import { askAgent, FALLBACK_ANSWER, rewordAnswer, supportedNumbers, unsupportedNumberCount, unsupportedNumbers } from '../src/agent';
+import { alignShow, askAgent, FALLBACK_ANSWER, rewordAnswer, supportedNumbers, unsupportedNumberCount, unsupportedNumbers } from '../src/agent';
 import { BASIS_TOPICS, dayFrom, type AskFacts, type ServerAskContext } from '../src/facts';
 import { clientKey, createApp, limiter } from '../src/app';
 import type { AskContext } from '../../map-client/src/insights';
@@ -226,6 +226,14 @@ test('weekend dining: hours not in the data for the date give no ranking and nam
   assert.ok((await rank({ kind: 'dining', time: '12:30' })).out.leastCrowded);
 });
 
+test('a kind of place the campus in view doesn’t have is said, not reported as none qualifying', async () => {
+  const { out, map } = await call('rank_places_by_crowd', { kind: 'library', weekday: null, time: null, near: null, order: null, openOnly: null }, { ...ctx, campus: 'fenway' });
+  assert.deepEqual(out.places, []);
+  assert.equal(out.leastCrowded, null);
+  assert.match(out.note, /no library places on the fenway campus/);
+  assert.deepEqual(map, { show: null, rows: [] });
+});
+
 test('another day that is not built says so, and asks for it to be built', async () => {
   const { out, map } = await rank({ kind: 'library', weekday: 4 });
   assert.deepEqual(out, { available: false, reason: 'day 4 is still being simulated', retryAfterSec: 10 });
@@ -337,8 +345,13 @@ test('list_events: reference-week events in Boston time, with the count outside 
   assert.equal(week.outsideReferenceWeek, data.events.length - inWeek.length);
   const wed = (await call('list_events', { weekday: 2, place: null })).out;
   assert.ok(wed.events.every((e: any) => e.date === '2026-10-28' && e.day === 'Wednesday'));
-  assert.deepEqual(wed.events.map((e: any) => e.start), ['15:30', '17:00', '19:00']);
-  assert.equal(wed.events.find((e: any) => e.start === '19:00').mappedPlace, 'sargent');
+  // 12-hour times, the form answers use, sorted by time of day (not as text: 9:00 AM < 10:00 AM).
+  assert.deepEqual(wed.events.map((e: any) => e.start), ['3:30 PM', '5:00 PM', '7:00 PM']);
+  assert.equal(wed.events.find((e: any) => e.start === '7:00 PM').mappedPlace, 'sargent');
+  for (let i = 1; i < week.events.length; i++) {
+    const key = (e: any) => `${e.date} ${String(new Date(`2000-01-01 ${e.start}`).getHours()).padStart(2, '0')}${e.start.slice(-5, -3)}`;
+    assert.ok(key(week.events[i - 1]) <= key(week.events[i]), `${week.events[i - 1].start} before ${week.events[i].start}`);
+  }
   assert.ok(wed.events.some((e: any) => e.where === 'location not published'));
   const sargent = (await call('list_events', { weekday: null, place: 'sargent' })).out;
   assert.ok(sargent.events.length >= 1 && sargent.events.every((e: any) => e.mappedPlace === 'sargent'));
@@ -362,6 +375,9 @@ test('model_basis, published_counts and find_places', async () => {
     assert.ok(log.outputs[0].length < 1200, `${topic} ${log.outputs[0].length}`);
   }
   const fit = (await call('published_counts', { source: 'fitrec_visits', weekday: 2 })).out;
+  // A day's total comes from the tool, so the model never adds the hours up itself.
+  assert.equal(fit.totalVisits, fit.hours.rows.reduce((sum: number, r: number[]) => sum + r[1], 0));
+  assert.equal(fit.reportedHours, fit.hours.rows.length);
   assert.equal(fit.kind, 'published count');
   assert.equal(fit.observedDate, '2026-10-21'); // the Wednesday of the published week
   assert.deepEqual(fit.hours.columns, ['hour', 'visits']);
@@ -733,4 +749,25 @@ test('without a key the endpoint says so; model failures become 502 without leak
     assert.equal(r.status, 502);
     assert.doesNotMatch(await r.text(), /secret|sk-/);
   } finally { failing.close(); console.error = original; }
+});
+
+test('the map selects a place the answer talks about, not a ranking’s top place the answer never names', async () => {
+  const at = (id: string) => campus.locations.find((l) => l.id === id)!;
+  const ranked = { route: null, select: 'astronomy-library', points: [at('astronomy-library').position] };
+  assert.deepEqual(alignShow('SEL is busier by capacity: 11%, compared with Mugar at 9%.', ranked, campus.locations),
+    { route: null, select: 'sel', points: [at('sel').position] });
+  // Named, or nothing mapped named, or a walk: left as is.
+  assert.equal(alignShow('Papagiannis Astronomy Library is the quietest.', ranked, campus.locations), ranked);
+  assert.equal(alignShow('No library qualifies.', ranked, campus.locations), ranked);
+  const walk = { route: { path: [[0, 0], [1, 1]] as [number, number][], estimate: false }, select: null, points: [] };
+  assert.equal(alignShow('CAS to Mugar is 7 minutes.', walk, campus.locations), walk);
+  assert.equal(alignShow('anything', null, campus.locations), null);
+  // Through the agent: a ranking followed by an answer about two other libraries.
+  const model = new ScriptedModel([
+    [functionCall('rank_places_by_crowd', { kind: 'library', weekday: null, time: null, near: null, order: null, openOnly: null }, { callId: 'a' })],
+    [assistantMessage('SEL is busier than Mugar right now.')],
+  ]);
+  const r = await askAgent('q', ctx, undefined, model);
+  assert.equal(r.show?.select, 'sel');
+  assert.ok(r.rows.length > 0);
 });
