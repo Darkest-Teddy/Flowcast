@@ -6,7 +6,7 @@
 
 .page {
   --gutter: clamp(var(--space-4), 4vw, var(--space-10));
-  --nav-clearance: calc(var(--landing-strip-height) + var(--space-20)); /* sections scrolled to stop below the strip and nav */
+  --nav-clearance: var(--space-20); /* sections scrolled to stop below the floating nav */
   min-height: 100%;
   background: var(--landing-canvas);
   color: var(--color-ink);
@@ -54,25 +54,15 @@
   padding: 0 var(--gutter);
 }
 
-/* ---------- Status strip ---------- */
+/* ---------- Status strip (above the footer) ---------- */
 
-/* One thin monospace line, after a GIS status bar: fixed above the nav, and again above the footer. */
-.stripFixed {
-  position: fixed;
-  z-index: 51;
-  top: 0;
-  left: 0;
-  right: 0;
-}
-
-/* Scrolling down sends the strip and the nav up out of the way; scrolling up brings them back. */
-.stripFixed,
+/* Scrolling down sends the nav up out of the way; scrolling up brings it back. */
 .navBar {
   transition: transform 0.35s var(--ease-standard);
 }
 
 .chromeAway {
-  transform: translateY(calc(-100% - var(--landing-strip-height) - var(--space-4)));
+  transform: translateY(calc(-100% - var(--space-4)));
 }
 
 .strip {
@@ -164,7 +154,7 @@
 .navBar {
   position: fixed;
   z-index: 50;
-  top: calc(var(--landing-strip-height) + var(--space-2));
+  top: var(--space-3);
   left: 0;
   right: 0;
   padding: 0 var(--space-4);
@@ -359,7 +349,7 @@
   z-index: 2;
   max-width: var(--content-max-landing);
   margin: 0 auto;
-  padding: calc(var(--landing-strip-height) + clamp(var(--space-24), 11vw, var(--space-32))) var(--gutter) 0;
+  padding: clamp(var(--space-24), 11vw, var(--space-32)) var(--gutter) 0;
   text-align: center;
 }
 
@@ -1519,7 +1509,6 @@
     animation: none;
   }
 
-  .stripFixed,
   .navBar {
     transition: none;
   }

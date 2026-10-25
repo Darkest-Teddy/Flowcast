@@ -142,9 +142,6 @@ export default function Landing() {
         <a className={styles.skip} href="#main">
           Skip to content
         </a>
-        <div className={`${styles.stripFixed} ${navAway ? styles.chromeAway : ''}`} data-top-chrome>
-          {status}
-        </div>
         <LandingNav away={navAway} />
         <main id="main" tabIndex={-1} className={styles.main}>
           <Hero day={day} preset={preset} still={still} />
@@ -174,8 +171,8 @@ export default function Landing() {
 /* ---------- Top bars ---------- */
 
 /**
- * True while the strip and nav should be out of the way: scrolling down past the top of the page
- * sends them up, any scroll back up brings them down again. Keyboard focus inside them keeps them in.
+ * True while the nav should be out of the way: scrolling down past the top of the page sends it up,
+ * any scroll back up brings it down again. Keyboard focus inside it keeps it in.
  */
 function useAwayOnScrollDown() {
   const [away, setAway] = useState(false);
@@ -188,7 +185,7 @@ function useAwayOnScrollDown() {
         const y = window.scrollY;
         const delta = y - last;
         if (Math.abs(delta) < 6) return; // small jitters (and Lenis' easing tail) don't flip it
-        const focusInside = document.activeElement?.closest('header, [data-top-chrome]') != null;
+        const focusInside = document.activeElement?.closest('header') != null;
         setAway(delta > 0 && y > 120 && !focusInside);
         last = y;
       });
@@ -214,7 +211,7 @@ function useBostonClock() {
   return now;
 }
 
-/** One thin monospace line, after a GIS status bar: the time in Boston and the model's own counts. Phones keep the time. */
+/** One thin monospace line above the footer, after a GIS status bar: the time in Boston and the model's own counts. Phones keep the time. */
 function StatusStrip({ sources, students }: { sources: CampusData | null; students: number | null }) {
   const now = useBostonClock();
   const counts = [
