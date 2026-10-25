@@ -93,6 +93,8 @@ export interface SourceEvent {
   roomCode?: string | null;
   roomCapacity?: number | null;
   organizer?: string | null;
+  /** Terrier Central's event photo (JSON-LD `image`), absent in snapshots built before it was collected. */
+  imageUrl?: string | null;
   registrationCount: number | null;
   sourceUrl: string;
 }

@@ -82,19 +82,22 @@ function assertContrast(color, on, min, what) {
   }
 }
 
-test('thresholds: Moderate from 40%, Busy from 65%, Packed from 85%', () => {
+test('thresholds: Busy from 40%, Packed from 85%', () => {
   assert.deepEqual(CROWD_LEVELS.map((l) => [l.key, l.label, l.min]), [
-    ['quiet', 'Quiet', 0], ['moderate', 'Moderate', 0.4], ['busy', 'Busy', 0.65], ['packed', 'Packed', 0.85],
+    ['quiet', 'Quiet', 0], ['busy', 'Busy', 0.4], ['packed', 'Packed', 0.85],
   ]);
   const at = (share) => crowdLevel(share).key;
   assert.equal(at(0), 'quiet');
   assert.equal(at(0.3999), 'quiet');
-  assert.equal(at(0.4), 'moderate'); // boundaries go to the upper level
-  assert.equal(at(0.6499), 'moderate');
-  assert.equal(at(0.65), 'busy');
+  assert.equal(at(0.4), 'busy'); // boundaries go to the upper level
+  assert.equal(at(0.6499), 'busy');
   assert.equal(at(0.8499), 'busy');
   assert.equal(at(0.85), 'packed');
   assert.equal(at(1.4), 'packed');
+});
+
+test('each level has its own people icon, one to three', () => {
+  assert.deepEqual(CROWD_LEVELS.map((l) => l.icon), ['person1', 'person2', 'person3']);
 });
 
 test('an unknown share is Quiet, never Packed', () => {
@@ -105,13 +108,13 @@ test('an unknown share is Quiet, never Packed', () => {
 
 test('tokens.ts and the map agree with crowd.ts', () => {
   assert.deepEqual(crowdScale.map((s) => [s.level, s.label, s.upTo]), [
-    ['quiet', 'Quiet', 0.4], ['moderate', 'Moderate', 0.65], ['busy', 'Busy', 0.85], ['packed', 'Packed', Infinity],
+    ['quiet', 'Quiet', 0.4], ['busy', 'Busy', 0.85], ['packed', 'Packed', Infinity],
   ]);
   for (const s of crowdScale) {
     assert.equal(s.color, `var(--crowd-${s.level})`);
     assert.equal(s.text, `var(--crowd-${s.level}-text)`);
   }
-  assert.deepEqual(mapLevels.LEVELS.map((l) => l.key), ['packed', 'busy', 'moderate', 'quiet']);
+  assert.deepEqual(mapLevels.LEVELS.map((l) => l.key), ['packed', 'busy', 'quiet']);
   for (const l of mapLevels.LEVELS) assert.equal(l, CROWD_LEVELS.find((c) => c.key === l.key));
   for (let share = -0.05; share <= 1.3; share += 0.005) {
     const key = crowdLevel(share).key;

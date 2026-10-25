@@ -1,4 +1,4 @@
-// Parking lots on the map, tinted by how full they are on the app's one four-step scale
+// Parking lots on the map, tinted by how full they are on the app's one three-step scale
 // (crowdLevel: the tags carry the words and numbers, never the colour alone). Two layers for every
 // lot together, whatever the count: one SolidPolygonLayer for the fills (surface lots on the
 // ground, garage structures on their roofs) and one PathLayer for the outlines (garages under

@@ -28,6 +28,23 @@ def _datetime(value):
     return parsed.astimezone(TIMEZONE).isoformat()
 
 
+def _image_url(value):
+    """First absolute HTTPS URL in a JSON-LD `image`: a string, a list, or an ImageObject with `url`."""
+    for candidate in (value if isinstance(value, list) else [value]):
+        if isinstance(candidate, dict):
+            candidate = candidate.get("url") or candidate.get("contentUrl")
+        if not isinstance(candidate, str):
+            continue
+        url = candidate.strip()
+        try:
+            parts = urlsplit(url)
+        except ValueError:
+            continue
+        if parts.scheme == "https" and parts.hostname:
+            return url
+    return None
+
+
 def parse_event(source):
     page = soup(source)
     event = None
@@ -98,6 +115,7 @@ def parse_event(source):
     return {
         "id": f"terriercentral:{event_id}", "eventId": event_id,
         "name": _text(event["name"]), "organizer": organizer_name,
+        "imageUrl": _image_url(event.get("image")),
         "start": start, "end": end, "timezone": "America/New_York",
         "locationName": None if hidden else (location_name or None),
         "locationAddress": None if hidden else address,

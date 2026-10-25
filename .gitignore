@@ -49,3 +49,5 @@ data-pipeline/output/campus-wide/*
 
 # Local Supabase CLI connection cache
 supabase/.temp/
+web/.hallmark/
+data-pipeline/cache/

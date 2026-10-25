@@ -30,6 +30,10 @@
   /* Tags on the map: dark pills in both themes, so they read on the map rather than the theme.
      Selection and focus take the dark theme's accent (6:1 on the pill). */
   --tag-accent: #2997ff;
+  /* Selection, and only selection. Was --tag-accent, but that blue is the Quiet
+     crowd colour now, so a selected tag read as a quiet one. White belongs to no
+     level, which is the whole reason the handoff picks it. */
+  --tag-selected: #f5f5f7;
   --tag-accent-rgb: 41, 151, 255;
   /* A venue event's visitors on a tag (violet, apart from every crowd level). */
   --tag-event: #ddd6fe;
@@ -48,6 +52,45 @@
 html, body, #root, .app { margin: 0; height: 100%; overflow: hidden; background: var(--color-canvas); }
 /* Set by the sheet (Sheet.tsx) once it has measured itself. */
 .app { --sheet-visible: 0px; --sheet-space: 0px; }
+
+/*
+ * The map's own faces and hues, declared on .app rather than :root.
+ *
+ * Raleway and Merriweather are the map's type, loaded in index.html. They are
+ * set here and not in theme/tokens.css because --font-text and --font-display
+ * are shared: overriding them at :root would also restyle the dashboard and the
+ * landing page, which this redesign does not touch. web/ never imports this
+ * file, so .app reaches every piece of map chrome and nothing else.
+ *
+ * The hues label the chrome's icons: one per tab, per layer and per building
+ * category, so a row of monochrome glyphs becomes scannable. They sit at
+ * oklch(0.80 0.12 h), deliberately clear of the crowd hues, because a crowd
+ * colour means a measured level and these mean nothing but identity. Icons take
+ * them; labels stay ink.
+ */
+.app {
+  --font-display: 'Raleway', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-text: 'Merriweather', Georgia, 'Times New Roman', serif;
+  /*
+   * What the map itself is labelled in, and deliberately not --font-text.
+   *
+   * Tags sit on the map beside the basemap's own street names, which are drawn
+   * in the tiles in a grid-like sans. A serif pill next to them reads as a
+   * different map. Labels also have to stay legible at 11px over moving
+   * geometry, which is not what a text face is shaped for. This is the stack the
+   * whole app used before Raleway and Merriweather arrived.
+   */
+  --font-label: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  --hue-teal: 95, 211, 195; /* Analytics, Places, Classes */
+  --hue-green: 134, 211, 154; /* Transit, Dining */
+  --hue-violet: 183, 174, 247; /* Events, Study */
+  --hue-orange: 244, 172, 131; /* Log, Bikes, Gym */
+  --hue-pink: 241, 167, 198; /* Housing */
+  --hue-neutral: 245, 245, 247; /* All, Traffic counts, selection */
+
+  font-family: var(--font-text);
+}
 /* Two classes so it beats .maplibregl-map / .mapboxgl-map (position: relative), whose CSS loads later. */
 .app .map { position: absolute; inset: 0; }
 [hidden] { display: none !important; }
@@ -385,7 +428,7 @@ select.tool { padding: 0 8px 0 12px; }
 .sim-badge { box-shadow: inset 0 0 0 1px var(--map-hairline); color: var(--color-ink); }
 
 .deck-tooltip {
-  font-family: inherit !important;
+  font-family: var(--font-label) !important;
   background: var(--map-sheet-fill) !important;
   color: var(--color-ink) !important;
   border-radius: var(--radius-lg);
@@ -565,6 +608,7 @@ select.tool { padding: 0 8px 0 12px; }
   padding: 10px 14px;
   min-width: 240px;
   max-width: min(340px, calc(100% - 24px));
+  font-family: var(--font-label);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -674,15 +718,15 @@ select.tool { padding: 0 8px 0 12px; }
 .btags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 /* Tags stay dark in the light theme too: their own scheme and ink, never the page's. Each layer is
    its own stacking context, so an open tag (z-index 5) stays under the sheet and toolbar. */
-.btags, .gtags { z-index: 0; color-scheme: dark; color: #fff; }
+.btags, .gtags { z-index: 0; color-scheme: dark; color: #fff; font-family: var(--font-label); }
 .btag {
   position: absolute;
   left: 0;
   top: 0;
   --stem: 16px;
   /* Quiet until crowdLevelStyle sets the level; mirrors theme/crowd.ts (crowdScale.test.mjs checks). */
-  --lv: 45, 212, 191;
-  --lv-text: #5eead4;
+  --lv: 56, 189, 248;
+  --lv-text: #7dd3fc;
   will-change: transform;
   transition: opacity 0.28s ease;
 }
@@ -722,7 +766,7 @@ select.tool { padding: 0 8px 0 12px; }
 }
 .btag:hover .btag-card, .btag:focus-within .btag-card, .btag.is-open .btag-card { opacity: 1; scale: 1; pointer-events: auto; }
 
-/* The compact pill: a level dot, the short name and the % (never colour alone). */
+/* The compact pill: the level's people icon, the short name and the % (never colour alone). */
 .btag-pill {
   position: absolute;
   left: 0;
@@ -749,15 +793,19 @@ select.tool { padding: 0 8px 0 12px; }
 }
 .btag:hover .btag-pill, .btag:focus-within .btag-pill, .btag.is-open .btag-pill { opacity: 0; scale: 0.9; }
 .btag-pill:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; opacity: 1; }
+/* The level mark: one, two or three people in the level's fill, so the pill reads at a glance
+   without colour (theme/crowd.ts picks the icon). A place with no level, not modeled or a venue
+   showing only an event, keeps the plain dot. */
 .btag-pdot { position: relative; flex: none; width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--lv)); box-shadow: 0 0 6px rgba(var(--lv), 0.9); }
-.btag[data-level='packed'] .btag-pdot::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: rgb(var(--lv));
-  animation: btag-ping 1.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+.btag-pdot.is-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: rgb(var(--lv));
 }
+.btag-pdot.is-icon svg { display: block; width: 14px; height: 14px; stroke-width: 2; }
 .btag-ppct { color: var(--lv-text); font-variant-numeric: tabular-nums; font-weight: 700; }
 /* A venue event's crowd: its own colour (violet, 9:1 on the pill) and a separator, so visitors never
    read as the student %. */
@@ -765,7 +813,7 @@ select.tool { padding: 0 8px 0 12px; }
 .btag-ppct:not([hidden]) + .btag-pevent::before { content: '·'; margin-right: 6px; color: rgba(255, 255, 255, 0.5); }
 .btag-event { font-size: 12px; line-height: 1.2; }
 .btag.has-event .btag-pill { border-color: rgba(var(--tag-event-rgb), 0.7); }
-.btag.is-selected .btag-pill { border-color: var(--tag-accent); }
+.btag.is-selected .btag-pill { border-color: var(--tag-selected); }
 .btags.is-compact .btag-pname { display: none; }
 .btag-card:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; }
 .btag[data-level='busy'] .btag-card { border-color: rgba(var(--lv), 0.38); }
@@ -823,6 +871,53 @@ select.tool { padding: 0 8px 0 12px; }
   to { transform: scale(3.2); opacity: 0; }
 }
 
+/*
+ * The compact marker: one building reduced to its level.
+ *
+ * In Focus mode every building the open panel is not talking about wears this
+ * instead of a pill, which is what keeps a campus of eighty buildings from
+ * reading as eighty pills. Its name and figure live in the tooltip and the
+ * accessible name, and clicking it selects the building exactly as a pill does.
+ *
+ * It stands on the same stem and roof dot as a pill, and that is the point: a
+ * mark floating free over a roof does not say which roof it belongs to, and on
+ * a pitched 3D view it reads as a bubble above the building rather than a label
+ * on it. The line is what attaches a tag to its building, so the compact form
+ * keeps it.
+ *
+ * Hidden unless the tag is explicitly in marker form, so a tag that has not been
+ * given a form yet shows its pill rather than both at once.
+ */
+.btag-marker {
+  display: none;
+  position: absolute;
+  left: 0;
+  bottom: var(--stem);
+  translate: -50% 0;
+  transform-origin: 50% 100%;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1.5px solid rgb(var(--lv));
+  border-radius: 999px;
+  background: rgba(13, 16, 23, 0.88);
+  color: rgb(var(--lv));
+  cursor: pointer;
+  transition: scale 0.16s ease, border-color 0.18s ease;
+}
+.btag[data-form='marker'] .btag-marker { display: grid; }
+.btag-marker svg { display: block; width: 12px; height: 12px; stroke-width: 2.2; }
+/* A place with no modelled level keeps the plain dot the pill falls back to. */
+.btag-marker-dot { width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--lv)); }
+@media (hover: hover) {
+  .btag-marker:hover { scale: 1.15; }
+}
+.btag-marker:focus-visible { outline: 2px solid var(--tag-accent); outline-offset: 2px; }
+/* One form at a time. The stem and roof dot are shared furniture and stay up. */
+.btag[data-form='marker'] .btag-pill,
+.btag[data-form='marker'] .btag-card { display: none; }
+
 /* Stem from the card down to the roof, ending in a glowing dot. */
 .btag-stem {
   position: absolute;
@@ -832,7 +927,7 @@ select.tool { padding: 0 8px 0 12px; }
   height: var(--stem);
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6), rgba(var(--lv), 0.95));
 }
-.btag.is-selected .btag-stem { background: var(--tag-accent); width: 2px; left: -1px; }
+.btag.is-selected .btag-stem { background: var(--tag-selected); width: 2px; left: -1px; }
 .btag-dot {
   position: absolute;
   left: -4px;
@@ -845,7 +940,7 @@ select.tool { padding: 0 8px 0 12px; }
   pointer-events: auto; /* hovering the roof dot opens the tag too */
 }
 .btag-dot::before { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
-.btag.is-selected .btag-dot { background: var(--tag-accent); box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.75), 0 0 12px 3px rgba(var(--tag-accent-rgb), 0.8); }
+.btag.is-selected .btag-dot { background: var(--tag-selected); box-shadow: 0 0 0 2px rgba(10, 12, 18, 0.75), 0 0 12px 3px rgb(245 245 247 / 0.8); }
 
 /* The overview: tighter, so more tags fit. */
 .btags.is-compact .btag-card { gap: 6px; padding: 4px 10px 6px 4px; border-radius: 10px; }
@@ -856,8 +951,10 @@ select.tool { padding: 0 8px 0 12px; }
 
 @media (prefers-reduced-motion: reduce) {
   .btag-pulse::after { animation: none; }
-  .btag-card, .btag-pill, .btag-fill, .btag { transition: none; }
-  .btag[data-level='packed'] .btag-pdot::after { animation: none; }
+  .btag-card, .btag-pill, .btag-fill, .btag, .btag-marker { transition: none; }
+  /* The marker's hover growth is the only size change here; drop it rather than
+     snapping, so hover still reads through the border colour alone. */
+  .btag-marker:hover { scale: 1; }
 }
 
 /* Transit, shuttle and Bluebikes tags (TransitTags.tsx, tags/glassTags.ts): the building tags'
@@ -1055,7 +1152,7 @@ select.tool { padding: 0 8px 0 12px; }
 /* Parking tags (ParkingTags.tsx), only with the Parking toggle on: the lot's level colour (--lv,
    set per tag from crowdLevelStyle) on the "P", the percentage and the stem; the words carry the
    level too ("Busy", "FULL"). */
-.gtag--parking { --lv: 45, 212, 191; --lv-text: #5eead4; --accent-rgb: var(--lv); }
+.gtag--parking { --lv: 56, 189, 248; --lv-text: #7dd3fc; --accent-rgb: var(--lv); }
 .gtag--parking .gtag-icon--parking { color: rgb(var(--lv)); background: rgba(var(--lv), 0.14); }
 .gtag--parking .gtag-picon { width: 16px; height: 16px; color: rgb(var(--lv)); background: none; }
 .gtag--parking .gtag-picon svg { width: 15px; height: 15px; }
@@ -1068,7 +1165,9 @@ select.tool { padding: 0 8px 0 12px; }
 
 /* Clean view (H): just the map, buildings, people and transit. The sheet, toolbar, dim, perf panel,
    tags and tooltips go; Mapbox's attribution stays. H again brings them back, as the hint says. */
-.app.is-clean :is(.sheet, .toolbar, .sheet-dim, .panel, .btags, .gtags),
+/* H clears everything drawn over the map. The what-if ring belongs here too: it
+   is an overlay on the scene, rendered outside .hud beside the tag layers. */
+.app.is-clean :is(.sheet, .toolbar, .sheet-dim, .panel, .btags, .gtags, .wi-circle),
 .app.is-clean .deck-tooltip { display: none !important; }
 .clean-hint {
   position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 3;
@@ -1086,9 +1185,89 @@ select.tool { padding: 0 8px 0 12px; }
 /* The intro (App.tsx): its sky (IntroSky, public/intro/sky.css) between the still and the progress
    line; the interface hidden until the camera has landed, then coming in. */
 .app > .intro-sky { z-index: 40; }
-.app.is-intro :is(.sheet, .toolbar, .sheet-dim, .perf, .btags, .gtags) { visibility: hidden; }
-.app.is-swoop :is(.sheet, .toolbar, .perf, .btags, .gtags) { animation: intro-interface-in 0.6s ease both; }
+.app.is-intro :is(.sheet, .toolbar, .sheet-dim, .perf, .btags, .gtags, .hud, .join-slot, .wi-circle) { visibility: hidden; }
+.app.is-swoop :is(.sheet, .toolbar, .perf, .btags, .gtags, .hud, .join-slot) { animation: intro-interface-in 0.6s ease both; }
 @keyframes intro-interface-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .app.is-swoop :is(.sheet, .toolbar, .perf, .btags, .gtags) { animation: none; }
+  .app.is-swoop :is(.sheet, .toolbar, .perf, .btags, .gtags, .hud, .join-slot) { animation: none; }
+}
+
+/* ---------------------------------------------------------------------------
+ * The what-if's area on the map (WhatIfCircle.tsx)
+ * ------------------------------------------------------------------------- */
+/*
+ * Drawn over the map, above the tags, below the chrome. Only the drag handle
+ * takes the pointer: the ring and its label are a readout, and a circle that
+ * swallowed clicks would stop you selecting the buildings it covers.
+ */
+.wi-circle {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/*
+ * fill and stroke are painted per frame by WhatIfCircle.tsx, which knows the
+ * scenario's hue. What is here is the shape, and a neutral that still reads if
+ * the overlay has not drawn yet: an unresolvable var() in `fill` computes to
+ * black, which put an opaque disc over the campus.
+ */
+.wi-ring {
+  fill: rgba(245, 245, 247, 0.06);
+  stroke: #f5f5f7;
+  stroke-width: 1.5;
+  stroke-dasharray: 7 6;
+}
+
+.wi-centre {
+  fill: #f5f5f7;
+  stroke: rgb(10 12 18 / 0.75);
+  stroke-width: 2;
+}
+
+/*
+ * White, so it reads as a control rather than as part of the scenario's colour,
+ * with the scenario's hue as its rim. touch-action is what stops a drag on it
+ * from panning the map on a touchscreen.
+ */
+.wi-handle {
+  fill: #f5f5f7;
+  stroke: #f5f5f7;
+  stroke-width: 2;
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.wi-handle:hover {
+  r: 14;
+}
+
+.wi-label rect {
+  fill: rgb(13 16 23 / 0.88);
+  stroke: rgb(245 245 247 / 0.4);
+}
+
+.wi-label text {
+  fill: #f5f5f7;
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* The centre's name, over the dot. Shadowed rather than boxed: it labels a point
+   on the map, and a plate here would read as another control. */
+.wi-centre-name {
+  fill: #f5f5f7;
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: rgb(10 12 18 / 0.85);
+  stroke-width: 3.5;
+  stroke-linejoin: round;
 }

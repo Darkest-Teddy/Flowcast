@@ -17,7 +17,7 @@ Sign-in uses Supabase Google authentication and the PostgreSQL dashboard API. No
 
 ## Rules for adding to it
 
-- **No hard-coded design values.** Colours, fonts, sizes, spacing, radii, shadows and motion come from `/theme/tokens.css` (shared by every app). `/theme/tokens.ts` exposes the same names and the crowd scale to code. The crowd scale itself (Quiet under 40%, Moderate from 40%, Busy from 65%, Packed from 85%, and its colours) is defined once in `/theme/crowd.ts`; `tokens.css` mirrors its colours and `map-client/tests/crowdScale.test.mjs` keeps them in step. Need something new? Add a token.
+- **No hard-coded design values.** Colours, fonts, sizes, spacing, radii, shadows and motion come from `/theme/tokens.css` (shared by every app). `/theme/tokens.ts` exposes the same names and the crowd scale to code. The crowd scale itself (Quiet under 40%, Busy from 40%, Packed from 85%, and its colours) is defined once in `/theme/crowd.ts`; `tokens.css` mirrors its colours and `map-client/tests/crowdScale.test.mjs` keeps them in step. Need something new? Add a token.
 - **Data only through `src/data/api.ts`.** It reads the dashboard API and sourced campus bundle. Unsupported integrations fail explicitly; missing data is not replaced by fictional records.
 - **Reuse `src/ui`** (buttons, lists, tables, fields, status badges, page headers) and `src/lib/format.ts` for dates and percentages.
 - Each page keeps its CSS in a sibling `*.module.css`.

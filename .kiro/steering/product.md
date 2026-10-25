@@ -26,7 +26,7 @@ Flowcast is a browser-based 3D model of the BU campus for the DS+X hackathon (Ha
 ### Users and accessibility
 
 - Students use the dashboard (`web/`) and the map (`/map`); admins use `/admin`; audience members join from phones.
-- Crowd levels always pair colour with a word and a percentage (Quiet, Moderate, Busy, Packed). Text keeps 4.5:1 contrast.
+- Crowd levels always pair colour with a word, a percentage and a people icon (Quiet, Busy, Packed). Text keeps 4.5:1 contrast.
 - Controls are real buttons or inputs with labels.
 
 ### Privacy

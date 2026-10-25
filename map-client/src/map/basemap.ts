@@ -202,6 +202,23 @@ const DEFAULT_VIEW = {
   bearing: 250,
 };
 
+/**
+ * `?style=dark` and friends, for the MapLibre path only.
+ *
+ * An allowlist rather than an arbitrary URL: this comes from the address bar, and
+ * a style URL is fetched and executed as map configuration. The landing page links
+ * here with ?style=dark so arriving from its night title screen does not snap the
+ * map back to the bright default.
+ */
+const OPEN_FREE_MAP_STYLES = ['liberty', 'bright', 'positron', 'fiord', 'dark'] as const;
+
+function styleFromUrl(): string | undefined {
+  const name = new URLSearchParams(window.location.search).get('style');
+  if (!name) return undefined;
+  const allowed = OPEN_FREE_MAP_STYLES.find((s) => s === name);
+  return allowed ? `https://tiles.openfreemap.org/styles/${allowed}` : undefined;
+}
+
 function viewFromUrl() {
   const q = new URLSearchParams(window.location.search);
   const num = (key: string, fallback: number) => (q.has(key) ? Number(q.get(key)) : fallback);
@@ -307,8 +324,29 @@ function tameInteractions(map: {
   map.doubleClickZoom.disable();
 }
 
-/** `limited: false` starts without the camera limits to central Boston (the intro's view from the sky); setLimits(true) restores them. */
-export async function createBasemap(container: HTMLElement, lightPreset: LightPreset, start: CameraState = INITIAL_VIEW, limited = true): Promise<Basemap> {
+export interface BasemapOptions {
+  /**
+   * Replaces the MapLibre style URL. Ignored on the Mapbox path, which configures
+   * Standard through `config` rather than by swapping styles.
+   *
+   * Used by the marketing page, which needs the dark style: without a Mapbox token
+   * `setLightPreset` is a no-op, so a dark basemap is the only way to get a night
+   * look on the fallback path.
+   */
+  styleUrl?: string;
+}
+
+/**
+ * `limited: false` starts without the camera limits to central Boston (the intro's
+ * view from the sky); setLimits(true) restores them.
+ */
+export async function createBasemap(
+  container: HTMLElement,
+  lightPreset: LightPreset,
+  start: CameraState = INITIAL_VIEW,
+  limited = true,
+  options: BasemapOptions = {},
+): Promise<Basemap> {
   const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
   if (token) {
@@ -552,7 +590,8 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
   const maplibregl = (maplibreModule.default ?? maplibreModule) as typeof maplibreModule.default;
   const map = new maplibregl.Map({
     container,
-    style: 'https://tiles.openfreemap.org/styles/liberty',
+    // Explicit option, then ?style=, then the default.
+    style: options.styleUrl ?? styleFromUrl() ?? 'https://tiles.openfreemap.org/styles/liberty',
     ...start,
     ...(limited ? BOSTON_LIMITS : {}),
     maxPitch: 85, // the default 60 is too flat for the street-level view

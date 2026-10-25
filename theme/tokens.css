@@ -72,17 +72,15 @@
   --color-off: #8e8e93;
   --color-off-soft: #efeff2;
 
-  /* Colour: crowd scale (Quiet / Moderate / Busy / Packed). Always shown with a number and a word.
-     Mirrors theme/crowd.ts (fillLight/textOnLight here, fillDark/text in the dark blocks);
-     map-client/tests/crowdScale.test.mjs fails if they drift. Fills keep 3:1 on surface, canvas,
-     sunken and glass; the -text variants keep 4.5:1. */
-  --crowd-quiet: #0d9488;
-  --crowd-moderate: #a87b00;
-  --crowd-busy: #dc5a0a;
+  /* Colour: crowd scale (Quiet / Busy / Packed). Always shown with a number, a word and a
+     one/two/three-people icon. Mirrors theme/crowd.ts (fillLight/textOnLight here, fillDark/text
+     in the dark blocks); map-client/tests/crowdScale.test.mjs fails if they drift. Fills keep 3:1
+     on surface, canvas, sunken and glass; the -text variants keep 4.5:1. */
+  --crowd-quiet: #0284c7;
+  --crowd-busy: #a87b00;
   --crowd-packed: #e11d48;
-  --crowd-quiet-text: #0f766e;
-  --crowd-moderate-text: #8a5a00;
-  --crowd-busy-text: #b43c0a;
+  --crowd-quiet-text: #0369a1;
+  --crowd-busy-text: #8a5a00;
   --crowd-packed-text: #be123c;
 
   /* Colour: chart series (categorical, in this fixed order; never cycled, at most four). Checked
@@ -208,13 +206,11 @@
     --color-off-soft: #2c2c2e;
     --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.5);
     --shadow-overlay: 0 8px 28px rgba(0, 0, 0, 0.6);
-    --crowd-quiet: #2dd4bf;
-    --crowd-moderate: #facc15;
-    --crowd-busy: #f97316;
+    --crowd-quiet: #38bdf8;
+    --crowd-busy: #facc15;
     --crowd-packed: #f43f5e;
-    --crowd-quiet-text: #5eead4;
-    --crowd-moderate-text: #fde047;
-    --crowd-busy-text: #fdba74;
+    --crowd-quiet-text: #7dd3fc;
+    --crowd-busy-text: #fde047;
     --crowd-packed-text: #fda4af;
     --series-1: #3987e5;
     --series-2: #d95926;
@@ -264,13 +260,11 @@
   --color-off-soft: #2c2c2e;
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-overlay: 0 8px 28px rgba(0, 0, 0, 0.6);
-  --crowd-quiet: #2dd4bf;
-  --crowd-moderate: #facc15;
-  --crowd-busy: #f97316;
+  --crowd-quiet: #38bdf8;
+  --crowd-busy: #facc15;
   --crowd-packed: #f43f5e;
-  --crowd-quiet-text: #5eead4;
-  --crowd-moderate-text: #fde047;
-  --crowd-busy-text: #fdba74;
+  --crowd-quiet-text: #7dd3fc;
+  --crowd-busy-text: #fde047;
   --crowd-packed-text: #fda4af;
   --series-1: #3987e5;
   --series-2: #d95926;

@@ -1,6 +1,6 @@
 // The Parking section of the Transit tab (only while the toggle is on): each lot's spaces, how full
 // it is and which way it's heading, and the day's events that bring cars, with their times.
-// Rows use the same four-step scale as the Crowds tab (colour plus the words and numbers).
+// Rows use the same three-step scale as the Crowds tab (colour plus the words and numbers).
 import { crowdLevelStyle } from './layers/crowd';
 import { lotSummary } from './ParkingTags';
 import { formatClock } from './sim/playback';

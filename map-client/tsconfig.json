@@ -9,7 +9,19 @@
     "noEmit": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    /*
+     * The join card's character is drawn by the renderer the phone flow uses
+     * (web/src/lib/personaRender.ts), rather than a second copy of it. That file
+     * reaches back here through the `@map` alias, which until now existed only
+     * in the web app's Vite config, so typechecking it from this side needs the
+     * same mapping. The build resolves it through web/vite.config.ts, which is
+     * what compiles map.html.
+     */
+    "paths": {
+      "@map/*": ["./src/*"],
+      "@theme/*": ["../theme/*"]
+    }
   },
   "include": ["src", "vite.config.ts"]
 }

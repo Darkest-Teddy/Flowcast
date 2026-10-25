@@ -1,13 +1,23 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, VIEW_IN_URL, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
+import { HudAsk, HudBrand, HudDate, HudIcons, HudLegend, HudRail, HudStatus, HudTabs, HudTime, type HudTab, type RailItem } from './hud/Chrome';
 import { agentLayers, loadCharacterModels, type Character, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
-import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
+import { CROWD_LEVELS } from './layers/crowdLevels';
+import { activityDisplay, BuildingTags, type BuildingTagsHandle, type TagMode } from './BuildingTags';
+import { orderPlaces, PlacesPanel, type Category } from './panel/Places';
+import { BuildingDetail, FIRST_HOUR, LAST_HOUR, type HourSample } from './panel/BuildingDetail';
+import { BikesPanel, TransitPanel, type DockRow, type ShuttleRow, type StopRow } from './panel/TransitBikes';
+import { EventDetail, EventsList, type EventWhen } from './panel/Events';
+import { defaultRadius, gathers, radiusLimits, SCENARIOS, WhatIfForm, type ScenarioKind } from './panel/WhatIf';
+import { WhatIfCircle, type WhatIfCircleHandle } from './WhatIfCircle';
+import { DISASTER_LIMITATIONS, hazardZone } from './sim/disasters';
+import './panel/panel.css';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
-import { createPlacer } from './layers/placement';
+import { createPlacer, type Box } from './layers/placement';
 import { cullLayers } from './layers/culling';
 import { buildingModelLayers, campusBounds, DEFERRED_CAMPUSES, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
@@ -109,6 +119,13 @@ import { loadEventSources, type EventSources } from './data/eventCalendar';
 import { eventLoadAt, eventLoadLabel, NO_EVENT_DAY, planEventDay, setCurrentEventDay, type EventDay } from './sim/eventAttendance';
 import { NO_VISITORS, planVisitors, setCurrentVisitorPlan, visitorFromId, visitorsAt, type VisitorPlan } from './sim/visitors';
 import { GAME_ID, withSimulatedGame, type SimulatedGame } from './sim/simulatedGame';
+// Joined students (persona/): a phone builds a character at /join, this display draws it, starred.
+import { JoinQrCard } from './persona/JoinQrCard';
+import { PersonaDetails } from './persona/PersonaDetails';
+import { PERSONA_PICK_LAYER_IDS, personaLayers, personaTooltip } from './persona/layers';
+import { personaUnder, placePersonas } from './persona/placement';
+import { readPersonas, subscribePersonas } from './persona/store';
+import type { Persona } from './persona/model';
 
 // The HUD re-renders the app twice a second; these only need to when their own props change.
 const MemoPerfMonitor = memo(PerfMonitor);
@@ -153,6 +170,23 @@ function wallClockDate(): string { return BOSTON_DATE.format(new Date()); }
 const PARKING_KEY = 'flowcast.parking';
 function storedParking(): boolean {
   try { return localStorage.getItem(PARKING_KEY) === '1'; } catch { return false; }
+}
+/*
+ * How much of the campus is labelled, remembered between visits.
+ *
+ * Focus is the default: a full pill for what the open panel is talking about and
+ * a level marker for everything else. The campus has enough buildings that
+ * labelling all of them at once is the thing that made the old map unreadable.
+ */
+const TAG_MODE_KEY = 'flowcast.tagMode';
+function storedTagMode(): TagMode {
+  try {
+    const saved = localStorage.getItem(TAG_MODE_KEY);
+    if (saved === 'focus' || saved === 'all' || saved === 'off') return saved;
+  } catch {
+    // Private browsing refuses reads; the default is right anyway.
+  }
+  return 'focus';
 }
 /** The map's weather look for a scenario's weather (live weather otherwise). */
 const SCENARIO_LOOK: Record<string, WeatherMode> = { clear: 'clear', rain: 'rain', 'heavy-rain': 'rain', drizzle: 'rain', snow: 'snow', thunderstorm: 'thunderstorm', heatwave: 'heatwave', fog: 'fog' };
@@ -214,13 +248,95 @@ const INTRO_DROPS = [
   { zoomDown: 2.2, ms: 420, hold: 150 },
 ];
 const INTRO_SWOOP_MS = 1000;
+/* How often the chrome's footprint is re-measured for the label placer. */
+const CHROME_REFRESH_MS = 400;
+
+/*
+ * Where the chrome is, in map pixels, so labels never land underneath it.
+ *
+ * The chrome is HTML drawn over the same pixels the tags are placed in, and the
+ * clock has no backdrop of its own, so without this a building tag sits on top
+ * of the time and neither can be read. Everything in `.hud`, plus the join card
+ * and the performance readout, reserves its rectangle.
+ *
+ * Measured from the DOM rather than from the CSS constants because several of
+ * these size to their content: the brand grows with the campus name and the
+ * legend with its thresholds. `.app` fills the viewport and the map canvas fills
+ * `.app`, so a viewport rect is already a map-pixel rect.
+ */
+function measureChrome(): Box[] {
+  const boxes: Box[] = [];
+  for (const el of document.querySelectorAll('.hud > *, .join-slot, .perf')) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) boxes.push({ x0: r.left, x1: r.right, y0: r.top, y1: r.bottom });
+  }
+  return boxes;
+}
 /** ?ask=least+crowded+library opens the Ask tab with that question answered. */
 const START_QUESTION = params.get('ask');
 
-type Tab = 'ask' | 'crowds' | 'data' | 'transit' | 'traffic' | 'bikes' | 'weather' | 'incidents';
-const TAB_LABELS: Record<Tab, string> = {
-  ask: 'Ask', crowds: 'Crowds', data: 'Data', transit: 'Transit', traffic: 'Traffic', bikes: 'Bikes', weather: 'Weather', incidents: 'Incidents',
+/*
+ * The top tabs. Each opens exactly one panel, and clicking the open one closes
+ * it, so no tab needs to mean "show me nothing" -- the map uncovered is simply
+ * the state with none of them selected.
+ *
+ *   Log        what has happened and what is happening now
+ *   Events     making and scheduling events
+ *   Analytics  the campus measured: search, rankings, data
+ *
+ * Weather is not here. It opens from the chip in the top-right status, next to
+ * the temperature it belongs to.
+ */
+type View = 'log' | 'events' | 'analytics';
+
+/*
+ * Analytics first, then Events, then Log: the order runs from what the map is
+ * showing right now, through what is scheduled, to what you have asked it to
+ * imagine. Each icon carries the tab's hue so the three are tellable apart
+ * before the labels are read.
+ */
+const VIEW_TABS: HudTab<View>[] = [
+  { id: 'analytics', label: 'Analytics', icon: <HudIcons.counts />, hue: 'teal' },
+  { id: 'events', label: 'Events', icon: <HudIcons.calendar />, hue: 'violet' },
+  { id: 'log', label: 'Log', icon: <HudIcons.incidents />, hue: 'orange' },
+];
+
+/*
+ * The three subjects inside Analytics, and what the search means in each.
+ *
+ * Places takes the campus glyph rather than a people icon: the people icons are
+ * the crowd scale's, and one of them on a tab would read as a level.
+ */
+const ANALYTICS_SUBS: { id: 'places' | 'transit' | 'bikes'; label: string; hue: string; icon: ReactNode }[] = [
+  { id: 'places', label: 'Places', hue: 'teal', icon: <HudIcons.campus /> },
+  { id: 'transit', label: 'Transit', hue: 'green', icon: <HudIcons.transit /> },
+  { id: 'bikes', label: 'Bikes', hue: 'orange', icon: <HudIcons.bikes /> },
+];
+
+/** The pin on a row that would become the what-if's centre. */
+const CENTRE_PIN =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>';
+
+const SEARCH_PLACEHOLDER: Record<'places' | 'transit' | 'bikes', string> = {
+  places: 'Search buildings',
+  transit: 'Search stops',
+  bikes: 'Search Bluebikes docks',
 };
+
+const VIEW_TITLES: Record<View, string> = {
+  log: 'Log',
+  events: 'Events',
+  analytics: 'Analytics',
+};
+
+/*
+ * Kept as internal routing, not as a tab row any more. The map still sets it --
+ * clicking a traffic count opens the traffic reading, a stop opens transit -- and
+ * Analytics scrolls to whichever section that is. The user never picks from a
+ * list of eight.
+ */
+type Tab = 'crowds' | 'data' | 'transit' | 'traffic' | 'bikes' | 'weather' | 'incidents';
 /** Gap between the floating toolbar and what it sits on (the screen edge, or the phone sheet). */
 const TOOLBAR_GAP = 12;
 
@@ -267,6 +383,44 @@ export default function App() {
   const playingRef = useRef(true);
   const liveRef = useRef(START_LIVE);
   const selectedRef = useRef<string | null>(null);
+  /*
+   * How much of the campus is labelled. A preference about how the map reads
+   * rather than something you re-pick each visit, so it is persisted; the frame
+   * loop reads it through a ref because it never re-creates the map.
+   */
+  const [tagMode, setTagMode] = useState<TagMode>(storedTagMode);
+  const tagModeRef = useRef(tagMode);
+  tagModeRef.current = tagMode;
+  /** The buildings the open panel is listing: they keep a full pill in Focus. */
+  const focusRef = useRef<ReadonlySet<string>>(new Set());
+  /* Which tab is open, for the handlers the map holds onto across renders. */
+  const viewRef = useRef<View | null>(null);
+  /* Analytics: which of the three subjects, and how the places list is cut. */
+  const [analyticsSub, setAnalyticsSub] = useState<'places' | 'transit' | 'bikes'>('places');
+  const [category, setCategory] = useState<Category>('all');
+  const [sort, setSort] = useState<'quiet' | 'busy'>('quiet');
+  const [listExpanded, setListExpanded] = useState(false);
+  /* Events: which days, which one is open, and whether the list is unfolded. */
+  const [eventWhen, setEventWhen] = useState<EventWhen>('today');
+  const [openEventId, setOpenEventId] = useState<string | null>(null);
+  const [eventsExpanded, setEventsExpanded] = useState(false);
+  /*
+   * The what-if being set up: a scenario, a centre and a radius. The radius is
+   * dragged on the map, so the circle overlay reads it through a ref while the
+   * panel reads it from state; both are the same number.
+   */
+  const [whatIfKind, setWhatIfKind] = useState<ScenarioKind>('fire-drill');
+  const [whatIfCentreId, setWhatIfCentreId] = useState<string | null>(null);
+  const [whatIfRadius, setWhatIfRadius] = useState(defaultRadius('fire-drill'));
+  const [whatIfMinutes, setWhatIfMinutes] = useState(30);
+  const [whatIfOutside, setWhatIfOutside] = useState(true);
+  const [assumptionsOpen, setAssumptionsOpen] = useState(false);
+  /** "Hours & sources" on a building: where the old Data tab's content lives now. */
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const circleRef = useRef<WhatIfCircleHandle>(null);
+  const circleFrameRef = useRef<{ centre: [number, number] | null; radius: number; rgb: string; name: string | null }>(
+    { centre: null, radius: 0, rgb: '245, 245, 247', name: null },
+  );
   const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitTagsRef = useRef<TransitTagsHandle>(null);
   const placeTagsRef = useRef<PlaceTagsHandle>(null);
@@ -281,6 +435,13 @@ export default function App() {
   const showParkingRef = useRef(showParking);
   const [parkingView, setParkingView] = useState<ParkingState | null>(null);
   const [parkingError, setParkingError] = useState<string | null>(null);
+
+  // Joined students: the list the /join flow writes, and whichever one's details are open. Both the
+  // frame loop and the click handler read these through refs, so neither re-creates the map.
+  const [personas, setPersonas] = useState<Persona[]>(readPersonas);
+  const personasRef = useRef<Persona[]>(personas);
+  const [openPersonaId, setOpenPersonaId] = useState<string | null>(null);
+  const openPersonaRef = useRef<string | null>(null);
 
   const [loadProgress] = useState(createLoadProgress);
   const introRef = useRef(FROM_INTRO); // the intro owns the camera (no panel padding) until it has flown in
@@ -302,12 +463,19 @@ export default function App() {
   const lightModeRef = useRef<LightPreset | 'auto'>('auto');
   const veilRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>(START_QUESTION ? 'ask' : 'crowds');
+  // Never 'ask': that lives in the bar at the bottom of the screen, and a start
+  // question is handed to it directly rather than by opening a panel.
+  const [tab, setTab] = useState<Tab>('crowds');
+  // Which top tab is lit, or null for the map with nothing over it.
+  const [view, setView] = useState<View | null>(null);
+  // Narrows the campus list. Empty shows the full ranking.
+  const [search, setSearch] = useState('');
   // The sheet: open on wide screens, a peek on phones (half height when ?ask= has an answer to show).
   const phone = usePhone();
   const phoneRef = useRef(phone);
   phoneRef.current = phone; // read by the sheet's layout callbacks, which run before this render's effects
-  const [detent, setDetent] = useState<Detent>(() => (window.matchMedia(PHONE_QUERY).matches ? (START_QUESTION ? 'half' : 'peek') : 'full'));
+  // Opens on Live, so the panel starts out of the way and the map is uncovered.
+  const [detent, setDetent] = useState<Detent>(() => (window.matchMedia(PHONE_QUERY).matches && START_QUESTION ? 'half' : 'peek'));
   // Crossing the breakpoint (a rotated tablet, a resized window): each layout's own default.
   const wasPhone = useRef(phone);
   useEffect(() => {
@@ -652,7 +820,22 @@ export default function App() {
           }
         },
         // Building footprints and labels both carry the building id; anything else clears.
-        onClick: ({ object }: PickingInfo) => {
+        onClick: (info: PickingInfo) => {
+          const { object } = info;
+          /*
+           * A joined student opens their own card in the corner slot, and nothing else: they are not
+           * a building, and selecting one must not disturb whichever panel is open.
+           *
+           * The second pick is what makes the character itself clickable. Someone standing at a
+           * building stands at its centroid, inside it, so the invisible building pick-target is in
+           * front of them and the first pick returns the building; re-picking against only the
+           * persona layers ignores every other layer's depth.
+           */
+          const joined = personaUnder(object) ?? personaUnder(overlay?.pickObject({ x: info.x, y: info.y, radius: 10, layerIds: PERSONA_PICK_LAYER_IDS })?.object);
+          if (joined) {
+            setOpenPersonaId(joined.personaId);
+            return;
+          }
           if (object && 'mobilityKind' in object) {
             selectedMobilityRef.current = object.id;
             setSelectedMobility(object.id);
@@ -676,6 +859,10 @@ export default function App() {
           }
         },
         getTooltip: ({ object }: PickingInfo) => {
+          // First: a joined student carries a bearing like any walker, so without this they would
+          // fall through to the "Student" tooltip at the bottom of this chain.
+          const joined = personaUnder(object);
+          if (joined) return personaTooltip(joined);
           const countTooltip = mobilityTooltip(object);
           if (countTooltip) return countTooltip;
           const fireText = fireTooltip(object);
@@ -801,6 +988,8 @@ export default function App() {
       const damageFootprints = day.buildings.map(footprint => ({ ...footprint, height: roofHeights.get(footprint.id) ?? footprint.height }));
       let last = performance.now();
       let lastOccupancy = 0;
+      let lastChrome = 0;
+      let chromeBoxes: Box[] = [];
       let occupancy = playback.occupancyAt(timeRef.current);
       let mobilityKey = '';
       let currentMobility: MobilityView | null = null;
@@ -903,8 +1092,13 @@ export default function App() {
           setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length,
             outdoors: outdoor.index ? outdoorCount(outdoor.index, t) : undefined, public: publicWalking.length });
         }
-        // Reserve the active assembly label before placing building and transit tags.
+        // Reserve the chrome, then the active assembly label, before placing building and transit tags.
         const placer = createPlacer(basemap.project);
+        if (now - lastChrome > CHROME_REFRESH_MS) {
+          chromeBoxes = measureChrome();
+          lastChrome = now;
+        }
+        for (const box of chromeBoxes) placer.block(box);
         const damage = damageAt(incidentRunRef.current, t, damageFootprints);
         const damagedIds = new Set(damage.map(building => building.id));
         const damageKey = damage.map(building => building.id).join(',');
@@ -942,6 +1136,18 @@ export default function App() {
           project: basemap.project,
           camera: basemap.getCamera(),
           roofHeights,
+          tagMode: tagModeRef.current,
+          focusIds: focusRef.current,
+        });
+        // The what-if's area, re-projected every frame: its shape depends on the
+        // camera, and a circle that lagged the map would be describing a different
+        // piece of ground from the one the engine is using.
+        circleRef.current?.update({
+          centre: circleFrameRef.current.centre,
+          radiusMetres: circleFrameRef.current.radius,
+          rgb: circleFrameRef.current.rgb,
+          centreName: circleFrameRef.current.name,
+          project: basemap.project,
         });
         // Parking (toggle on only): the estimate is refreshed at most twice a second, then its tags
         // (with the toggle on, lots are what the user asked to see: placed before the transit tags).
@@ -1028,6 +1234,14 @@ export default function App() {
           // public (non-student) crowd, thinned on its own (data/observations.ts, sim/publicCrowd.ts).
           ...agentLayers(withPublic(thinForZoom(withVisitors(inView(nearView(walking, camera.center, q.walkerRadius).concat(nearView(outside?.moving ?? [], camera.center, q.walkerRadius)), view), visitorFrame.drawn), basemap.getZoom()),
             thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom(), runningIds }),
+          // Students who joined from a phone. Drawn with the same character layers as everyone else
+          // so they walk identically, but starred with their name so they read as real people in the
+          // simulated crowd. On the simulation clock (t), not wall time, so they keep pace with it.
+          ...personaLayers(placePersonas(personasRef.current, playback.locations, t * 1000), models, t, {
+            zoom: basemap.getZoom(),
+            selectedId: openPersonaRef.current,
+            showLabels: !cleanRef.current,
+          }),
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
@@ -1081,6 +1295,26 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [updatePadding]);
+
+  /*
+   * Joined students arrive from somewhere else: the /join flow runs in the dashboard, in another tab
+   * on this same origin, and writes through persona/store.ts. This picks a new character up the
+   * moment it lands, and drops an open details card if that character has been removed.
+   */
+  useEffect(() => {
+    const apply = (list: Persona[]) => {
+      personasRef.current = list;
+      setPersonas(list);
+    };
+    apply(readPersonas());
+    return subscribePersonas(apply);
+  }, []);
+
+  // The frame loop highlights the open character; it reads the id from a ref so opening a card
+  // never restarts the map.
+  useEffect(() => {
+    openPersonaRef.current = openPersonaId;
+  }, [openPersonaId]);
 
   useEffect(() => {
     lightModeRef.current = light;
@@ -1187,6 +1421,13 @@ export default function App() {
   const selectBuilding = (id: string | null) => {
     selectedRef.current = id;
     setSelected(id);
+    /*
+     * While the Log tab is open, tapping a building is picking the what-if's
+     * centre: the form says "search above or tap the map", and this is the tap.
+     * Clearing the searched id is what makes the tap win, since a centre chosen
+     * by search otherwise outranks the selection for the rest of the session.
+     */
+    if (id && viewRef.current === 'log') setWhatIfCentreId(null);
   };
   const select = (o: Occupancy) => {
     selectedRef.current = o.location.building;
@@ -1453,22 +1694,381 @@ export default function App() {
   const docks = bikes?.data.stations.filter((s) => s.campus === campus) ?? [];
   const ridingHere = hud?.riding.get(campus) ?? 0;
 
-  // Tabs in the order shown (Bikes only with the Bluebikes data).
-  const tabs: Tab[] = ['ask', 'crowds', 'data', 'transit', 'traffic', ...(bikes ? ['bikes' as const] : []), 'weather', 'incidents'];
-  const onTabKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    const at = tabs.indexOf(tab);
-    const next = e.key === 'ArrowRight' ? tabs[(at + 1) % tabs.length]
-      : e.key === 'ArrowLeft' ? tabs[(at - 1 + tabs.length) % tabs.length]
-      : e.key === 'Home' ? tabs[0]
-      : e.key === 'End' ? tabs[tabs.length - 1]
-      : null;
-    if (!next) return;
-    e.preventDefault();
-    setTab(next);
-    document.getElementById(`tab-${next}`)?.focus();
+  /*
+   * The top tabs drive the panel. Picking one selects the tab it owns and opens
+   * the sheet; Live closes it, so the map is never covered unless you asked for
+   * something to read.
+   */
+  /*
+   * The places the panel works from.
+   *
+   * The search narrows this list rather than replacing it: the category, the
+   * order and "Show all" all still apply to what you have typed, so a search is
+   * a filter on the question you were already asking and not a different screen.
+   * The list itself stays at its top three (panel/Places.tsx).
+   */
+  const searchedPlaces = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return ranked;
+    return ranked.filter((o) => `${o.location.name} ${o.location.short}`.toLowerCase().includes(q));
+  })();
+
+  /*
+   * The what-if's centre, radius and catchment.
+   *
+   * Fenway is fixed for the Red Sox game, because a sell-out crowd arrives at one
+   * place; everything else centres on whatever is selected, falling back to the
+   * busiest building so the circle is never nowhere. hazardZone is the engine's
+   * own test, so the chips below the form name exactly the buildings the run
+   * will act on rather than an approximation of them.
+   */
+  const fenway = eventSourcesRef.current.calendar?.venues.find((v) => /fenway/i.test(v.name)) ?? null;
+  const whatIfCentre = (() => {
+    if (whatIfKind === 'red-sox') return fenway ? { id: fenway.id, name: fenway.name, position: fenway.position as [number, number] } : null;
+    const byId = whatIfCentreId ? ranked.find((o) => o.location.id === whatIfCentreId)?.location : undefined;
+    const bySelection = selected ? ranked.find((o) => o.location.building === selected)?.location : undefined;
+    const pick = byId ?? bySelection ?? ranked.find((o) => o.location.kind !== 'outdoor')?.location;
+    return pick ? { id: pick.id, name: pick.name, position: pick.position } : null;
+  })();
+
+  const whatIfHue = SCENARIOS.find((sc) => sc.id === whatIfKind)?.hue ?? 'neutral';
+  const HUE_RGB: Record<string, string> = {
+    teal: '95, 211, 195', green: '134, 211, 154', violet: '183, 174, 247',
+    orange: '244, 172, 131', pink: '241, 167, 198', neutral: '245, 245, 247',
   };
+
+  /*
+   * The buildings the circle catches, as chips in their own crowd colours.
+   *
+   * Memoised on the centre and the radius, and nothing else. hazardZone walks
+   * every building ring on the campus with a point-to-polygon distance for each,
+   * and this panel re-renders twice a second as the clock ticks: recomputing it
+   * per render froze the tab outright at a 500 m radius. The crowd figures inside
+   * the chips go stale between recomputes, which is the right trade; the chips
+   * answer "which buildings", and the list only changes when the circle does.
+   */
+  const whatIfZoneKey = `${view}|${whatIfCentre?.id ?? ''}|${Math.round(whatIfRadius)}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const whatIfZone = useMemo(() => {
+    const day = baseDayRef.current;
+    if (!day || !whatIfCentre || view !== 'log') return { chips: [], count: 0 };
+    const target = day.locations.find((l) => l.id === whatIfCentre.id)
+      ?? ({ ...whatIfCentre, kind: 'classroom', capacity: 0, building: '', short: whatIfCentre.name } as unknown as CampusLocation);
+    const zone = hazardZone(day, target, whatIfRadius);
+    const found = zone.locationIds
+      .map((id) => ranked.find((o) => o.location.id === id))
+      .filter((o): o is NonNullable<typeof o> => Boolean(o));
+    const chips = found
+      .slice(0, 12)
+      .map((o) => {
+        const d = activityDisplay({
+          count: o.count, capacity: o.location.capacity, share: o.share,
+          modeled: o.modeled ?? o.location.activityModeled,
+          capacityBasis: o.location.capacityBasis, kind: o.location.kind,
+        });
+        return { id: o.location.id, name: o.location.short || o.location.name, icon: d.icon, style: d.style as Record<string, string> };
+      });
+    return { chips, count: found.length };
+  }, [whatIfZoneKey]);
+
+  // Read by the frame loop, which owns the projection and runs whether or not
+  // React has re-rendered.
+  circleFrameRef.current = {
+    centre: view === 'log' && whatIfCentre ? whatIfCentre.position : null,
+    radius: whatIfRadius,
+    rgb: HUE_RGB[whatIfHue],
+    name: whatIfCentre?.name ?? null,
+  };
+
+  const pickScenario = (next: ScenarioKind) => {
+    setWhatIfKind(next);
+    setWhatIfRadius(defaultRadius(next));
+    setWhatIfMinutes(next === 'fire-drill' || next === 'fire-alarm' ? 30 : 120);
+    setWhatIfOutside(gathers(next));
+  };
+
+  /** Clamp a dragged radius to the scenario's own limits, in 10 m steps. */
+  const setRadiusClamped = (metres: number) => {
+    const { min, max, step } = radiusLimits(whatIfKind);
+    setWhatIfRadius(Math.min(max, Math.max(min, Math.round(metres / step) * step)));
+  };
+
+  /*
+   * Starting a what-if. Six of the seven are incidents the engine runs directly.
+   * The Red Sox game is not an incident at all: it is a crowd, and the engine
+   * already models Fenway's games through the venue calendar, so it plays the
+   * next real game rather than inventing one.
+   */
+  const nextFenwayGame = (() => {
+    const calendar = eventSourcesRef.current.calendar;
+    if (!calendar || !fenway) return null;
+    return calendar.events
+      .filter((e) => e.venueId === fenway.id && /red sox|baseball|mlb/i.test(`${e.name} ${e.kind}`))
+      .sort((a, b) => a.start.localeCompare(b.start))[0] ?? null;
+  })();
+
+  const startWhatIf = () => {
+    if (whatIfKind === 'red-sox') {
+      if (!nextFenwayGame) return;
+      const start = new Date(nextFenwayGame.start);
+      jumpToVenueEvent(nextFenwayGame.start.slice(0, 10), start.getHours() * 3600 + start.getMinutes() * 60);
+      return;
+    }
+    if (!whatIfCentre) return;
+    startIncident(whatIfKind, whatIfCentre.id, whatIfMinutes * 60, whatIfRadius, whatIfOutside);
+  };
+
+  /*
+   * The selected building's day, hour by hour.
+   *
+   * occupancyAt() computes every location at a given second, so fifteen hours is
+   * fifteen of those: affordable once, ruinous per render, which is why this is
+   * memoised on the building and the simulated day rather than on the clock. The
+   * bars answer "when should I go", and that shape does not change minute to
+   * minute.
+   */
+  const detailLocation = view === 'analytics' && analyticsSub === 'places' && selected
+    ? ranked.find((o) => o.location.building === selected)?.location ?? null
+    : null;
+  const detailKey = `${detailLocation?.id ?? ''}|${weekday}|${dayRequest}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const detailHours = useMemo<HourSample[]>(() => {
+    const playback = playbackRef.current;
+    if (!detailLocation || !playback) return [];
+    const out: HourSample[] = [];
+    for (let hour = FIRST_HOUR; hour <= LAST_HOUR; hour++) {
+      const sec = hour * 3600;
+      const here = playback.occupancyAt(sec).find((o) => o.location.id === detailLocation.id);
+      const d = activityDisplay({
+        count: here?.count ?? 0,
+        capacity: detailLocation.capacity,
+        share: here?.share ?? 0,
+        modeled: here?.modeled ?? detailLocation.activityModeled,
+        capacityBasis: detailLocation.capacityBasis,
+        kind: detailLocation.kind,
+      });
+      out.push({
+        sec,
+        label: formatClock(sec).replace(':00', ''),
+        percent: d.percent,
+        icon: d.icon,
+        style: d.style as Record<string, string>,
+        known: d.hasPercentage,
+        word: d.secondary,
+      });
+    }
+    return out;
+  }, [detailKey]);
+
+  /*
+   * The detail header's own reading, which is the live one rather than an hourly
+   * sample: the bars are the day, this is right now.
+   */
+  const detailEntry = detailLocation ? ranked.find((o) => o.location.id === detailLocation.id) ?? null : null;
+  const detailDisplay = activityDisplay({
+    count: detailEntry?.count ?? 0,
+    capacity: detailLocation?.capacity ?? 0,
+    share: detailEntry?.share ?? 0,
+    modeled: detailEntry?.modeled ?? detailLocation?.activityModeled,
+    capacityBasis: detailLocation?.capacityBasis,
+    kind: detailLocation?.kind,
+  });
+
+  /** An event in this building today, so the detail can point at it. */
+  const detailEvent = (() => {
+    if (!detailLocation || !sourceData) return null;
+    const today = simDay?.eventDate;
+    const found = sourceData.events.find((e) => e.locationId === detailLocation.id && (!today || e.start.slice(0, 10) === today));
+    if (!found) return null;
+    return {
+      id: found.id,
+      name: found.name,
+      when: new Date(found.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      place: found.roomCode || found.locationName || detailLocation.short,
+      imageUrl: found.imageUrl,
+    };
+  })();
+
+  /*
+   * One search, read by every list in the panel. Declared here because the
+   * events list below is the first to use it and `const` has no hoisting: with
+   * it further down, opening the Events tab threw before the panel rendered.
+   */
+  const matchesQuery = (text: string) => !search.trim() || text.toLowerCase().includes(search.trim().toLowerCase());
+
+  /*
+   * What the Events tab is showing.
+   *
+   * Today, tomorrow or the rest of the week from the simulated date, in starting
+   * order, narrowed by the search. The dates are compared as the leading yyyy-mm-dd
+   * of the event's own ISO start, which is already local to Boston in the data, so
+   * no timezone conversion can shift one into the wrong day.
+   */
+  const eventBaseDate = simDay?.eventDate ?? null;
+  const shownEvents = (() => {
+    if (!sourceData || !eventBaseDate) return [];
+    const base = new Date(`${eventBaseDate}T12:00:00`);
+    const iso = (offset: number) => {
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset, 12);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const inRange = (date: string) =>
+      eventWhen === 'today' ? date === eventBaseDate
+      : eventWhen === 'tomorrow' ? date === iso(1)
+      : date >= eventBaseDate && date <= iso(6);
+    return sourceData.events
+      .filter((event) => inRange(event.start.slice(0, 10)))
+      .filter((event) => matchesQuery(`${event.name} ${event.locationName ?? ''} ${event.roomCode ?? ''}`))
+      .sort((a, b) => a.start.localeCompare(b.start));
+  })();
+  const openEvent = openEventId ? shownEvents.find((event) => event.id === openEventId) ?? null : null;
+  /** The mapped building an event sits in, if its venue is one the model knows. */
+  const eventLocation = (event: { locationId: string | null }) =>
+    (event.locationId && baseDayRef.current?.locations.find((l) => l.id === event.locationId)) || null;
+
+  /*
+   * The mobility lists, each cut to three.
+   *
+   * A table of every stop and every dock answered "show me the data". Standing
+   * on the map the question is "what is the next train from the stop I am beside,
+   * and is there a bike at the dock on the corner", which is three rows; the
+   * search above reaches the rest, which is what let the tables go.
+   */
+  const stopRows: StopRow[] = stations
+    .map((stop): StopRow => {
+      // Trains only: Kenmore is also a stop for the 57 and other buses.
+      const next: Partial<Record<0 | 1, { route: string; time: number }>> = {};
+      for (const a of source?.nextArrivals(stop.id) ?? []) {
+        if (a.route.startsWith('Green-') && (!next[a.direction] || a.time < next[a.direction]!.time)) next[a.direction] = a;
+      }
+      return {
+        id: stop.id,
+        name: stop.short || stop.name,
+        branches: stop.routes.filter((r) => r.startsWith('Green-')).map((r) => r.replace('Green-', '')),
+        inbound: next[1] ? minutesUntil(next[1]!.time) : null,
+        outbound: next[0] ? minutesUntil(next[0]!.time) : null,
+      };
+    })
+    .filter((stop) => matchesQuery(stop.name))
+    .slice(0, 3);
+
+  const shuttleRows: ShuttleRow[] = shuttleArrivals
+    .map((bus): ShuttleRow => ({ id: bus.route, stop: bus.stop, destination: bus.longName, due: minutesUntil(bus.time) }))
+    .filter((bus) => matchesQuery(`${bus.stop} ${bus.destination}`))
+    .slice(0, 2);
+
+  const dockRows: DockRow[] = (bikes && hud
+    ? docks.flatMap((dock): DockRow[] => {
+        // "Now" is the shown time: the live count in Live mode, else an estimate.
+        // A dock the feed has never reported gets no estimate at all, and a row
+        // of dashes is worse than one fewer row, so it drops out.
+        const estimate = estimateDock(dock, bikes.feed.status(dock), bikes.data.binSeconds, wallClockSeconds(), live ? wallClockSeconds() : hud.time);
+        if (!estimate) return [];
+        return [{
+          id: dock.id,
+          name: dock.short,
+          bikes: estimate.bikes,
+          // Null where the feed does not break e-bikes out; the row then shows none.
+          ebikes: estimate.ebikes ?? 0,
+          empty: estimate.docks,
+          estimated: estimate.estimated,
+        }];
+      })
+    : []
+  )
+    .filter((dock) => matchesQuery(dock.name))
+    .slice(0, 3);
+
+  /*
+   * What Focus mode keeps a pill on: the rows the panel is showing.
+   *
+   * Tag ids are `location.building`, the same key the rows compare against
+   * `selected`, so a row and its tag always mean the same building. With no
+   * panel open this is empty and BuildingTags falls back to the busiest few.
+   */
+  const listedPlaces = view === 'analytics' && analyticsSub === 'places'
+    ? orderPlaces(searchedPlaces, category, sort).slice(0, listExpanded ? 8 : 3)
+    : [];
+  /*
+   * What keeps a full pill in Focus mode: whatever the open panel is talking
+   * about. For Analytics that is the rows on screen; for Log it is every
+   * building the circle catches, so the radius you are dragging and the
+   * buildings it will act on are the same thing on the map.
+   */
+  const focusIds = view === 'log'
+    ? whatIfZone.chips.map((b) => ranked.find((o) => o.location.id === b.id)?.location.building)
+    : listedPlaces.map((o) => o.location.building);
+  const focusKey = focusIds.join('|');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  focusRef.current = useMemo(
+    () => new Set(focusIds.filter((id): id is string => Boolean(id))),
+    [focusKey],
+  );
+
+  const pickTagMode = (mode: TagMode) => {
+    setTagMode(mode);
+    try {
+      localStorage.setItem(TAG_MODE_KEY, mode);
+    } catch {
+      // Private browsing refuses writes; the choice still holds for this session.
+    }
+  };
+
+  viewRef.current = view;
+
+  /** Picking the open tab closes it, so the map uncovered needs no tab of its own. */
+  const selectView = (next: View) => {
+    const closing = view === next;
+    setView(closing ? null : next);
+    setDetent(closing ? 'peek' : 'full');
+  };
+
+  /* What the left rail shows: the layers drawn on the map, each a toggle. */
+  /*
+   * Each layer carries its own hue so that six lit toggles still read as six
+   * different things. The hues are deliberately not the crowd colours: a layer
+   * being on is not a measurement. Campus events take the calendar rather than
+   * the people glyph, which now belongs to the crowd scale alone.
+   */
+  const railItems: RailItem[] = [
+    { id: 'transit', label: showTransit ? 'Hide MBTA' : 'Show MBTA', icon: <HudIcons.transit />, on: showTransit, hue: 'green', onSelect: toggleTransit },
+    ...(bikes ? [{ id: 'bikes', label: showBikes ? 'Hide Bluebikes' : 'Show Bluebikes', icon: <HudIcons.bikes />, on: showBikes, hue: 'orange' as const, onSelect: toggleBikes }] : []),
+    ...(mapKind === 'mapbox'
+      ? [{ id: 'traffic', label: showTraffic ? 'Hide traffic' : 'Show traffic', icon: <HudIcons.traffic />, on: showTraffic, hue: 'pink' as const, onSelect: () => setShowTraffic((v) => !v) }]
+      : []),
+    { id: 'parking', label: showParking ? 'Hide parking' : 'Show parking', icon: <HudIcons.parking />, on: showParking, hue: 'teal', onSelect: toggleParking },
+    { id: 'counts', label: showCounts ? 'Hide traffic counts' : 'Show traffic counts', icon: <HudIcons.counts />, on: showCounts, hue: 'neutral', onSelect: toggleCounts },
+    ...(sourceData
+      ? [{ id: 'events', label: eventsOn ? 'Hide campus events' : 'Show campus events', icon: <HudIcons.calendar />, on: eventsOn, hue: 'violet' as const, onSelect: () => toggleEvents(!eventsOn) }]
+      : []),
+  ];
+
+  /*
+   * The legend, built from the scale rather than written out: the ranges come
+   * from each level's own `min`, so a threshold changed in theme/crowd.ts can
+   * never leave a stale number on the map.
+   */
+  const legendLevels = CROWD_LEVELS.map((level, i) => {
+    const next = CROWD_LEVELS[i + 1];
+    const from = Math.round(level.min * 100);
+    const Icon = HudIcons[level.icon];
+    return {
+      key: level.key,
+      label: level.label,
+      range: next ? (i === 0 ? `<${Math.round(next.min * 100)}%` : `${from}–${Math.round(next.min * 100) - 1}%`) : `${from}%+`,
+      icon: <Icon />,
+    };
+  });
+
+  /*
+   * Sub-tabs inside the panel. 'ask' is not among them: Ask is the bar at the
+   * bottom of the screen now, and listing it here as well would be the same
+   * thing in two places.
+   */
   // The map dims a little behind an open sheet (styles.css, .sheet-dim).
   const dim = detent === 'peek' ? 'off' : phone ? detent : 'open';
+  // Derived, not stored: a character removed from the list closes its own card with no extra work.
+  const openPersona = personas.find((p) => p.id === openPersonaId) ?? null;
   const hiddenNote = (what: string, show: () => void) => (
     <p className="layer-note">
       {what} hidden on the map. <button className="link" onClick={show}>Show</button>
@@ -1476,7 +2076,12 @@ export default function App() {
   );
 
   return (
-    <div className={`app${clean ? ' is-clean' : ''}${introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land' ? ' is-intro' : ''}${introPhase === 'swoop' ? ' is-swoop' : ''}`}>
+    /* 'none' rather than omitting the attribute: a missing attribute cannot be
+       selected on, and the closed state is the one that has to hide the panel. */
+    <div
+      className={`app${clean ? ' is-clean' : ''}${introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land' ? ' is-intro' : ''}${introPhase === 'swoop' ? ' is-swoop' : ''}`}
+      data-view={view ?? 'none'}
+    >
       {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
@@ -1484,6 +2089,7 @@ export default function App() {
         <div ref={veilRef} className="light-veil" aria-hidden="true" style={{ opacity: daylightAt(hud.time).veil }} />
       )}
       <BuildingTags ref={tagsRef} onSelect={selectBuilding} />
+      <WhatIfCircle ref={circleRef} onRadius={setRadiusClamped} onDragEnd={() => undefined} />
       <TransitTags ref={transitTagsRef} />
       <PlaceTags ref={placeTagsRef} />
       {showParking && <ParkingTags ref={parkingTagsRef} />}
@@ -1491,6 +2097,97 @@ export default function App() {
       {/* The intro's haze and clouds, over the still and then the live map until the camera has dropped in. */}
       {(introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land') && <IntroSky phase={introPhase} light={shownLight} />}
       <IntroScreen progress={loadProgress} preset={shownLight} />
+
+      {/*
+        The chrome. Each piece owns a corner so the map stays one uninterrupted
+        surface: brand top left, layers down the left edge, views across the top,
+        clock and weather top right, time bottom left, ask bottom centre.
+      */}
+      {hud && !clean && (
+        <div className="hud">
+          <HudBrand
+            name="Flowcast"
+            campus={currentCampus?.name.replace(' Campus', '') ?? 'BU'}
+            weekday={WEEKDAYS[weekday]}
+            campuses={campuses}
+            onPickCampus={(id) => {
+              const next = campuses.find((c) => c.id === id);
+              if (next) goToCampus(next);
+            }}
+          />
+
+          <HudRail items={railItems} tagMode={tagMode} onTagMode={pickTagMode} />
+
+          <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
+
+          {/* Bottom left, under the join card: what the three colours mean. */}
+          <HudLegend levels={legendLevels} />
+
+          {/*
+            Everything about when, in one block: the clock and the temperature to
+            read, and under them the day, the drag bar and the transport that
+            change them.
+          */}
+          <HudStatus
+            time={formatClock(hud.time)}
+            live={live}
+            day={
+              sourceData && (
+                // pickEventDate pins the date and switches the simulated day to
+                // its weekday, which is what picking a date has to mean here:
+                // the simulation runs a representative week.
+                <HudDate value={dateForWeekday(sourceData, weekday)} onPick={pickEventDate} />
+              )
+            }
+            scrubber={
+              <input
+                type="range"
+                className="scrubber"
+                min={range[0]}
+                max={range[1]}
+                step={60}
+                value={hud.time}
+                onInput={(e) => scrub(Number(e.currentTarget.value))}
+                aria-label="Time of day"
+                aria-valuetext={formatClock(hud.time)}
+              />
+            }
+            controls={
+              <HudTime
+                playing={playing}
+                onPlay={togglePlaying}
+                speed={speed}
+                speeds={SPEEDS}
+                onSpeed={changeSpeed}
+                live={live}
+                onLive={goLive}
+              />
+            }
+          >
+            <span className="weather-chip-slot" ref={setWeatherChip} />
+          </HudStatus>
+
+          {askContext && (
+            <HudAsk>
+              <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
+            </HudAsk>
+          )}
+
+          {/*
+            The bottom-left slot: the invitation to join, or the details of the character you just
+            clicked. One at a time and at a fixed height, because the performance readout stacks
+            directly above it (hud.css). The details card reads the simulation clock, so it agrees
+            with the character walking on screen.
+          */}
+          <div className="join-slot">
+            {openPersona ? (
+              <PersonaDetails persona={openPersona} nowMs={hud.time * 1000} onClose={() => setOpenPersonaId(null)} />
+            ) : (
+              <JoinQrCard />
+            )}
+          </div>
+        </div>
+      )}
 
       <MemoPerfMonitor counts={getPerfCounts} />
       {mapKind && (
@@ -1505,10 +2202,10 @@ export default function App() {
         onDetent={setDetent}
         onCover={onSheetCover}
         header={
-          <>
-            <h1><img className="sheet-logo" src="/favicon.svg" alt="" width={24} height={24} />Flowcast</h1>
-            <p className="sheet-summary">{currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]}</p>
-          </>
+          /* The panel's own title. The wordmark and the campus moved to the
+             brand in the top left, which left this header holding nothing but
+             padding; it now says which tab you are reading. */
+          <h1 className="sheet-title">{view ? VIEW_TITLES[view] : ''}</h1>
         }
         subheader={hud && (
           <p className="sheet-stats">
@@ -1554,288 +2251,266 @@ export default function App() {
           )}
         </div>
 
-        {hud && (
-          <div className="tabs" role="tablist" aria-label="Panel" onKeyDown={onTabKey}>
-            {tabs.map((t) => (
-              <button key={t} role="tab" id={`tab-${t}`} aria-selected={tab === t} aria-controls={`panel-${t}`} tabIndex={tab === t ? 0 : -1} onClick={() => setTab(t)}>
-                {TAB_LABELS[t]}
-              </button>
-            ))}
-          </div>
-        )}
-        {hud && tab === 'incidents' && (
-          <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
-            onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
-            siren={siren} onSiren={toggleSiren} responsePending={responsePending}
-            game={simulatedGame} gameEstimate={eventDay.events.find((e) => e.event.id === GAME_ID) ?? null} onGame={playSimulatedGame} landmarks={LANDMARK_TARGETS} />
-        )}
-        {hud && (
-          <section id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={tab !== 'ask'}>
-            {askContext
-              ? <AskPanel context={askContext} initialQuestion={START_QUESTION} onShow={showAsk} onSelect={selectSource} />
-              : <p className="muted" role="status">Loading the day…</p>}
+        {/*
+          No sub-tab row. Each top tab owns one panel, so the only navigation is
+          the three tabs across the top; a second row of eight underneath them
+          was the thing this layout set out to remove.
+        */}
+        {hud && view === 'log' && (
+          <section id="hud-panel-log" role="tabpanel" aria-labelledby="hud-tab-log">
+            <div className="pn-search">
+              <HudIcons.search />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                placeholder="Search a building to target"
+                aria-label="Search a building to target"
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} aria-label="Clear search">
+                  <HudIcons.close />
+                </button>
+              )}
+            </div>
+
+            {/* While a what-if is running, the panel is its readout; the form
+                comes back when it is reset. */}
+            {incidentRun ? (
+              /* The run's readout keeps everything main added to it: the simulated
+                 game, its estimate, and the landmarks a meteor can be aimed at. */
+              <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
+                onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
+                siren={siren} onSiren={toggleSiren} responsePending={responsePending}
+                game={simulatedGame} gameEstimate={eventDay.events.find((e) => e.event.id === GAME_ID) ?? null}
+                onGame={playSimulatedGame} landmarks={LANDMARK_TARGETS} />
+            ) : (
+              <>
+                {search.trim() && (
+                  <div className="pn-card">
+                    <p className="pn-label">Pick a building · top {Math.min(3, searchedPlaces.length)}</p>
+                    <ol className="pn-rows">
+                      {searchedPlaces.slice(0, 3).map((o) => (
+                        <li key={o.location.id}>
+                          <button
+                            type="button"
+                            className="pn-row"
+                            aria-pressed={whatIfCentre?.id === o.location.id}
+                            onClick={() => {
+                              setWhatIfCentreId(o.location.id);
+                              setSearch('');
+                            }}
+                          >
+                            <span className="pn-tile pn-tile--plain" dangerouslySetInnerHTML={{ __html: CENTRE_PIN }} />
+                            <span className="pn-name">{displayName(o.location.name)}</span>
+                            <span className="pn-value" />
+                            <span className="pn-chev" aria-hidden="true">›</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                    {searchedPlaces.length === 0 && <p className="pn-empty">No matches. Try a building code like CAS.</p>}
+                  </div>
+                )}
+
+                <WhatIfForm
+                  kind={whatIfKind}
+                  onKind={pickScenario}
+                  centreName={whatIfCentre?.name ?? null}
+                  radius={whatIfRadius}
+                  onRadius={setRadiusClamped}
+                  affected={whatIfZone.chips}
+                  affectedCount={whatIfZone.count}
+                  minutes={whatIfMinutes}
+                  onMinutes={setWhatIfMinutes}
+                  outside={whatIfOutside}
+                  onOutside={setWhatIfOutside}
+                  startLabel={whatIfKind === 'red-sox'
+                    ? (nextFenwayGame ? `Play ${nextFenwayGame.name}` : 'No Fenway game in the calendar')
+                    : `Start at ${formatClock(hud.time)}`}
+                  onStart={startWhatIf}
+                  canStart={whatIfKind === 'red-sox' ? Boolean(nextFenwayGame) : Boolean(whatIfCentre)}
+                  onAssumptions={() => setAssumptionsOpen((v) => !v)}
+                />
+
+                {assumptionsOpen && (
+                  <div className="pn-card pn-split">
+                    {DISASTER_LIMITATIONS.map((line) => (
+                      <p key={line}>{line}</p>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </section>
         )}
-        {hud && tab === 'crowds' && (
-          <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
-            {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
-              info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
-            {sourceData && baseDayRef.current && (
-              <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
-                onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
-                venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
-                time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
+        {/*
+          Ask is the bar at the bottom of the screen, not a panel here as well.
+          It is rendered once, unconditionally, for the same reason main began
+          keeping this section mounted and merely hidden: multi-turn chat has to
+          keep its history when you look at something else.
+        */}
+        {/* Events: what is on, led by the photograph. */}
+        {hud && view === 'events' && sourceData && baseDayRef.current && (
+          <section id="hud-panel-events" role="tabpanel" aria-labelledby="hud-tab-events">
+            <div className="pn-search">
+              <HudIcons.search />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                placeholder="Search events or places"
+                aria-label="Search events or places"
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} aria-label="Clear search">
+                  <HudIcons.close />
+                </button>
+              )}
+            </div>
+
+            {openEvent ? (
+              <EventDetail
+                event={openEvent}
+                onBack={() => setOpenEventId(null)}
+                onShow={(event) => {
+                  const where = eventLocation(event);
+                  if (where) selectSource(where);
+                }}
+                buildingName={eventLocation(openEvent)?.name ?? null}
+              />
+            ) : (
+              <EventsList
+                events={shownEvents}
+                when={eventWhen}
+                onWhen={(w) => {
+                  setEventWhen(w);
+                  setEventsExpanded(false);
+                }}
+                expanded={eventsExpanded}
+                onExpand={setEventsExpanded}
+                onOpen={(event) => setOpenEventId(event.id)}
+                nowSec={hud.time}
+              />
             )}
 
-            <h2>Campus activity</h2>
-            {hud.public ? (
-              <p className="muted">
-                Simulated BU students and staff. Streets: {hud.walking.toLocaleString()} BU people walking · {hud.public.toLocaleString()} public (not BU students or staff), from MBTA ridership and pedestrian counts.
-              </p>
-            ) : null}
-            <ol className="rows">
-              {ranked.slice(0, 8).map((o) => {
-                const display = activityDisplay({
-                  count: o.count, capacity: o.location.capacity, share: o.share,
-                  modeled: o.modeled ?? o.location.activityModeled,
-                  capacityBasis: o.location.capacityBasis, residentialBeds: o.location.residentialBeds, kind: o.location.kind,
-                  allowZero: o.location.estimatedProfile?.purpose === 'rowing',
-                });
-                return (
-                  <li key={o.location.id}>
-                    <button
-                      className={o.location.building === selected ? 'row selected' : 'row'}
-                      onClick={() => select(o)}
-                      aria-pressed={o.location.building === selected}
-                      style={display.style}
-                    >
-                      <span className="name">{displayName(o.location.name)}</span>
-                      {display.hasPercentage && <span className="bar" aria-hidden="true">
-                        <span style={{ width: `${Math.min(100, display.percent)}%` }} />
-                      </span>}
-                      <span className="value">
-                        <b>{display.primary}</b>{display.secondary && ` · ${display.secondary}`}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+            {/* The scheduling tools stay: making an event is a different job from
+                reading what is on, and nothing in the handoff replaces them. */}
+            <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
+              onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
+              venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
+              time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
           </section>
         )}
-        {hud && tab === 'bikes' && (
-          <section id="panel-bikes" role="tabpanel" aria-labelledby="tab-bikes">
-            {!bikes ? <p className="muted">Bluebikes data could not be loaded.</p> : (
+
+        {/* Analytics: the campus measured. Search first, because finding one
+            building is the common case; the full ranking is the fallback. */}
+        {hud && view === 'analytics' && (
+          <section id="hud-panel-analytics" role="tabpanel" aria-labelledby="hud-tab-analytics">
+            {/* Search first: finding one building is the common case, and the
+                query narrows the list below rather than replacing it. */}
+            <div className="pn-search">
+              <HudIcons.search />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                placeholder={SEARCH_PLACEHOLDER[analyticsSub]}
+                aria-label={SEARCH_PLACEHOLDER[analyticsSub]}
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} aria-label="Clear search">
+                  <HudIcons.close />
+                </button>
+              )}
+            </div>
+
+            <div className="pn-sub" role="group" aria-label="Analytics subject">
+              {ANALYTICS_SUBS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  data-hue={t.hue}
+                  aria-pressed={analyticsSub === t.id}
+                  onClick={() => {
+                    setAnalyticsSub(t.id);
+                    // The query means something different in each subject, so it
+                    // does not carry across: "Mugar" is not a dock.
+                    setSearch('');
+                  }}
+                >
+                  <span className="pn-sub-icon">{t.icon}</span>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {analyticsSub === 'places' && detailLocation && (
               <>
-                {!showBikes && hiddenNote('Bluebikes are', toggleBikes)}
-                <h2>
-                  Real Bluebikes rides <span className="muted">· {formatDate(bikes.data.replayDate)}</span>
-                </h2>
-                <p className="bike-summary">
-                  <strong>{ridingHere}</strong> riding to or from {currentCampus?.name.replace(' Campus', '') ?? 'BU'} docks now ·{' '}
-                  {bikes.replay.trips.filter((t) => bikes.campusOf(t) === campus).length.toLocaleString()} rides that day
-                </p>
-                {docks.length > 0 && (
-                  <>
-                    <h3>Typical {bikes.data.weekday} at these docks</h3>
-                    <ActivityChart
-                      values={activityCurve(docks, bikes.data.binSeconds)}
-                      binSeconds={bikes.data.binSeconds}
-                      time={hud.time}
-                      unit="rides/h"
-                      label={`Rides docked and undocked per hour at ${currentCampus?.name ?? 'BU'} Bluebikes docks on a typical ${bikes.data.weekday}`}
-                    />
-                    <p className="muted">
-                      Docked + undocked per hour, averaged over {bikes.data.profileDates.length} {bikes.data.weekday}s in{' '}
-                      {new Date(`${bikes.data.month}-15T12:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' })}
-                    </p>
-                    <h3>
-                      {live ? 'Current dock availability' : `Dock scenario at ${formatClock(hud.time)} (not historical availability)`}{' '}
-                      <span className="muted">
-                        {bikeFeedError ??
-                          (bikeFeedUpdatedAt ? `· polled ${new Date(bikeFeedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
-                      </span>
-                    </h3>
-                    <table className="arrivals">
-                      <thead>
-                        <tr>
-                          <th scope="col">Dock</th>
-                          <th scope="col">Bikes</th>
-                          <th scope="col">Empty</th>
-                          <th scope="col" title="Estimated bikes in 1 hour">+1 h</th>
-                          <th scope="col" title="Estimated bikes in 3 hours">+3 h</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {docks.map((s) => {
-                          // "Now" is the shown time: the live count in Live mode, else an estimate.
-                          const shown = live ? wallClockSeconds() : hud.time;
-                          const at = (offset: number) => {
-                            const estimate = estimateDock(s, bikes.feed.status(s), bikes.data.binSeconds, wallClockSeconds(), shown + offset);
-                            return estimate && !live ? { ...estimate, estimated: true } : estimate;
-                          };
-                          const nowEst = at(0);
-                          const mark = (e: DockEstimate | undefined) => (e?.estimated ? '≈' : '');
-                          return (
-                            <tr key={s.id}>
-                              <th scope="row">{s.short}</th>
-                              <td>
-                                {mark(nowEst)}
-                                {nowEst?.bikes ?? '—'}
-                                {nowEst?.ebikes != null && nowEst.ebikes > 0 && <span className="muted"> ({nowEst.ebikes}⚡)</span>}
-                              </td>
-                              <td>
-                                {mark(nowEst)}
-                                {nowEst?.docks ?? '—'}
-                              </td>
-                              <td>{mark(at(3600))}{at(3600)?.bikes ?? '—'}</td>
-                              <td>{mark(at(3 * 3600))}{at(3 * 3600)?.bikes ?? '—'}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    <p className="muted source">
-                      ≈ modeled scenario: a fresh GBFS count plus a typical {bikes.data.weekday}'s arrivals and departures.
-                      Playback applies this model to today's counts, not the reference date. Rebalancing vans aren't modeled.
-                      — = unavailable (missing, stale, or failed feed). Counts expire after 2 minutes. ⚡ = reported or modeled e-bikes; omitted when unknown.
-                    </p>
-                  </>
-                )}
-                <p className="muted source">
-                  Bluebikes System Data and live feed. Docks within {bikes.data.stationRadiusMetres} m of a BU building. Ride times at BU docks are real;
-                  street routes are inferred.
-                </p>
-              </>
-            )}
-          </section>
-        )}
-        {hud && tab === 'traffic' && (
-          <section id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic">
-            {!showCounts && hiddenNote('Count sites are', toggleCounts)}
-            <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday} selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
-          </section>
-        )}
-        {hud && tab === 'data' && (
-          <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
-            {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
-            {baseDayRef.current?.populationSummary.staff ? <p>{baseDayRef.current.populationSummary.staff.toLocaleString()} faculty and staff · {baseDayRef.current.populationSummary.staffReportingPeriod}. Their working day (arrival, workplace, lunch, gym) is a modeled assumption, not observed; they are planned after the students and counted in building figures, which show people present.</p> : null}
-            {publicCrowdRef.current && <p>Public (not BU students or staff): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and staff and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
-            {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
-          </section>
-        )}
-        {hud && tab === 'transit' && (
-          <section id="panel-transit" role="tabpanel" aria-labelledby="tab-transit">
-            {!showTransit && hiddenNote('MBTA service is', toggleTransit)}
-            {showParking && (parkingError
-              ? <p role="alert" className="alert">Parking estimate unavailable: {parkingError}</p>
-              : parkingRef.current && <ParkingPanel data={parkingRef.current.data} state={parkingView} onSelect={selectLot} />)}
-            {transit && source && showTransit && (
-              <>
-                <h2>
-                  {live ? 'Live MBTA' : 'Scheduled service'}{' '}
-                  <span className="muted">
-                    {live
-                      ? (feedError ?? (feedUpdatedAt ? `· updated ${new Date(feedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…'))
-                      : '· playback timetable'}
-                  </span>
-                </h2>
-                {stations.length > 0 && (
-                  <>
-                    <h3>
-                      {greenBranches(transit, stations).map((b) => (
-                        // MBTA Green Line green (white on it is 5.1:1).
-                        <span key={b} className="route-badge" style={{ background: '#00843D', color: '#fff' }}>
-                          {b}
-                        </span>
-                      ))}{' '}
-                      Green Line
-                    </h3>
-                    <table className="arrivals">
-                      <thead>
-                        <tr>
-                          <th scope="col">Station</th>
-                          <th scope="col">Inbound</th>
-                          <th scope="col">Outbound</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {stations.map((s) => {
-                          // Trains only: Kenmore is also a stop for the 57 and other buses.
-                          const next: Partial<Record<0 | 1, { route: string; time: number }>> = {};
-                          for (const a of source!.nextArrivals(s.id)) {
-                            if (a.route.startsWith('Green-') && (!next[a.direction] || a.time < next[a.direction]!.time)) next[a.direction] = a;
-                          }
-                          // Name the branch where several stop (Kenmore: B, C, D).
-                          const cell = (direction: 0 | 1) => {
-                            const a = next[direction];
-                            if (!a) return '—';
-                            const branch = s.routes.filter((r) => r.startsWith('Green-')).length > 1 ? `${a.route.replace('Green-', '')} ` : '';
-                            return `${branch}${minutesUntil(a.time)}`;
-                          };
-                          return (
-                            <tr key={s.id}>
-                              <th scope="row">{s.short}</th>
-                              <td>{cell(1)}</td>
-                              <td>{cell(0)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </>
-                )}
-                {busArrivals.length > 0 && (
-                  <>
-                    <h3>Buses</h3>
-                    <ul className="buses">
-                      {busArrivals.map((b) => (
-                        <li key={`${b.route}-${b.direction}`}>
-                          <span className="route-badge" style={{ background: b.color, color: b.textColor }}>
-                            {b.name}
-                          </span>
-                          <span className="bus-text">
-                            {b.directionName} at {b.stop}
-                          </span>
-                          <strong>{minutesUntil(b.time)}</strong>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-                {shuttleArrivals.length > 0 && (
-                  <>
-                    <h3>BU Shuttle</h3>
-                    <ul className="buses">
-                      {shuttleArrivals.map((b) => (
-                        <li key={b.route}>
-                          <span className="route-badge" style={{ background: b.color, color: readableOn(b.color) }} aria-hidden="true">
-                            BU
-                          </span>
-                          <span className="bus-text">
-                            {b.longName} at {b.stop}
-                          </span>
-                          <strong>{minutesUntil(b.time)}</strong>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
+                <BuildingDetail
+                  location={detailLocation}
+                  percent={detailDisplay.percent}
+                  level={{ icon: detailDisplay.icon, word: detailDisplay.secondary, style: detailDisplay.style as Record<string, string> }}
+                  known={detailDisplay.hasPercentage}
+                  hours={detailHours}
+                  nowHour={Math.floor(hud.time / 3600)}
+                  event={detailEvent}
+                  backLabel="Places"
+                  onBack={() => selectBuilding(null)}
+                  onWalk={() => selectSource(detailLocation)}
+                  onSources={() => setSourcesOpen((v) => !v)}
+                  onOpenEvent={(id) => {
+                    setOpenEventId(id);
+                    selectView('events');
+                  }}
+                />
+                {sourcesOpen && sourceData && baseDayRef.current && (
+                  <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected}
+                    campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} />
                 )}
               </>
             )}
-            {mapKind === 'mapbox' && showTraffic && (
+
+            {analyticsSub === 'places' && !detailLocation && (
+              <PlacesPanel
+                entries={searchedPlaces}
+                query={search.trim()}
+                category={category}
+                onCategory={setCategory}
+                sort={sort}
+                onSort={setSort}
+                expanded={listExpanded}
+                onExpand={setListExpanded}
+                selected={selected}
+                onSelect={select}
+                pulse={{ walking: hud.walking, stops: hud.waiting, bikes: ridingHere }}
+                clock={formatClock(hud.time)}
+              />
+            )}
+
+            {analyticsSub === 'transit' && (
               <>
-                <h3>Traffic</h3>
-                <ul className="legend" aria-label="Traffic legend">
-                  {TRAFFIC_LEVELS.map((l) => (
-                    <li key={l.key}>
-                      <span className="swatch" style={{ background: l.color, height: Math.round(3 * l.boost) }} aria-hidden="true" />
-                      {l.label}
-                    </li>
-                  ))}
-                </ul>
+                <TransitPanel stops={stopRows} shuttles={shuttleRows} note={live ? (feedError ?? 'live') : 'playback timetable'} />
+                {/*
+                  Pedestrian and street counts. They had a tab of their own, and
+                  the handoff's Analytics has only three subjects; they belong
+                  with Transit, because trains, shuttles and counted streets are
+                  all the same question about how people move.
+                */}
+                {!showCounts && hiddenNote('Count sites are', toggleCounts)}
+                <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday}
+                  selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
               </>
             )}
+
+            {analyticsSub === 'bikes' && (bikes
+              ? <BikesPanel docks={dockRows} total={bikes.data.stations.length} rate={ridingHere} peak={null} />
+              : <p className="pn-empty">Bluebikes data could not be loaded.</p>)}
+
+            {/* Last, not first: picking a scenario sets up a reading rather than
+                being one, so it should not be what the panel opens on. */}
+            {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
+              info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
           </section>
         )}
         {/* Always there (hidden unless chosen): WeatherControls draws into it. */}

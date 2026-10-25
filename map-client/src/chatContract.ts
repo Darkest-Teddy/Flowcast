@@ -60,7 +60,7 @@ export interface LineVisual extends VisualBase {
 export interface BarVisual extends VisualBase {
   kind: 'bar';
   unit: string;
-  /** At most 12, in the order to show. level is a crowd word (Quiet/Moderate/Busy/Packed) when it applies. */
+  /** At most 12, in the order to show. level is a crowd word (Quiet/Busy/Packed) when it applies. */
   bars: { label: string; value: number | null; level: string | null; detail: string | null }[];
 }
 

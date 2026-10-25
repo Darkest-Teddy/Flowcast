@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { createBrowserRouter, RouterProvider, useMatch } from 'react-router';
 import { mayBeSignedIn, RequireAuth, SessionProvider, useSession } from './auth/session';
 import { AdminLayout } from './layouts/AdminLayout';
@@ -30,6 +31,13 @@ import Users from './pages/admin/Users';
 import AgentBrain from './pages/admin/AgentBrain';
 import AdminSettings from './pages/admin/AdminSettings';
 
+/*
+ * /join is the one page that needs three.js, and it is reached by scanning a QR code rather than by
+ * navigating the dashboard. Loaded on demand so its ~600 kB of renderer stays out of the bundle
+ * every other page pays for.
+ */
+const Join = lazy(() => import('./pages/Join'));
+
 /**
  * The student area. `/` itself is public: a signed-out visitor gets the landing page there, while
  * every page under it still sends them to /signin. Signed-in people get Home in the student layout.
@@ -50,6 +58,17 @@ const router = createBrowserRouter([
   { path: '/auth/callback', element: <AuthCallback /> },
   { path: '/signin', element: <SignIn /> },
   { path: '/landing', element: <Landing /> }, // the landing page for everyone, signed in or not
+  // Scanned from the QR card on the map display. Public and outside the student shell on purpose:
+  // whoever scans it is a passer-by with a phone, not a signed-in user, and the builder's stage
+  // needs the whole viewport.
+  {
+    path: '/join',
+    element: (
+      <Suspense fallback={null}>
+        <Join />
+      </Suspense>
+    ),
+  },
   { path: '/welcome', element: <RequireAuth><Welcome /></RequireAuth> },
   { path: '/clubs/register', element: <RequireAuth><ClubApply /></RequireAuth> },
   {

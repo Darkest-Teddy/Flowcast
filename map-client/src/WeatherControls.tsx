@@ -230,7 +230,7 @@ export function WeatherControls({ basemap, light, simTime = null, live = true, s
         panel,
       )}
       {chip && createPortal(
-        <button className="weather-chip" onClick={onOpen} aria-label={`Weather: ${active.temperatureF == null ? 'no reading' : `${Math.round(active.temperatureF)}°F`}, ${active.text}. Show weather`} title="Weather (W cycles)">
+        <button className="weather-chip" data-condition={active.condition} onClick={onOpen} aria-label={`Weather: ${active.temperatureF == null ? 'no reading' : `${Math.round(active.temperatureF)}°F`}, ${active.text}. Show weather`} title="Weather (W cycles)">
           <WeatherIcon condition={active.condition} size={18} />
           {active.temperatureF == null ? '—' : `${Math.round(active.temperatureF)}°`}
         </button>,
