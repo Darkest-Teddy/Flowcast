@@ -51,6 +51,10 @@ export async function importSources(pool: pg.Pool, directory = defaultDataDir) {
   }
   const provenance = sources.map(({ data: _data, ...source }) => source);
   const hash = createHash('sha256').update(sources.map((s) => `${s.name}:${s.sha256}`).join('\n')).digest('hex');
+  const result = { hash, locations: demo.locations.length, routes: Object.keys(geo.walkMeters).length };
+  // Already the current snapshot (the usual case on a restart): skip resending the payload.
+  const current = await pool.query('SELECT 1 FROM dashboard_current WHERE snapshot_hash=$1', [hash]);
+  if (current.rowCount) return { ...result, unchanged: true };
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -60,5 +64,5 @@ export async function importSources(pool: pg.Pool, directory = defaultDataDir) {
     await client.query('COMMIT');
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }
-  return { hash, locations: demo.locations.length, routes: Object.keys(geo.walkMeters).length };
+  return { ...result, unchanged: false };
 }

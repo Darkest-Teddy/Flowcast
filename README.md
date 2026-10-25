@@ -128,9 +128,8 @@ cd Flowcast
 (cd web && npm install)
 (cd server && npm install)
 npm --prefix map-client run prepare:data   # builds browser data offline from the committed snapshots
-# Configure DATABASE_URL in the server process environment before these commands.
-(cd server && npm run db:migrate && npm run db:import)
-# Start the API in a separate terminal with the same DATABASE_URL:
+cp .env.example .env                       # fill in DATABASE_URL (and the rest when you have them)
+# Start the API in a separate terminal. It creates its tables and loads the data itself:
 (cd server && npm start)                   # http://127.0.0.1:8787
 # Then start the browser app:
 npm --prefix web run dev                   # http://localhost:5174
@@ -143,47 +142,49 @@ npm --prefix web run dev                   # http://localhost:5174
 | 3D map | http://localhost:5174/map (first load takes about 20 seconds while the week is simulated) |
 | Map during an evening event | http://localhost:5174/map?date=2026-10-29&at=20:15&speed=1 |
 
-**Optional keys** (`map-client/.env.local`, see `.env.example`): `VITE_MAPBOX_TOKEN` for textured Mapbox buildings, `VITE_MBTA_API_KEY` for a higher MBTA rate limit.
+**Configuration** lives in one file: copy [`.env.example`](.env.example) to `.env` at the repo root (gitignored). The server, `npm start` and the web dev server all read it; `server/.env` and `map-client/.env.local` still work and win where they overlap. `npm run doctor` checks every value.
 
-**Ask with the agent (optional):** the map's Ask tab and the dashboard's Ask Flowcast send campus questions to the Ask server in `server/`, which holds the OpenAI key. Put `OPENAI_KEY=...` in `server/.env` (gitignored, `chmod 600`), then run it next to the web app in two terminals:
+**Optional keys:** `VITE_MAPBOX_TOKEN` for textured Mapbox buildings, `VITE_MBTA_API_KEY` for a higher MBTA rate limit.
+
+**Ask with the agent (optional):** the map's Ask tab and the dashboard's Ask Flowcast send campus questions to the Ask server in `server/`, which holds the OpenAI key. Put `OPENAI_KEY=...` in `.env` (gitignored, `chmod 600`), then run it next to the web app in two terminals:
 
 ```bash
 npm --prefix server install && npm --prefix server start   # http://127.0.0.1:8787
 npm --prefix web run dev
 ```
 
-The web dev server forwards `/api/dashboard`, `/api/ask` and `/api/health` to it (set `FLOWCAST_API_URL` for another address). Without the server or a key, both pages answer on the device and say so. Questions about your own schedule are always answered on the device. See [server/README.md](server/README.md).
+The web dev server forwards `/api/dashboard`, `/api/chat`, `/api/ask`, `/api/voice` and `/api/health` to it (set `FLOWCAST_API_URL` for another address). Without the server or a key, both pages answer on the device and say so. Questions about your own schedule are always answered on the device. See [server/README.md](server/README.md).
+
+### Deploy (Railway)
+
+1. **Railway:** create a project from this repo (it reads `railway.json`: `npm run build`, then `npm start`). Add a **PostgreSQL** service. Under **Settings → Networking**, generate a domain.
+2. **Variables** on the Flowcast service, all listed in [`.env.example`](.env.example): `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and optionally `OPENAI_KEY` and `VITE_MAPBOX_TOKEN`. The server creates its tables and loads the data on every start; there is no migration step.
+3. **Run `railway run npm run doctor`** (or `npm run doctor https://your-domain` locally). It checks each value, confirms Google is switched on in Supabase, and prints exactly what to paste into Google Cloud (consent screen and OAuth client) and Supabase (provider and URL configuration).
+4. **Paste those in**, redeploy, and open the domain.
+
+The same works on any machine: put the variables in `.env`, then `npm run build && npm start` (port 8080).
 
 ### PostgreSQL and production hosting
 
-Keep `DATABASE_URL` in the backend's secret environment (for example, a Railway PostgreSQL connection variable). Never use a `VITE_` prefix or put database credentials in browser code. The browser only calls same-origin `/api/dashboard/*`; cookies pass through the host to the API.
+Keep `DATABASE_URL` in the backend's secret environment (for example, a Railway PostgreSQL connection variable). Never use a `VITE_` prefix or put database credentials in browser code. The browser only calls same-origin `/api/*`; cookies pass through the host to the API.
 
-Run these commands with `DATABASE_URL` available before serving the dashboard, and rerun the import when the prepared public data changes:
+On start, the API applies its migrations and imports the prepared `map-client/public/data` sources, skipping the import when that data is already current. Both are idempotent and lock against each other. `npm run db:migrate` and `npm run db:import` in `server/` still run them by hand.
 
-```bash
-(cd server && npm run db:migrate)
-(cd server && npm run db:import)  # imports prepared map-client/public/data sources
-npm run build                  # installs server, map-client and web dependencies; builds both pages
-npm start
-```
+The root host binds to `HOST` (default `0.0.0.0`) and `PORT` (default `8080`). When `DATABASE_URL` is set and `FLOWCAST_API_URL` is unset, it starts `server/src/index.ts` as a child process bound to `127.0.0.1:8787`. `FLOWCAST_API_PORT` overrides that internal port; it must differ from the root host's port. If the root uses port 8787, the internal default is 8788. Root startup reads `.env` if present (the process environment wins) and passes the variables to the child without printing secrets. Stop the root process to stop its child.
 
-The root host binds to `HOST` (default `0.0.0.0`) and `PORT` (default `8080`). When `DATABASE_URL` is set and `FLOWCAST_API_URL` is unset, it starts `server/src/index.ts` as a child process bound to `127.0.0.1:8787`. `FLOWCAST_API_PORT` overrides that internal port; it must differ from the root host's port. If the root uses port 8787, the internal default is 8788. Root startup passes environment variables directly to the child without printing secrets or loading local environment files. Stop the root process to stop its child.
-
-For an independently managed API, set `FLOWCAST_API_URL` to its HTTP(S) origin. This disables local API startup; configure `DATABASE_URL` on that separate API process. Do not put credentials in the API URL. The root host forwards only `/api/dashboard` and its subpaths, `/api/ask`, and `/api/health`. It preserves request bodies, response statuses, cookies, `Host`, and `Origin`. Unknown `/api/*` paths return JSON 404; unavailable APIs return sanitized JSON 503 with a 30-second request deadline. Once response headers have been sent, an upstream failure closes the response. API errors never fall through to dashboard HTML. The public map remains available without PostgreSQL.
+For an independently managed API, set `FLOWCAST_API_URL` to its HTTP(S) origin. This disables local API startup; configure `DATABASE_URL` on that separate API process. Do not put credentials in the API URL. The root host forwards only `/api/dashboard` and `/api/chat` and their subpaths, `/api/ask`, `/api/health`, and `POST /api/voice/session`. It preserves request bodies, response statuses, cookies, `Host`, and `Origin`. Unknown `/api/*` paths return JSON 404; unavailable APIs return sanitized JSON 503 with a 30-second request deadline. Once response headers have been sent, an upstream failure closes the response. API errors never fall through to dashboard HTML. The public map remains available without PostgreSQL.
 
 Both Vite apps use the same API target, defaulting to `http://127.0.0.1:8787`. For example, start the backend with `HOST=127.0.0.1 PORT=8798`, then run `FLOWCAST_API_URL=http://127.0.0.1:8798 npm --prefix web run dev -- --port 5198`. Both proxies preserve the browser-facing `Host`, so the backend can compare it with `Origin` for same-origin mutation checks.
 
-Railway uses the repository root, `npm run build`, and `npm start` from `railway.json`. Provision PostgreSQL and run the migration/import commands with that service's secret environment before directing dashboard traffic to it. The configured `/` health check proves static hosting only; check `/api/health` and a dashboard request separately to verify API availability.
+Railway uses the repository root, `npm run build`, and `npm start` from `railway.json`. The configured `/` health check proves static hosting only; check `/api/health` and a dashboard request separately to verify API availability.
 
 Google sign-in uses Supabase Auth. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`
 (or `SUPABASE_ANON_KEY`) on the backend, alongside `DATABASE_URL`. The public configuration
 is served at `/api/dashboard/auth/config`; never use a secret or service-role key there.
-Enable Google in Supabase Authentication → Sign In / Providers using a Google OAuth web client.
-Its Google authorized redirect URI is `https://<project-ref>.supabase.co/auth/v1/callback`.
-In Supabase URL Configuration, allow each Flowcast origin's `/auth/callback` route
-(for local development, `http://127.0.0.1:5198/auth/callback`). Run the dashboard migration
-before deploying account support. Profile access is tied to the verified Supabase user;
-Google login does not grant access to Google Calendar.
+Google's OAuth client sends people back to `https://<project-ref>.supabase.co/auth/v1/callback`,
+and Supabase sends them on to each Flowcast origin's `/auth/callback`; `npm run doctor` prints
+both for your address. Profile access is tied to the verified Supabase user; Google login does
+not grant access to Google Calendar.
 
 ### Import a class schedule
 

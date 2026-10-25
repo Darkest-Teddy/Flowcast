@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 
 const themeDir = fileURLToPath(new URL('../theme', import.meta.url));
 const mapDir = fileURLToPath(new URL('../map-client', import.meta.url));
+const repoDir = fileURLToPath(new URL('..', import.meta.url));
 
 /** /map and /map/?at=12:15 load map.html, the 3D map's own page, from this same server. */
 /** Ask (server/): dashboard, Ask and chat paths go to the Ask server, so the key never reaches the browser. /api/chat also covers /api/chat/directory. */
@@ -67,8 +68,10 @@ function mapPage(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  // The map reads its keys (Mapbox, MBTA) from map-client's .env files; expose them here too.
-  const mapEnv = loadEnv(mode, mapDir, 'VITE_');
+  // The map reads its keys (Mapbox, MBTA) from the repo's .env or map-client's own .env files
+  // (map-client's win); expose them here too. loadEnv also picks up VITE_ variables set in the
+  // process environment, which is how a host like Railway passes them to the build.
+  const mapEnv = { ...loadEnv(mode, repoDir, 'VITE_'), ...loadEnv(mode, mapDir, 'VITE_') };
   return {
     plugins: [react(), mapPage(), captureSink()],
     // One server for everyone: the dashboard plus the map, its data and its models.

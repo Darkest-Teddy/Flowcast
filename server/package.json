@@ -5,13 +5,13 @@
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
-    "dev": "tsx watch --max-old-space-size=512 --env-file-if-exists=.env src/index.ts",
-    "start": "tsx --max-old-space-size=512 --env-file-if-exists=.env src/index.ts",
+    "dev": "tsx watch --max-old-space-size=512 --env-file-if-exists=../.env --env-file-if-exists=.env src/index.ts",
+    "start": "tsx --max-old-space-size=512 --env-file-if-exists=../.env --env-file-if-exists=.env src/index.ts",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "tsx --env-file-if-exists=.env src/dashboard/cli.ts migrate",
-    "db:import": "tsx --env-file-if-exists=.env src/dashboard/cli.ts import",
-    "test:db": "tsx --env-file-if-exists=.env --test tests/dashboard.test.ts"
+    "db:migrate": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dashboard/cli.ts migrate",
+    "db:import": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env src/dashboard/cli.ts import",
+    "test:db": "tsx --env-file-if-exists=../.env --env-file-if-exists=.env --test tests/dashboard.test.ts"
   },
   "dependencies": {
     "@openai/agents": "^0.21.0",
