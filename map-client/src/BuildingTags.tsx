@@ -327,7 +327,12 @@ interface ActivityDisplayInput {
   kind?: LocationKind | null;
   /** The place really can be empty (a team-only boathouse between sessions): show a plain 0. */
   allowZero?: boolean;
+  /** Closed right now by its published hours: shown as "Closed" in grey, not as a quiet figure. */
+  closed?: boolean;
 }
+
+/** Grey, for places with no level to show: not modeled, or closed. */
+const NO_LEVEL_STYLE: Record<string, string> = { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' };
 
 /** Labels refer to the modeled space and its denominator, not every use of its building. */
 /** Below these, a place shows "≤N%" instead of a figure that rounds to zero, or "0 people". Counts are
@@ -338,7 +343,11 @@ const NEAR_ZERO_STUDENTS = 3;
  * RESIDENCE_OCCUPANCY, estimated halls 0.95), and the real figure could be higher. */
 const NEAR_FULL_RESIDENCE_PERCENT = 95;
 
-export function activityDisplay({ count, capacity: total, modeled, capacityBasis, residentialBeds, kind, allowZero = false }: ActivityDisplayInput) {
+export function activityDisplay({ count, capacity: total, modeled, capacityBasis, residentialBeds, kind, allowZero = false, closed = false }: ActivityDisplayInput) {
+  if (closed) {
+    return { primary: 'Closed', tagText: 'Closed', secondary: '', percent: 0, hasPercentage: false, level: 'closed',
+      icon: '', style: NO_LEVEL_STYLE, description: 'Closed now, by its published hours' };
+  }
   // A residence with classrooms reads as a residence: a percentage of its beds.
   const beds = capacityBasis === 'residential_beds_plus_classroom_seats' && residentialBeds && residentialBeds > 0 ? residentialBeds : null;
   const capacity = beds ?? total;
@@ -375,7 +384,7 @@ export function activityDisplay({ count, capacity: total, modeled, capacityBasis
     /** One, two or three people for the level; empty where there is no level to show. */
     icon: hasPercentage ? PERSON_ICONS[level.icon] : '',
     // Not modeled: slate on the tags, plain secondary ink and a neutral bar on the panels.
-    style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' },
+    style: hasPercentage ? crowdLevelStyle(share) : NO_LEVEL_STYLE,
     description: hasPercentage ? `${nearFull ? `${percent}% or more` : primary} of ${seats ? 'classroom seats' : beds ? 'beds' : 'capacity'}, ${secondary}` : primary,
   };
 }

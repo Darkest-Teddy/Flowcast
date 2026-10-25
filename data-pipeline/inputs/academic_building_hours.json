@@ -1,0 +1,550 @@
+{
+  "basis": "Opening hours BU itself publishes for academic buildings: when the doors are open to the BU community without a special card. Buildings with no published hours stay unknown and are never shown closed. Weekday 0 = Monday; an empty list is a published closure; a day left out is unknown. Applies to the fall 2026 term (classes Sep 2 to Dec 10); outside it the hours are unknown. A class meeting in a building keeps it open for that class.",
+  "validFrom": "2026-09-02",
+  "validTo": "2026-12-10",
+  "collectedAt": "2026-10-25",
+  "buildings": [
+    {
+      "locationId": "com",
+      "sourceUrl": "https://www.bu.edu/comtech/technology-services/our-facilities/",
+      "published": null,
+      "basis": "640 Commonwealth Ave while classes are in session: weekdays 7:30 AM–10 PM, weekends and holidays closed (card swipe 6 AM–midnight for enrolled COM students).",
+      "access": "COM students' card swipe 6 AM–midnight",
+      "week": {
+        "0": [
+          [
+            27000,
+            79200
+          ]
+        ],
+        "1": [
+          [
+            27000,
+            79200
+          ]
+        ],
+        "2": [
+          [
+            27000,
+            79200
+          ]
+        ],
+        "3": [
+          [
+            27000,
+            79200
+          ]
+        ],
+        "4": [
+          [
+            27000,
+            79200
+          ]
+        ],
+        "5": [],
+        "6": []
+      }
+    },
+    {
+      "locationId": "photonics",
+      "sourceUrl": "https://www.bu.edu/photonics/internal-resources/building-information/",
+      "published": null,
+      "basis": "8 St. Mary's Street: Monday–Saturday 7 AM–6 PM; closed Sundays, holidays and Intersession.",
+      "access": "card access for building occupants",
+      "week": {
+        "0": [
+          [
+            25200,
+            64800
+          ]
+        ],
+        "1": [
+          [
+            25200,
+            64800
+          ]
+        ],
+        "2": [
+          [
+            25200,
+            64800
+          ]
+        ],
+        "3": [
+          [
+            25200,
+            64800
+          ]
+        ],
+        "4": [
+          [
+            25200,
+            64800
+          ]
+        ],
+        "5": [
+          [
+            25200,
+            64800
+          ]
+        ],
+        "6": []
+      }
+    },
+    {
+      "locationId": "metcalf-science",
+      "sourceUrl": "https://www.bu.edu/biology/2026-2027-graduate-program-guide/",
+      "published": "2026",
+      "basis": "590 Commonwealth Ave is generally open Monday–Friday 7:30 AM–8 PM; card swipe at other times (Biology graduate program guide 2026–27). Weekend public hours unpublished.",
+      "access": "card swipe outside these hours",
+      "week": {
+        "0": [
+          [
+            27000,
+            72000
+          ]
+        ],
+        "1": [
+          [
+            27000,
+            72000
+          ]
+        ],
+        "2": [
+          [
+            27000,
+            72000
+          ]
+        ],
+        "3": [
+          [
+            27000,
+            72000
+          ]
+        ],
+        "4": [
+          [
+            27000,
+            72000
+          ]
+        ]
+      }
+    },
+    {
+      "locationId": "lse",
+      "sourceUrl": "https://www.bu.edu/biology/2026-2027-graduate-program-guide/",
+      "published": "2026",
+      "basis": "24 Cummington Mall is open Monday–Friday 7:30 AM–7 PM; card swipe after hours (Biology graduate program guide 2026–27). Weekend public hours unpublished.",
+      "access": "card swipe after hours",
+      "week": {
+        "0": [
+          [
+            27000,
+            68400
+          ]
+        ],
+        "1": [
+          [
+            27000,
+            68400
+          ]
+        ],
+        "2": [
+          [
+            27000,
+            68400
+          ]
+        ],
+        "3": [
+          [
+            27000,
+            68400
+          ]
+        ],
+        "4": [
+          [
+            27000,
+            68400
+          ]
+        ]
+      }
+    },
+    {
+      "locationId": "law-tower",
+      "sourceUrl": "https://www.bu.edu/law/about/law-school-complex/building-access/",
+      "published": null,
+      "basis": "BU community card access Monday–Thursday 8 AM–8 PM, Friday–Sunday 8 AM–5 PM; law students until 11 PM. The building is not normally unlocked to the public.",
+      "access": "law students until 11 PM",
+      "week": {
+        "0": [
+          [
+            28800,
+            72000
+          ]
+        ],
+        "1": [
+          [
+            28800,
+            72000
+          ]
+        ],
+        "2": [
+          [
+            28800,
+            72000
+          ]
+        ],
+        "3": [
+          [
+            28800,
+            72000
+          ]
+        ],
+        "4": [
+          [
+            28800,
+            61200
+          ]
+        ],
+        "5": [
+          [
+            28800,
+            61200
+          ]
+        ],
+        "6": [
+          [
+            28800,
+            61200
+          ]
+        ]
+      }
+    },
+    {
+      "locationId": "cds",
+      "sourceUrl": "https://www.bu.edu/cds-faculty/?p=8017",
+      "published": "2023-05-05",
+      "basis": "665 Commonwealth Ave is open weekdays 7 AM–11 PM; weekends by Terrier Card (hours unpublished).",
+      "access": "Terrier Card on weekends",
+      "week": {
+        "0": [
+          [
+            25200,
+            82800
+          ]
+        ],
+        "1": [
+          [
+            25200,
+            82800
+          ]
+        ],
+        "2": [
+          [
+            25200,
+            82800
+          ]
+        ],
+        "3": [
+          [
+            25200,
+            82800
+          ]
+        ],
+        "4": [
+          [
+            25200,
+            82800
+          ]
+        ]
+      }
+    },
+    {
+      "locationId": "bumc-instructional",
+      "sourceUrl": "https://www.bumc.bu.edu/gms/2022/12/09/enhancing-security-on-the-medical-campus",
+      "published": "2022-12-08",
+      "basis": "Medical Campus buildings are card access only 7 PM–7 AM on weekdays and 24 hours on weekends and holidays (effective January 3, 2023). The notice names no buildings; Crosstown and the X Building are not BUMC buildings and are left out.",
+      "access": "card access only outside these hours",
+      "week": {
+        "0": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "1": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "2": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "3": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "4": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "5": [],
+        "6": []
+      }
+    },
+    {
+      "locationId": "bumc-sph",
+      "sourceUrl": "https://www.bumc.bu.edu/gms/2022/12/09/enhancing-security-on-the-medical-campus",
+      "published": "2022-12-08",
+      "basis": "Medical Campus buildings are card access only 7 PM–7 AM on weekdays and 24 hours on weekends and holidays (effective January 3, 2023). The notice names no buildings; Crosstown and the X Building are not BUMC buildings and are left out.",
+      "access": "card access only outside these hours",
+      "week": {
+        "0": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "1": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "2": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "3": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "4": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "5": [],
+        "6": []
+      }
+    },
+    {
+      "locationId": "bumc-dental",
+      "sourceUrl": "https://www.bumc.bu.edu/gms/2022/12/09/enhancing-security-on-the-medical-campus",
+      "published": "2022-12-08",
+      "basis": "Medical Campus buildings are card access only 7 PM–7 AM on weekdays and 24 hours on weekends and holidays (effective January 3, 2023). The notice names no buildings; Crosstown and the X Building are not BUMC buildings and are left out.",
+      "access": "card access only outside these hours",
+      "week": {
+        "0": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "1": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "2": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "3": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "4": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "5": [],
+        "6": []
+      }
+    },
+    {
+      "locationId": "bumc-cabr",
+      "sourceUrl": "https://www.bumc.bu.edu/gms/2022/12/09/enhancing-security-on-the-medical-campus",
+      "published": "2022-12-08",
+      "basis": "Medical Campus buildings are card access only 7 PM–7 AM on weekdays and 24 hours on weekends and holidays (effective January 3, 2023). The notice names no buildings; Crosstown and the X Building are not BUMC buildings and are left out.",
+      "access": "card access only outside these hours",
+      "week": {
+        "0": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "1": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "2": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "3": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "4": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "5": [],
+        "6": []
+      }
+    },
+    {
+      "locationId": "bumc-conte",
+      "sourceUrl": "https://www.bumc.bu.edu/gms/2022/12/09/enhancing-security-on-the-medical-campus",
+      "published": "2022-12-08",
+      "basis": "Medical Campus buildings are card access only 7 PM–7 AM on weekdays and 24 hours on weekends and holidays (effective January 3, 2023). The notice names no buildings; Crosstown and the X Building are not BUMC buildings and are left out.",
+      "access": "card access only outside these hours",
+      "week": {
+        "0": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "1": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "2": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "3": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "4": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "5": [],
+        "6": []
+      }
+    },
+    {
+      "locationId": "bumc-building-a",
+      "sourceUrl": "https://www.bumc.bu.edu/gms/2022/12/09/enhancing-security-on-the-medical-campus",
+      "published": "2022-12-08",
+      "basis": "Medical Campus buildings are card access only 7 PM–7 AM on weekdays and 24 hours on weekends and holidays (effective January 3, 2023). The notice names no buildings; Crosstown and the X Building are not BUMC buildings and are left out.",
+      "access": "card access only outside these hours",
+      "week": {
+        "0": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "1": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "2": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "3": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "4": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "5": [],
+        "6": []
+      }
+    },
+    {
+      "locationId": "bumc-evans",
+      "sourceUrl": "https://www.bumc.bu.edu/gms/2022/12/09/enhancing-security-on-the-medical-campus",
+      "published": "2022-12-08",
+      "basis": "Medical Campus buildings are card access only 7 PM–7 AM on weekdays and 24 hours on weekends and holidays (effective January 3, 2023). The notice names no buildings; Crosstown and the X Building are not BUMC buildings and are left out.",
+      "access": "card access only outside these hours",
+      "week": {
+        "0": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "1": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "2": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "3": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "4": [
+          [
+            25200,
+            68400
+          ]
+        ],
+        "5": [],
+        "6": []
+      }
+    }
+  ]
+}

@@ -22,6 +22,8 @@ export interface PlaceEntry {
   count: number;
   share: number;
   modeled?: boolean;
+  /** Closed right now by its published hours. */
+  closed?: boolean;
 }
 
 /** Which kinds the category row offers, in the handoff's order. */
@@ -59,6 +61,7 @@ export function display(entry: PlaceEntry) {
     capacityBasis: entry.location.capacityBasis,
     kind: entry.location.kind,
     allowZero: entry.location.estimatedProfile?.purpose === 'rowing',
+    closed: entry.closed,
   });
 }
 

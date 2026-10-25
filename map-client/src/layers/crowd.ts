@@ -42,6 +42,8 @@ export function crowdLevelStyle(share: number): Record<string, string> {
 const SELECTED: RGB = [255, 255, 255];
 /** A building an event's "Show on map" picked: the whole glow turns this orange (styles.css --tag-spotlight-rgb). */
 export const SPOTLIGHT: RGB = [251, 146, 60];
+/** A building closed by its published hours: a faint slate glow with no level colour (the tag says Closed). */
+const CLOSED_LEVEL: CrowdLevelInfo = { ...crowdLevel(0), glow: [148, 163, 184, 140], halo: 36, rim: 3 };
 /** Roof glow floats just above the roof (the detailed models' roofs sit 0.5 m above Mapbox's). */
 const ROOF_LIFT = 0.9;
 const BREATH_MS = 2400;
@@ -118,9 +120,10 @@ let cached: {
 } | null = null;
 
 function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupancy[], selectedId: string | null, spotlitId: string | null, roofs?: RoofHeights, volumes?: ModelVolumes) {
-  const key = `${selectedId}|${spotlitId}|${roofs?.size}|${volumes?.size}|${buildings.map((b) => `${b.id}:${b.count}:${b.share}`).join()}`;
+  const key = `${selectedId}|${spotlitId}|${roofs?.size}|${volumes?.size}|${buildings.map((b) => `${b.id}:${b.count}:${b.share}${b.closed ? ':c' : ''}`).join()}`;
   if (cached && cached.key === key && cached.footprints === footprints) return cached;
   const shares = new Map(buildings.map((b) => [b.id, b.share]));
+  const closed = new Set(buildings.filter((b) => b.closed).map((b) => b.id));
   const glows: Glow[] = [];
   for (const f of footprints) {
     if (!shares.has(f.id)) continue;
@@ -129,7 +132,7 @@ function buildGlows(footprints: BuildingFootprint[], buildings: BuildingOccupanc
     const share = shares.get(f.id) ?? 0;
     const outer = roundedOffset(geo.hull, haloReach(share)).map(geo.toLngLat);
     const inner = roundedOffset(geo.hull, 0.5).map(geo.toLngLat);
-    const level = crowdLevel(share);
+    const level = closed.has(f.id) ? CLOSED_LEVEL : crowdLevel(share);
     const spotlit = f.id === spotlitId;
     glows.push({
       id: f.id,

@@ -45,6 +45,8 @@ export interface CampusLocation {
   estimatedProfile?: EstimatedActivityProfile;
   estimatedHousingProfile?: EstimatedHousingProfile;
   activityModeled?: boolean;
+  /** When the place is open on the day by its published hours (local seconds); absent when unknown. */
+  openWindows?: [number, number][];
   capacityBasis?: string;
   /** A residence that also holds classrooms (Kilachand): its beds, which its percentage is shown against. */
   residentialBeds?: number;
@@ -77,6 +79,8 @@ export interface BuildingFootprint {
 
 export interface BuildingOccupancy {
   modeled?: boolean;
+  /** Every place in the building is closed right now by its published hours. */
+  closed?: boolean;
   capacityBasis?: string;
   residentialBeds?: number;
   id: string;
@@ -186,6 +190,8 @@ export interface WalkingAgent {
 
 export interface Occupancy {
   modeled?: boolean;
+  /** Closed right now by the place's published hours. */
+  closed?: boolean;
   location: CampusLocation;
   count: number;
   share: number; // count / capacity, can exceed 1
@@ -524,11 +530,13 @@ export class Playback {
    */
   byBuilding(occupancy: Occupancy[]): BuildingOccupancy[] {
     const out = new Map<string, BuildingOccupancy>();
-    for (const { location, count, modeled = location.activityModeled !== false } of occupancy) {
+    for (const { location, count, modeled = location.activityModeled !== false, closed = false } of occupancy) {
       if (location.kind === 'off-campus' || location.kind === 'outdoor') continue;
       const share = occupancyShare(count, location.capacity);
       const current = out.get(location.building);
-      if (current && (Number(current.modeled !== false) > Number(modeled)
+      // An open place wins over a closed one: the building reads closed only when all of it is.
+      if (current && !current.closed && closed) continue;
+      if (current && (current.closed === closed) && (Number(current.modeled !== false) > Number(modeled)
         || (current.modeled !== false) === modeled && (current.share > share || current.share === share && current.count >= count))) continue;
       out.set(location.building, {
         id: location.building,
@@ -539,6 +547,7 @@ export class Playback {
         capacity: location.capacity,
         share,
         modeled,
+        closed,
         capacityBasis: location.capacityBasis,
         residentialBeds: location.residentialBeds,
       });
@@ -573,7 +582,7 @@ export class Playback {
       }
       return this.locations.filter((location) => location.kind !== 'off-campus').map((location) => {
         const count = counts.get(location.id) ?? 0;
-        return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false };
+        return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false, closed: closedAt(location, t) };
       });
     }
     for (const [agentId, trips] of this.tripsByAgent) {
@@ -587,9 +596,15 @@ export class Playback {
     }
     return this.locations.map((location) => {
       const count = counts.get(location.id) ?? 0;
-      return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false };
+      return { location, count, share: location.capacity > 0 ? count / location.capacity : 0, modeled: location.activityModeled !== false, closed: closedAt(location, t) };
     });
   }
+}
+
+/** Closed at `t` (seconds into the day) by the place's published hours; never when they're unknown. */
+export function closedAt(location: Pick<CampusLocation, 'openWindows'>, t: number): boolean {
+  const windows = location.openWindows;
+  return windows !== undefined && !windows.some(([from, to]) => t >= from && t < to);
 }
 
 const CASUALTY_OUTCOMES = new Set(['injured', 'fatality']);

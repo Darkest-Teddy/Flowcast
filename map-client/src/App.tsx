@@ -1814,7 +1814,7 @@ export default function App() {
         const d = activityDisplay({
           count: o.count, capacity: o.location.capacity, share: o.share,
           modeled: o.modeled ?? o.location.activityModeled,
-          capacityBasis: o.location.capacityBasis, kind: o.location.kind,
+          capacityBasis: o.location.capacityBasis, kind: o.location.kind, closed: o.closed,
         });
         return { id: o.location.id, name: o.location.short || o.location.name, icon: d.icon, style: d.style as Record<string, string> };
       });
@@ -1896,6 +1896,7 @@ export default function App() {
         modeled: here?.modeled ?? detailLocation.activityModeled,
         capacityBasis: detailLocation.capacityBasis,
         kind: detailLocation.kind,
+        closed: here?.closed,
       });
       out.push({
         sec,
@@ -1904,7 +1905,7 @@ export default function App() {
         icon: d.icon,
         style: d.style as Record<string, string>,
         known: d.hasPercentage,
-        word: d.secondary,
+        word: d.level === 'closed' ? 'Closed' : d.secondary,
       });
     }
     return out;
@@ -1922,6 +1923,7 @@ export default function App() {
     modeled: detailEntry?.modeled ?? detailLocation?.activityModeled,
     capacityBasis: detailLocation?.capacityBasis,
     kind: detailLocation?.kind,
+    closed: detailEntry?.closed,
   });
 
   /** An event in this building today, so the detail can point at it. */
@@ -2896,9 +2898,11 @@ function splitSharedTags(
     const centre: [number, number] = pts.length
       ? [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length]
       : b.position;
-    const main = rest.reduce((a, o) => (o.share > a.share ? o : a));
+    // Named for its busiest open part; closed only when every part is.
+    const open = rest.filter((o) => !o.closed);
+    const main = (open.length ? open : rest).reduce((a, o) => (o.share > a.share ? o : a));
     out.push({ ...b, position: centre, name: displayName(main.location.name), short: displayShort(main.location.short, main.location.name),
-      count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, capacityBasis: main.location.capacityBasis });
+      count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, closed: !open.length, capacityBasis: main.location.capacityBasis });
     // Amenities recorded at (nearly) the same point would stack and the label placer would hide all
     // but one: those are fanned out around their shared point, AMENITY_SPREAD_M apart.
     const kx = 111_320 * Math.cos((centre[1] * Math.PI) / 180);
@@ -2916,6 +2920,7 @@ function splitSharedTags(
         short: displayShort(d.location.short, d.location.name),
         position: spot(d),
         modeled: d.modeled,
+        closed: d.closed,
         capacityBasis: d.location.capacityBasis,
         count: d.count,
         capacity: d.location.capacity,

@@ -80,6 +80,8 @@ export interface SourceLocation {
   hours: OpeningHours[];
   hoursStatus?: 'published' | 'unknown' | 'restricted';
   hoursReason?: string;
+  /** BU's published hours for an academic building (data-pipeline/building_hours.py): only for showing it closed. */
+  buildingHours?: OpeningHours[];
 }
 
 export interface SourceEvent {
