@@ -9,7 +9,7 @@ export default function Schedule() {
   const locations = useResource(api.getLocations);
   const schedule = useResource(api.getSchedule);
   const now = useDepartureClock();
-  const header = <PageHeader title="Schedule" description="Imported classes · all times in Boston."
+  const header = <PageHeader title="Schedule" description="Your classes · all times in Boston."
     actions={<><Button to="/courses">Pick classes</Button><Button to="/calendars">Import .ics</Button></>} />;
   if (schedule.error) return <Page>{header}<EmptyState title="Your schedule didn't load" body={schedule.error.message}
     action={<Button onClick={schedule.reload}>Try again</Button>} /></Page>;
@@ -25,7 +25,7 @@ export default function Schedule() {
   }
   return <Page>{header}<div className={styles.days}>
     {[...groups].map(([day, items]) => <SectionList key={day}
-      title={bostonDayLabel(items[0]?.start ?? now, now)} count={items.length} empty="No imported classes for this day.">
+      title={bostonDayLabel(items[0]?.start ?? now, now)} count={items.length} empty="No classes for this day.">
       {items.map((item) => <div key={item.id} className={styles.row}>
         <div className={styles.time}><time dateTime={item.start}>{bostonTime(item.start)}</time>
           <time dateTime={item.end}>{bostonTime(item.end)}</time></div>

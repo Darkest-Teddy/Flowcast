@@ -212,6 +212,24 @@ All routes are under `/api/dashboard` and return `Cache-Control: no-store`:
 - `PUT /schedule`: `{fileName, items}` replaces the account's imported schedule and returns the
   complete schedule state, with server-generated import time and window metadata.
 - `DELETE /schedule`: clears items and metadata, returning the empty schedule state.
+- `GET /courses`: the published catalog as pickable sections, `{term, total, courses}` where each
+  course carries its sections and each section its weekly `slots` (`weekday` with Monday = 0,
+  `startSec`/`endSec` from local midnight, `locationId`, `buildingCode`, `roomCode`, `roomCapacity`)
+  and the BU page it was read from. `?q=` matches course code and title, returning at most 40 courses
+  while `total` counts every matching section. `?keys=a,b` instead returns exactly those sections, so
+  the picker can show what an account already saved; keys that no longer match are skipped, not an
+  error. Sections BU marks calendar-restricted, and any with no published meeting pattern, are never
+  offered.
+- `PUT /schedule/courses`: `{sections: [...]}` of at most 30 section keys (`"CAS CS 112|A1"`).
+  Expands each into dated meetings across the 120-day window and replaces only the items it owns
+  (`source: 'course'`), so an `.ics` import survives. Returns the complete schedule state, with the
+  selection echoed in `courseSections` and the save time in `coursesSavedAt`. Dates follow
+  `map-client/src/data/academicCalendar.ts`: a meeting runs inside its own `validFrom`/`validTo`, and
+  for the prefixes BU's semester calendar covers, only between the term's first and last class day,
+  skipping suspended days and running the substituted weekday's timetable on a substitute day.
+  Prefixes the calendar excludes (LAW, MED and the other professional schools) keep their published
+  weekly pattern. Start and end times are Boston wall-clock, including across the daylight-saving
+  change. An unknown section key is a 400 rather than a silent omission.
 - `GET /export`: `{exportedAt, account, profile, notificationPrefs, followedOrganizers, createdAt,
   updatedAt, calendars, events, scheduleImport}` from the current persisted account. `events` contains
   imported schedule items, `calendars` contains the import metadata (or `[]`), and `scheduleImport`
@@ -254,7 +272,9 @@ Save accepts unique IDs, source `calendar`, known location IDs or `''`, and vali
 unknown fields are rejected. Neither raw files nor imported items enter an OpenAI context.
 
 The idempotent migration adds `dashboard_accounts.schedule` (JSONB, default `[]`) and
-`schedule_import` (nullable JSONB). Existing RLS and grants remain intact. Calendar import does
+`schedule_import` (nullable JSONB). Catalog picks need no further migration: the chosen section keys
+live inside the existing `schedule_import` document as `courseSections`, and the meetings they expand
+to are ordinary `schedule` items with `source: 'course'`. Existing RLS and grants remain intact. Calendar import does
 not connect or sync Google Calendar: session `calendarConnected` remains false and
 `calendarSyncedAt` remains null. Apply the migration explicitly before deploying these routes.
 

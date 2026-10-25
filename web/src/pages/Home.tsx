@@ -50,7 +50,7 @@ export default function Home() {
   const followed = (clubs.data ?? []).filter((c) => c.following);
 
   const calendarStatus = schedule.data?.length ? (
-    <StatusBadge tone="ok">{schedule.data.length} imported {schedule.data.length === 1 ? 'class' : 'classes'} · <Link to="/calendars">Manage import</Link></StatusBadge>
+    <StatusBadge tone="ok">{schedule.data.length} {schedule.data.length === 1 ? 'class meeting' : 'class meetings'} · <Link to="/courses">Change your classes</Link></StatusBadge>
   ) : (
     <StatusBadge tone="off">{schedule.loading ? 'Loading your schedule. ' : 'No classes yet. '}<Link to="/courses">Pick your classes</Link> or <Link to="/calendars">import an .ics file</Link></StatusBadge>
   );
@@ -101,7 +101,7 @@ export default function Home() {
           title="Today · Boston time"
           count={schedule.data ? today.length : undefined}
           to="/schedule"
-          empty={schedule.loading ? loadingText : 'No imported classes today.'}
+          empty={schedule.loading ? loadingText : 'No classes today.'}
         >
           {today.map((item) => (
             <ListRow
