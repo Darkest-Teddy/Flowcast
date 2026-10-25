@@ -1,12 +1,15 @@
 // Production host for the dashboard, map, and same-origin API.
 
 import { createReadStream, existsSync, statSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { createServer, request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { brotliCompress, constants as zlib, gzip } from 'node:zlib';
 
 const ROOT = resolve(fileURLToPath(new URL('./web/dist', import.meta.url)));
 const PORT = Number(process.env.PORT) || 8080;
@@ -34,6 +37,7 @@ const TYPES = new Map(
     '.woff2': 'font/woff2',
     '.webm': 'video/webm',
     '.mp4': 'video/mp4',
+    '.mp3': 'audio/mpeg',
     '.wasm': 'application/wasm',
     '.txt': 'text/plain; charset=utf-8',
     '.pbf': 'application/x-protobuf',
@@ -55,16 +59,99 @@ function resolveFile(urlPath, root) {
   return candidate;
 }
 
-function send(res, status, file, { immutable = false } = {}) {
-  const type = TYPES.get(extname(file).toLowerCase()) || 'application/octet-stream';
-  res.writeHead(status, {
-    'Content-Type': type,
-    // Vite fingerprints everything under /assets, so those are safe to pin.
-    // HTML and data must stay revalidated or a deploy never reaches anyone.
-    'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
+// Stable names that change rarely: models, images, audio, video, fonts and the web manifest.
+const MEDIA = new Set(['.glb', '.gltf', '.bin', '.png', '.jpg', '.jpeg', '.webp', '.svg', '.ico', '.mp3', '.webm', '.mp4', '.woff', '.woff2', '.webmanifest']);
+// Text worth compressing. Images, models and media are already compressed or barely shrink.
+const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.geojson', '.gltf', '.svg', '.webmanifest', '.txt']);
+// Below this the encoding header costs about as much as it saves.
+const MIN_COMPRESS_BYTES = 1024;
+
+function cacheControl(urlPath, ext) {
+  // Vite fingerprints everything under /assets, so a changed file gets a new URL and these are safe to pin.
+  if (urlPath.startsWith('/assets/')) return 'public, max-age=31536000, immutable';
+  // Media keeps its name across deploys. An hour fresh lets a reload skip the network entirely; after
+  // that a load uses the cached copy and revalidates behind it, so a changed model shows on the load after.
+  if (MEDIA.has(ext)) return 'public, max-age=3600, stale-while-revalidate=604800';
+  // HTML and data/*.json are revalidated every time or a deploy never reaches anyone.
+  // The ETag makes that check a body-less 304 when nothing changed.
+  return 'no-cache';
+}
+
+/** Weak validator from size and mtime. Each encoding is a different body, so it gets its own tag. */
+function etagFor(stat, encoding) {
+  const suffix = encoding === 'br' ? '-br' : encoding === 'gzip' ? '-gz' : '';
+  return `W/"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}${suffix}"`;
+}
+
+function notModified(req, etag, mtimeMs) {
+  const tags = req.headers['if-none-match'];
+  // If-None-Match wins over If-Modified-Since when both are sent. Weak comparison: ignore W/.
+  if (tags) return tags.trim() === '*' || tags.split(',').some((tag) => tag.trim().replace(/^W\//, '') === etag.slice(2));
+  const since = Date.parse(req.headers['if-modified-since'] || '');
+  return !Number.isNaN(since) && Math.floor(mtimeMs / 1000) * 1000 <= since;
+}
+
+/** Brotli if the client takes it, then gzip, honouring q=0. */
+function pickEncoding(header = '') {
+  const weights = new Map();
+  for (const part of header.toLowerCase().split(',')) {
+    const [name, ...params] = part.split(';').map((piece) => piece.trim());
+    const q = params.find((param) => param.startsWith('q='));
+    if (name) weights.set(name, q ? Number(q.slice(2)) : 1);
+  }
+  const accepts = (name) => (weights.get(name) ?? weights.get('*') ?? 0) > 0;
+  return accepts('br') ? 'br' : accepts('gzip') ? 'gzip' : null;
+}
+
+// Compressing ~36 MB of map data on every request would burn CPU, so each file's compressed bytes are
+// kept per encoding until its mtime or size changes. Only compressed bytes stay (a few MB for the whole
+// build); the uncompressed read is dropped once compressed.
+const compressed = new Map();
+const brotliAsync = promisify(brotliCompress);
+const gzipAsync = promisify(gzip);
+function compressedBody(file, stat, encoding) {
+  const key = `${encoding}:${file}`;
+  const hit = compressed.get(key);
+  if (hit && hit.mtimeMs === stat.mtimeMs && hit.size === stat.size) return hit.body;
+  // Brotli 5 takes the map data from ~38 MB to ~2 MB in a fraction of quality 11's time, once per file per deploy.
+  const body = readFile(file).then((raw) => (encoding === 'br'
+    ? brotliAsync(raw, { params: { [zlib.BROTLI_PARAM_QUALITY]: 5, [zlib.BROTLI_PARAM_SIZE_HINT]: raw.length } })
+    : gzipAsync(raw, { level: 6 })));
+  compressed.set(key, { mtimeMs: stat.mtimeMs, size: stat.size, body });
+  body.catch(() => { if (compressed.get(key)?.body === body) compressed.delete(key); });
+  return body;
+}
+
+async function send(req, res, file, urlPath) {
+  const stat = statSync(file);
+  const ext = extname(file).toLowerCase();
+  const compressible = COMPRESSIBLE.has(ext);
+  const encoding = compressible && stat.size >= MIN_COMPRESS_BYTES ? pickEncoding(req.headers['accept-encoding']) : null;
+  const headers = {
+    'Cache-Control': cacheControl(urlPath, ext),
+    ETag: etagFor(stat, encoding),
+    'Last-Modified': new Date(stat.mtimeMs).toUTCString(),
     'X-Content-Type-Options': 'nosniff',
-  });
-  createReadStream(file).pipe(res);
+  };
+  if (compressible) headers.Vary = 'Accept-Encoding';
+  if (notModified(req, headers.ETag, stat.mtimeMs)) return res.writeHead(304, headers).end();
+  headers['Content-Type'] = TYPES.get(ext) || 'application/octet-stream';
+
+  let body = null;
+  if (encoding) {
+    try {
+      body = await compressedBody(file, stat, encoding);
+      headers['Content-Encoding'] = encoding;
+    } catch {
+      // Fall back to the plain file rather than failing the request.
+      headers.ETag = etagFor(stat, null);
+    }
+  }
+  headers['Content-Length'] = body ? body.length : stat.size;
+  res.writeHead(200, headers);
+  if (req.method === 'HEAD') return res.end();
+  if (body) return res.end(body);
+  createReadStream(file).on('error', () => res.destroy()).pipe(res);
 }
 
 const hopHeaders = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade']);
@@ -129,14 +216,12 @@ export function createHostServer({ root = ROOT, apiUrl = '', timeoutMs = 30_000 
     // The 3D map is its own entry point. Matches web/vite.config.ts's dev rewrite.
     if (/^\/map\/?(\?|#|$)/.test(url)) {
       const mapHtml = join(root, 'map.html');
-      if (existsSync(mapHtml)) return send(res, 200, mapHtml);
+      if (existsSync(mapHtml)) return send(req, res, mapHtml, pathname).catch(() => jsonError(res, 500, 'Read failed'));
     }
 
     let file;
     try { file = resolveFile(url, root); } catch { return jsonError(res, 400, 'Invalid path'); }
-    if (file) {
-      return send(res, 200, file, { immutable: url.startsWith('/assets/') });
-    }
+    if (file) return send(req, res, file, pathname).catch(() => jsonError(res, 500, 'Read failed'));
 
     // A missing asset is a real 404; anything else is a client route.
     if (/\.[a-z0-9]+$/i.test(url.split('?')[0])) {
@@ -150,7 +235,7 @@ export function createHostServer({ root = ROOT, apiUrl = '', timeoutMs = 30_000 
         .end('web/dist is missing. Run the build before starting.');
       return;
     }
-    send(res, 200, index);
+    send(req, res, index, pathname).catch(() => jsonError(res, 500, 'Read failed'));
   });
 }
 
