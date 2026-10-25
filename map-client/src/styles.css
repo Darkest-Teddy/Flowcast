@@ -1083,62 +1083,9 @@ select.tool { padding: 0 8px 0 12px; }
 /* Brand mark beside the sheet title (the favicon art). */
 .sheet-logo { width: 24px; height: 24px; margin-right: var(--space-2); vertical-align: -4px; }
 
-/* The intro's sky (App.tsx, INTRO_RISE): while the camera rises and drops, only the map shows. Up in
-   the sky it is hazy (blurred and greyed, like GTA V's view from above) with clouds drifting
-   around it; on the way down the clouds rush past and the haze thins, gone for the swoop. The blur
-   is a backdrop filter, so its edges clamp to the map's instead of fading to the page. Only
-   transform, opacity and the filter animate. */
-.intro-sky {
-  position: absolute;
-  inset: 0;
-  z-index: 40;
-  overflow: hidden;
-  pointer-events: none;
-  --cloud: rgba(255, 255, 255, 0.92);
-  --cloud-soft: rgba(255, 255, 255, 0.55);
-}
-.intro-sky[data-light='dawn'], .intro-sky[data-light='dusk'] { --cloud: rgba(255, 232, 220, 0.9); --cloud-soft: rgba(250, 215, 205, 0.5); }
-.intro-sky[data-light='night'] { --cloud: rgba(150, 162, 190, 0.7); --cloud-soft: rgba(110, 122, 152, 0.4); }
-
-.intro-haze {
-  position: absolute;
-  inset: 0;
-  -webkit-backdrop-filter: blur(0) saturate(1);
-  backdrop-filter: blur(0) saturate(1);
-  transition: backdrop-filter 0.6s ease, -webkit-backdrop-filter 0.6s ease;
-}
-.intro-sky[data-phase='sky'] .intro-haze { -webkit-backdrop-filter: blur(7px) saturate(0.3); backdrop-filter: blur(7px) saturate(0.3); }
-.intro-sky[data-phase='drop'] .intro-haze { -webkit-backdrop-filter: blur(2px) saturate(0.6); backdrop-filter: blur(2px) saturate(0.6); }
-
-/* The clouds: far and faint on the still, closing in as the camera rises into them, rushing past
-   (growing and clearing) as it drops. */
-.intro-clouds {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transform: scale(0.55);
-  transition: opacity 0.9s ease, transform 1.4s cubic-bezier(0.2, 0.6, 0.3, 1);
-}
-.intro-sky[data-phase='sky'] .intro-clouds { opacity: 1; transform: scale(1); }
-.intro-sky:is([data-phase='drop'], [data-phase='land']) .intro-clouds {
-  opacity: 0;
-  transform: scale(2.6);
-  transition: opacity 0.7s ease-in, transform 0.9s cubic-bezier(0.5, 0, 0.75, 0);
-}
-.intro-clouds span {
-  position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, var(--cloud) 0%, var(--cloud-soft) 45%, transparent 100%);
-  animation: intro-drift 12s ease-in-out infinite alternate;
-}
-@keyframes intro-drift {
-  from { transform: translateX(calc(-1 * var(--drift))); }
-  to { transform: translateX(var(--drift)); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .intro-haze, .intro-clouds { transition: none; }
-  .intro-clouds span { animation: none; }
-}
+/* The intro (App.tsx): its sky (IntroSky, public/intro/sky.css) between the still and the progress
+   line; the interface hidden until the camera has landed, then coming in. */
+.app > .intro-sky { z-index: 40; }
 .app.is-intro :is(.sheet, .toolbar, .sheet-dim, .perf, .btags, .gtags) { visibility: hidden; }
 .app.is-swoop :is(.sheet, .toolbar, .perf, .btags, .gtags) { animation: intro-interface-in 0.6s ease both; }
 @keyframes intro-interface-in { from { opacity: 0; } }

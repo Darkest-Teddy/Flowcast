@@ -307,7 +307,8 @@ function tameInteractions(map: {
   map.doubleClickZoom.disable();
 }
 
-export async function createBasemap(container: HTMLElement, lightPreset: LightPreset, start: CameraState = INITIAL_VIEW): Promise<Basemap> {
+/** `limited: false` starts without the camera limits to central Boston (the intro's view from the sky); setLimits(true) restores them. */
+export async function createBasemap(container: HTMLElement, lightPreset: LightPreset, start: CameraState = INITIAL_VIEW, limited = true): Promise<Basemap> {
   const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
   if (token) {
@@ -320,7 +321,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
       // the 3D characters silently don't draw. One campus is flat anyway.
       projection: 'mercator',
       ...start,
-      ...BOSTON_LIMITS,
+      ...(limited ? BOSTON_LIMITS : {}),
       // 4x MSAA. Speed mode starts without it (it can only be chosen when the map is created).
       antialias: quality.msaa,
       // Render settings that cost nothing visible: one world (the camera is held to Boston, so
@@ -553,7 +554,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
     container,
     style: 'https://tiles.openfreemap.org/styles/liberty',
     ...start,
-    ...BOSTON_LIMITS,
+    ...(limited ? BOSTON_LIMITS : {}),
     maxPitch: 85, // the default 60 is too flat for the street-level view
     canvasContextAttributes: { antialias: quality.msaa },
     renderWorldCopies: false,

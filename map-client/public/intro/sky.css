@@ -1,0 +1,88 @@
+/* The intro's sky: haze and drifting clouds over the view of campus from above. The landing page's
+   hero shows it over the intro still, web/map.html puts the same markup up before any code loads,
+   and the map (map-client/src/IntroSky.tsx) keeps it over the live map until the camera drops in:
+   the clouds rush past and the haze thins ('drop'), then they're gone ('land').
+
+     <div class="intro-sky" data-phase="sky|drop|land" data-light="dawn|day|dusk|night"
+          style="--sky-a: <delay>; --sky-b: <delay>">
+       <div class="intro-haze"></div>
+       <div class="intro-clouds"><div class="intro-clouds-a"></div><div class="intro-clouds-b"></div></div>
+     </div>
+
+   The drift delays come from the clock (introSkyDelays), so every copy shows the clouds in the same
+   place at the same moment and one can replace another unseen. A plain file in public/ so map.html
+   can load it before the app. Only transform, opacity and the backdrop filter animate; the blur is a
+   backdrop filter so its edges clamp to the picture's instead of fading to the page. */
+
+.intro-sky {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  --cloud: rgba(255, 255, 255, 0.92);
+  --cloud-soft: rgba(255, 255, 255, 0.5);
+}
+.intro-sky[data-light='dawn'],
+.intro-sky[data-light='dusk'] { --cloud: rgba(255, 232, 220, 0.9); --cloud-soft: rgba(250, 215, 205, 0.45); }
+.intro-sky[data-light='night'] { --cloud: rgba(150, 162, 190, 0.72); --cloud-soft: rgba(110, 122, 152, 0.38); }
+
+.intro-haze {
+  position: absolute;
+  inset: 0;
+  -webkit-backdrop-filter: blur(6px) saturate(0.35);
+  backdrop-filter: blur(6px) saturate(0.35);
+  transition: backdrop-filter 0.6s ease, -webkit-backdrop-filter 0.6s ease;
+}
+.intro-sky[data-phase='drop'] .intro-haze { -webkit-backdrop-filter: blur(2px) saturate(0.6); backdrop-filter: blur(2px) saturate(0.6); }
+.intro-sky[data-phase='land'] .intro-haze { -webkit-backdrop-filter: blur(0) saturate(1); backdrop-filter: blur(0) saturate(1); }
+
+/* Clouds thick round the edges and thin in the middle, so campus shows through. */
+.intro-clouds {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.9s ease, transform 1.4s cubic-bezier(0.2, 0.6, 0.3, 1);
+}
+.intro-sky:is([data-phase='drop'], [data-phase='land']) .intro-clouds {
+  opacity: 0;
+  transform: scale(2.6);
+  transition: opacity 0.7s ease-in, transform 0.9s cubic-bezier(0.5, 0, 0.75, 0);
+}
+.intro-clouds-a,
+.intro-clouds-b {
+  position: absolute;
+  inset: -12%;
+  animation: intro-drift-a 14s ease-in-out var(--sky-a, 0s) infinite alternate;
+}
+.intro-clouds-a {
+  background:
+    radial-gradient(42% 34% at 8% 8%, var(--cloud) 0%, var(--cloud-soft) 45%, transparent 100%),
+    radial-gradient(46% 36% at 86% 14%, var(--cloud) 0%, var(--cloud-soft) 45%, transparent 100%),
+    radial-gradient(44% 34% at 14% 90%, var(--cloud) 0%, var(--cloud-soft) 45%, transparent 100%),
+    radial-gradient(20% 14% at 62% 40%, var(--cloud-soft) 0%, transparent 100%);
+}
+.intro-clouds-b {
+  background:
+    radial-gradient(44% 34% at 90% 86%, var(--cloud) 0%, var(--cloud-soft) 45%, transparent 100%),
+    radial-gradient(36% 26% at 46% 2%, var(--cloud) 0%, var(--cloud-soft) 45%, transparent 100%),
+    radial-gradient(28% 26% at 0% 48%, var(--cloud) 0%, var(--cloud-soft) 45%, transparent 100%),
+    radial-gradient(34% 24% at 48% 100%, var(--cloud) 0%, var(--cloud-soft) 45%, transparent 100%),
+    radial-gradient(16% 12% at 34% 62%, var(--cloud-soft) 0%, transparent 100%);
+  animation-name: intro-drift-b;
+  animation-duration: 17s;
+  animation-delay: var(--sky-b, 0s);
+}
+@keyframes intro-drift-a {
+  from { transform: translateX(-3vw); }
+  to { transform: translateX(3vw); }
+}
+@keyframes intro-drift-b {
+  from { transform: translateX(3vw) translateY(-1vh); }
+  to { transform: translateX(-3vw) translateY(1vh); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-haze,
+  .intro-clouds { transition: none; }
+  .intro-clouds-a,
+  .intro-clouds-b { animation: none; }
+}

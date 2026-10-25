@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, VIEW_IN_URL, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
@@ -58,7 +58,8 @@ import {
 } from './bikes/bluebikes';
 import { bikeLayers, bikeTooltip, loadBikeModels } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
-import { IntroScreen, createLoadProgress, introScale } from './IntroScreen';
+import { IntroScreen, createLoadProgress } from './IntroScreen';
+import { IntroSky } from './IntroSky';
 import { INTRO_VIEW, introZoom } from './intro';
 import { prefersReducedMotion } from './map/camera';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
@@ -178,29 +179,17 @@ async function tilesIn(basemap: Basemap, capMs: number) {
   while (!basemap.tilesLoaded() && performance.now() - from < capMs) await nextFrames(1);
 }
 /**
- * The intro's camera, like GTA V's character switch: as soon as the base map is drawn it takes over
- * from the still at the same framing and rises straight up over campus, looking down. That view
- * from the sky is the loading screen. When everything is in, it drops back down in two quick steps
- * and swoops into the opening view, tilting and turning. Zooms are relative to the still's, which
+ * The intro's camera, like GTA V's character switch: the map opens on the view from the sky (the
+ * intro still, under haze and clouds) and loads underneath it at the same camera. When everything
+ * is in, the live map takes over unseen, drops in two quick steps while the clouds rush past, and
+ * swoops into the opening view, tilting and turning. Zooms are down from the still's, which
  * depends on the window's shape.
  */
-const INTRO_RISE = { zoomUp: 2.2, ms: 900 };
 const INTRO_DROPS = [
-  { zoomUp: 1.1, ms: 420, hold: 150 },
-  { zoomUp: 0, ms: 420, hold: 150 },
+  { zoomDown: 1.1, ms: 420, hold: 150 },
+  { zoomDown: 2.2, ms: 420, hold: 150 },
 ];
 const INTRO_SWOOP_MS = 1000;
-/** Cloud puffs around the view from the sky: top-left corner and width in % of the window, drift in vw. Thinner in the middle. */
-const INTRO_CLOUDS = [
-  { x: -22, y: -18, w: 70, drift: 4 },
-  { x: 48, y: -26, w: 78, drift: -5 },
-  { x: 62, y: 52, w: 72, drift: 3 },
-  { x: -26, y: 56, w: 76, drift: -4 },
-  { x: 78, y: 12, w: 46, drift: -3 },
-  { x: -12, y: 22, w: 40, drift: 3 },
-  { x: 28, y: 78, w: 52, drift: -4 },
-  { x: 34, y: -4, w: 30, drift: 5 },
-];
 /** ?ask=least+crowded+library opens the Ask tab with that question answered. */
 const START_QUESTION = params.get('ask');
 
@@ -271,10 +260,10 @@ export default function App() {
 
   const [loadProgress] = useState(createLoadProgress);
   const introRef = useRef(FROM_INTRO); // the intro owns the camera (no panel padding) until it has flown in
-  // 'still': the intro still covers the loading map; 'sky': the live map's camera has risen into the
-  // sky (hazy: blurred and greyed, the loading screen); 'drop': dropping back down, the haze thinning;
-  // 'land': swooping into the opening view, clear; 'swoop': landed, the interface coming in.
-  const [introPhase, setIntroPhase] = useState<'still' | 'sky' | 'drop' | 'land' | 'swoop' | 'done'>(FROM_INTRO ? 'still' : 'done');
+  // 'sky': the intro still, hazy and cloudy, covers the loading map (the loading screen); 'drop': the
+  // live map dropping down, the clouds rushing past; 'land': swooping into the opening view, clear;
+  // 'swoop': landed, the interface coming in.
+  const [introPhase, setIntroPhase] = useState<'sky' | 'drop' | 'land' | 'swoop' | 'done'>(FROM_INTRO ? 'sky' : 'done');
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
   const [hud, setHud] = useState<Hud | null>(null);
   const [range, setRange] = useState<[number, number]>([0, 86400]);
@@ -492,34 +481,10 @@ export default function App() {
       // Observed counts for the public crowd; without them the map shows students only.
       const observationsLoad = loadObservations().catch(() => null);
       let introStopped = false; // a drag or wheel during the intro hands the camera to the user
-      let unwatchIntro = () => {};
-      const basemapLoad = track('Drawing the map', createBasemap(mapElement, shownLight, FROM_INTRO ? { ...INTRO_VIEW, zoom: introZoom(mapElement.clientWidth, mapElement.clientHeight) } : INITIAL_VIEW));
-      // The base map first. As soon as it has drawn the still's framing, the live map takes over at
-      // exactly that framing (no fade: the two are the same picture) and rises into the sky, where
-      // it waits, greyed, while the rest loads. The rise runs before the heavy loading starts, so it
-      // stays smooth. Reduced motion keeps the still instead.
-      const lifted = FROM_INTRO && !prefersReducedMotion() ? basemapLoad.then(async (map) => {
-        const width = mapElement.clientWidth;
-        const height = mapElement.clientHeight;
-        map.setLimits(false);
-        // Under the still: the sky view's tiles first (the rise would otherwise fetch them on the
-        // way up, in stutters), then back to the still's framing.
-        const still = introZoom(width, height);
-        map.jumpTo({ ...INTRO_VIEW, zoom: still - INTRO_RISE.zoomUp, pitch: 0, padding: NO_PADDING });
-        await tilesIn(map, 1500);
-        map.jumpTo({ ...INTRO_VIEW, zoom: still, padding: NO_PADDING });
-        await tilesIn(map, 2000);
-        if (cancelled) return;
-        unwatchIntro = map.onUserInteraction(() => { introStopped = true; });
-        map.jumpTo({ ...INTRO_VIEW, zoom: introZoom(width, height, introScale()), padding: NO_PADDING });
-        await nextFrames(2);
-        if (cancelled) return;
-        loadProgress.lift();
-        setIntroPhase('sky');
-        map.easeTo({ zoom: still - INTRO_RISE.zoomUp, pitch: 0, duration: INTRO_RISE.ms, easing: easeInOutCubic });
-        await sleep(INTRO_RISE.ms);
-      }).catch(() => {}) : Promise.resolve();
-      await lifted;
+      // From the intro: the base map starts under the still at its exact camera, above the Boston limits.
+      const basemapLoad = track('Drawing the map', FROM_INTRO
+        ? createBasemap(mapElement, shownLight, { ...INTRO_VIEW, zoom: introZoom(mapElement.clientWidth, mapElement.clientHeight) }, false)
+        : createBasemap(mapElement, shownLight));
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields, , signs] = await Promise.all([
         basemapLoad,
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
@@ -726,25 +691,35 @@ export default function App() {
       // Dev-only handle for poking at layers from the browser console.
       if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, get incident() { return incidentRunRef.current; }, transitRef, bikesRef, populationBase, quality } });
       // Lift the intro once the first frames are drawn and the view's tiles are in (or after 4 s
-      // regardless). From the intro still: the live map takes over at the still's exact framing (no
-      // fade: the two are the same picture) and its camera runs the intro (INTRO_STEPS). With a
-      // view from the URL: sweep in from a wider, turned view.
+      // regardless). From the intro still: the live map takes over at the still's exact camera (no
+      // fade: the two are the same picture) and drops in (INTRO_DROPS). With a view from the URL:
+      // sweep in from a wider, turned view.
       const dropIn = async () => {
+        const width = mapElement.clientWidth;
+        const height = mapElement.clientHeight;
+        const sky = { ...INTRO_VIEW, zoom: introZoom(width, height), padding: NO_PADDING };
         if (prefersReducedMotion()) {
           // Reduced motion: from the still straight to the opening view.
           basemap.jumpTo({ ...INITIAL_VIEW, padding: paddingRef.current });
           await nextFrames(2);
           loadProgress.finish();
         } else {
-          // The first frames after loading build layers and shaders: let them settle so the drops run smoothly.
+          // Still under the still: fetch the tiles of the views the camera will pass through (it would
+          // otherwise fetch them on the way, in stutters), then back to the sky. The first frames after
+          // loading also build layers and shaders: let them settle so the drops run smoothly.
+          for (const view of [...INTRO_DROPS.map((step) => ({ ...sky, zoom: sky.zoom + step.zoomDown })), { ...INITIAL_VIEW, padding: NO_PADDING }, sky]) {
+            if (cancelled) return;
+            basemap.jumpTo(view);
+            await tilesIn(basemap, 1200);
+          }
           await steadyFrames(6, 45, 2500);
           if (cancelled) return;
-          loadProgress.finish();
-          const still = introZoom(mapElement.clientWidth, mapElement.clientHeight);
+          const unwatch = basemap.onUserInteraction(() => { introStopped = true; });
+          loadProgress.finish(); // the still goes: the live map is under it at the same camera
           setIntroPhase('drop');
           for (const step of INTRO_DROPS) {
             if (cancelled || introStopped) break;
-            basemap.easeTo({ zoom: still - step.zoomUp, duration: step.ms, easing: easeInOutCubic });
+            basemap.easeTo({ zoom: sky.zoom + step.zoomDown, duration: step.ms, easing: easeInOutCubic });
             await sleep(step.ms + step.hold);
           }
           setIntroPhase('land');
@@ -755,8 +730,8 @@ export default function App() {
           // The interface comes in once the camera has landed (moving it with the camera costs frames).
           setIntroPhase('swoop');
           await sleep(600);
+          unwatch();
         }
-        unwatchIntro();
         if (cancelled) return;
         introRef.current = false;
         basemap.setLimits(true);
@@ -1434,7 +1409,7 @@ export default function App() {
   );
 
   return (
-    <div className={`app${clean ? ' is-clean' : ''}${introPhase === 'still' || introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land' ? ' is-intro' : ''}${introPhase === 'swoop' ? ' is-swoop' : ''}`}>
+    <div className={`app${clean ? ' is-clean' : ''}${introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land' ? ' is-intro' : ''}${introPhase === 'swoop' ? ' is-swoop' : ''}`}>
       {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
@@ -1446,18 +1421,8 @@ export default function App() {
       <PlaceTags ref={placeTagsRef} />
       {showParking && <ParkingTags ref={parkingTagsRef} />}
 
-      {/* The intro's sky over the map: clear on the still; hazy, with clouds drifting, once the camera
-          has risen; the clouds rush past and the haze thins as it drops. Tinted by the light. */}
-      {introPhase !== 'swoop' && introPhase !== 'done' && (
-        <div className="intro-sky" data-phase={introPhase} data-light={shownLight} aria-hidden="true">
-          <div className="intro-haze" />
-          <div className="intro-clouds">
-            {INTRO_CLOUDS.map((cloud, i) => (
-              <span key={i} style={{ left: `${cloud.x}%`, top: `${cloud.y}%`, width: `${cloud.w}vw`, height: `${cloud.w * 0.6}vw`, '--drift': `${cloud.drift}vw`, animationDelay: `${-i * 2.3}s` } as CSSProperties} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* The intro's haze and clouds, over the still and then the live map until the camera has dropped in. */}
+      {(introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land') && <IntroSky phase={introPhase} light={shownLight} />}
       <IntroScreen progress={loadProgress} preset={shownLight} />
 
       <MemoPerfMonitor counts={getPerfCounts} />

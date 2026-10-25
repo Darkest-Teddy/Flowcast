@@ -13,13 +13,11 @@ export interface LoadState {
   /** What's still downloading, in the order it was started. */
   pending: string[];
   error: string | null;
-  /** The live map has taken over from the still (App.tsx): only the progress line stays. */
-  lifted: boolean;
   ready: boolean;
 }
 
 export function createLoadProgress() {
-  let state: LoadState = { done: 0, total: 0, pending: [], error: null, lifted: false, ready: false };
+  let state: LoadState = { done: 0, total: 0, pending: [], error: null, ready: false };
   let epoch = 0; // bumped by reset(), so downloads from a discarded start (StrictMode's first mount) don't count
   const listeners = new Set<() => void>();
   const set = (next: Partial<LoadState>) => {
@@ -34,7 +32,7 @@ export function createLoadProgress() {
     get: () => state,
     reset: () => {
       epoch++;
-      set({ done: 0, total: 0, pending: [], error: null, lifted: false, ready: false });
+      set({ done: 0, total: 0, pending: [], error: null, ready: false });
     },
     /** Counts a startup download; its label shows while it's the oldest one still pending. */
     track<T>(label: string, promise: Promise<T>): Promise<T> {
@@ -49,7 +47,6 @@ export function createLoadProgress() {
       return promise;
     },
     fail: (error: string) => set({ error }),
-    lift: () => set({ lifted: true }),
     finish: () => set({ ready: true }),
   };
 }
@@ -71,19 +68,11 @@ function stillFor(preset: LightPreset): { src: string; srcSet?: string } {
   return introSources(preset);
 }
 
-/** The still's current zoom from its slow push-in, so the live map can take over at exactly that framing. */
-export function introScale(): number {
-  const still = document.querySelector('.intro-still');
-  if (!still) return 1;
-  const transform = getComputedStyle(still).transform;
-  return transform === 'none' ? 1 : new DOMMatrixReadOnly(transform).a;
-}
-
 /**
- * Startup overlay: a still of the map at the intro camera, pushing in slowly while the base map
- * loads underneath, and a slim progress line. Once the live map has taken over at the same framing
- * (`lifted`: no fade, it's the same picture) only the line stays, over the view from the sky that
- * the camera rises to (App.tsx, INTRO_RISE), until everything is in.
+ * Startup overlay: the intro still (the view from the sky, under the app's IntroSky haze and
+ * clouds) while the map loads underneath at the same camera, and a slim progress line over the
+ * clouds. When `progress` reports ready the app has the live map lined up with the still, so the
+ * overlay simply goes (no fade: it's the same picture) and the camera drops in (App.tsx).
  */
 export function IntroScreen({ progress, preset }: { progress: LoadProgress; preset: LightPreset }) {
   const state = useSyncExternalStore(progress.subscribe, progress.get);
@@ -97,7 +86,7 @@ export function IntroScreen({ progress, preset }: { progress: LoadProgress; pres
   return (
     <div className={`loader intro${state.error ? ' intro-failed' : ''}`} aria-busy={!state.error}>
       {/* The page's static copy (map.html) shows the same still before this mounts; drop it once ours is up. */}
-      {!state.lifted && <img
+      <img
         className="intro-still"
         {...still}
         sizes="100vw"
@@ -105,7 +94,7 @@ export function IntroScreen({ progress, preset }: { progress: LoadProgress; pres
         decoding="sync"
         onLoad={() => document.getElementById('intro-static')?.remove()}
         ref={(img) => { if (img?.complete) document.getElementById('intro-static')?.remove(); }}
-      />}
+      />
       {state.error ? (
         <div className="intro-error" role="alert">
           <p>Could not start the map: {state.error}</p>

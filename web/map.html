@@ -5,25 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.svg" />
     <title>Flowcast map</title>
+    <!-- The intro's haze and clouds (map-client/public/intro/sky.css), needed before the first paint. -->
+    <link rel="stylesheet" href="/intro/sky.css" />
     <style>
-      /* Opening from the landing page's "Open the map": the old page's last frame (its still grown to
-         fill the window) and this page's first (the same still, below) cross-fade as one picture. */
+      /* Opening from the landing page's "Open the map": its last frame and this page's first (the
+         same sky, below) cross-fade as one picture. */
       @view-transition { navigation: auto; }
-      #intro-static { position: fixed; inset: 0; z-index: 60; width: 100%; height: 100%; object-fit: cover; }
+      #intro-static { position: fixed; inset: 0; z-index: 60; }
+      #intro-static img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     </style>
   </head>
   <body>
     <script>
-      // The still the landing page handed over, on screen before the map's code loads; the map's
-      // intro (map-client/src/IntroScreen.tsx) shows the same file and removes this once it's up.
+      // The view from the sky the landing page showed, haze and clouds included, on screen before
+      // the map's code loads (markup as map-client/src/IntroSky.tsx, drift from the clock as its
+      // introSkyDelays). The map's intro shows the same and removes this once it's up.
       try {
         const src = sessionStorage.getItem('flowcast.intro');
-        if (src && /^\/intro\/[a-z]+-\d+\.webp$/.test(src)) {
-          const img = document.createElement('img');
-          img.id = 'intro-static';
-          img.alt = '';
-          img.src = src;
-          document.body.append(img);
+        const shot = src && /^\/intro\/([a-z]+)-\d+\.webp$/.exec(src);
+        if (shot) {
+          const t = Date.now() / 1000;
+          const holder = document.createElement('div');
+          holder.id = 'intro-static';
+          holder.innerHTML =
+            '<img alt="" src="' + src + '">' +
+            '<div class="intro-sky" data-phase="sky" data-light="' + shot[1] + '" style="--sky-a: ' + -(t % 28) + 's; --sky-b: ' + -(t % 34) + 's">' +
+            '<div class="intro-haze"></div><div class="intro-clouds"><div class="intro-clouds-a"></div><div class="intro-clouds-b"></div></div></div>';
+          document.body.append(holder);
         }
       } catch {
         // storage blocked: the intro appears with the map's code
