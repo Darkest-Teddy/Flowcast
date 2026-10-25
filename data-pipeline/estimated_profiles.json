@@ -229,6 +229,25 @@
       "basis": "estimated_housing",
       "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/fenway.json); not a published bed count",
       "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
+    },
+    {
+      "locationId": "kilachand",
+      "campus": "charles-river",
+      "studentLevel": "undergraduate",
+      "capacity": 550,
+      "occupancyRate": 0.9,
+      "capacityRange": [
+        412,
+        688
+      ],
+      "occupancyRateRange": [
+        0.75,
+        1
+      ],
+      "confidence": "low",
+      "basis": "estimated_housing",
+      "proxy": "Existing campus configuration size proxy (data-pipeline/campuses/charles-river.json); not a published bed count",
+      "note": "Estimated home assignment from the existing undergraduate resident roster; no additional students are created."
     }
   ],
   "activities": [
