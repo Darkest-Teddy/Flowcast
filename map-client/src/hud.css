@@ -1215,9 +1215,29 @@
 }
 
 /* The sheet's own stats line duplicated what the panel already says and was the
-   only thing visible when it was collapsed. */
+   only thing visible when it was collapsed. The pulse tiles replace it. */
 .app .sheet .sheet-stats {
   display: none;
+}
+
+/*
+ * The sheet is the right panel.
+ *
+ * It keeps its own machinery -- the drag, the detents on a phone, and reporting
+ * how much map it covers so the camera can be padded -- and takes the handoff's
+ * geometry on top: a 380px column down the right, clear of the time block above
+ * it. The body stacks its cards with one gap and scrolls as a whole.
+ */
+.app .sheet .sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The scenario picker drops to the foot of Analytics: it sets up a reading
+   rather than being one, so it should not be the first thing in the panel. */
+.app .sheet .sheet-context {
+  order: 2;
 }
 
 /* The simulation day moved into the time block, beside the clock it changes. */
@@ -1238,12 +1258,25 @@
   font-size: 12px;
 }
 
-/* The brand, campus and day moved into .hud-brand; the sheet keeps the content. */
+/*
+ * The panel header: a title and the close control, nothing else.
+ *
+ * The wordmark, the campus and the day all moved to the brand in the top left,
+ * which left this header as a band of padding above the content. It carries the
+ * tab's name now, in the display face, as the handoff asks.
+ */
 .app .sheet .sheet-head {
-  padding-top: 12px;
+  padding: 10px 10px 8px 16px;
 }
 
-.app .sheet .sheet-head h1,
+.app .sheet .sheet-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
 .app .sheet .sheet-summary {
   display: none;
 }

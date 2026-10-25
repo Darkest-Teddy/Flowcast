@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
 import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
@@ -7,6 +7,9 @@ import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/ag
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { CROWD_LEVELS } from './layers/crowdLevels';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle, type TagMode } from './BuildingTags';
+import { orderPlaces, PlacesPanel, type Category } from './panel/Places';
+import { BikesPanel, TransitPanel, type DockRow, type ShuttleRow, type StopRow } from './panel/TransitBikes';
+import './panel/panel.css';
 import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTags';
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer, type Box } from './layers/placement';
@@ -226,6 +229,24 @@ const VIEW_TABS: HudTab<View>[] = [
   { id: 'log', label: 'Log', icon: <HudIcons.incidents />, hue: 'orange' },
 ];
 
+/*
+ * The three subjects inside Analytics, and what the search means in each.
+ *
+ * Places takes the campus glyph rather than a people icon: the people icons are
+ * the crowd scale's, and one of them on a tab would read as a level.
+ */
+const ANALYTICS_SUBS: { id: 'places' | 'transit' | 'bikes'; label: string; hue: string; icon: ReactNode }[] = [
+  { id: 'places', label: 'Places', hue: 'teal', icon: <HudIcons.campus /> },
+  { id: 'transit', label: 'Transit', hue: 'green', icon: <HudIcons.transit /> },
+  { id: 'bikes', label: 'Bikes', hue: 'orange', icon: <HudIcons.bikes /> },
+];
+
+const SEARCH_PLACEHOLDER: Record<'places' | 'transit' | 'bikes', string> = {
+  places: 'Search buildings',
+  transit: 'Search stops',
+  bikes: 'Search Bluebikes docks',
+};
+
 const VIEW_TITLES: Record<View, string> = {
   log: 'Log',
   events: 'Events',
@@ -295,6 +316,11 @@ export default function App() {
   tagModeRef.current = tagMode;
   /** The buildings the open panel is listing: they keep a full pill in Focus. */
   const focusRef = useRef<ReadonlySet<string>>(new Set());
+  /* Analytics: which of the three subjects, and how the places list is cut. */
+  const [analyticsSub, setAnalyticsSub] = useState<'places' | 'transit' | 'bikes'>('places');
+  const [category, setCategory] = useState<Category>('all');
+  const [sort, setSort] = useState<'quiet' | 'busy'>('quiet');
+  const [listExpanded, setListExpanded] = useState(false);
   const tagsRef = useRef<BuildingTagsHandle>(null);
   const transitTagsRef = useRef<TransitTagsHandle>(null);
   const placeTagsRef = useRef<PlaceTagsHandle>(null);
@@ -1430,15 +1456,62 @@ export default function App() {
    * something to read.
    */
   /*
-   * What the campus list shows. Searching narrows to the three best matches,
-   * because a search is a question about one building and a long list is just
-   * the ranking again. With no search it is the ranking, top eight.
+   * The places the panel works from.
+   *
+   * The search narrows this list rather than replacing it: the category, the
+   * order and "Show all" all still apply to what you have typed, so a search is
+   * a filter on the question you were already asking and not a different screen.
+   * The list itself stays at its top three (panel/Places.tsx).
    */
-  const shownBuildings = (() => {
+  const searchedPlaces = (() => {
     const q = search.trim().toLowerCase();
-    if (!q) return ranked.slice(0, 8);
-    return ranked.filter((o) => o.location.name.toLowerCase().includes(q)).slice(0, 3);
+    if (!q) return ranked;
+    return ranked.filter((o) => `${o.location.name} ${o.location.short}`.toLowerCase().includes(q));
   })();
+
+  /*
+   * The mobility lists, each cut to three.
+   *
+   * A table of every stop and every dock answered "show me the data". Standing
+   * on the map the question is "what is the next train from the stop I am beside,
+   * and is there a bike at the dock on the corner", which is three rows; the
+   * search above reaches the rest, which is what let the tables go.
+   */
+  const matchesQuery = (text: string) => !search.trim() || text.toLowerCase().includes(search.trim().toLowerCase());
+
+  const stopRows: StopRow[] = stations
+    .map((stop): StopRow => {
+      // Trains only: Kenmore is also a stop for the 57 and other buses.
+      const next: Partial<Record<0 | 1, { route: string; time: number }>> = {};
+      for (const a of source?.nextArrivals(stop.id) ?? []) {
+        if (a.route.startsWith('Green-') && (!next[a.direction] || a.time < next[a.direction]!.time)) next[a.direction] = a;
+      }
+      return {
+        id: stop.id,
+        name: stop.short || stop.name,
+        branches: stop.routes.filter((r) => r.startsWith('Green-')).map((r) => r.replace('Green-', '')),
+        inbound: next[1] ? minutesUntil(next[1]!.time) : null,
+        outbound: next[0] ? minutesUntil(next[0]!.time) : null,
+      };
+    })
+    .filter((stop) => matchesQuery(stop.name))
+    .slice(0, 3);
+
+  const shuttleRows: ShuttleRow[] = shuttleArrivals
+    .map((bus): ShuttleRow => ({ id: bus.route, stop: bus.stop, destination: bus.longName, due: minutesUntil(bus.time) }))
+    .filter((bus) => matchesQuery(`${bus.stop} ${bus.destination}`))
+    .slice(0, 2);
+
+  const dockRows: DockRow[] = (bikes && hud
+    ? docks.map((dock): DockRow => {
+        // "Now" is the shown time: the live count in Live mode, else an estimate.
+        const estimate = estimateDock(dock, bikes.feed.status(dock), bikes.data.binSeconds, wallClockSeconds(), live ? wallClockSeconds() : hud.time);
+        return { id: dock.id, name: dock.short, bikes: estimate.bikes, ebikes: estimate.ebikes, empty: estimate.docks, estimated: estimate.estimated };
+      })
+    : []
+  )
+    .filter((dock) => matchesQuery(dock.name))
+    .slice(0, 3);
 
   /*
    * What Focus mode keeps a pill on: the rows the panel is showing.
@@ -1447,10 +1520,13 @@ export default function App() {
    * `selected`, so a row and its tag always mean the same building. With no
    * panel open this is empty and BuildingTags falls back to the busiest few.
    */
+  const listedPlaces = view === 'analytics' && analyticsSub === 'places'
+    ? orderPlaces(searchedPlaces, category, sort).slice(0, listExpanded ? 8 : 3)
+    : [];
   focusRef.current = useMemo(
-    () => new Set(view ? shownBuildings.map((o) => o.location.building).filter((id): id is string => Boolean(id)) : []),
+    () => new Set(listedPlaces.map((o) => o.location.building).filter((id): id is string => Boolean(id))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [view, shownBuildings.map((o) => o.location.building).join('|')],
+    [listedPlaces.map((o) => o.location.building).join('|')],
   );
 
   const pickTagMode = (mode: TagMode) => {
@@ -1642,10 +1718,10 @@ export default function App() {
         onDetent={setDetent}
         onCover={onSheetCover}
         header={
-          <>
-            <h1><img className="sheet-logo" src="/favicon.svg" alt="" width={24} height={24} />Flowcast</h1>
-            <p className="sheet-summary">{currentCampus?.name ?? 'BU'} · {WEEKDAYS[weekday]}</p>
-          </>
+          /* The panel's own title. The wordmark and the campus moved to the
+             brand in the top left, which left this header holding nothing but
+             padding; it now says which tab you are reading. */
+          <h1 className="sheet-title">{view ? VIEW_TITLES[view] : ''}</h1>
         }
         subheader={hud && (
           <p className="sheet-stats">
@@ -1714,17 +1790,16 @@ export default function App() {
             building is the common case; the full ranking is the fallback. */}
         {hud && view === 'analytics' && (
           <section id="hud-panel-analytics" role="tabpanel" aria-labelledby="hud-tab-analytics">
-            {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
-              info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
-
-            <div className="hud-search">
+            {/* Search first: finding one building is the common case, and the
+                query narrows the list below rather than replacing it. */}
+            <div className="pn-search">
               <HudIcons.search />
               <input
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.currentTarget.value)}
-                placeholder="Search buildings"
-                aria-label="Search buildings"
+                placeholder={SEARCH_PLACEHOLDER[analyticsSub]}
+                aria-label={SEARCH_PLACEHOLDER[analyticsSub]}
               />
               {search && (
                 <button type="button" onClick={() => setSearch('')} aria-label="Clear search">
@@ -1732,120 +1807,59 @@ export default function App() {
                 </button>
               )}
             </div>
-            <ol className="rows">
-              {shownBuildings.map((o) => {
-                const display = activityDisplay({
-                  count: o.count, capacity: o.location.capacity, share: o.share,
-                  modeled: o.modeled ?? o.location.activityModeled,
-                  capacityBasis: o.location.capacityBasis, kind: o.location.kind,
-                  allowZero: o.location.estimatedProfile?.purpose === 'rowing',
-                });
-                return (
-                  <li key={o.location.id}>
-                    <button
-                      className={o.location.building === selected ? 'row selected' : 'row'}
-                      onClick={() => select(o)}
-                      aria-pressed={o.location.building === selected}
-                      style={display.style}
-                    >
-                      <span className="name">{displayName(o.location.name)}</span>
-                      {display.hasPercentage && <span className="bar" aria-hidden="true">
-                        <span style={{ width: `${Math.min(100, display.percent)}%` }} />
-                      </span>}
-                      <span className="value">
-                        <b>{display.primary}</b>{display.secondary && ` · ${display.secondary}`}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+
+            <div className="pn-sub" role="group" aria-label="Analytics subject">
+              {ANALYTICS_SUBS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  data-hue={t.hue}
+                  aria-pressed={analyticsSub === t.id}
+                  onClick={() => {
+                    setAnalyticsSub(t.id);
+                    // The query means something different in each subject, so it
+                    // does not carry across: "Mugar" is not a dock.
+                    setSearch('');
+                  }}
+                >
+                  <span className="pn-sub-icon">{t.icon}</span>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {analyticsSub === 'places' && (
+              <PlacesPanel
+                entries={searchedPlaces}
+                query={search.trim()}
+                category={category}
+                onCategory={setCategory}
+                sort={sort}
+                onSort={setSort}
+                expanded={listExpanded}
+                onExpand={setListExpanded}
+                selected={selected}
+                onSelect={select}
+                pulse={{ walking: hud.walking, stops: hud.waiting, bikes: ridingHere }}
+                clock={formatClock(hud.time)}
+              />
+            )}
+
+            {analyticsSub === 'transit' && (
+              <TransitPanel stops={stopRows} shuttles={shuttleRows} note={live ? (feedError ?? 'live') : 'playback timetable'} />
+            )}
+
+            {analyticsSub === 'bikes' && (bikes
+              ? <BikesPanel docks={dockRows} total={bikes.data.stations.length} rate={ridingHere} peak={null} />
+              : <p className="pn-empty">Bluebikes data could not be loaded.</p>)}
+
+            {/* Last, not first: picking a scenario sets up a reading rather than
+                being one, so it should not be what the panel opens on. */}
+            {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
+              info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
           </section>
         )}
         {/* Sections of Analytics, not panels of their own. */}
-        {hud && view === 'analytics' && bikes && (
-          <section id="panel-bikes" role="tabpanel" aria-labelledby="tab-bikes">
-            {!bikes ? <p className="muted">Bluebikes data could not be loaded.</p> : (
-              <>
-                {!showBikes && hiddenNote('Bluebikes are', toggleBikes)}
-                <h2>
-                  Real Bluebikes rides <span className="muted">· {formatDate(bikes.data.replayDate)}</span>
-                </h2>
-                <p className="bike-summary">
-                  <strong>{ridingHere}</strong> riding to or from {currentCampus?.name.replace(' Campus', '') ?? 'BU'} docks now ·{' '}
-                  {bikes.replay.trips.filter((t) => bikes.campusOf(t) === campus).length.toLocaleString()} rides that day
-                </p>
-                {docks.length > 0 && (
-                  <>
-                    <h3>Typical {bikes.data.weekday} at these docks</h3>
-                    <ActivityChart
-                      values={activityCurve(docks, bikes.data.binSeconds)}
-                      binSeconds={bikes.data.binSeconds}
-                      time={hud.time}
-                      unit="rides/h"
-                      label={`Rides docked and undocked per hour at ${currentCampus?.name ?? 'BU'} Bluebikes docks on a typical ${bikes.data.weekday}`}
-                    />
-                    <p className="muted">
-                      Docked + undocked per hour, averaged over {bikes.data.profileDates.length} {bikes.data.weekday}s in{' '}
-                      {new Date(`${bikes.data.month}-15T12:00:00`).toLocaleDateString([], { month: 'long', year: 'numeric' })}
-                    </p>
-                    <h3>
-                      {live ? 'Live docks' : `Docks at ${formatClock(hud.time)} (estimated)`}{' '}
-                      <span className="muted">
-                        {bikeFeedError ??
-                          (bikeFeedUpdatedAt ? `· updated ${new Date(bikeFeedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…')}
-                      </span>
-                    </h3>
-                    <table className="arrivals">
-                      <thead>
-                        <tr>
-                          <th scope="col">Dock</th>
-                          <th scope="col">Bikes</th>
-                          <th scope="col">Empty</th>
-                          <th scope="col" title="Estimated bikes in 1 hour">+1 h</th>
-                          <th scope="col" title="Estimated bikes in 3 hours">+3 h</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {docks.map((s) => {
-                          // "Now" is the shown time: the live count in Live mode, else an estimate.
-                          const shown = live ? wallClockSeconds() : hud.time;
-                          const at = (offset: number) => estimateDock(s, bikes.feed.status(s), bikes.data.binSeconds, wallClockSeconds(), shown + offset);
-                          const nowEst = at(0);
-                          const mark = (e: DockEstimate) => (e.estimated ? '≈' : '');
-                          return (
-                            <tr key={s.id}>
-                              <th scope="row">{s.short}</th>
-                              <td>
-                                {mark(nowEst)}
-                                {nowEst.bikes}
-                                {nowEst.ebikes > 0 && <span className="muted"> ({nowEst.ebikes}⚡)</span>}
-                              </td>
-                              <td>
-                                {mark(nowEst)}
-                                {nowEst.docks}
-                              </td>
-                              <td>≈{at(3600).bikes}</td>
-                              <td>≈{at(3 * 3600).bikes}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    <p className="muted source">
-                      ≈ estimated: today's live count plus a typical {bikes.data.weekday}'s arrivals and departures at each dock. Bluebikes'
-                      rebalancing vans aren't modelled. ⚡ = e-bikes.
-                    </p>
-                  </>
-                )}
-                <p className="muted source">
-                  Bluebikes System Data and live feed. Docks within {bikes.data.stationRadiusMetres} m of a BU building. Ride times at BU docks are real;
-                  street routes are inferred.
-                </p>
-              </>
-            )}
-          </section>
-        )}
         {hud && view === 'analytics' && (
           <section id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic">
             {!showCounts && hiddenNote('Count sites are', toggleCounts)}
@@ -1857,120 +1871,6 @@ export default function App() {
             {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
             {publicCrowdRef.current && <p>Public (non-students): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
             {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
-          </section>
-        )}
-        {hud && view === 'analytics' && (
-          <section id="panel-transit" role="tabpanel" aria-labelledby="tab-transit">
-            {!showTransit && hiddenNote('MBTA service is', toggleTransit)}
-            {showParking && (parkingError
-              ? <p role="alert" className="alert">Parking estimate unavailable: {parkingError}</p>
-              : parkingRef.current && <ParkingPanel data={parkingRef.current.data} state={parkingView} onSelect={selectLot} />)}
-            {transit && source && showTransit && (
-              <>
-                <h2>
-                  {live ? 'Live MBTA' : 'Scheduled service'}{' '}
-                  <span className="muted">
-                    {live
-                      ? (feedError ?? (feedUpdatedAt ? `· updated ${new Date(feedUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '· connecting…'))
-                      : '· playback timetable'}
-                  </span>
-                </h2>
-                {stations.length > 0 && (
-                  <>
-                    <h3>
-                      {greenBranches(transit, stations).map((b) => (
-                        // MBTA Green Line green (white on it is 5.1:1).
-                        <span key={b} className="route-badge" style={{ background: '#00843D', color: '#fff' }}>
-                          {b}
-                        </span>
-                      ))}{' '}
-                      Green Line
-                    </h3>
-                    <table className="arrivals">
-                      <thead>
-                        <tr>
-                          <th scope="col">Station</th>
-                          <th scope="col">Inbound</th>
-                          <th scope="col">Outbound</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {stations.map((s) => {
-                          // Trains only: Kenmore is also a stop for the 57 and other buses.
-                          const next: Partial<Record<0 | 1, { route: string; time: number }>> = {};
-                          for (const a of source!.nextArrivals(s.id)) {
-                            if (a.route.startsWith('Green-') && (!next[a.direction] || a.time < next[a.direction]!.time)) next[a.direction] = a;
-                          }
-                          // Name the branch where several stop (Kenmore: B, C, D).
-                          const cell = (direction: 0 | 1) => {
-                            const a = next[direction];
-                            if (!a) return '—';
-                            const branch = s.routes.filter((r) => r.startsWith('Green-')).length > 1 ? `${a.route.replace('Green-', '')} ` : '';
-                            return `${branch}${minutesUntil(a.time)}`;
-                          };
-                          return (
-                            <tr key={s.id}>
-                              <th scope="row">{s.short}</th>
-                              <td>{cell(1)}</td>
-                              <td>{cell(0)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </>
-                )}
-                {busArrivals.length > 0 && (
-                  <>
-                    <h3>Buses</h3>
-                    <ul className="buses">
-                      {busArrivals.map((b) => (
-                        <li key={`${b.route}-${b.direction}`}>
-                          <span className="route-badge" style={{ background: b.color, color: b.textColor }}>
-                            {b.name}
-                          </span>
-                          <span className="bus-text">
-                            {b.directionName} at {b.stop}
-                          </span>
-                          <strong>{minutesUntil(b.time)}</strong>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-                {shuttleArrivals.length > 0 && (
-                  <>
-                    <h3>BU Shuttle</h3>
-                    <ul className="buses">
-                      {shuttleArrivals.map((b) => (
-                        <li key={b.route}>
-                          <span className="route-badge" style={{ background: b.color, color: readableOn(b.color) }} aria-hidden="true">
-                            BU
-                          </span>
-                          <span className="bus-text">
-                            {b.longName} at {b.stop}
-                          </span>
-                          <strong>{minutesUntil(b.time)}</strong>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </>
-            )}
-            {mapKind === 'mapbox' && showTraffic && (
-              <>
-                <h3>Traffic</h3>
-                <ul className="legend" aria-label="Traffic legend">
-                  {TRAFFIC_LEVELS.map((l) => (
-                    <li key={l.key}>
-                      <span className="swatch" style={{ background: l.color, height: Math.round(3 * l.boost) }} aria-hidden="true" />
-                      {l.label}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
           </section>
         )}
         {/* Always there (hidden unless chosen): WeatherControls draws into it. */}

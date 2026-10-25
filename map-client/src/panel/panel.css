@@ -1,0 +1,579 @@
+/*
+ * The right panel's contents.
+ *
+ * The chrome around it (position, surface, header) is hud.css; this file is
+ * only what goes inside. Prefix `pn-` throughout, so none of it collides with
+ * the sheet styles in styles.css while both exist.
+ *
+ * Two rules run through all of it. Grouped lists live on an opaque card, so
+ * coloured text on them keeps its contrast whatever the map underneath is
+ * doing. And a control's selected state is a neutral white fill, never a hue:
+ * the hues name things, and on this map blue already means Quiet.
+ */
+
+.hud-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Search, pinned above whatever the tab is showing
+ * ------------------------------------------------------------------------- */
+.pn-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.07);
+  color: var(--map-ink-secondary, #b4b4b9);
+}
+
+.pn-search svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.pn-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: none;
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  font-size: 14px;
+}
+
+.pn-search input:focus {
+  outline: none;
+}
+
+/* Ours sits beside the browser's, which cannot be styled to match. */
+.pn-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.pn-search button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .pn-search button:hover {
+    background: rgb(255 255 255 / 0.12);
+    color: var(--color-ink, #f5f5f7);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Cards and labels, shared by every tab
+ * ------------------------------------------------------------------------- */
+.pn-card {
+  flex: none;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--map-card, #2c2c2e);
+  box-shadow: inset 0 0 0 1px rgb(245 245 247 / 0.12);
+}
+
+.pn-label {
+  margin: 2px 0 0 4px;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pn-empty {
+  padding: 14px 12px;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------------------
+ * Analytics sub-switch: places, transit, bikes
+ * ------------------------------------------------------------------------- */
+/*
+ * A track of three, not a second row of tabs. The top tabs choose the subject;
+ * this chooses which part of it, and it looks different from them on purpose so
+ * the two are not read as one navigation two rows deep.
+ */
+.pn-sub {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  flex: none;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
+}
+
+.pn-sub button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+/* Hue on the icon only; the selected fill stays neutral, as with the top tabs. */
+.pn-sub button { --hue: var(--hue-neutral); }
+.pn-sub button[data-hue='teal'] { --hue: var(--hue-teal); }
+.pn-sub button[data-hue='green'] { --hue: var(--hue-green); }
+.pn-sub button[data-hue='orange'] { --hue: var(--hue-orange); }
+
+.pn-sub-icon {
+  display: flex;
+  color: rgb(var(--hue));
+}
+
+.pn-sub-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.pn-sub button[aria-pressed='true'] {
+  background: rgb(255 255 255 / 0.14);
+  color: var(--color-ink, #f5f5f7);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+ * The pulse: three counts over the list
+ * ------------------------------------------------------------------------- */
+.pn-pulse {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  flex: none;
+}
+
+.pn-tile-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.05);
+}
+
+.pn-tile-icon {
+  display: block;
+  color: var(--map-ink-secondary, #b4b4b9);
+}
+
+.pn-tile-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.pn-tile-stat b {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.pn-tile-stat > span:last-child {
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 11px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Category grid: what kind of place
+ * ------------------------------------------------------------------------- */
+.pn-cats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  flex: none;
+}
+
+.pn-cats button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 50px;
+  padding: 0 2px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: rgb(var(--hue) / 0.06);
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+/* The icon wears the hue; the label stays ink, so the colour names the category
+   and never competes with the selected state. */
+.pn-cats button { --hue: var(--hue-neutral); }
+.pn-cats button[data-hue='teal'] { --hue: var(--hue-teal); }
+.pn-cats button[data-hue='green'] { --hue: var(--hue-green); }
+.pn-cats button[data-hue='violet'] { --hue: var(--hue-violet); }
+.pn-cats button[data-hue='orange'] { --hue: var(--hue-orange); }
+.pn-cats button[data-hue='pink'] { --hue: var(--hue-pink); }
+
+.pn-cat-icon {
+  display: block;
+  color: rgb(var(--hue));
+}
+
+.pn-cat-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+@media (hover: hover) {
+  .pn-cats button:hover[aria-pressed='false'] {
+    background: rgb(var(--hue) / 0.12);
+  }
+}
+
+.pn-cats button[aria-pressed='true'] {
+  background: rgb(var(--hue) / 0.16);
+  border-color: rgb(var(--hue) / 0.7);
+}
+
+/* ---------------------------------------------------------------------------
+ * Quietest | Busiest, and the time the figures are for
+ * ------------------------------------------------------------------------- */
+.pn-sortrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+}
+
+.pn-sort {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.06);
+}
+
+.pn-sort button {
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.pn-sort button[aria-pressed='true'] {
+  background: #f5f5f7;
+  color: #1d1d1f;
+  font-weight: 600;
+}
+
+.pn-now {
+  color: var(--color-ink-tertiary, #8e8e93);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+ * The list
+ * ------------------------------------------------------------------------- */
+.pn-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * Opened, the card scrolls rather than the panel: the search and the switches
+ * above it stay put, which is the point of opening it in place.
+ */
+.pn-rows.is-open {
+  max-height: 330px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pn-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+@media (hover: hover) {
+  .pn-row:hover {
+    background: rgb(255 255 255 / 0.08);
+  }
+}
+
+.pn-row[aria-pressed='true'] {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.pn-tile {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: rgb(var(--lv) / 0.14);
+  color: rgb(var(--lv));
+}
+
+.pn-tile svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.pn-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+}
+
+/* The figure in white, the level word in the level's colour: the number is the
+   measurement and the word is what it means. */
+.pn-value {
+  color: var(--lv-text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pn-value b {
+  color: var(--color-ink, #f5f5f7);
+  font-variant-numeric: tabular-nums;
+}
+
+.pn-chev {
+  color: var(--color-ink-tertiary, #8e8e93);
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* Spans the name and the figure, so the bar measures the row's content rather
+   than running under the tile and the chevron. */
+.pn-bar {
+  grid-column: 2 / 4;
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(245 245 247 / 0.12);
+  overflow: hidden;
+}
+
+.pn-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgb(var(--lv));
+}
+
+.pn-more {
+  width: 100%;
+  height: 34px;
+  margin-top: 2px;
+  border: 0;
+  border-top: 1px solid rgb(245 245 247 / 0.12);
+  border-radius: 0 0 12px 12px;
+  background: transparent;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+@media (hover: hover) {
+  .pn-more:hover {
+    background: rgb(255 255 255 / 0.06);
+    color: var(--color-ink, #f5f5f7);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Focus rings, one ring for everything in here
+ * ------------------------------------------------------------------------- */
+.hud-panel-body :focus-visible {
+  outline: 2px solid var(--color-ink, #f5f5f7);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pn-cats button,
+  .pn-sort button,
+  .pn-row,
+  .pn-more,
+  .pn-search button {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Transit and Bikes rows
+ * ------------------------------------------------------------------------- */
+.pn-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+}
+
+.pn-head .pn-label {
+  margin: 0;
+}
+
+/* A row with nothing to open is still a row: same grid, no button affordance. */
+.pn-row--static {
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .pn-row--static:hover {
+    background: transparent;
+  }
+}
+
+/* The line's own roundel, so a stop is recognisable before the name is read. */
+.pn-roundel {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* MBTA Green Line green; white on it is 5.1:1. */
+.pn-roundel--t {
+  background: #00843d;
+}
+
+/* BU red, and a rounded rectangle rather than a disc: it is a badge, not a line. */
+.pn-roundel--bu {
+  width: 32px;
+  height: 22px;
+  border-radius: 6px;
+  background: #cc0000;
+  font-size: 11px;
+}
+
+/* Inbound over outbound, so both fit the right edge without a second row. */
+.pn-two {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pn-two b {
+  color: var(--color-ink, #f5f5f7);
+  font-variant-numeric: tabular-nums;
+}
+
+.pn-to {
+  color: var(--map-ink-secondary, #b4b4b9);
+}
+
+/* The dock figures: bikes, e-bikes, and how much room is left. */
+.pn-counts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pn-counts b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/*
+ * E-bikes in their own warm orange. It used to be the same yellow as the Busy
+ * crowd level, which put "there are 3 e-bikes here" and "this place is busy" in
+ * one colour; the three-level scale freed this hue up.
+ */
+.pn-ebike {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #fdba74;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pn-ebike svg {
+  width: 11px;
+  height: 11px;
+}
+
+.pn-empty-count {
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+}
+
+/* A tile with no level to colour: transit and docks have no crowd reading. */
+.pn-tile--plain {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--map-ink-secondary, #b4b4b9);
+}
+
+.pn-foot {
+  margin: 0 0 0 4px;
+  color: var(--color-ink-tertiary, #8e8e93);
+  font-size: 11px;
+  line-height: 1.35;
+}
