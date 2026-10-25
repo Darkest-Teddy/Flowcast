@@ -5,7 +5,7 @@ import { REPO } from './Terms';
 export const PRIVACY_EFFECTIVE = 'October 25, 2026';
 
 const SUMMARY = [
-  { title: 'Only what features need', body: 'Your Google name and email, plus what you choose to add: profile, schedule, club follows.' },
+  { title: 'Only what features need', body: 'Your Google name and email, plus what you choose to add. Crowd reports are anonymous counts.' },
   { title: 'No ads, no sale, no trackers', body: 'No analytics or advertising scripts, and your data is never sold or shared for marketing.' },
   { title: 'AI only when you ask', body: 'Ask and voice send your question, and up to two weeks of classes, to OpenAI.' },
   { title: 'In your control', body: 'Download everything, change it, or delete it from this page.' },
@@ -16,7 +16,9 @@ const SUMMARY = [
  * (server/src/dashboard/router.ts), what Ask sends (web/src/lib/personalSchedule.ts, 14 days;
  * store: false in server/src/agent.ts, chat.ts and voice.ts), what the browser calls (Mapbox,
  * MBTA, Bluebikes, Open-Meteo) and keeps (theme, sidebar and map settings; the Ask chat in
- * sessionStorage). Change the policy with the code.
+ * sessionStorage), and how crowd reports are counted (server/src/dashboard/crowdReports.ts: a count
+ * per place, Boston date, hour and answer, with no account column; the throttle is in-memory HMACs)
+ * and remembered on the device (web/src/lib/crowdReports.ts). Change the policy with the code.
  */
 const CLAUSES: Clause[] = [
   {
@@ -38,6 +40,7 @@ const CLAUSES: Clause[] = [
         <li>your class schedule, if you import one: each class’s title, start and end times and room;</li>
         <li>the clubs you follow and your notification preferences.</li>
       </ul>
+      <p><strong>Crowd reports:</strong> if you answer “Was it busy?”, only an anonymous count is kept, never anything that identifies you (see Crowd reports below).</p>
       <p><strong>What we don’t collect:</strong> your location, your contacts, anything from your other apps, or analytics about how you use Flowcast. There are no advertising or tracking scripts and no tracking cookies.</p>
     </>,
   },
@@ -63,6 +66,16 @@ const CLAUSES: Clause[] = [
     </>,
   },
   {
+    id: 'reports',
+    title: 'Crowd reports (“Was it busy?”)',
+    body: <>
+      <p>After Flowcast suggests a place, it may ask once, on a later visit, how busy it was: Quiet, OK or Packed. You can also report a place you’re at. Answering is optional; “Didn’t go” or closing the question sends nothing.</p>
+      <p>Your answer only adds one to a count for that place, Boston date and Boston hour. The time is rounded to the hour before it’s stored, and nothing about you is stored with it: no account, session or exact time. Because a count can’t be traced back to anyone, reports aren’t part of your data download, and deleting your profile doesn’t remove them.</p>
+      <p>To stop the same person reporting a place over and over, the server briefly remembers a scrambled form of your account ID (a keyed hash) in memory only. It is never written down, can’t be matched to a stored count, and disappears within the hour or when the server restarts.</p>
+      <p>Other students see reports only as totals, and only for places and hours with at least three reports in the last week. Reports are shown beside the model’s projections and never change them.</p>
+    </>,
+  },
+  {
     id: 'processors',
     title: 'Services that handle your data',
     body: <>
@@ -78,13 +91,13 @@ const CLAUSES: Clause[] = [
   {
     id: 'device',
     title: 'What stays on your device',
-    body: <p>Your browser keeps your sign-in session, your theme, sidebar and map settings, and (in the tab only) your Ask conversation. These never leave your device except to sign you in, and clearing your browser data removes them.</p>,
+    body: <p>Your browser keeps your sign-in session, your theme, sidebar and map settings, (in the tab only) your Ask conversation, and a short list of up to eight places Flowcast recently suggested, so it can ask once whether they were busy. These never leave your device except to sign you in, and clearing your browser data removes them.</p>,
   },
   {
     id: 'retention',
     title: 'How long we keep it',
     body: <>
-      <p>We keep your Flowcast data for as long as you have an account. Nothing expires automatically.</p>
+      <p>We keep your Flowcast data for as long as you have an account. Nothing expires automatically. Anonymous crowd-report counts are kept as campus totals; they aren’t linked to any account.</p>
       <p>“Delete profile data” on this page permanently removes your Flowcast record (profile, schedule, follows and preferences) from our database straight away and signs you out. Your sign-in record stays with Supabase. Since this is a student project with no private support inbox, if you want that removed too, open an issue on <a href={REPO} target="_blank" rel="noreferrer">GitHub</a> that says only that you’d like your sign-in record deleted. Don’t include your email or any other personal details in the issue.</p>
     </>,
   },
@@ -95,7 +108,7 @@ const CLAUSES: Clause[] = [
       <li><strong>See it:</strong> “Download account data” gives you everything we store about you, as a file.</li>
       <li><strong>Change it:</strong> edit your profile at any time, or re-import or remove your schedule in Calendars.</li>
       <li><strong>Delete it:</strong> “Delete profile data” removes it all.</li>
-      <li><strong>Limit it:</strong> everything beyond sign-in is optional. You can use Flowcast without importing a schedule, and without Ask or voice.</li>
+      <li><strong>Limit it:</strong> everything beyond sign-in is optional. You can use Flowcast without importing a schedule, without Ask or voice, and without answering “Was it busy?”.</li>
     </ul>,
   },
   {
