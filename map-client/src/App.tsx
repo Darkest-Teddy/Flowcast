@@ -8,6 +8,7 @@ import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from '.
 import { CROWD_LEVELS } from './layers/crowdLevels';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle, type TagMode } from './BuildingTags';
 import { orderPlaces, PlacesPanel, type Category } from './panel/Places';
+import { BuildingDetail, FIRST_HOUR, LAST_HOUR, type HourSample } from './panel/BuildingDetail';
 import { BikesPanel, TransitPanel, type DockRow, type ShuttleRow, type StopRow } from './panel/TransitBikes';
 import { EventDetail, EventsList, type EventWhen } from './panel/Events';
 import { defaultRadius, gathers, radiusLimits, SCENARIOS, WhatIfForm, type ScenarioKind } from './panel/WhatIf';
@@ -345,6 +346,8 @@ export default function App() {
   const [whatIfMinutes, setWhatIfMinutes] = useState(30);
   const [whatIfOutside, setWhatIfOutside] = useState(true);
   const [assumptionsOpen, setAssumptionsOpen] = useState(false);
+  /** "Hours & sources" on a building: where the old Data tab's content lives now. */
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const circleRef = useRef<WhatIfCircleHandle>(null);
   const circleFrameRef = useRef<{ centre: [number, number] | null; radius: number; rgb: string }>({ centre: null, radius: 0, rgb: '245, 245, 247' });
   const tagsRef = useRef<BuildingTagsHandle>(null);
@@ -1609,6 +1612,77 @@ export default function App() {
   };
 
   /*
+   * The selected building's day, hour by hour.
+   *
+   * occupancyAt() computes every location at a given second, so fifteen hours is
+   * fifteen of those: affordable once, ruinous per render, which is why this is
+   * memoised on the building and the simulated day rather than on the clock. The
+   * bars answer "when should I go", and that shape does not change minute to
+   * minute.
+   */
+  const detailLocation = view === 'analytics' && analyticsSub === 'places' && selected
+    ? ranked.find((o) => o.location.building === selected)?.location ?? null
+    : null;
+  const detailKey = `${detailLocation?.id ?? ''}|${weekday}|${dayRequest}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const detailHours = useMemo<HourSample[]>(() => {
+    const playback = playbackRef.current;
+    if (!detailLocation || !playback) return [];
+    const out: HourSample[] = [];
+    for (let hour = FIRST_HOUR; hour <= LAST_HOUR; hour++) {
+      const sec = hour * 3600;
+      const here = playback.occupancyAt(sec).find((o) => o.location.id === detailLocation.id);
+      const d = activityDisplay({
+        count: here?.count ?? 0,
+        capacity: detailLocation.capacity,
+        share: here?.share ?? 0,
+        modeled: here?.modeled ?? detailLocation.activityModeled,
+        capacityBasis: detailLocation.capacityBasis,
+        kind: detailLocation.kind,
+      });
+      out.push({
+        sec,
+        label: formatClock(sec).replace(':00', ''),
+        percent: d.percent,
+        icon: d.icon,
+        style: d.style as Record<string, string>,
+        known: d.hasPercentage,
+        word: d.secondary,
+      });
+    }
+    return out;
+  }, [detailKey]);
+
+  /*
+   * The detail header's own reading, which is the live one rather than an hourly
+   * sample: the bars are the day, this is right now.
+   */
+  const detailEntry = detailLocation ? ranked.find((o) => o.location.id === detailLocation.id) ?? null : null;
+  const detailDisplay = activityDisplay({
+    count: detailEntry?.count ?? 0,
+    capacity: detailLocation?.capacity ?? 0,
+    share: detailEntry?.share ?? 0,
+    modeled: detailEntry?.modeled ?? detailLocation?.activityModeled,
+    capacityBasis: detailLocation?.capacityBasis,
+    kind: detailLocation?.kind,
+  });
+
+  /** An event in this building today, so the detail can point at it. */
+  const detailEvent = (() => {
+    if (!detailLocation || !sourceData) return null;
+    const today = simDay?.eventDate;
+    const found = sourceData.events.find((e) => e.locationId === detailLocation.id && (!today || e.start.slice(0, 10) === today));
+    if (!found) return null;
+    return {
+      id: found.id,
+      name: found.name,
+      when: new Date(found.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      place: found.roomCode || found.locationName || detailLocation.short,
+      imageUrl: found.imageUrl,
+    };
+  })();
+
+  /*
    * One search, read by every list in the panel. Declared here because the
    * events list below is the first to use it and `const` has no hoisting: with
    * it further down, opening the Events tab threw before the panel rendered.
@@ -2125,7 +2199,33 @@ export default function App() {
               ))}
             </div>
 
-            {analyticsSub === 'places' && (
+            {analyticsSub === 'places' && detailLocation && (
+              <>
+                <BuildingDetail
+                  location={detailLocation}
+                  percent={detailDisplay.percent}
+                  level={{ icon: detailDisplay.icon, word: detailDisplay.secondary, style: detailDisplay.style as Record<string, string> }}
+                  known={detailDisplay.hasPercentage}
+                  hours={detailHours}
+                  nowHour={Math.floor(hud.time / 3600)}
+                  event={detailEvent}
+                  backLabel="Places"
+                  onBack={() => selectBuilding(null)}
+                  onWalk={() => selectSource(detailLocation)}
+                  onSources={() => setSourcesOpen((v) => !v)}
+                  onOpenEvent={(id) => {
+                    setOpenEventId(id);
+                    selectView('events');
+                  }}
+                />
+                {sourcesOpen && sourceData && baseDayRef.current && (
+                  <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected}
+                    campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} />
+                )}
+              </>
+            )}
+
+            {analyticsSub === 'places' && !detailLocation && (
               <PlacesPanel
                 entries={searchedPlaces}
                 query={search.trim()}

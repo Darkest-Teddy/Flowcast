@@ -1132,3 +1132,244 @@
 .wi-chip--more {
   color: var(--color-ink-tertiary, #8e8e93);
 }
+
+/* ---------------------------------------------------------------------------
+ * Building detail
+ * ------------------------------------------------------------------------- */
+.bd-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+
+.bd-tile {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(var(--lv), 0.14);
+  color: rgb(var(--lv));
+}
+
+.bd-tile svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.bd-names {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.bd-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+}
+
+.bd-kind {
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+/* The figure in white over its word in the level's colour: the number is the
+   measurement, the word is what it means. */
+.bd-reading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+  flex: none;
+  color: var(--lv-text);
+  line-height: 1.1;
+}
+
+.bd-reading b {
+  color: var(--color-ink, #f5f5f7);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bd-reading > span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bd-today {
+  padding: 10px 12px 8px;
+}
+
+.bd-today-head {
+  margin-bottom: 8px;
+}
+
+.bd-quietest {
+  color: var(--lv-text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/*
+ * The day, as fifteen hourly bars.
+ *
+ * Bars rather than a line: a line implies the minutes in between were measured,
+ * and these are hourly samples of a simulation. They sit on a shared baseline
+ * so the shape of the day is the thing you read, not the individual heights.
+ */
+.bd-bars {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  align-items: end;
+  gap: 3px;
+  height: 60px;
+}
+
+.bd-bar {
+  align-self: end;
+  border-radius: 3px 3px 1px 1px;
+  background: rgb(var(--lv));
+}
+
+/* Hours already gone are context, not advice. */
+.bd-bar[data-past] {
+  opacity: 0.45;
+}
+
+/* The hour being simulated, outlined rather than recoloured: its level still
+   has to read, and a second colour would be a second meaning. */
+.bd-bar[data-now] {
+  outline: 1.5px solid var(--color-ink, #f5f5f7);
+  outline-offset: 1px;
+}
+
+.bd-bar[data-unknown] {
+  background: repeating-linear-gradient(135deg, #46464c 0 3px, #38383d 3px 6px);
+}
+
+.bd-axis {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 4px;
+  color: var(--color-ink-tertiary, #8e8e93);
+  font-size: 11px;
+}
+
+.bd-axis span {
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* The next three hours, spelled out: the bars show the shape, these are the
+   decision. */
+.bd-next {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  flex: none;
+}
+
+.bd-next-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  background: rgba(var(--lv), 0.1);
+}
+
+.bd-next-hour {
+  color: var(--map-ink-secondary, #b4b4b9);
+  font-size: 11px;
+}
+
+.bd-next-icon {
+  display: block;
+  color: rgb(var(--lv));
+}
+
+.bd-next-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.bd-next-tile b {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/* An event here today, in the events layer's violet so the two agree. */
+.bd-event {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 8px;
+  border: 1px solid rgba(var(--tag-event-rgb), 0.45);
+  border-radius: 12px;
+  background: rgba(var(--tag-event-rgb), 0.08);
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+@media (hover: hover) {
+  .bd-event:hover {
+    background: rgba(var(--tag-event-rgb), 0.14);
+  }
+}
+
+.bd-event-thumb {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  object-fit: cover;
+}
+
+.bd-event-thumb.is-placeholder {
+  background: repeating-linear-gradient(135deg, #34343a 0 9px, #2f2f34 9px 18px);
+}
+
+.bd-event-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.bd-event-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bd-event-when {
+  color: var(--tag-event, #ddd6fe);
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-event {
+    transition: none;
+  }
+}
