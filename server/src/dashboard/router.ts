@@ -74,8 +74,9 @@ export function dashboardRouter(pool?: pg.Pool, options: { verifyUser?: VerifyUs
   });
   router.get('/schedule', async (_req, res) => { res.json(scheduleState(await account(res))); });
   router.post('/schedule/preview', async (req, res) => {
-    const { impact } = await snapshot();
-    res.json(await previewSchedule(req.body, locationsFromBundle(impact)));
+    const { impact, campus } = await snapshot();
+    const locations = locationsFromBundle(impact).map((location) => ({ ...location, buildingCodes: campus.locations[location.id]?.buildingCodes }));
+    res.json(await previewSchedule(req.body, locations));
   });
   router.put('/schedule', async (req, res) => {
     const { impact } = await snapshot();

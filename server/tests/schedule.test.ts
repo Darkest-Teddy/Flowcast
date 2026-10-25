@@ -98,3 +98,70 @@ test('only exact schedule routes accept bodies above 128 KiB; source limits and 
     assert.equal((await send('/api/dashboard/schedule/preview', JSON.stringify({ content: 'x'.repeat(7 * 1024 * 1024) }))).status, 413);
   } finally { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); }
 });
+
+const embeddedEastern = ['BEGIN:VTIMEZONE', 'TZID:EDT',
+  'BEGIN:DAYLIGHT', 'TZOFFSETFROM:-0500', 'TZOFFSETTO:-0400', 'TZNAME:EDT',
+  'DTSTART:19700308T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU', 'END:DAYLIGHT',
+  'BEGIN:STANDARD', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500', 'TZNAME:EST',
+  'DTSTART:19701101T020000', 'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU', 'END:STANDARD', 'END:VTIMEZONE'].join('\r\n');
+
+test('exact embedded Eastern rules preserve DST, BYDAY and floating holiday EXDATE', async () => {
+  const p = await preview(calendar(embeddedEastern, event([
+    'UID:synthetic', 'SUMMARY:Lecture', 'DTSTART;TZID=EDT;VALUE=DATE-TIME:20261021T093000',
+    'DTEND;TZID=EDT;VALUE=DATE-TIME:20261021T104500',
+    'RRULE:FREQ=WEEKLY;BYDAY=TU,TH;UNTIL=20261203T235959',
+    'EXDATE:20261125T093000,20261126T093000,20261127T093000',
+    'LOCATION:100 Example Ave CAS 223',
+  ].join('\r\n'))));
+  assert.equal(p.items.length, 11);
+  assert.equal(p.items[0].start, '2026-10-27T13:30:00.000Z');
+  assert.ok(p.items.some((i) => i.start === '2026-11-03T14:30:00.000Z'));
+  assert.ok(p.items.every((i) => [2, 4].includes(new Date(i.start).getUTCDay()) && !i.start.startsWith('2026-11-26')));
+  assert.ok(p.items.every((i) => i.locationId === 'cas' && Date.parse(i.end) - Date.parse(i.start) === 75 * 60000));
+  assert.ok(p.warnings.some((w) => w.includes('Boston')));
+  const spring = await preview(calendar(embeddedEastern, event(base.replace('America/New_York', 'EDT').replace('20261025', '20260301') + '\r\nRRULE:FREQ=WEEKLY;COUNT=3')), new Date('2026-03-01T12:00:00Z'));
+  assert.deepEqual(spring.items.map((i) => i.start), ['2026-03-01T14:00:00.000Z', '2026-03-08T13:00:00.000Z', '2026-03-15T13:00:00.000Z']);
+});
+
+test('EDT abbreviation alone, altered or duplicate embedded rules and historical dates fail closed', async () => {
+  const e = event(base.replace('America/New_York', 'EDT'));
+  for (const zone of ['', embeddedEastern.replace('TZOFFSETTO:-0400', 'TZOFFSETTO:-0300'),
+    embeddedEastern.replace('BYDAY=2SU', 'BYDAY=1SU'), embeddedEastern.replace('19700308T020000', '19700308T030000'),
+    embeddedEastern + '\r\n' + embeddedEastern]) {
+    await assert.rejects(preview(calendar(zone, e)), /timezone/);
+  }
+  await assert.rejects(preview(calendar(embeddedEastern, event(base.replace('America/New_York', 'EDT').replace('20261025', '20061025')))), /2007/);
+});
+
+test('date-only DATE-TIME entries and zero-duration duplicate exam venues are skipped with counts', async () => {
+  const p = await preview(calendar(embeddedEastern, event(base),
+    event('UID:bad-date\r\nDTSTART;TZID=EDT;VALUE=DATE-TIME:20261025\r\nDTEND;TZID=EDT;VALUE=DATE-TIME:20261025'),
+    ...['CAS 101', 'Other 101'].map((room, i) => event(`UID:exam${i}\r\nSUMMARY:Exam\r\nDTSTART;TZID=EDT:20261216T200000\r\nDTEND;TZID=EDT:20261216T200000\r\nLOCATION:${room}`)),
+    event('UID:no-end\r\nDTSTART;TZID=EDT:20261217T200000'),
+  ));
+  assert.equal(p.items.length, 1);
+  assert.ok(p.warnings.some((w) => w.startsWith('1 event(s) skipped: VALUE=DATE-TIME')));
+  assert.ok(p.warnings.some((w) => w.startsWith('3 event(s) skipped: missing or non-positive duration')));
+});
+
+test('malformed and zero-duration overrides do not resurrect original occurrences', async () => {
+  const p = await preview(calendar(event(base + '\r\nRRULE:FREQ=WEEKLY;COUNT=3'),
+    event('UID:class\r\nRECURRENCE-ID;TZID=America/New_York:20261101T090000\r\nDTSTART;VALUE=DATE-TIME:20261101'),
+    event('UID:class\r\nRECURRENCE-ID;TZID=America/New_York:20261108T090000\r\nDTSTART;TZID=America/New_York:20261108T090000\r\nDTEND;TZID=America/New_York:20261108T090000'),
+  ));
+  assert.deepEqual(p.items.map((i) => i.start), ['2026-10-25T13:00:00.000Z']);
+});
+
+test('address suffix matching uses canonical building codes and leaves ambiguous or partial matches empty', async () => {
+  const catalog = [
+    { id: 'science', name: 'Science Center', short: 'Science', buildingCodes: ['SCI'] },
+    { id: 'hall1', name: 'First Hall', short: 'First', buildingCodes: ['DUP'] },
+    { id: 'hall2', name: 'Second Hall', short: 'Second', buildingCodes: ['DUP'] },
+    ...locations,
+  ];
+  const rooms = ['100 Example Ave SCI 268B', '685-725 Example Ave CAS 223', '100 Example Ave SCI AUD',
+    '100 Example Ave DUP 101', '100 Example Ave XSCI 101', 'No room assigned NO ROOM', 'Meet near SCI 101'];
+  const p = await preview(calendar(...rooms.map((room, i) => event(base.replace('UID:class', `UID:${i}`).replace('LOCATION:CAS 101', `LOCATION:${room}`)))), now, catalog);
+  const mappings = Object.fromEntries(p.items.map((i) => [i.locationText, i.locationId]));
+  assert.deepEqual(rooms.map((room) => mappings[room]), ['science', 'cas', 'science', '', '', '', '']);
+});

@@ -169,17 +169,16 @@ Parsing uses pinned [node-ical](https://github.com/jens-maus/node-ical), includi
 `expandRecurringEvent` API for timezone-aware RRULE, EXDATE and RECURRENCE-ID expansion.
 The dependency requires Node 22+, including on hosts whose root package still permits Node 20.
 IANA timezones and exact Windows labels from the dependency's bundled mapping are accepted;
-unknown/custom TZIDs fail explicitly. VTIMEZONE observances are left unchanged. Floating event
+Custom timezone labels are accepted only when their embedded VTIMEZONE rules match the supported US Eastern daylight-saving definition; other unknown TZIDs fail explicitly. Floating event
 times are interpreted in `America/New_York` with a preview warning. All-day events are skipped
-with a warning. Timed events need a positive DTEND/DURATION of at most seven days.
+with a warning. Date-only values mislabeled as DATE-TIME and entries without a positive duration are skipped with counts and warnings; no exam duration or venue is inferred. Imported timed events need a positive DTEND/DURATION of at most seven days.
 
 The window starts at today's Boston midnight and ends exclusively at Boston midnight 120 days
 later. Only occurrences starting in that window are imported; an event may end after the window.
 Daily, weekly, monthly and yearly RRULEs, DURATION, EXDATE, moved exceptions and cancelled exceptions
 are supported. Sub-daily frequencies/BYHOUR/BYMINUTE/BYSECOND, RDATE, EXRULE and RANGE exceptions fail
 explicitly. Duplicate UID/recurrence identities fail instead of arbitrarily selecting a version.
-Location matching uses normalized exact building names/short names, optionally followed by a room
-number; ambiguous matches remain unmapped. The original location is retained as `locationText`.
+Location matching uses normalized exact building names/short names and published building codes from the saved campus catalog, including address-prefixed code/room suffixes; ambiguous matches remain unmapped. The original location is retained as `locationText`.
 
 Limits: 1 MiB UTF-8 source, 255-character `.ics` filename, 2,000 source events and output items,
 300-character titles, 1,000-character locations, 16 KiB unfolded properties. Preview runs in a

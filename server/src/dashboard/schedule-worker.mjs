@@ -39,15 +39,38 @@ function validateRule(value) {
 }
 function matchLocation(value, locations) {
   const full = normalize(value);
-  const building = full.replace(/\s+(?:(?:room|rm|suite)\s+)?[a-z]?\d+[a-z]?$/i, '');
-  const exact = locations.filter((l) => [l.name, l.short].some((s) => normalize(s) === full && full));
-  const matches = exact.length ? exact : locations.filter((l) => [l.name, l.short].some((s) => normalize(s) === building && building));
-  return matches.length === 1 ? matches[0].id : '';
+  const building = full.replace(/\s+(?:(?:room|rm|suite)\s+)?(?:[a-z]?\d+[a-z]?|aud)$/i, '');
+  const aliases = (l) => [l.name, l.short, ...(l.buildingCodes ?? [])].map(normalize).filter(Boolean);
+  const exact = locations.filter((l) => aliases(l).includes(full));
+  if (exact.length) return exact.length === 1 ? exact[0].id : '';
+  const matches = locations.filter((l) => aliases(l).includes(building));
+  if (matches.length) return matches.length === 1 ? matches[0].id : '';
+  // An address prefix may precede a complete building code and room, never a partial code.
+  if (building === full || !/^\d+[\s-]/.test(value.trim())) return '';
+  const suffix = locations.filter((l) => [l.short, ...(l.buildingCodes ?? [])].some((s) => {
+    const code = normalize(s);
+    return /^[a-z]{2,8}$/.test(code) && building.endsWith(` ${code}`);
+  }));
+  return suffix.length === 1 ? suffix[0].id : '';
+}
+
+function embeddedEasternZone(lines) {
+  const blocks = lines.join('\n').match(/BEGIN:VTIMEZONE\n[\s\S]*?\nEND:VTIMEZONE/g) ?? [];
+  const edt = blocks.filter((block) => block.split('\n').includes('TZID:EDT'));
+  if (edt.length !== 1) return false;
+  const expected = ['BEGIN:VTIMEZONE', 'TZID:EDT',
+    'BEGIN:DAYLIGHT', 'TZOFFSETFROM:-0500', 'TZOFFSETTO:-0400', 'TZNAME:EDT',
+    'DTSTART:19700308T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU', 'END:DAYLIGHT',
+    'BEGIN:STANDARD', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500', 'TZNAME:EST',
+    'DTSTART:19701101T020000', 'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU', 'END:STANDARD', 'END:VTIMEZONE'];
+  return edt[0] === expected.join('\n');
 }
 
 function prepare(content, warnings) {
   const lines = content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\n[ \t]/g, '').trim().split('\n');
   if (lines[0] !== 'BEGIN:VCALENDAR' || lines.at(-1) !== 'END:VCALENDAR' || content.includes('\0')) fail('Expected a complete iCalendar VCALENDAR file.');
+  const eastern = embeddedEasternZone(lines);
+  let eventStart = 0; let malformed = false; let skippedDates = 0;
   const stack = []; const identities = new Set(); let fields; let count = 0; let floating = false;
   const result = [];
   for (let line of lines) {
@@ -60,7 +83,7 @@ function prepare(content, warnings) {
       if (stack.length >= 8 || (value === 'VCALENDAR' && stack.length)) fail('Invalid calendar nesting.');
       if (value === 'VEVENT') {
         if (stack.at(-1) !== 'VCALENDAR' || ++count > 2000) fail('Calendar must contain at most 2,000 events.');
-        fields = new Map();
+        fields = new Map(); eventStart = result.length; malformed = false;
       }
       stack.push(value);
     } else if (name === 'END') {
@@ -72,6 +95,13 @@ function prepare(content, warnings) {
         if (identities.has(identity)) fail('Duplicate calendar UID or recurrence exception.');
         identities.add(identity);
         if (fields.has('DTEND') && fields.has('DURATION')) fail('An event cannot specify both DTEND and DURATION.');
+        if (malformed) {
+          skippedDates++;
+          result.splice(eventStart);
+          // Keep cancelled overrides so a malformed replacement cannot resurrect its original.
+          if (rid) result.push('BEGIN:VEVENT', `UID:${uid}`, fields.get('RID-LINE'), 'STATUS:CANCELLED');
+          else { fields = undefined; continue; }
+        }
         fields = undefined;
       }
     } else if (!stack.length) fail('Property outside the calendar.');
@@ -89,12 +119,17 @@ function prepare(content, warnings) {
     const tz = /;TZID=(?:"([^"]+)"|([^;]+))/i.exec(params);
     if (tz) {
       const zone = tz[1] ?? tz[2];
-      const mapped = Object.hasOwn(windowsZones, zone) ? windowsZones[zone].iana[0] : zone;
+      const mapped = zone === 'EDT' && eastern ? 'America/New_York' : Object.hasOwn(windowsZones, zone) ? windowsZones[zone].iana[0] : zone;
+      if (zone === 'EDT' && eastern) {
+        if (value.split(',').some((date) => Number(date.slice(0, 4)) < 2007)) fail('Embedded Eastern timezone is supported only for dates from 2007 onward.');
+        line = line.replace(/;TZID=(?:"EDT"|EDT)(?=;|:)/i, ';TZID=America/New_York');
+      }
       try { new Intl.DateTimeFormat('en', { timeZone: mapped }).format(); }
       catch { fail('Unrecognized calendar timezone. Export with an IANA timezone such as America/New_York.'); }
     }
     if (stack.at(-1) === 'VEVENT' && ['DTSTART', 'DTEND', 'EXDATE', 'RECURRENCE-ID'].includes(name)) {
       const dates = value.split(',');
+      if (['DTSTART', 'DTEND'].includes(name) && /;VALUE=DATE-TIME(?:;|$)/i.test(params) && dates.some((d) => /^\d{8}$/.test(d))) malformed = true;
       for (const date of dates) {
         if (!/^\d{8}(?:T\d{6}Z?)?$/.test(date)) fail('Invalid calendar date or time.');
         const y = Number(date.slice(0, 4)); const m = Number(date.slice(4, 6)); const d = Number(date.slice(6, 8));
@@ -105,9 +140,11 @@ function prepare(content, warnings) {
         line = `${name}${params};TZID=America/New_York:${value}`; floating = true;
       }
     }
+    if (stack.at(-1) === 'VEVENT' && name === 'RECURRENCE-ID') fields.set('RID-LINE', line);
     result.push(line);
   }
   if (stack.length || !count) fail('The calendar has no complete events.');
+  if (skippedDates) warnings.add(`${skippedDates} event(s) skipped: VALUE=DATE-TIME contains a date without a time. Export these entries with explicit start and end times.`);
   if (floating) warnings.add('Times without a timezone are interpreted in America/New_York (Boston).');
   return result.join('\r\n');
 }
@@ -116,14 +153,17 @@ function parse() {
   const { content, locations, windowStart, windowEnd, maxItems } = workerData;
   const warnings = new Set(); const prepared = prepare(content, warnings);
   const data = ical.sync.parseICS(prepared); const items = [];
+  let skippedDurations = 0;
   const from = new Date(windowStart); const to = new Date(Date.parse(windowEnd) - 1);
   for (const event of Object.values(data)) {
     if (event.type !== 'VEVENT' || event.status === 'CANCELLED') continue;
     if (event.datetype === 'date' || event.start?.dateOnly) { warnings.add('All-day events were skipped; only events with start and end times are supported.'); continue; }
     if (!(event.start instanceof Date) || !Number.isFinite(+event.start)) fail('An event has an invalid start time.');
+    if (!(event.end instanceof Date) || !Number.isFinite(+event.end) || +event.end <= +event.start) { skippedDurations++; continue; }
     for (const instance of ical.expandRecurringEvent(event, { from, to })) {
       if (instance.event.status === 'CANCELLED') continue;
       if (instance.event.start?.dateOnly) { warnings.add('All-day events were skipped; only events with start and end times are supported.'); continue; }
+      if (!(instance.end instanceof Date) || !Number.isFinite(+instance.end) || +instance.end <= +instance.start) { skippedDurations++; continue; }
       const locationText = text(instance.event.location ?? event.location);
       const title = text(instance.summary).trim() || 'Untitled event';
       if (title.length > 300 || locationText.length > 1000) fail('Event titles must be at most 300 characters and locations at most 1,000.');
@@ -135,6 +175,7 @@ function parse() {
       if (items.length > maxItems) fail('Calendar expands to more than 2,000 items. Import a smaller calendar.');
     }
   }
+  if (skippedDurations) warnings.add(`${skippedDurations} event(s) skipped: missing or non-positive duration (including zero-duration exams). Confirm start/end times and the assigned exam venue before importing; no duration or venue was inferred.`);
   if (!items.length) warnings.add('No supported timed events fall within the next 120 Boston days.');
   items.sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
   return { items, warnings: [...warnings] };

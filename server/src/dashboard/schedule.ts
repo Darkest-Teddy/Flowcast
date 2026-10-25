@@ -54,7 +54,7 @@ export function scheduleState(row: { schedule: ScheduleImportState['items']; sch
 }
 
 let activeWorkers = 0;
-export async function previewSchedule(input: unknown, locations: Pick<CampusLocation, 'id' | 'name' | 'short'>[], now = new Date()): Promise<SchedulePreview> {
+export async function previewSchedule(input: unknown, locations: (Pick<CampusLocation, 'id' | 'name' | 'short'> & { buildingCodes?: string[] })[], now = new Date()): Promise<SchedulePreview> {
   const parsed = previewRequest.safeParse(input);
   if (!parsed.success) throw new ScheduleError('Send an .ics file name and calendar content of at most 1 MiB.');
   if (Buffer.byteLength(parsed.data.content, 'utf8') > MAX_CALENDAR_BYTES) throw new ScheduleError('Calendar files must be at most 1 MiB.', 413);
