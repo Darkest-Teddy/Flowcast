@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import type { LightPreset } from './map/basemap';
 import { INTRO_KEY, introSources } from './intro';
+import { setSoundMuted, soundMuted } from './introSound';
 import './intro.css';
 
 /**
@@ -87,6 +88,7 @@ function stillFor(preset: LightPreset): { src: string; srcSet?: string } {
 export function IntroScreen({ progress, preset }: { progress: LoadProgress; preset: LightPreset }) {
   const state = useSyncExternalStore(progress.subscribe, progress.get);
   const [still] = useState(() => stillFor(preset));
+  const [muted, setMuted] = useState(soundMuted);
   // Downloads fill the first part of the bar by count (slightly filled from the start, so it never
   // sits empty); each stage after them eases on to its mark over its expected time.
   const fraction = state.ready ? 1 : state.stage ? state.stage.to : 0.02 + (DOWNLOADS_SHARE - 0.02) * (state.total ? state.done / state.total : 0);
@@ -113,12 +115,27 @@ export function IntroScreen({ progress, preset }: { progress: LoadProgress; pres
           <button type="button" onClick={() => window.location.reload()}>Try again</button>
         </div>
       ) : (
+        <>
+        <button
+          type="button"
+          className="intro-sound"
+          aria-pressed={!muted}
+          aria-label="Intro sound"
+          title={muted ? 'Turn the intro sound on' : 'Turn the intro sound off'}
+          onClick={() => { setSoundMuted(!muted); setMuted(!muted); }}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+            {muted ? <path d="M16 9.5l5 5m0-5l-5 5" /> : <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />}
+          </svg>
+        </button>
         <div className="intro-progress">
           <p className="intro-step" aria-live="polite">{step}…</p>
           <div className="intro-bar" role="progressbar" aria-label="Loading the map" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)}>
             <span style={{ transform: `scaleX(${fraction})`, transitionDuration: `${easeMs}ms` }} />
           </div>
         </div>
+        </>
       )}
     </div>
   );

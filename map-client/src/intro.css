@@ -52,6 +52,35 @@
   transition: transform 0.6s cubic-bezier(0.25, 0.6, 0.4, 1); /* duration set per stage (IntroScreen) */
 }
 
+/* Intro sound on/off (introSound.ts), over the clouds at the bottom right. */
+.intro-sound {
+  pointer-events: auto;
+  position: absolute;
+  z-index: 60;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.42);
+  cursor: pointer;
+}
+.intro-sound svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.intro-sound:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
 .intro-error {
   pointer-events: auto;
   position: absolute;

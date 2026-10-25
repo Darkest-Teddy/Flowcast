@@ -60,6 +60,7 @@ import { bikeLayers, bikeTooltip, loadBikeModels } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
 import { IntroScreen, createLoadProgress } from './IntroScreen';
 import { IntroSky } from './IntroSky';
+import { introSound } from './introSound';
 import { INTRO_VIEW, introZoom } from './intro';
 import { prefersReducedMotion } from './map/camera';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
@@ -719,6 +720,7 @@ export default function App() {
           loadProgress.finish();
         } else {
           loadProgress.stage('Lining up the view', 0.97, 2000);
+          introSound.prepare();
           // Still under the still: fetch the tiles of the views the camera will pass through (it would
           // otherwise fetch them on the way, in stutters), then back to the sky. The first frames after
           // loading also build layers and shaders: let them settle so the drops run smoothly.
@@ -732,13 +734,16 @@ export default function App() {
           const unwatch = basemap.onUserInteraction(() => { introStopped = true; });
           loadProgress.finish(); // the still goes: the live map is under it at the same camera
           setIntroPhase('drop');
-          for (const step of INTRO_DROPS) {
+          introSound.clouds(900);
+          for (const [i, step] of INTRO_DROPS.entries()) {
             if (cancelled || introStopped) break;
+            introSound.drop(step.ms, i > 0); // the clouds' whoosh carries the first drop
             basemap.easeTo({ zoom: sky.zoom + step.zoomDown, duration: step.ms, easing: easeInOutCubic });
             await sleep(step.ms + step.hold);
           }
           setIntroPhase('land');
           if (!cancelled && !introStopped) {
+            introSound.swoop(INTRO_SWOOP_MS);
             basemap.easeTo({ ...INITIAL_VIEW, padding: paddingRef.current, duration: INTRO_SWOOP_MS, easing: easeInOutCubic });
             await sleep(INTRO_SWOOP_MS);
           }
