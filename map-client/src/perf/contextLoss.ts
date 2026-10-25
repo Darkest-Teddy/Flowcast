@@ -6,10 +6,11 @@
 // its context up on purpose, and iOS takes the
 // context from a tab in the background and hands it back when the tab returns (the map restores
 // itself then). So a loss counts only if the page is staying, and only once it has had a few
-// seconds in view to be restored. Then the first one switches to Speed (pixel ratio 1, every
-// optional layer off; remembered like the perf monitor's own switch) and reloads. A loss in Speed
-// has no lighter step to take, so the map says so instead of reloading in a loop.
-import { quality } from './quality';
+// seconds in view to be restored. Then the first one switches to the lightest mode (Minimal on a
+// phone or tablet: under 1x, no people or vehicles; Speed elsewhere; remembered like the perf
+// monitor's own switch) and reloads. A loss there has no lighter step to take, so the map says so
+// instead of reloading in a loop.
+import { LOW_MEMORY, quality } from './quality';
 
 /** How long a visible page waits for the browser to hand a lost context back. */
 const RESTORE_WAIT_MS = 4000;
@@ -74,8 +75,9 @@ export function watchContextLoss(canvas: HTMLCanvasElement, container: HTMLEleme
     if (leaving || !canvas.isConnected) return;
     if (await restoredSoon(canvas)) return;
     if (leaving || !canvas.isConnected) return;
-    if (quality.mode !== 'speed' && !reloadedAlready()) {
-      quality.setMode('speed');
+    const lightest = LOW_MEMORY ? 'minimal' : 'speed';
+    if (quality.mode !== lightest && !reloadedAlready()) {
+      quality.setMode(lightest);
       window.location.reload();
       return;
     }

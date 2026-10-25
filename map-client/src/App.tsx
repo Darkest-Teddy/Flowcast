@@ -20,7 +20,7 @@ import { TransitTags, type TagMarker, type TransitTagsHandle } from './TransitTa
 import { PlaceTags, placeHitLayers, placeUnder, type PlaceTagsHandle } from './PlaceTags';
 import { createPlacer, type Box } from './layers/placement';
 import { cullLayers } from './layers/culling';
-import { buildingModelLayers, campusBounds, campusFootprintLayer, DEFERRED_CAMPUSES, keepOnlyCampus, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
+import { buildingModelLayers, campusBounds, campusFootprintLayer, DEFERRED_CAMPUSES, landmarkClips, loadBuildings, loadCampusModels } from './layers/buildings';
 import { daylightAt, daylightLabel } from './map/daylight';
 import { followLight } from './theme';
 import { loadMonuments, monumentLayers } from './layers/monuments';
@@ -178,16 +178,17 @@ const SCENARIO_LOOK: Record<string, WeatherMode> = { clear: 'clear', rain: 'rain
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
 const START_SPEED = START_LIVE ? 1 : playbackLink.speed ?? SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
-/** The map opens on the intro still (IntroScreen) and flies in from its camera, unless the URL sets the view. */
-const FROM_INTRO = !VIEW_IN_URL;
+/**
+ * The map opens on the intro still (IntroScreen) and flies in from its camera, unless the URL sets
+ * the view, or it's a phone or tablet: the bare map there opens straight on its campus.
+ */
+const FROM_INTRO = !VIEW_IN_URL && !LOW_MEMORY;
 /*
  * A phone's one-campus view (perf/quality.ts LOW_MEMORY): the camera stays within this many metres
- * of the campus's buildings, no further out than this zoom, and below LOD_ZOOM the campus is drawn
- * as plain extruded footprints instead of its detailed models.
+ * of the campus's buildings, and no further out than this zoom.
  */
 const CAMPUS_MARGIN_M = 500;
 const CAMPUS_MIN_ZOOM = 14.5;
-const LOD_ZOOM = 15;
 const NO_PADDING = { top: 0, left: 0, right: 0, bottom: 0 };
 /** Each person's character model, looked up by id; built once per day. */
 const agentModels = new WeakMap<DayData, (id: string) => number>();
@@ -684,25 +685,30 @@ export default function App() {
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields, , signs] = await Promise.all([
         basemapLoad,
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
-        track('Dressing the students', loadCharacterModels() as Promise<LoadedModels>),
+        /*
+         * A phone or tablet gets the bare map (perf/quality.ts LOW_MEMORY): the base map, its campus as
+         * plain footprints, and the tags. None of the 3D models load there: no people, vehicles,
+         * street furniture, landmarks or boats, and of the campus buildings only the manifest
+         * (where they stand, how tall, which campus), never their detailed models.
+         */
+        track('Dressing the students', LOW_MEMORY ? Promise.resolve({} as LoadedModels) : loadCharacterModels() as Promise<LoadedModels>),
         // Transit and bikes are extras: the campus view must still start if they can't load.
         track('Mapping MBTA routes', loadTransit('/data/transit.json')).catch(() => null),
-        track('Rolling out trains and buses', loadVehicleModels()).catch(() => ({})),
+        track('Rolling out trains and buses', LOW_MEMORY ? Promise.resolve({}) : loadVehicleModels()).catch(() => ({})),
         // Detailed BU building models; the map still works with Mapbox's plain boxes without them.
-        // A phone holds one campus's models at a time (perf/quality.ts LOW_MEMORY): the one it opens on.
-        track('Raising campus buildings', LOW_MEMORY ? loadBuildings(undefined, [campusRef.current], false) : loadBuildings()).catch(() => null),
-        track('Lining the streets', loadStreet()).catch(() => null),
+        track('Raising campus buildings', LOW_MEMORY ? loadBuildings(undefined, [], false) : loadBuildings()).catch(() => null),
+        track('Lining the streets', LOW_MEMORY ? Promise.resolve(null) : loadStreet()).catch(() => null),
         track('Reading campus data', loadCampusData()),
-        track('Placing landmarks', loadMonuments()).catch(() => null),
-        track('Docking Bluebikes', loadBikes('/data/bikes.json')).catch(() => null),
-        track('Launching sailboats', loadBoats()).catch(() => null), // sailboats on the Charles (river polygon + models)
+        track('Placing landmarks', LOW_MEMORY ? Promise.resolve(null) : loadMonuments()).catch(() => null),
+        track('Docking Bluebikes', LOW_MEMORY ? Promise.resolve(null) : loadBikes('/data/bikes.json')).catch(() => null),
+        track('Launching sailboats', LOW_MEMORY ? Promise.resolve(null) : loadBoats()).catch(() => null), // sailboats on the Charles (river polygon + models)
         track('Enrolling students', loadPopulation()),
         track('Loading transit timetables', loadPublishedSchedule()).catch((error: Error) => { setScheduleError(error.message); return null; }),
         track('Counting traffic', loadMobility()).catch((error: Error) => { setMobilityError(error.message); return null; }),
-        track('Marking the fields', loadFields()).catch(() => null),
-        track('Saddling up riders', loadBikeModels()).catch(() => null), // Bluebikes riders; plain blocks without them
+        track('Marking the fields', LOW_MEMORY ? Promise.resolve(null) : loadFields()).catch(() => null),
+        track('Saddling up riders', LOW_MEMORY ? Promise.resolve() : loadBikeModels()).catch(() => null), // Bluebikes riders; plain blocks without them
         // WHOOP's letters and the restaurants' shop signs in Kenmore Square and on Comm Ave: extras.
-        track('Hanging shop signs', loadSigns()).catch(() => null),
+        track('Hanging shop signs', LOW_MEMORY ? Promise.resolve(null) : loadSigns()).catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
       // The downloads are in; what follows is computing, which blocks the page: name each part and
@@ -911,8 +917,9 @@ export default function App() {
         },
       });
       basemap.addControl(overlay);
-      // Fire response data is only needed once someone sounds a fire alarm: fetch it in the background.
-      fireRef.current = Promise.all([loadFireNetwork(), loadFireModels()])
+      // Fire response data is only needed once someone sounds a fire alarm: fetch it in the background
+      // (not on the bare map of a phone, which draws no fire apparatus).
+      if (!LOW_MEMORY) fireRef.current = Promise.all([loadFireNetwork(), loadFireModels()])
         .then(([network, models]) => { fireModelsRef.current = models; fireNetworkRef.current = network; return { network, models }; })
         .catch(() => null);
       // Dev-only handle for poking at layers from the browser console.
@@ -989,16 +996,11 @@ export default function App() {
         : [];
       loadDeferredRef.current = (id: string) => { if (detailedBuildings) void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id, !LOW_MEMORY); };
       /*
-       * A phone shows one campus: its models only (the others' are dropped, and their GPU buffers
-       * with them), and a camera held to it, so the base map never loads tiles for the rest of
-       * Boston. Called once the intro lands and on every campus switch.
+       * A phone shows one campus, with the camera held to it, so the base map never loads tiles for
+       * the rest of Boston. Called once the map is up and on every campus switch.
        */
       focusCampusRef.current = (id: string) => {
         if (!LOW_MEMORY) return;
-        if (detailedBuildings) {
-          keepOnlyCampus(detailedBuildings.models, id);
-          void loadCampusModels(detailedBuildings.manifest, detailedBuildings.models, id, false);
-        }
         const bounds = detailedBuildings ? campusBounds(detailedBuildings.manifest, id, CAMPUS_MARGIN_M) : null;
         basemap.limitTo(bounds, CAMPUS_MIN_ZOOM);
       };
@@ -1246,18 +1248,17 @@ export default function App() {
         // Fans a meteor hit stop walking from that moment (the dead are drawn as ragdolls).
         const harmedFans = incidentRunRef.current?.fans?.harmed;
         if (harmedFans?.size) visitorFrame.drawn = visitorFrame.drawn.filter((fan) => !((harmedFans.get(fan.id) ?? Infinity) <= t));
-        const frameLayers = [
+        // The bare map on a phone or tablet: its campus as plain footprints, and nothing else drawn
+        // in WebGL (the tags are HTML). The full list below never runs there.
+        const frameLayers = LOW_MEMORY ? (detailedBuildings
+          ? [campusFootprintLayer(detailedBuildings.manifest, campusRef.current, damageFootprints, lightRef.current)]
+          : []) : [
           ...fallbackDamageLayers(damage, new Set(detailedBuildings?.manifest.campuses
             .filter(campus => detailedBuildings.models[campus.id])
             .flatMap(campus => campus.buildings.map(building => building.osm)) ?? [])),
           ...fireResponseLayers(fireTrucks, t, basemap.getZoom()),
           ...(detailedBuildings
-            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows, damage, footprints: damageFootprints,
-              // Level of detail on a phone: zoomed out, the campus is plain footprints (below).
-              ...(LOW_MEMORY ? { campuses: [campusRef.current], visible: basemap.getZoom() >= LOD_ZOOM } : {}) })
-            : []),
-          ...(detailedBuildings && LOW_MEMORY && basemap.getZoom() < LOD_ZOOM
-            ? [campusFootprintLayer(detailedBuildings.manifest, campusRef.current, damageFootprints, lightRef.current)]
+            ? buildingModelLayers(detailedBuildings.manifest, detailedBuildings.models, { lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto', litWindows: q.litWindows, damage, footprints: damageFootprints })
             : []),
           ...(cleanRef.current ? [] : crowdLayers({
             footprints: day.buildings,
@@ -1271,22 +1272,23 @@ export default function App() {
             roofHeights,
             volumes,
           })),
-          ...(street ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
-          ...(transit && source && showTransitRef.current ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
+          ...(street && q.vehicles ? streetLayers({ street, transit, time: t, zoom: basemap.getZoom() }) : []),
+          ...(transit && source && showTransitRef.current && q.vehicles ? transitLayers({ data: transit.data, feed: source, now, zoom: basemap.getZoom(), models: transit.models, time: serviceTime, weekday: serviceDay }) : []),
           ...(monuments ? monumentLayers(monuments, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(signs ? signLayers(signs, { zoom: basemap.getZoom(), lightPreset: lightRef.current, time: serviceTime }) : []),
           ...(fields ? fieldLayers(fields, { zoom: basemap.getZoom(), lightPreset: lightRef.current, clock: t, auto: lightModeRef.current === 'auto' }) : []),
           ...(fields ? fenwayFanLayers(fields.seating, visitorPlanRef.current, t, basemap.getZoom()) : []),
           ...(cleanRef.current ? [] : [...(parking && parkingState ? parkingLayers(parking.data, parkingState) : [])]),
           ...placeHitLayers(monuments?.monuments ?? null, fields?.fields ?? null, basemap.getZoom()),
-          ...(boats && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
-          ...(showBikesNow
+          ...(boats && q.vehicles && sailingWeather(weatherRef.current, lightRef.current) ? boatLayers({ boats, time: t, zoom: basemap.getZoom(), speed: liveRef.current ? 1 : speedRef.current, lightPreset: lightRef.current, windFromDegrees: boatWind() }) : []),
+          ...(showBikesNow && q.vehicles
             ? bikeLayers({ data: bikes.data, trips: bikes.replay.trips, riding, time: t, speed: speedRef.current, zoom: basemap.getZoom(), dockStatus })
             : []),
           // Students walking, plus river walkers/runners (conditions engine), plus event visitors; then the
           // public (non-student) crowd, thinned on its own (data/observations.ts, sim/publicCrowd.ts).
-          ...agentLayers(withPublic(thinForZoom(withVisitors(inView(nearView(walking, camera.center, q.walkerRadius).concat(nearView(outside?.moving ?? [], camera.center, q.walkerRadius)), view), visitorFrame.drawn), basemap.getZoom()),
-            thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom(), runningIds }),
+          // A phone draws one person in ten, and Minimal none (perf/quality.ts crowdShare).
+          ...agentLayers(peopleShare(withPublic(thinForZoom(withVisitors(inView(nearView(walking, camera.center, q.walkerRadius).concat(nearView(outside?.moving ?? [], camera.center, q.walkerRadius)), view), visitorFrame.drawn), basemap.getZoom()),
+            thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), q.crowdShare), models, t, { zoom: basemap.getZoom(), runningIds }),
           // Students who joined from a phone. Drawn with the same character layers as everyone else
           // so they walk identically, but starred with their name so they read as real people in the
           // simulated crowd. On the simulation clock (t), not wall time, so they keep pace with it.
@@ -1300,9 +1302,9 @@ export default function App() {
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
           // People standing about: riders waiting at stops, a fire's evacuees in their crowds, and
           // people sitting by the river (all in the same idle layers).
-          ...(transit || standing.length || sitters.length ? waitingRiderLayers(withSitters(transit || standing.length ? nearView(standing.length
+          ...(transit || standing.length || sitters.length ? waitingRiderLayers(peopleShare(withSitters(transit || standing.length ? nearView(standing.length
             ? [...(transit ? waitingCharacters(allWaiting, transit.feed.tracks) : []), ...standing]
-            : waitingCharacters(allWaiting, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius) : [], sitters), models, t, basemap.getZoom()) : []),
+            : waitingCharacters(allWaiting, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius) : [], sitters), q.crowdShare), models, t, basemap.getZoom()) : []),
           ...(cleanRef.current ? [] : askRouteLayers(askRouteRef.current)),
           ...(currentMobility && showCountsRef.current && !cleanRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
           ...atmosphereLayers(weatherRef.current, basemap.getCamera(), now, lightRef.current),
@@ -2237,13 +2239,16 @@ export default function App() {
             the panel stops above it (hud.css). The details card reads the simulation clock, so it
             agrees with the character walking on screen.
           */}
-          <div className="join-slot">
-            {openPersona ? (
-              <PersonaDetails persona={openPersona} nowMs={hud.time * 1000} onClose={() => setOpenPersonaId(null)} />
-            ) : (
-              <JoinQrCard />
-            )}
-          </div>
+          {/* Hidden on phones by CSS; not mounted there either, since its character is a WebGL canvas. */}
+          {!LOW_MEMORY && (
+            <div className="join-slot">
+              {openPersona ? (
+                <PersonaDetails persona={openPersona} nowMs={hud.time * 1000} onClose={() => setOpenPersonaId(null)} />
+              ) : (
+                <JoinQrCard />
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -2830,6 +2835,12 @@ function withPublic(students: WalkingAgent[], publicWalkers: WalkingAgent[]): Wa
   const cap = Math.min(PUBLIC_DRAW_MAX, Math.max(PUBLIC_DRAW_MIN, Math.round(students.length * PUBLIC_DRAW_SHARE)));
   const keep = publicWalkers.length <= cap ? publicWalkers : publicWalkers.filter((w) => shareOf(w.id) < cap / publicWalkers.length);
   return students.concat(keep);
+}
+/** The same `share` of people every frame (by id), so the ones drawn don't flicker in and out. */
+function peopleShare<T extends { id: string }>(people: T[], share: number): T[] {
+  if (share >= 1) return people;
+  if (share <= 0) return [];
+  return people.filter((p) => shareOf(p.id) < share);
 }
 function thinForZoom(walkers: WalkingAgent[], zoom: number): WalkingAgent[] {
   if (zoom >= DRAW_ALL_FROM_ZOOM) return walkers;

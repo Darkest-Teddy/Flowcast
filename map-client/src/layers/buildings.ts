@@ -127,7 +127,7 @@ export const DEFERRED_CAMPUSES = ['medical'];
 
 /**
  * Convenience: manifest + the models of every campus that isn't deferred, in one call; or of
- * `only` those campuses (a phone loads just the one it shows).
+ * `only` those campuses (none for the bare map on a phone, which needs the manifest alone).
  */
 export async function loadBuildings(url?: string, only?: string[], lights = true) {
   const manifest = await loadBuildingManifest(url);
@@ -135,14 +135,14 @@ export async function loadBuildings(url?: string, only?: string[], lights = true
   return { manifest, models };
 }
 
-/** The detailed models' stand-in below the level-of-detail zoom: a campus's footprints, extruded. */
+/** The detailed models' stand-in on the bare map: a campus's footprints, extruded. */
 const FOOTPRINT_COLOR: [number, number, number] = [186, 174, 162];
 const footprintsByCampus = new WeakMap<object, Map<string, { polygon: [number, number][]; height: number }[]>>();
 
 /**
- * Level of detail on a phone (App.tsx LOD_ZOOM): zoomed out, a campus is one cheap extruded
- * polygon per building in place of its detailed models, at the models' roof heights and in the same
- * light, so the switch reads as the detail coming in rather than the campus changing.
+ * The bare map on a phone or tablet (App.tsx, perf/quality.ts LOW_MEMORY): a campus is one cheap
+ * extruded polygon per building in place of its detailed models, at the models' roof heights and
+ * tinted by the same light.
  */
 export function campusFootprintLayer(
   manifest: BuildingModelManifest,
@@ -177,14 +177,6 @@ export function campusFootprintLayer(
     slot: 'middle',
     updateTriggers: { getFillColor: lightPreset },
   });
-}
-
-/**
- * Keep only `campus`'s models (and its lit windows) in `models`, so the layers for the others are
- * dropped and their GPU buffers freed with them. A phone holds one campus at a time.
- */
-export function keepOnlyCampus(models: BuildingModels, campus: string) {
-  for (const key of Object.keys(models)) if (key !== campus && !key.startsWith(`${campus}:`)) delete models[key];
 }
 
 const loading = new Set<string>();

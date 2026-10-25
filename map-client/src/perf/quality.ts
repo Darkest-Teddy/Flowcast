@@ -19,7 +19,7 @@
 // Mapbox GL v3 has no pixelRatio option and reads it live, and in interleaved mode deck.gl draws
 // into Mapbox's canvas. CSS and the HTML panels are unaffected. It's set once, at load.
 
-export type QualityMode = 'auto' | 'quality' | 'speed';
+export type QualityMode = 'auto' | 'quality' | 'speed' | 'minimal';
 
 export interface QualitySettings {
   /** 0 = full quality ... SPEED_LEVEL = Speed. */
@@ -36,6 +36,10 @@ export interface QualitySettings {
   mapPedestrianRoads: boolean;
   /** Ambient-occlusion shading at the foot of the city buildings (an extra ground pass per tile). */
   mapBuildingAO: boolean;
+  /** Share of the people on foot drawn (students, the public, visitors, riders waiting): 1 = all. */
+  crowdShare: number;
+  /** Trains, buses, bikes, boats and the street furniture they use. */
+  vehicles: boolean;
 }
 
 const nativeDpr = (() => {
@@ -48,31 +52,38 @@ const nativeDpr = (() => {
 /*
  * Phones and tablets run out of graphics memory before they run out of frame rate: iOS Safari drops
  * the whole WebGL context when a page asks for too much, and the map goes blank under its panels.
- * A full-screen canvas at an iPhone's 3x, with shadows, 3D trees and the campus models, did exactly
- * that. So a touch-first device draws the map at 1.5x (2x on a tablet), CSS and the panels unaffected,
- * and Auto starts at, and never climbs above, the lightest level: frame times can't warn of memory.
+ * A full-screen canvas at an iPhone's 3x, with shadows, 3D trees and the campus models, is that much.
+ * So a touch-first device draws the map at 1x (1.5x on a tablet), CSS and the panels unaffected,
+ * one person in ten on foot, no lit-window models (a second set of campus models to hold), and Auto
+ * starts at, and never climbs above, the lightest level: frame times can't warn of memory.
+ *
+ * Minimal is the floor for a device that still can't hold the map: under 1x, and no people,
+ * vehicles or street furniture at all, only the campus and its crowd levels.
  */
 const TOUCH = window.matchMedia?.('(hover: none) and (pointer: coarse)').matches ?? false;
 const PHONE = TOUCH && Math.min(window.screen.width, window.screen.height) < 600;
-const TOUCH_PIXEL_RATIO = PHONE ? 1.5 : 2;
+const TOUCH_PIXEL_RATIO = PHONE ? 1 : 1.5;
+const TOUCH_CROWD_SHARE = 0.1;
+const MINIMAL_PIXEL_RATIO = 0.75;
 /** A touch-first device: the map keeps to one campus there (App.tsx, layers/buildings.ts). */
 export const LOW_MEMORY = TOUCH;
 
-function levelSettings(level: number, speedMode = mode === 'speed'): QualitySettings {
-  // Only Speed mode lowers the resolution (and only from the next load); Auto keeps it.
-  const pixelRatio = speedMode ? 1 : TOUCH ? Math.min(nativeDpr(), TOUCH_PIXEL_RATIO) : nativeDpr();
-  switch (speedMode ? SPEED_LEVEL : level) {
+function levelSettings(level: number, speedMode = mode === 'speed', minimalMode = mode === 'minimal'): QualitySettings {
+  // Only Speed and Minimal lower the resolution below the device's (and only from the next load).
+  const pixelRatio = minimalMode ? Math.min(nativeDpr(), MINIMAL_PIXEL_RATIO)
+    : speedMode ? 1 : TOUCH ? Math.min(nativeDpr(), TOUCH_PIXEL_RATIO) : nativeDpr();
+  const crowdShare = minimalMode ? 0 : TOUCH ? TOUCH_CROWD_SHARE : 1;
+  const vehicles = !minimalMode;
+  switch (speedMode || minimalMode ? SPEED_LEVEL : level) {
     case 0:
-      return { level: 0, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: true, map3dObjects: true, mapPedestrianRoads: true, mapBuildingAO: true };
+      return { level: 0, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: true, map3dObjects: true, mapPedestrianRoads: true, mapBuildingAO: true, crowdShare, vehicles };
     case 1:
-      return { level: 1, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: true, mapBuildingAO: true };
+      return { level: 1, pixelRatio, particles: 1, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: true, mapBuildingAO: true, crowdShare, vehicles };
     case 2:
-      return { level: 2, pixelRatio, particles: 0.6, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: false, mapBuildingAO: false };
+      return { level: 2, pixelRatio, particles: 0.6, litWindows: true, walkerRadius: null, mapShadows: false, map3dObjects: true, mapPedestrianRoads: false, mapBuildingAO: false, crowdShare, vehicles };
     default:
-      // Lit windows stay on a computer: they're two draws, and most of the night view. A touch
-      // device leaves them out: they're a second set of campus models, and the map kept its WebGL
-      // context without them where it lost it with them.
-      return { level: SPEED_LEVEL, pixelRatio, particles: 0.35, litWindows: !speedMode && !TOUCH, walkerRadius: 1200, mapShadows: false, map3dObjects: false, mapPedestrianRoads: false, mapBuildingAO: false };
+      // Lit windows stay on a computer: they're two draws, and most of the night view.
+      return { level: SPEED_LEVEL, pixelRatio, particles: minimalMode ? 0 : 0.35, litWindows: !speedMode && !minimalMode && !TOUCH, walkerRadius: 1200, mapShadows: false, map3dObjects: false, mapPedestrianRoads: false, mapBuildingAO: false, crowdShare, vehicles };
   }
 }
 export const SPEED_LEVEL = 3;
@@ -91,7 +102,7 @@ function storedAutoLevel(): number {
     return AUTO_FLOOR;
   }
 }
-const MODES: QualityMode[] = ['auto', 'quality', 'speed'];
+const MODES: QualityMode[] = ['auto', 'quality', 'speed', 'minimal'];
 
 function initialMode(): QualityMode {
   const fromUrl = new URLSearchParams(window.location.search).get('quality');
@@ -151,7 +162,7 @@ export const quality = {
     const q = new URLSearchParams(window.location.search).get('msaa');
     // Never by default on a touch device: four samples a pixel is the graphics memory a phone
     // doesn't have, and it would come back on with the 1.5x cap above (it's tied to low ratios).
-    return q === null ? mode !== 'speed' && !TOUCH && dprCap < 1.75 : q !== '0';
+    return q === null ? mode !== 'speed' && mode !== 'minimal' && !TOUCH && dprCap < 1.75 : q !== '0';
   },
   /** The pixel ratio actually in use (fixed at load; settings.pixelRatio is the wanted one). */
   get pixelRatio() {
@@ -170,7 +181,7 @@ export const quality = {
       // storage blocked: this session only
     }
     auto.reset();
-    apply(levelSettings(next === 'auto' ? storedAutoLevel() : 0, next === 'speed'));
+    apply(levelSettings(next === 'auto' ? storedAutoLevel() : 0, next === 'speed', next === 'minimal'));
   },
   /** Called with the settings now and whenever they change (e.g. the basemap's own switches). */
   onChange(applier: (s: QualitySettings) => void) {

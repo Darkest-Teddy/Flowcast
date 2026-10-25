@@ -7,7 +7,7 @@ import { finiteParam } from './deepLink';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { MapWeather } from '../weather/weather';
-import { quality, type QualitySettings } from '../perf/quality';
+import { LOW_MEMORY, quality, type QualitySettings } from '../perf/quality';
 import { paceMapRendering } from '../perf/pacer';
 import { watchContextLoss } from '../perf/contextLoss';
 import { buildFootprintIndex, coveredByModels, type FootprintIndex, type Ring } from './footprintCover';
@@ -389,7 +389,9 @@ export async function createBasemap(
 ): Promise<Basemap> {
   const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
-  if (token) {
+  // A phone or tablet gets the bare map: MapLibre and a plain street style rather than Mapbox
+  // Standard, whose lighting, 3D landmarks and shadows are the heaviest thing on the page.
+  if (token && !LOW_MEMORY) {
     const { default: mapboxgl } = await import('mapbox-gl');
     mapboxgl.accessToken = token;
     const map = new mapboxgl.Map({

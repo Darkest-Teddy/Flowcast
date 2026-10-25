@@ -149,9 +149,9 @@ export function PerfMonitor({ counts }: { counts: () => PerfCounts | null }) {
       </dl>
       <div className="perf-quality" role="group" aria-label="Performance">
         <span>Performance</span>
-        {(['auto', 'quality', 'speed'] as QualityMode[]).map((m) => (
+        {(['auto', 'quality', 'speed', 'minimal'] as QualityMode[]).map((m) => (
           <button key={m} onClick={() => quality.setMode(m)} aria-pressed={mode === m}>
-            {m === 'auto' ? 'Auto' : m === 'quality' ? 'Quality' : 'Speed'}
+            {m === 'auto' ? 'Auto' : m === 'quality' ? 'Quality' : m === 'speed' ? 'Speed' : 'Minimal'}
           </button>
         ))}
       </div>
