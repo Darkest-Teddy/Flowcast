@@ -64,3 +64,8 @@
     display: none;
   }
 }
+
+/* The capsule shows focus (above); the input's own outline would draw a box inside it. */
+.input:focus-visible {
+  outline: none;
+}

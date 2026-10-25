@@ -13,6 +13,7 @@ export interface Column<T> {
  * Plain data table with hairline rows, on a glass card. On phones each row becomes a small block:
  * the first column as its heading, then "Header  value" lines (`stack`, the default). Tables whose
  * rows only make sense side by side pass `stack={false}` and scroll sideways inside the card.
+ * The explicit table roles keep the semantics in browsers that drop them when CSS changes `display`.
  */
 export function Table<T>({
   columns,
@@ -29,20 +30,20 @@ export function Table<T>({
 }) {
   return (
     <div className={`${styles.wrap} ${stack ? styles.stacked : styles.scroll}`}>
-      <table className={styles.table}>
+      <table className={styles.table} role="table">
         {caption && <caption className="visually-hidden">{caption}</caption>}
-        <thead>
-          <tr>
+        <thead role="rowgroup">
+          <tr role="row">
             {columns.map((c) => (
-              <th key={c.key} style={{ width: c.width, textAlign: c.align }} scope="col">{c.header}</th>
+              <th key={c.key} style={{ width: c.width, textAlign: c.align }} scope="col" role="columnheader">{c.header}</th>
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody role="rowgroup">
           {rows.map((row) => (
-            <tr key={rowKey(row)}>
+            <tr key={rowKey(row)} role="row">
               {columns.map((c) => (
-                <td key={c.key} data-label={c.header} style={{ textAlign: c.align }}>{c.render(row)}</td>
+                <td key={c.key} data-label={c.header} style={{ textAlign: c.align }} role="cell">{c.render(row)}</td>
               ))}
             </tr>
           ))}
