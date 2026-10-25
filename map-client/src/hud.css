@@ -401,9 +401,13 @@
  * The reading: the clock and the temperature, with nothing behind them.
  *
  * These are readings of the world the map is drawing, not controls, so they sit
- * directly on it the way a caption sits on a photograph. A text shadow and a
- * drop shadow on the icons carry them over both the light and the dark basemap,
- * which is what a panel would otherwise have had to do.
+ * directly on it the way a caption sits on a photograph.
+ *
+ * Black, because the basemap is light by default. White type here only held up
+ * because of the shadow under it, and type that depends on its own shadow to be
+ * legible is type that is hard to read. The halo is light now and does the
+ * reverse job: it keeps the black readable where the ground underneath goes
+ * dark, over a park or a river or the night style.
  */
 .hud-status-reading {
   display: flex;
@@ -411,12 +415,13 @@
   gap: 8px;
   height: 28px;
   padding: 0 4px 0 12px;
-  text-shadow: 0 1px 6px rgb(0 0 0 / 0.9);
+  color: #1d1d1f;
+  text-shadow: 0 1px 6px rgb(255 255 255 / 0.85), 0 0 2px rgb(255 255 255 / 0.9);
 }
 
 .hud-status-reading svg {
   flex: none;
-  filter: drop-shadow(0 1px 4px rgb(0 0 0 / 0.9));
+  filter: drop-shadow(0 1px 3px rgb(255 255 255 / 0.9));
 }
 
 .hud-status-reading > svg {
@@ -449,13 +454,13 @@
 /*
  * Says the clock is following Boston, not that something is streaming. Neutral
  * rather than the accent: on this map a coloured pill beside a crowd reading
- * would be taken for a level.
+ * would be taken for a level. Dark on light, to match the reading it sits in.
  */
 .hud-live {
   padding: 2px 7px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.14);
-  color: var(--color-ink, #f5f5f7);
+  background: rgb(29 29 31 / 0.1);
+  color: #1d1d1f;
   font-size: 11px;
   font-weight: 600;
   text-shadow: none;
@@ -521,19 +526,22 @@
  * reads as a pair with the clock at the other end of the row instead of as a
  * widget parked beside it. The hover fill is what says it is pressable.
  */
+/* `color` is restated because .weather-chip sets its own in styles.css and
+   would otherwise keep the white it uses inside the panels. */
 .hud-status-reading .weather-chip {
   gap: 6px;
   min-width: 0;
   height: 28px;
   padding: 0 6px;
   background: none;
+  color: #1d1d1f;
   font-size: 16px;
   font-weight: 700;
 }
 
 @media (hover: hover) {
   .hud-status-reading .weather-chip:hover {
-    background: rgb(255 255 255 / 0.1);
+    background: rgb(29 29 31 / 0.08);
   }
 }
 
@@ -880,21 +888,21 @@
  * form, answer, examples, and this draws them bottom-up.
  */
 /*
- * Anchored, not centred.
+ * Centred on the map.
  *
- * Centring it on the viewport put it over the legend and the join card on the
- * left and under the panel on the right. It now starts clear of that left
- * column and stops clear of the panel, which on a 1440px display is the 420px
- * left edge and 400px width the handoff specifies. --ask-clear is the panel's
- * 380 plus both gutters.
+ * It was anchored to a left edge to clear the legend and the join card, which
+ * works but reads as off-centre: with the suggestions gone the bar is a single
+ * pill, and a lone pill sitting left of middle looks misplaced rather than
+ * deliberate. Centred on the viewport instead, and narrow enough to pass
+ * between the bottom-left column and the panel: 440px clears the join card at
+ * its widest on one side and the 380px panel on the other.
  */
 .hud-ask {
-  --ask-clear: 404px;
   position: absolute;
-  left: 420px;
+  left: 50%;
   bottom: 12px;
-  transform: none;
-  width: min(400px, calc(100vw - 420px - var(--ask-clear)));
+  transform: translateX(-50%);
+  width: min(440px, calc(100vw - 800px));
   min-width: 280px;
   background: none;
   border: 0;
@@ -935,11 +943,18 @@
  * "New chat" goes too. On a bar over a map the conversation is a couple of
  * exchanges long and scrolls away on its own; a button to clear it was taking up
  * the only line of chrome the bar has, to solve a problem the bar does not have.
+ *
+ * The example questions go with them. A row of suggested questions is how you
+ * teach an empty text box what it accepts, and this box sits under a placeholder
+ * that already says: on a map it was two more cards of chrome standing between
+ * the reader and the campus. They still read in full on the dashboard's own Ask
+ * page, where the box is the screen rather than a bar over something else.
  */
 .hud-ask .ask-heading h2,
 .hud-ask > .ask > .muted:not(.ask-status),
 .hud-ask .ask > .ask-note,
-.hud-ask .ask-clear {
+.hud-ask .ask-clear,
+.hud-ask .ask-examples {
   display: none;
 }
 

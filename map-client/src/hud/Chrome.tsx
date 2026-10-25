@@ -719,3 +719,10 @@ export function HudDate({ value, onPick }: { value: string; onPick: (date: strin
     </div>
   );
 }
+
+/* ---------------------------------------------------------------------------
+ * Bottom centre: ask.
+ * ------------------------------------------------------------------------- */
+export function HudAsk({ children }: { children: ReactNode }) {
+  return <div className="hud-ask">{children}</div>;
+}
