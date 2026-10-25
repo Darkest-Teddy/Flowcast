@@ -10,7 +10,7 @@ registerHooks({ resolve(specifier, context, next) {
 const { academicPeriodFor, conditionsFor, conditionsKey, daylightFor, weatherKind } = await import('../src/sim/conditions.ts');
 const { paramsFor, dayBehavior, validatePersonas, personaFor, cohortOf, SCALAR_NAMES } = await import('../src/sim/behavior.ts');
 const { LEGACY_BEHAVIOR, freeTimeActivities, MODELED_OFF_CAMPUS_MEAL_SHARE, MODELED_ACTIVITY_SHOULDER_SHARE, HABIT_TRAITS, OFF_MAP_ACADEMIC_SHARE, HABITUAL_TIME_SHARE, FAVORITE_VENUE_WEIGHT } = await import('../src/sim/sourceDay.ts');
-const { pearson, scoreDay, compareScores, sampleRoster, walkersPerMinute } = await import('../src/sim/validate.ts');
+const { pearson, scoreDay, compareScores, sampleRoster, walkersPerMinute, scoreObservations } = await import('../src/sim/validate.ts');
 const { encodeDay, decodeDaySteps } = await import('../src/sim/dayCodec.ts');
 const { drain } = await import('../src/sim/occupancyIndex.ts');
 const { explain, effectText } = await import('../src/sim/explain.ts');
@@ -240,4 +240,23 @@ test('outdoor spots sit on the Boston bank, reached through connectors from camp
   const loop = outdoor.spots.find(spot => spot.kind === 'loop').loop;
   const length = loop.cumulative.at(-1);
   assert.deepEqual(alongRoute(loop, 10).position, alongRoute(loop, 10 + length).position, 'loops wrap');
+});
+
+test('observed ridership: students’ timing at BU stops, a band penalty when students exceed their share, and students + public', () => {
+  const bins = [7, 8, 9, 10, 11].map(h => ({ start: `${String(h).padStart(2, '0')}:00`, end: `${String(h + 1).padStart(2, '0')}:00`, value: [10, 40, 20, 10, 10][h - 7] }));
+  const series = (direction) => ({ id: `green-b-bucen-${direction}-weekday-offs`, kind: 'apc-alightings', mode: 'light-rail', route: 'Green-B', direction, dayType: 'weekday',
+    stop: { name: 'Boston University Central', mapStopId: 'place-bucen', mbtaStopIds: [], position: [-71.1, 42.35] }, bins, unit: 'avg', source: 'test', expectedStudentShare: [0.55, 0.85] });
+  const observations = { schemaVersion: 1, generatedAt: '', sources: [], transit: [series(0), series(1)], pedestrian: [] };
+  const ride = (hour, direction) => ({ kind: 'alight', route: 'Green-B', direction, stop: 'place-bucen', time: hour * 3600 + 600, agent: 'a', trip: 't', position: [0, 0] });
+  // Students peak at 8 like the counts, at about half the counted level: good timing, no overflow.
+  const rides = [7, 8, 8, 8, 8, 9, 9, 10, 11].flatMap(h => [ride(h, 0), ride(h, 1)]);
+  const good = scoreObservations(observations, { trips: [], transitRides: rides }, 2);
+  const bu = good.groups.find(g => g.id === 'bu-b-line');
+  assert.ok(bu.shape > 0.95 && bu.peakHours === 0 && bu.overflow === 0, JSON.stringify(bu));
+  assert.equal(good.everyone.medianRatio, 1, 'the public fills the rest of each count');
+  // A class-change spike at 10 well above the count: timing off and overflow penalised.
+  const spike = scoreObservations(observations, { trips: [], transitRides: Array.from({ length: 40 }, () => ride(10, 0)) }, 2);
+  const busy = spike.groups.find(g => g.id === 'bu-b-line');
+  assert.ok(busy.shape < 0.2 && busy.peakHours >= 1 && busy.overflow > 0.1, JSON.stringify(busy));
+  assert.ok(spike.metrics.find(m => m.id === 'obs-student-overflow').loss > good.metrics.find(m => m.id === 'obs-student-overflow').loss);
 });

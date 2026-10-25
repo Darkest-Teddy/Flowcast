@@ -28,7 +28,10 @@ export function loadInputs() {
   const base = buildPopulation(readData('demo-day'), data, readData('population'));
   // As the map runs it: students ride published MBTA and BU Shuttle trips, and the day's campus events play.
   const transit = createTransitService(mergeSchedules(readData('transit-schedule'), readData('shuttle-schedule')));
-  return { data, base, transit, bikes: readData('bikes'), outdoor: readData('outdoor') };
+  // Real MBTA ridership and pedestrian counts (data/observations.ts), when the file is there.
+  let observations;
+  try { observations = readData('calibration-observations'); } catch { observations = undefined; }
+  return { data, base, transit, bikes: readData('bikes'), outdoor: readData('outdoor'), observations };
 }
 
 /** Representative days: two ordinary days compared with measured series, two sanity scenarios. */
@@ -46,7 +49,7 @@ export function representativeDays(data) {
  * Simulate and score each day. `model` undefined = today's unconditioned model (no conditions at all).
  * Returns per-day scores plus the raw days (for reports).
  */
-export function scoreModel({ base, data, bikes, transit }, model, { scale = 1, days = representativeDays(data) } = {}) {
+export function scoreModel({ base, data, bikes, transit, observations }, model, { scale = 1, days = representativeDays(data) } = {}) {
   const scores = [], built = [];
   let dryOutdoor = null;
   for (const spec of days) {
@@ -55,7 +58,7 @@ export function scoreModel({ base, data, bikes, transit }, model, { scale = 1, d
     const eventDate = weekdayOf(spec.conditions.date) === spec.weekday ? spec.conditions.date : dateForWeekday(data, spec.weekday);
     const day = buildSourceDay(base, data, spec.weekday, transit, { eventDate, conditions, model });
     const ms = performance.now() - started;
-    const score = validate.scoreDay({ label: spec.label, day, base, data, weekday: spec.weekday, scale, bikes, kind: spec.kind });
+    const score = validate.scoreDay({ label: spec.label, day, base, data, weekday: spec.weekday, scale, bikes, kind: spec.kind, observations });
     const outdoor15 = validate.outdoorAt(day, 15 * 3600) / scale;
     if (spec.weekday === 2 && !spec.rain && spec.kind === 'normal') dryOutdoor = outdoor15;
     if (spec.rain && model) {
@@ -64,7 +67,7 @@ export function scoreModel({ base, data, bikes, transit }, model, { scale = 1, d
       score.metrics.push(metric); score.loss += metric.weight * metric.loss;
     }
     scores.push(score);
-    built.push({ spec, day, ms, outdoor15 });
+    built.push({ spec, day, ms, outdoor15, observed: observations && spec.kind === 'normal' ? validate.scoreObservations(observations, day, spec.weekday, scale) : null });
   }
   return { scores, built };
 }
