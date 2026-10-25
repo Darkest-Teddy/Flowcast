@@ -431,7 +431,8 @@ export default function App() {
   const placeTagsRef = useRef<PlaceTagsHandle>(null);
   const transitRef = useRef<Transit | null>(null);
   const perfRef = useRef<PerfCounts | null>(null); // written each frame, read by PerfMonitor once a second
-  const showTransitRef = useRef(true);
+  // Off on the bare map of a phone, which draws no trains or buses: no stop tags there either.
+  const showTransitRef = useRef(!LOW_MEMORY);
   const bikesRef = useRef<Bikes | null>(null);
   const showBikesRef = useRef(true);
   const parkingRef = useRef<Parking | null>(null);
@@ -637,7 +638,7 @@ export default function App() {
   const [mobilityError, setMobilityError] = useState<string | null>(null);
   const [selectedMobility, setSelectedMobility] = useState<string | null>(null);
   const selectedMobilityRef = useRef<string | null>(null);
-  const [showTransit, setShowTransit] = useState(true);
+  const [showTransit, setShowTransit] = useState(!LOW_MEMORY);
   // Car traffic is off by default: most students walk, bike or take the T. Still available in the Transit tab.
   const [showTraffic, setShowTraffic] = useState(false);
   // Traffic count sites ("1,313 vehicles/h · 29 bikes/h"): off by default, remembered.
@@ -2102,7 +2103,7 @@ export default function App() {
    * being on is not a measurement. Campus events take the calendar rather than
    * the people glyph, which now belongs to the crowd scale alone.
    */
-  const railItems: RailItem[] = [
+  const allRailItems: RailItem[] = [
     { id: 'libraries', label: libraryMode ? 'Show every building' : 'Library mode: only libraries', icon: <HudIcons.library />, on: libraryMode, hue: 'violet', onSelect: toggleLibraryMode },
     { id: 'transit', label: showTransit ? 'Hide MBTA' : 'Show MBTA', icon: <HudIcons.transit />, on: showTransit, hue: 'green', onSelect: toggleTransit },
     ...(bikes ? [{ id: 'bikes', label: showBikes ? 'Hide Bluebikes' : 'Show Bluebikes', icon: <HudIcons.bikes />, on: showBikes, hue: 'orange' as const, onSelect: toggleBikes }] : []),
@@ -2115,6 +2116,9 @@ export default function App() {
       ? [{ id: 'events', label: eventsOn ? 'Hide campus events' : 'Show campus events', icon: <HudIcons.calendar />, on: eventsOn, hue: 'violet' as const, onSelect: () => toggleEvents(!eventsOn) }]
       : []),
   ];
+  // The bare map on a phone draws no trains, buses, bikes, traffic, parking or counts, so only the
+  // layers that still change what it shows stay: library mode and campus events (both in the tags).
+  const railItems = LOW_MEMORY ? allRailItems.filter((item) => item.id === 'libraries' || item.id === 'events') : allRailItems;
 
   // Under the layers: turn the view 45 degrees a click, and keep turning while held.
   const rotateItems: RailItem[] = camera ? [

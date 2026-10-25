@@ -633,8 +633,9 @@ export async function createBasemap(
   const maplibregl = (maplibreModule.default ?? maplibreModule) as typeof maplibreModule.default;
   const map = new maplibregl.Map({
     container,
-    // Explicit option, then ?style=, then the default.
-    style: options.styleUrl ?? styleFromUrl() ?? 'https://tiles.openfreemap.org/styles/liberty',
+    // Explicit option, then ?style=, then the default: grey Positron for the bare map on a phone or
+    // tablet (no coloured roads, flat buildings), Liberty everywhere else.
+    style: options.styleUrl ?? styleFromUrl() ?? (LOW_MEMORY ? 'https://tiles.openfreemap.org/styles/positron' : 'https://tiles.openfreemap.org/styles/liberty'),
     ...start,
     ...(limited ? BOSTON_LIMITS : {}),
     maxPitch: 85, // the default 60 is too flat for the street-level view
@@ -645,6 +646,12 @@ export async function createBasemap(
   paceMapRendering(map);
   watchContextLoss(map.getCanvas(), container);
   await new Promise<void>((resolve) => map.once('load', () => resolve()));
+  // The bare map shows streets and buildings only: no railway lines, transit, ferries or points of interest.
+  if (LOW_MEMORY) {
+    for (const layer of map.getStyle().layers ?? []) {
+      if (/rail|transit|ferry|aerialway|poi|station|bus/.test(layer.id)) map.setLayoutProperty(layer.id, 'visibility', 'none');
+    }
+  }
   let excludedIds: number[] = [];
   let exclusionBounds: number[][] = [];
   let exclusionKey = '';

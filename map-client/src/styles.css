@@ -558,6 +558,20 @@ select.tool { padding: 0 8px 0 12px; }
   background: radial-gradient(ellipse at 55% 0%, rgba(225, 232, 255, 1), rgba(170, 185, 230, 0.55) 55%, rgba(120, 135, 190, 0.2));
 }
 
+/*
+ * Phones and tablets (perf/quality.ts LOW_MEMORY, the same media test): no blend-mode layers over
+ * the map. iOS Safari can composite a mix-blend-mode layer over a WebGL canvas as its plain colour:
+ * an iPhone showed a white page while its map drew fine underneath, with only the weather tint
+ * (white, multiply) painted over it. The night veil would be navy. The bare map has no weather or
+ * light effects.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .weather-sky,
+  .light-veil {
+    display: none;
+  }
+}
+
 /* Ask tab */
 .ask { margin-top: 4px; }
 .ask-form { display: flex; gap: 6px; }
