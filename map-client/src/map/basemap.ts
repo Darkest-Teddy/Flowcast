@@ -296,7 +296,23 @@ function tameInteractions(map: {
   map.doubleClickZoom.disable();
 }
 
-export async function createBasemap(container: HTMLElement, lightPreset: LightPreset): Promise<Basemap> {
+export interface BasemapOptions {
+  /**
+   * Replaces the MapLibre style URL. Ignored on the Mapbox path, which configures
+   * Standard through `config` rather than by swapping styles.
+   *
+   * Used by the marketing page, which needs the dark style: without a Mapbox token
+   * `setLightPreset` is a no-op, so a dark basemap is the only way to get a night
+   * look on the fallback path.
+   */
+  styleUrl?: string;
+}
+
+export async function createBasemap(
+  container: HTMLElement,
+  lightPreset: LightPreset,
+  options: BasemapOptions = {},
+): Promise<Basemap> {
   const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
   if (token) {
@@ -540,7 +556,7 @@ export async function createBasemap(container: HTMLElement, lightPreset: LightPr
   const maplibregl = (maplibreModule.default ?? maplibreModule) as typeof maplibreModule.default;
   const map = new maplibregl.Map({
     container,
-    style: 'https://tiles.openfreemap.org/styles/liberty',
+    style: options.styleUrl ?? 'https://tiles.openfreemap.org/styles/liberty',
     ...INITIAL_VIEW,
     ...BOSTON_LIMITS,
     maxPitch: 85, // the default 60 is too flat for the street-level view

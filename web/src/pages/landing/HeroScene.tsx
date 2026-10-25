@@ -36,7 +36,11 @@ export interface HeroSceneHandle {
 
 interface Props {
   onReady?: (handle: HeroSceneHandle) => void;
-  /** Sim time to open on, in seconds since Boston midnight. 10:00 is the busiest. */
+  /**
+   * Sim time to open on, in seconds since Boston midnight. 20:00: dark enough for
+   * the lit windows and the Citgo sign, late enough that the Green Line and the 57
+   * are still running and there are people on Comm Ave.
+   */
   openAt?: number;
 }
 
@@ -49,8 +53,21 @@ interface Props {
  * and walkers still read. Must stay inside BOSTON_LIMITS: [[-71.135, 42.325],
  * [-71.045, 42.368]] at zoom >= 13.5.
  */
-const OPENING: CameraState = { center: [-71.1002, 42.3486], zoom: 16.2, pitch: 64, bearing: 252 };
-const COMMITTED: CameraState = { center: [-71.1046, 42.3499], zoom: 16.9, pitch: 70, bearing: 246 };
+/*
+ * Straight down, north up: the campus strip along the Charles, Fenway at one end,
+ * Kenmore in the middle. This is the title screen's backdrop, and it reads as a map
+ * rather than as a scene, which is what makes the tilt into 3D feel like an arrival.
+ *
+ * Must stay inside BOSTON_LIMITS: [[-71.135, 42.325], [-71.045, 42.368]], zoom >= 13.5.
+ */
+const OPENING: CameraState = { center: [-71.1055, 42.3505], zoom: 14.6, pitch: 0, bearing: 0 };
+
+/* Where the flight lands: low over Comm Ave, looking west past Kenmore and the
+   Citgo sign, with the Green Line median running away up-screen. */
+const COMMITTED: CameraState = { center: [-71.1035, 42.3494], zoom: 16.3, pitch: 62, bearing: 252 };
+
+/* Long enough to read as a camera move rather than a cut. */
+const FLIGHT_MS = 4200;
 
 /** How far the pointer is allowed to move the real camera. Small on purpose. */
 const DEPTH_BEARING = 3.2;
@@ -77,7 +94,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   ]);
 }
 
-export function HeroScene({ onReady, openAt = 10 * 3600 }: Props) {
+export function HeroScene({ onReady, openAt = 20 * 3600 }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
 
@@ -150,21 +167,29 @@ export function HeroScene({ onReady, openAt = 10 * 3600 }: Props) {
         if (cancelled) return;
 
         /*
-         * The manifest lists lit-window meshes per campus. Stripping them before
-         * loading is the only way to avoid fetching them: litWindows:false stops the
-         * layer being built but loadBuildingModels still enumerates manifest.lights.
-         * This is a daylight shot, so that is 3.6 MB saved.
+         * The lit-window meshes are kept. They are 3.6 MB, but at night they are the
+         * single best-looking thing in this renderer, and they cost nothing per
+         * frame: each window carries its own on/off times and a clock uniform
+         * switches them in the shader.
          */
         const manifest = await loadBuildingManifest();
         if (cancelled) return;
-        const daylight = {
-          ...manifest,
-          campuses: manifest.campuses.map((c) => ({ ...c, lights: undefined })),
-        };
 
         const [bm, buildings, transitData, vehicleModels, monuments, charModels] = await Promise.all([
-          withTimeout(createBasemap(el, 'day'), 12_000, 'basemap'),
-          loadBuildingModels(daylight, ['charles-river']),
+          withTimeout(
+            createBasemap(el, 'night', {
+              /*
+               * The dark style. Without a Mapbox token `setLightPreset` is a no-op,
+               * so swapping the MapLibre style is the only way to get a night look
+               * on this path. It is also cheaper: 47 style layers against Liberty's
+               * 111.
+               */
+              styleUrl: 'https://tiles.openfreemap.org/styles/dark',
+            }),
+            12_000,
+            'basemap',
+          ),
+          loadBuildingModels(manifest, ['charles-river']),
           loadTransit('/data/transit.json'),
           loadVehicleModels().catch(() => ({})),
           loadMonuments().catch(() => null),
@@ -251,16 +276,20 @@ export function HeroScene({ onReady, openAt = 10 * 3600 }: Props) {
             target = COMMITTED;
             applied.bearing = COMMITTED.bearing;
             applied.pitch = COMMITTED.pitch;
+            /*
+             * A direct interpolation, not flyTo's arc. flyTo pulls back before
+             * diving, which is right when crossing a city; here the camera is
+             * already high and straight down, so arcing would read as a lurch.
+             * easeInOutCubic keeps the start and the landing both unhurried.
+             */
             basemap?.easeTo({
               ...COMMITTED,
-              duration: reduced ? 0 : 2600,
-              fly: true,
-              easing: (t) => 1 - Math.pow(1 - t, 4),
+              duration: reduced ? 0 : FLIGHT_MS,
+              fly: false,
+              easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
             });
           },
         };
-        onReady?.(handle);
-
         /*
          * Layers are rebuilt at ~20fps, not 60. Each setProps repaints the whole
          * interleaved base map, and at this scene's speed (a bus crossing a few
@@ -366,11 +395,15 @@ export function HeroScene({ onReady, openAt = 10 * 3600 }: Props) {
 
           overlay.setProps({
             layers: [
-              ...buildingModelLayers(daylight, buildings, {
+              ...buildingModelLayers(manifest, buildings, {
                 campuses: ['charles-river'],
                 clock: simTime,
-                auto: true,
-                litWindows: false,
+                // Pinned to night rather than following the sun at `clock`: the
+                // basemap is the dark style, and an auto tint would drift away
+                // from it as the sim clock runs.
+                lightPreset: 'night',
+                auto: false,
+                litWindows: true,
               }),
               ...transitLayers({
                 data: transitData,
@@ -381,7 +414,10 @@ export function HeroScene({ onReady, openAt = 10 * 3600 }: Props) {
                 time: simTime,
                 weekday: 3,
               }),
-              ...(monuments ? monumentLayers(monuments, { zoom, lightPreset: 'day', time: simTime }) : []),
+              // 'night' also switches the Citgo sign on: it lights when the clock is
+              // between noon and midnight and either the sun is down or the preset
+              // is night.
+              ...(monuments ? monumentLayers(monuments, { zoom, lightPreset: 'night', time: simTime }) : []),
               // Never agentLayers: it hardcodes id 'agents', which collides with the
               // map app's ids in the shared culling and stable-list caches.
               ...characterLayers(walkers, charModels, simTime, {
@@ -394,7 +430,17 @@ export function HeroScene({ onReady, openAt = 10 * 3600 }: Props) {
           });
         }
 
+        /*
+         * Draw the whole scene once, and only then report ready.
+         *
+         * "Ready" has to mean painted, not started. Everything the flight will pass
+         * over -- buildings, the Citgo sign, trains, buses -- is already uploaded and
+         * on screen by this point, so clicking Explore does no loading at all: it is
+         * a pure camera move over geometry that is already there.
+         */
+        drawLayers(performance.now());
         el.classList.add(styles.canvasReady);
+        onReady?.(handle);
         frame = requestAnimationFrame(tick);
       } catch (err) {
         if (!cancelled) {

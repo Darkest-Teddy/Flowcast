@@ -1,4 +1,4 @@
-/*
+﻿/*
  * The title screen that opens the landing page.
  *
  * It sits over the live 3D campus, washed back so the scene reads faintly through
@@ -13,7 +13,7 @@
  * entirely gets an ordinary page and never has to click anything.
  */
 
-import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useDepth, type DepthState } from './useDepth';
 import styles from './TitleScreen.module.css';
 
@@ -33,53 +33,23 @@ interface Props {
   onDepthFrame?: (state: DepthState) => void;
   /** Label for the scroll affordance. */
   cue?: string;
+  /**
+   * False until the scene behind has actually painted. The action waits for it, so
+   * committing is never a click that triggers a load: by the time it is live, the
+   * flight is a pure camera move over geometry already on screen.
+   */
+  ready?: boolean;
 }
 
-/**
- * Splits text into per-character spans carrying --char-index, the same shape
- * Splitting.js produces, without the dependency.
- *
- * Accessibility: the visible characters are hidden from assistive tech and the
- * whole string is exposed once on the heading, so a screen reader announces
- * "Flowcast" rather than spelling it out.
- */
-function SplitChars({ text }: { text: string }) {
-  const chars = useMemo(() => Array.from(text), [text]);
-  return (
-    <>
-      <span className="visually-hidden">{text}</span>
-      <span aria-hidden="true" style={{ display: 'flex' }}>
-        {chars.map((c, i) => (
-          <span key={`${c}-${i}`} className={styles.char} style={{ '--char-index': i } as CSSProperties}>
-            {c === ' ' ? ' ' : c}
-          </span>
-        ))}
-      </span>
-    </>
-  );
-}
-
-/** Splits text into per-word spans carrying --word-index. */
-function SplitWords({ text }: { text: string }) {
-  const words = useMemo(() => text.split(' '), [text]);
-  return (
-    <>
-      <span className="visually-hidden">{text}</span>
-      <span aria-hidden="true">
-        {words.map((w, i) => (
-          <span key={`${w}-${i}`}>
-            <span className={styles.word} style={{ '--word-index': i } as CSSProperties}>
-              {w}
-            </span>
-            {i < words.length - 1 && <span className={styles.space} />}
-          </span>
-        ))}
-      </span>
-    </>
-  );
-}
-
-export function TitleScreen({ title, lede, children, onCommit, onDepthFrame, cue = 'Scroll to explore' }: Props) {
+export function TitleScreen({
+  title,
+  lede,
+  children,
+  onCommit,
+  onDepthFrame,
+  cue = 'Scroll to explore',
+  ready = true,
+}: Props) {
   const [spent, setSpent] = useState(false);
   const spentRef = useRef(false);
 
@@ -105,15 +75,20 @@ export function TitleScreen({ title, lede, children, onCommit, onDepthFrame, cue
 
       <div className={styles.deck}>
         <h1 className={[styles.plane, styles.planeTitle, styles.title].join(' ')}>
-          <SplitChars text={title} />
+          {title}
         </h1>
 
         <p className={[styles.plane, styles.planeLede, styles.lede].join(' ')}>
-          <SplitWords text={lede} />
+          {lede}
         </p>
 
         {children && (
-          <div className={[styles.plane, styles.planeActions, styles.actions].join(' ')} onClick={onCommit}>
+          <div
+            className={[styles.plane, styles.planeActions, styles.actions, ready ? '' : styles.waiting]
+              .filter(Boolean)
+              .join(' ')}
+            onClick={ready ? onCommit : undefined}
+          >
             {children}
           </div>
         )}

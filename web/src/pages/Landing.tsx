@@ -85,6 +85,7 @@ function Dot({ share, size = 'md' }: { share: number; size?: 'sm' | 'md' | 'lg' 
  */
 function TitleSection() {
   const sceneRef = useRef<HeroSceneHandle | null>(null);
+  const [ready, setReady] = useState(false);
 
   const onDepthFrame = useCallback((state: DepthState) => {
     sceneRef.current?.applyDepth(state);
@@ -94,23 +95,31 @@ function TitleSection() {
     sceneRef.current?.commit();
   }, []);
 
+  const onSceneReady = useCallback((h: HeroSceneHandle) => {
+    sceneRef.current = h;
+    setReady(true);
+  }, []);
+
   return (
     <section
       className={`${styles.dark} ${styles.titleSection}`}
       data-theme="dark"
       aria-label="Flowcast, a live 3D model of the Boston University campus"
     >
-      <HeroScene onReady={(h) => (sceneRef.current = h)} />
+      <HeroScene onReady={onSceneReady} />
       <TitleScreen
         title="Flowcast"
         lede="Boston University, live. Students on real class schedules, the Green Line down Comm Ave."
         onCommit={onCommit}
         onDepthFrame={onDepthFrame}
         cue="Scroll to see how it works"
+        ready={ready}
       >
-        <a href={config.mapUrl} className={`${styles.cta} ${styles.ctaLarge}`}>
+        {/* A button, not a link: this flies the camera down into campus. The link
+            out to the full map is in the nav and at the end of the page. */}
+        <button type="button" className={`${styles.cta} ${styles.ctaLarge}`}>
           Explore the campus
-        </a>
+        </button>
       </TitleScreen>
     </section>
   );
