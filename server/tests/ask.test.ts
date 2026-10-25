@@ -191,7 +191,12 @@ test('a closed dining hall is never the quietest: closed rows rank after open an
   assert.equal('capacity' in gsu, false);
   if (out.leastCrowded !== null) assert.equal(out.places.find((p: any) => p.name === out.leastCrowded).open, true);
   else assert.equal(map.show, null);
-  const order = out.places.map((p: any) => (p.open === true ? 0 : p.open === null ? 2 : 3));
+  const afterHours = out.places.find((p: any) => p.id === 'after-hours-west');
+  assert.equal(afterHours.open, true);
+  assert.equal(afterHours.modeled, false);
+  assert.equal(afterHours.percent, null);
+  assert.notEqual(out.leastCrowded, afterHours.name);
+  const order = out.places.map((p: any) => (!p.modeled ? 4 : p.open === true ? 0 : p.open === null ? 2 : 3));
   assert.deepEqual(order, [...order].sort());
   const openOnly = await rank({ kind: 'dining', time: '23:00', openOnly: true });
   assert.equal(openOnly.out.places.some((p: any) => p.open === false), false);
@@ -322,6 +327,10 @@ test('branch libraries and cafés: found by common names, ranked, with published
   assert.equal(get('Music Library'), 'music-library');
   assert.equal(get('Saxbys'), 'saxbys');
   assert.equal(get('Breadwinners'), 'breadwinners');
+  for (const nameContains of ['After Hours West', 'after-hours-west']) {
+    const found = (await call('find_places', { kind: 'dining', campus: 'charles-river', nameContains })).out;
+    assert.deepEqual(found.places.map((place: any) => place.id), ['after-hours-west']);
+  }
   const found = (await call('find_places', { kind: 'library', campus: 'charles-river', nameContains: 'law' })).out;
   assert.deepEqual(found.places.map((p: any) => p.id), ['law-library']);
   assert.equal(found.places[0].hoursStatus, 'published');

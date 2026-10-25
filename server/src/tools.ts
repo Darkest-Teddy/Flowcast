@@ -173,7 +173,8 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
       called('find_places');
       const q = nameContains?.toLowerCase();
       const matches = ctx.locations.filter((l) => (!kind || l.kind === kind) && (!campus || (l.campus ?? 'charles-river') === campus)
-        && (!q || l.name.toLowerCase().includes(q) || l.short.toLowerCase().includes(q)));
+        && (!q || l.name.toLowerCase().includes(q) || l.short.toLowerCase().includes(q)
+          || l.id.replace(/-/g, ' ').includes(q.replace(/-/g, ' '))));
       return result({
         places: matches.slice(0, 12).map((l) => ({ id: l.id, name: l.name, ...(l.short !== l.name ? { short: l.short } : {}), kind: l.kind, campus: l.campus ?? 'charles-river', hoursStatus: hoursStatus(l.id) })),
         ...(matches.length > 12 ? { more: matches.length - 12 } : {}),
