@@ -1,0 +1,32 @@
+.card {
+  composes: glass from global;
+  margin-bottom: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-card);
+  overflow-wrap: anywhere;
+}
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  cursor: pointer;
+}
+.title { font-weight: var(--weight-semibold); }
+.muted { color: var(--color-ink-secondary); font-size: var(--text-sm); }
+.items { list-style: none; margin: var(--space-3) 0 0; padding: 0; }
+.items > li {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--color-hairline-soft);
+}
+.label { color: var(--color-ink-secondary); font-size: var(--text-sm); }
+.detail { display: block; margin-top: var(--space-1); color: var(--color-ink-secondary); font-size: var(--text-sm); }
+.dot { display: inline-block; width: 0.6em; height: 0.6em; border-radius: 50%; margin-right: 0.3em; vertical-align: 0.05em; }
+.note { margin-top: var(--space-3); color: var(--color-ink-tertiary); font-size: var(--text-xs); }
+
+@media (max-width: 560px) {
+  .items > li { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
+}
