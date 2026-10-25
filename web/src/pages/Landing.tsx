@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Maximize2, Menu, X } from 'lucide-react';
 import { Link } from 'react-router';
-import { motion, MotionConfig, useReducedMotion, useScroll, useTransform } from 'motion/react';
+import { AnimatePresence, motion, MotionConfig, useMotionValueEvent, useReducedMotion, useScroll, useTransform, type MotionValue } from 'motion/react';
 import { crowdFor, crowdScale } from '@theme/tokens';
 import { loadCampusData, type CampusData } from '@map/data/campusData';
 import { config } from '../config';
@@ -13,7 +13,7 @@ import { IntroSky } from '@map/IntroSky';
 import type { EventImpactData, ImpactPlace } from '../data/types';
 import { openMap, prepareMap, STILL_ATTR } from './landing/openMap';
 import { entrance, grow, item, reveal, rise, rule, stagger } from './landing/motion';
-import { scrollToElement, useSmoothScroll } from './landing/smoothScroll';
+import { scrollToElement, scrollToY, setSmoothScrollPaused, useSmoothScroll } from './landing/smoothScroll';
 import { bostonStamp, loadStudentCount } from './landing/status';
 import {
   HOURS,
@@ -35,7 +35,7 @@ import styles from './Landing.module.css';
  */
 
 const SECTIONS = [
-  { id: 'map', label: 'The map' },
+  { id: 'dashboard', label: 'Dashboard' },
   { id: 'how', label: 'How it works' },
   { id: 'faq', label: 'FAQ' },
 ] as const;
@@ -53,13 +53,8 @@ const CATEGORIES = [
 ] as const;
 const KIND_LABEL: Record<string, string> = { library: 'Library', dining: 'Dining hall', gym: 'Gym', classroom: 'Academic building', dorm: 'Residence' };
 
-/**
- * The map recording for the video frame. TODO(recording): record the 3D map and save it as
- * map-client/public/landing/map-loop.mp4 (H.264) and map-loop.webm (VP9): 12–15 s, 1920×1080, 30 fps,
- * no audio, looping cleanly, then set this to { mp4: '/landing/map-loop.mp4', webm: '/landing/map-loop.webm' }.
- * Until then the frame shows the poster (the hero's still).
- */
-const MAP_VIDEO: { mp4: string; webm?: string } | null = null;
+/** The dashboard's home screen for the product frame (docs/images/dashboard-home.jpg, 1440×900, as WebP). */
+const DASHBOARD_SHOT = '/landing/dashboard-home.webp';
 
 /**
  * The forecast: the dashboard API's, or, when the API isn't up (local development without the
@@ -136,7 +131,7 @@ export default function Landing() {
         <LandingNav away={navAway} />
         <main id="main" tabIndex={-1} className={styles.main}>
           <Hero preset={preset} still={still} />
-          <MapVideo still={still} />
+          <Dashboard />
           <Preview day={day} error={impact.error} reload={impact.reload} />
           <HowItWorks sources={sources.data} />
           <Faq />
@@ -368,35 +363,29 @@ function TwoTone({ id, title, rest, className = '' }: { id: string; title: strin
   );
 }
 
-/* ---------- 02 Map video ---------- */
+/* ---------- 02 Dashboard ---------- */
 
-function MapVideo({ still }: { still: ReturnType<typeof introSources> }) {
+function Dashboard() {
   const reduce = useReducedMotion();
   // The frame tilts up into place as it scrolls in, after Raycast's product window.
   const frameRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: frameRef, offset: ['start end', 'center center'] });
   const rotateX = useTransform(scrollYProgress, [0, 1], [16, 0]);
   const scale = useTransform(scrollYProgress, [0, 1], [0.92, 1]);
-  const poster = still.src;
 
   return (
-    <section id="map" tabIndex={-1} className={styles.section} aria-labelledby="map-title">
+    <section id="dashboard" tabIndex={-1} className={styles.section} aria-labelledby="dashboard-title">
       <div className={styles.container}>
+        <TwoTone id="dashboard-title" title="Your day, around the crowds." rest="Your classes, how busy your places will be, and when to go." className={`${styles.centerTwoTone} ${styles.wideCenter}`} />
         <div className={styles.frameStage}>
           <motion.div ref={frameRef} className={styles.videoFrame} style={reduce ? undefined : { rotateX, scale }}>
-            {MAP_VIDEO && !reduce ? (
-              <video autoPlay muted loop playsInline preload="metadata" poster={poster} aria-label="The Flowcast 3D map of Boston University, with the clock running and simulated students walking">
-                {MAP_VIDEO.webm && <source src={MAP_VIDEO.webm} type="video/webm" />}
-                <source src={MAP_VIDEO.mp4} type="video/mp4" />
-              </video>
-            ) : (
-              <img {...still} sizes="(min-width: 1120px) 1120px, 100vw" alt="The Flowcast map of Boston University's campus, seen from above" loading="lazy" />
-            )}
-            {/* The section opens on the picture; its headline sits in the frame's lower corner. */}
-            <div className={styles.frameCaption}>
-              <p className={styles.eyebrow}>The map</p>
-              <TwoTone id="map-title" title="Watch campus move." rest="Scrub the clock and see simulated students walk between classes." className={styles.frameTitle} />
-            </div>
+            <img
+              src={DASHBOARD_SHOT}
+              width={1440}
+              height={900}
+              alt="The Flowcast dashboard's home screen: today's classes, how busy your places will be, a suggestion for when to go, and this week's numbers"
+              loading="lazy"
+            />
           </motion.div>
         </div>
       </div>
@@ -604,33 +593,226 @@ function PreviewBody({
 
 /* ---------- 04 How it works ---------- */
 
+/** Wide windows with motion allowed: the steps pin and open one by one as the page scrolls. Matches Landing.module.css. */
+const PINNED = '(min-width: 900px) and (prefers-reduced-motion: no-preference)';
+
+interface StepShot {
+  /** map-client/public/landing/how-<name>-<1x|2x>.webp: the map in a 1280 × 800 window, at 1× and 2×. */
+  name: string;
+  alt: string;
+  caption: string;
+}
+
+/** Each step's screenshot of the real map, whole, at the shape it was taken. */
+const HOW_SHOTS: StepShot[] = [
+  {
+    name: 'sources',
+    alt: "The Flowcast map with its Analytics panel open, listing BU buildings and how many classes each holds, beside the campus with a crowd tag on every building",
+    caption: 'BU’s class schedules, building by building',
+  },
+  {
+    name: 'day',
+    alt: 'The 3D map close up on Commonwealth Avenue in the early afternoon: simulated students walking between buildings, each tagged with how full it is, and the clock at the top right',
+    caption: 'Simulated students walking between classes',
+  },
+  {
+    name: 'forecast',
+    alt: 'The 3D map of the Charles River Campus with a crowd tag on every building, such as CDS Busy 84% seats, and the Analytics panel listing the quietest places right now',
+    caption: 'Every building’s crowd level, on one scale',
+  },
+];
+
+const SHOT_SIZE = { width: 2560, height: 1600 };
+const shotSources = (shot: StepShot) => ({
+  src: `/landing/how-${shot.name}-1x.webp`,
+  srcSet: `/landing/how-${shot.name}-1x.webp 1280w, /landing/how-${shot.name}-2x.webp 2560w`,
+});
+
+function useMatches(query: string) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const sync = () => setMatches(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, [query]);
+  return matches;
+}
+
+/**
+ * The three steps, played as you scroll, after apple.com's feature walls: the section holds still
+ * for a few screens while each step lights in turn, and the window beside it shows that step in the
+ * real map. The steps split the window's height into equal thirds, so the two columns line up.
+ * Clicking a step scrolls to it; clicking a screenshot opens it full size. On narrow screens and
+ * with reduced motion nothing pins: the steps stack, each screenshot under its words.
+ */
 function HowItWorks({ sources }: { sources: CampusData | null }) {
   const meetings = sources ? `${sources.coverage.mappedMeetings.toLocaleString('en-US')} class meetings` : 'Class meetings';
   const events = sources ? `${sources.events.length.toLocaleString('en-US')} campus events` : 'campus events';
   const steps = [
-    { title: 'Public BU data', body: `${meetings}, ${events}, posted hours and published seat counts.` },
-    { title: 'A simulated day', body: 'Synthetic students follow class schedules and walk between buildings, eating and studying within posted hours.' },
-    { title: 'Hourly forecasts', body: 'Each modeled place gets an occupancy for every hour, as a share of its capacity, on one scale.' },
+    { title: 'Public BU data', body: `${meetings}, ${events}, posted hours and published seat counts.`, shot: HOW_SHOTS[0] },
+    { title: 'A simulated day', body: 'Synthetic students follow class schedules and walk between buildings, eating and studying within posted hours.', shot: HOW_SHOTS[1] },
+    { title: 'Hourly forecasts', body: 'Each modeled place gets an occupancy for every hour, as a share of its capacity, on one scale.', shot: HOW_SHOTS[2] },
   ];
+
+  const trackRef = useRef<HTMLElement>(null);
+  const pinned = useMatches(PINNED);
+  const { scrollYProgress } = useScroll({ target: trackRef, offset: ['start start', 'end end'] });
+  const [active, setActive] = useState(0);
+  useMotionValueEvent(scrollYProgress, 'change', (p) => setActive(Math.max(0, Math.min(steps.length - 1, Math.floor(p * steps.length)))));
+
+  /** Scrolls to just inside step i's stretch of the track, which lights it. */
+  function open(i: number) {
+    const track = trackRef.current;
+    if (!track) return;
+    const top = track.getBoundingClientRect().top + window.scrollY;
+    scrollToY(top + (track.offsetHeight - window.innerHeight) * ((i + 0.08) / steps.length));
+  }
+
+  const [zoomed, setZoomed] = useState<StepShot | null>(null);
+
   return (
-    <section id="how" tabIndex={-1} className={styles.section} aria-labelledby="how-title">
-      <div className={styles.container}>
-        <TwoTone id="how-title" title="Schedules in, forecasts out." rest="Three steps from public pages to the map." className={styles.centerTwoTone} />
-        {/* Big numerals on one line, joined by a rule that draws itself across as the steps come in. */}
-        <motion.ol {...stagger} className={styles.steps}>
-          <motion.span {...rule} className={styles.stepsLine} aria-hidden />
-          {steps.map((step, i) => (
-            <motion.li key={step.title} {...item} className={styles.step}>
-              <span className={styles.stepNumeral} aria-hidden>
-                {String(i + 1).padStart(2, '0')}
-              </span>
-              <h3 className={styles.numTitle}>{step.title}</h3>
-              <p className={styles.numBody}>{step.body}</p>
-            </motion.li>
-          ))}
-        </motion.ol>
+    <section ref={trackRef} id="how" tabIndex={-1} className={styles.howTrack} aria-labelledby="how-title">
+      <div className={styles.howPin}>
+        <div className={styles.container}>
+          <TwoTone id="how-title" title="Schedules in, forecasts out." rest="Three steps from public pages to the map." className={styles.howTitle} />
+          <div className={styles.howGrid}>
+            <ol className={styles.howSteps}>
+              {steps.map((step, i) => (
+                <HowStep key={step.title} index={i} count={steps.length} step={step} active={i === active} pinned={pinned} progress={scrollYProgress} onOpen={open} onZoom={setZoomed} />
+              ))}
+            </ol>
+            {pinned && (
+              <div className={styles.howStage}>
+                <AnimatePresence initial={false}>
+                  <motion.div
+                    key={active}
+                    className={styles.howVisual}
+                    initial={{ opacity: 0, scale: 1.03 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Shot shot={steps[active].shot} onZoom={setZoomed} />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+      <Lightbox shot={zoomed} onClose={() => setZoomed(null)} />
     </section>
+  );
+}
+
+/**
+ * One step: its numeral, title and words, always shown. While pinned, the step on screen is lit and
+ * a bar down its left edge fills across its stretch of the scroll; the others are dimmed, and
+ * clicking one scrolls to it.
+ */
+function HowStep({
+  index,
+  count,
+  step,
+  active,
+  pinned,
+  progress,
+  onOpen,
+  onZoom,
+}: {
+  index: number;
+  count: number;
+  step: { title: string; body: string; shot: StepShot };
+  active: boolean;
+  pinned: boolean;
+  progress: MotionValue<number>;
+  onOpen: (i: number) => void;
+  onZoom: (shot: StepShot) => void;
+}) {
+  const fill = useTransform(progress, [index / count, (index + 1) / count], [0, 1]);
+  const numeral = (
+    <span className={styles.num} aria-hidden>
+      {String(index + 1).padStart(2, '0')}
+    </span>
+  );
+  return (
+    <li className={styles.howStep} data-active={(pinned && active) || undefined} aria-current={pinned && active ? 'step' : undefined}>
+      {pinned && <motion.span className={styles.howStepFill} style={{ scaleY: fill }} aria-hidden />}
+      <h3 className={styles.howStepTitle}>
+        {pinned ? (
+          <button type="button" className={styles.howStepButton} onClick={() => onOpen(index)}>
+            {numeral}
+            {step.title}
+          </button>
+        ) : (
+          <span className={styles.howStepButton}>
+            {numeral}
+            {step.title}
+          </span>
+        )}
+      </h3>
+      <p className={styles.howStepText}>{step.body}</p>
+      {!pinned && (
+        <div className={styles.howInline}>
+          <Shot shot={step.shot} onZoom={onZoom} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** A step's screenshot in the same rounded window as the dashboard frame; clicking it opens the lightbox. */
+function Shot({ shot, onZoom }: { shot: StepShot; onZoom: (shot: StepShot) => void }) {
+  return (
+    <button type="button" className={styles.howShot} onClick={() => onZoom(shot)} aria-label={`${shot.caption}: open full size`}>
+      <img {...shotSources(shot)} {...SHOT_SIZE} sizes="(min-width: 900px) 880px, 100vw" alt={shot.alt} loading="lazy" />
+      <span className={styles.howShotZoom} aria-hidden>
+        <Maximize2 />
+      </span>
+    </button>
+  );
+}
+
+/**
+ * A screenshot full size over the page (a modal <dialog>: focus stays inside, Escape closes it).
+ * Clicking anywhere but the picture closes it too. The page's smooth scrolling pauses meanwhile.
+ */
+function Lightbox({ shot, onClose }: { shot: StepShot | null; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (shot && !dialog.open) {
+      dialog.showModal();
+      setSmoothScrollPaused(true);
+    } else if (!shot && dialog.open) dialog.close();
+  }, [shot]);
+
+  return (
+    <dialog
+      ref={ref}
+      className={styles.lightbox}
+      aria-label={shot?.caption}
+      onClose={() => {
+        setSmoothScrollPaused(false);
+        onClose();
+      }}
+      onClick={(e) => {
+        if (!(e.target instanceof HTMLImageElement)) ref.current?.close();
+      }}
+    >
+      {shot && (
+        <figure className={styles.lightboxFigure}>
+          <img {...shotSources(shot)} {...SHOT_SIZE} sizes="100vw" alt={shot.alt} />
+          <figcaption>{shot.caption}</figcaption>
+        </figure>
+      )}
+      <button type="button" className={styles.lightboxClose} aria-label="Close">
+        <X aria-hidden />
+      </button>
+    </dialog>
   );
 }
 

@@ -48,6 +48,7 @@ declare module 'lucide-react' {
   export const Home: LucideIcon;
   export const LayoutGrid: LucideIcon;
   export const Map: LucideIcon;
+  export const Maximize2: LucideIcon;
   export const Menu: LucideIcon;
   export const MessagesSquare: LucideIcon;
   export const Moon: LucideIcon;

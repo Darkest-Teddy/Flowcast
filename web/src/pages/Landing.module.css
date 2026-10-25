@@ -419,8 +419,18 @@
 
 /* ---------- Shared section parts ---------- */
 
+/* Each section takes at least the whole window, its content centred in it, clear of the floating nav. */
 .section {
-  padding: var(--landing-section-gap) 0 0;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--nav-clearance) 0;
+}
+
+.section > * {
+  width: 100%;
 }
 
 .sectionHead {
@@ -494,6 +504,10 @@
   text-align: center;
 }
 
+.wideCenter {
+  max-width: 900px;
+}
+
 .dot {
   display: inline-block;
   flex: none;
@@ -515,11 +529,14 @@
   height: var(--space-4);
 }
 
-/* ---------- 02 Map video ---------- */
+/* ---------- 02 Dashboard ---------- */
 
-/* A large rounded window onto the map that tilts up into place as it scrolls in, after raycast.com's product window. */
+/* A large rounded window onto the dashboard that tilts up into place as it scrolls in, after
+   raycast.com's product window. No wider than lets it fit in the window under the headline. */
 .frameStage {
   position: relative;
+  width: min(100%, calc((100svh - 2 * var(--nav-clearance) - 180px) * 1.6));
+  margin: var(--space-12) auto 0;
   perspective: 1400px;
 }
 
@@ -535,7 +552,7 @@
 
 .videoFrame {
   position: relative;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
   border: 1px solid var(--landing-hairline);
   border-radius: var(--radius-sheet);
@@ -544,28 +561,21 @@
   transform-origin: 50% 100%;
 }
 
-.videoFrame video,
 .videoFrame img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top;
 }
 
-/* The section's headline inside the frame's lower part, over a flat fade to the page's black. */
-.frameCaption {
+/* The screenshot runs on below the frame's edge, so its foot fades into the page's black. */
+.videoFrame::after {
+  content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: clamp(var(--space-6), 5vw, var(--space-12));
-  padding-top: var(--space-24);
-  background: linear-gradient(to top, var(--landing-canvas) 15%, color-mix(in srgb, var(--landing-canvas) 70%, transparent) 55%, transparent);
-}
-
-.frameTitle {
-  max-width: 620px;
-  font-size: clamp(var(--text-2xl), 3.4vw, var(--text-3xl));
+  inset: 72% 0 0;
+  background: linear-gradient(to top, var(--landing-canvas), transparent);
+  pointer-events: none;
 }
 
 /* ---------- 03 Hourly preview ---------- */
@@ -875,55 +885,292 @@
 
 /* ---------- 04 How it works ---------- */
 
-/* Big numerals on one line, joined by a rule that draws across as the steps come in. */
-.steps {
+/* The track is a few screens tall and the pin holds the section still inside it while the steps
+   play (wide windows with motion allowed: PINNED in Landing.tsx). Elsewhere it's an ordinary section. */
+.howTrack {
   position: relative;
+}
+
+.howPin {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--nav-clearance) 0;
+}
+
+.howPin > * {
+  width: 100%;
+}
+
+/* Wider than the other sections, so the screenshots are big enough to read. */
+.howPin > .container {
+  max-width: 1360px;
+}
+
+@media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .page .howTrack {
+    height: 320vh;
+    scroll-margin-top: 0;
+  }
+
+  .howPin {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    height: 100svh;
+  }
+
+  /* The steps beside a wide screenshot, both as tall as the screenshot. */
+  .howGrid {
+    display: grid;
+    grid-template-columns: minmax(260px, 3fr) minmax(0, 8fr);
+    gap: var(--space-12);
+    margin-top: var(--space-10);
+  }
+
+  /* Three equal rows, together as tall as the screenshot. (.howGrid in the selector so it
+     outranks the base .howSteps rule further down.) */
+  .howGrid .howSteps {
+    display: grid;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  /* Each row: a track down its left edge, the words beside it, centred in the row. The step on
+     screen is lit; the others wait, dimmed. */
+  .howGrid .howStep {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: var(--space-6);
+    border-bottom: 0;
+    border-left: 2px solid var(--landing-hairline);
+    opacity: 0.45;
+    transition: opacity var(--duration-base) ease;
+  }
+
+  .howGrid .howStep[data-active] {
+    opacity: 1;
+  }
+
+  .howGrid .howStepButton {
+    padding: 0;
+  }
+
+  .howGrid .howStepText {
+    padding-bottom: 0;
+  }
+}
+
+.howTitle {
+  max-width: 900px;
+  font-size: clamp(var(--text-2xl), 3.6vw, var(--text-4xl));
+}
+
+.howSteps {
   list-style: none;
-  margin: var(--space-16) 0 0;
+  margin: var(--space-10) 0 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-10);
 }
 
-.stepsLine {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(var(--text-5xl) * 0.55);
-  height: 1px;
-  background: var(--landing-hairline);
-}
-
-.step {
+/* One step: its numeral and title, then its words. Stacked on narrow screens, a hairline under each. */
+.howStep {
   position: relative;
+  border-bottom: 1px solid var(--landing-hairline);
 }
 
-/* Decorative, so outlined: the step's title carries the reading. */
-.stepNumeral {
-  display: inline-block;
-  padding-right: var(--space-3);
-  background: var(--landing-canvas);
-  color: transparent;
-  font-size: var(--text-5xl);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-display-tight);
-  line-height: 1.1;
-  -webkit-text-stroke: 1px var(--color-ink-secondary);
-}
-
-.numTitle {
-  margin-top: var(--space-4);
+.howStepTitle {
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-text);
 }
 
-.numBody {
+.howStepButton {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-5) 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+}
+
+button.howStepButton {
+  cursor: pointer;
+}
+
+.howStepText {
   margin-top: var(--space-2);
+  padding: 0 0 var(--space-6) calc(var(--space-4) + 2ch);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-lg);
+  text-wrap: pretty;
+}
+
+/* The lit step's bar, over the track on its left edge, filling top to bottom as you scroll. */
+.howStepFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2px;
+  width: 2px;
+  background: var(--color-accent);
+  transform-origin: 50% 0;
+}
+
+/* The window beside the steps: each step's screenshot settles in over the last (both in one grid
+   cell while they cross). As wide as its column, unless the window is too short for that. */
+.howStage {
+  display: grid;
+  justify-self: end;
+  width: min(100%, calc((100svh - 2 * var(--nav-clearance) - 170px) * 1.6));
+}
+
+.howVisual {
+  grid-area: 1 / 1;
+}
+
+/* Under each step's words on narrow screens. */
+.howInline {
+  margin-bottom: var(--space-6);
+}
+
+/* The screenshot whole, at the shape it was taken (16:10), in the dashboard frame's window. */
+.howShot {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--landing-hairline);
+  border-radius: var(--radius-card);
+  background: var(--landing-raised);
+  box-shadow: var(--landing-frame-glow);
+  cursor: zoom-in;
+}
+
+.howShot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  transition: transform var(--duration-base) ease;
+}
+
+.howShot:hover img {
+  transform: scale(1.015);
+}
+
+/* A hint that the screenshot opens full size. */
+.howShotZoom {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--landing-hairline);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--landing-canvas) 78%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--color-ink);
+  opacity: 0.85;
+  transition: opacity var(--duration-base) ease;
+}
+
+.howShotZoom svg {
+  width: 16px;
+  height: 16px;
+}
+
+.howShot:hover .howShotZoom,
+.howShot:focus-visible .howShotZoom {
+  opacity: 1;
+}
+
+/* ---------- Lightbox ---------- */
+
+.lightbox {
+  width: 100vw;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: var(--space-12) var(--gutter);
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  cursor: zoom-out;
+}
+
+.lightbox[open] {
+  display: grid;
+  place-items: center;
+  animation: lightbox-in var(--duration-base) ease-out;
+}
+
+.lightbox::backdrop {
+  background: color-mix(in srgb, var(--landing-canvas) 88%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.lightboxFigure {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: center;
+  margin: 0;
+}
+
+.lightboxFigure img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: calc(100dvh - 2 * var(--space-12) - 40px);
+  border: 1px solid var(--landing-hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+  cursor: default;
+}
+
+.lightboxFigure figcaption {
   color: var(--color-ink-secondary);
   font-size: var(--text-md);
-  text-wrap: pretty;
+}
+
+.lightboxClose {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: grid;
+  place-items: center;
+  width: var(--control-height-touch);
+  height: var(--control-height-touch);
+  border: 1px solid var(--landing-hairline);
+  border-radius: 50%;
+  background: var(--landing-raised);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.lightboxClose svg {
+  width: 20px;
+  height: 20px;
+}
+
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
 }
 
 .num {
@@ -1054,24 +1301,12 @@
     display: none;
   }
 
-  .frameCaption {
-    position: static;
-    padding: var(--space-5) 0 0;
-    background: none;
+  .frameStage {
+    width: 100%;
+    margin-top: var(--space-8);
   }
 
   .videoFrame {
-    overflow: visible;
-    aspect-ratio: auto;
-    border: 0;
-    background: none;
-    box-shadow: none;
-  }
-
-  .videoFrame video,
-  .videoFrame img {
-    aspect-ratio: 16 / 9;
-    border: 1px solid var(--landing-hairline);
     border-radius: var(--radius-card);
   }
 
@@ -1101,19 +1336,14 @@
   .faqSide {
     position: static;
   }
-
-  .steps {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-8);
-  }
-
-  .stepsLine {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .navBar {
     transition: none;
+  }
+
+  .lightbox[open] {
+    animation: none;
   }
 }

@@ -37,3 +37,15 @@ export function scrollToElement(target: HTMLElement, { immediate = false } = {})
   if (lenis) lenis.scrollTo(target, { immediate });
   else target.scrollIntoView({ block: 'start' });
 }
+
+/** Scrolls the page to a y offset: eased by Lenis when it's on, instantly otherwise. */
+export function scrollToY(y: number) {
+  if (lenis) lenis.scrollTo(y);
+  else window.scrollTo({ top: y });
+}
+
+/** Holds the page still (while a lightbox is open over it) and lets it scroll again. */
+export function setSmoothScrollPaused(paused: boolean) {
+  if (paused) lenis?.stop();
+  else lenis?.start();
+}

@@ -11,8 +11,8 @@
 
    The drift delays come from the clock (introSkyDelays), so every copy shows the clouds in the same
    place at the same moment and one can replace another unseen. A plain file in public/ so map.html
-   can load it before the app. Only transform, opacity and the backdrop filter animate; the blur is a
-   backdrop filter so its edges clamp to the picture's instead of fading to the page. */
+   can load it before the app. Only transform, opacity and the backdrop filter animate; the haze is a
+   backdrop filter so it tints only what's under it. */
 
 .intro-sky {
   position: absolute;
@@ -29,12 +29,13 @@
 .intro-haze {
   position: absolute;
   inset: 0;
-  -webkit-backdrop-filter: blur(6px) saturate(0.35);
-  backdrop-filter: blur(6px) saturate(0.35);
+  /* Colour only, no blur: campus reads crisply through it, just a little washed out. */
+  -webkit-backdrop-filter: saturate(0.7);
+  backdrop-filter: saturate(0.7);
   transition: backdrop-filter 0.6s ease, -webkit-backdrop-filter 0.6s ease;
 }
-.intro-sky[data-phase='drop'] .intro-haze { -webkit-backdrop-filter: blur(2px) saturate(0.6); backdrop-filter: blur(2px) saturate(0.6); }
-.intro-sky[data-phase='land'] .intro-haze { -webkit-backdrop-filter: blur(0) saturate(1); backdrop-filter: blur(0) saturate(1); }
+.intro-sky[data-phase='drop'] .intro-haze { -webkit-backdrop-filter: saturate(0.85); backdrop-filter: saturate(0.85); }
+.intro-sky[data-phase='land'] .intro-haze { -webkit-backdrop-filter: saturate(1); backdrop-filter: saturate(1); }
 
 /* Clouds thick round the edges and thin in the middle, so campus shows through. */
 .intro-clouds {
