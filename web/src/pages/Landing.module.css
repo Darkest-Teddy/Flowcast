@@ -286,6 +286,11 @@
   }
 }
 
+/* The landing page and the map cross-fade when "Open the map" goes from one to the other (map.html opts in too). */
+@view-transition {
+  navigation: auto;
+}
+
 /* ---------- 01 Hero ---------- */
 
 .hero {
@@ -341,16 +346,22 @@
 
 .stage {
   position: relative;
-  height: clamp(500px, 54vw, 640px);
-  margin-top: var(--space-2);
+  height: clamp(560px, 62vw, 820px);
+  /* Rise under the buttons: the still's top is faded out (and mostly streets), so the text stays clear. */
+  margin-top: calc(-1 * clamp(80px, 9vw, 150px));
 }
 
-/* Masks only read alpha: the ink token stands for "opaque". */
-.heroScene {
+/* A still of the live map (map-client/src/intro.ts), faded into the dark hero at the top and bottom.
+   "Open the map" grows it to fill the window and the map opens on the same picture. Masks only read
+   alpha: the ink token stands for "opaque". */
+.heroStill {
   position: absolute;
   inset: 0;
-  -webkit-mask-image: radial-gradient(ellipse 62% 70% at 50% 55%, var(--color-ink) 45%, transparent 100%);
-  mask-image: radial-gradient(ellipse 62% 70% at 50% 55%, var(--color-ink) 45%, transparent 100%);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, var(--color-ink) 26%, var(--color-ink) 86%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, var(--color-ink) 26%, var(--color-ink) 86%, transparent 100%);
 }
 
 .tag {

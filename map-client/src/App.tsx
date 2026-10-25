@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
-import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
+import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, VIEW_IN_URL, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
 import { agentLayers, loadCharacterModels, type Character, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle } from './BuildingTags';
@@ -57,7 +57,8 @@ import {
 } from './bikes/bluebikes';
 import { bikeLayers, bikeTooltip, loadBikeModels } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
-import { LoadingScreen, createLoadProgress } from './LoadingScreen';
+import { IntroScreen, createLoadProgress, introScale } from './IntroScreen';
+import { INTRO_VIEW, introZoom } from './intro';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
@@ -147,6 +148,10 @@ const SCENARIO_LOOK: Record<string, WeatherMode> = { clear: 'clear', rain: 'rain
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
 const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
+/** The map opens on the intro still (IntroScreen) and flies in from its camera, unless the URL sets the view. */
+const FROM_INTRO = !VIEW_IN_URL;
+const NO_PADDING = { top: 0, left: 0, right: 0, bottom: 0 };
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 /** ?ask=least+crowded+library opens the Ask tab with that question answered. */
 const START_QUESTION = params.get('ask');
 
@@ -216,6 +221,7 @@ export default function App() {
   const [parkingError, setParkingError] = useState<string | null>(null);
 
   const [loadProgress] = useState(createLoadProgress);
+  const introRef = useRef(FROM_INTRO); // the intro still is up and the camera is held at its framing
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
   const [hud, setHud] = useState<Hud | null>(null);
   const [range, setRange] = useState<[number, number]>([0, 86400]);
@@ -261,7 +267,8 @@ export default function App() {
     const p = paddingRef.current;
     if (next.top === p.top && next.bottom === p.bottom && next.left === p.left && next.right === p.right) return;
     paddingRef.current = next;
-    basemapRef.current?.setViewPadding(next);
+    // Under the intro the map stays framed like the still (no padding); the fly-in brings it in.
+    if (!introRef.current) basemapRef.current?.setViewPadding(next);
   }, []);
   const onSheetCover = useCallback((cover: SheetCover) => {
     coverRef.current = cover;
@@ -431,7 +438,7 @@ export default function App() {
       // Observed counts for the public crowd; without them the map shows students only.
       const observationsLoad = loadObservations().catch(() => null);
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields, , signs] = await Promise.all([
-        track('Drawing the map', createBasemap(mapElement, shownLight)),
+        track('Drawing the map', createBasemap(mapElement, shownLight, FROM_INTRO ? { ...INTRO_VIEW, zoom: introZoom(mapElement.clientWidth, mapElement.clientHeight) } : INITIAL_VIEW)),
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
         track('Dressing the students', loadCharacterModels() as Promise<LoadedModels>),
         // Transit and bikes are extras: the campus view must still start if they can't load.
@@ -460,7 +467,7 @@ export default function App() {
         .every(date => scheduleCoversDate(candidateTimetable, date)) ? candidateTimetable : null;
       basemapRef.current = basemap;
       // The panels were laid out while the map loaded: start centred in what they leave.
-      basemap.setViewPadding(paddingRef.current, false);
+      if (!introRef.current) basemap.setViewPadding(paddingRef.current, false);
       setMapKind(basemap.kind);
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
       // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
@@ -635,15 +642,23 @@ export default function App() {
         .catch(() => null);
       // Dev-only handle for poking at layers from the browser console.
       if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, get incident() { return incidentRunRef.current; }, transitRef, bikesRef, populationBase, quality } });
-      // Lift the loading screen once the first frames are drawn and the view's tiles are in (or
-      // after 4 s regardless), sweeping the camera in from a wider, turned view as it fades.
+      // Lift the intro once the first frames are drawn and the view's tiles are in (or after 4 s
+      // regardless). From the intro still: line the live map up with the still's current framing
+      // (it has been pushing in), fade the still out over it, then fly in to the opening view with
+      // the panels' padding. With a view from the URL: sweep in from a wider, turned view.
       const revealFrom = performance.now();
       const reveal = () => {
         if (cancelled) return;
         if (!basemap.tilesLoaded() && performance.now() - revealFrom < 4000) return void requestAnimationFrame(reveal);
-        const camera = basemap.getCamera();
-        basemap.jumpTo({ zoom: camera.zoom - 0.9, bearing: camera.bearing - 25, pitch: Math.max(0, camera.pitch - 15) });
-        basemap.easeTo({ ...camera, duration: 2200 });
+        if (introRef.current) {
+          introRef.current = false;
+          basemap.jumpTo({ ...INTRO_VIEW, zoom: introZoom(mapElement.clientWidth, mapElement.clientHeight, introScale()), padding: NO_PADDING });
+          setTimeout(() => { if (!cancelled) basemap.easeTo({ ...INITIAL_VIEW, padding: paddingRef.current, duration: 3200, easing: easeInOutCubic }); }, 350);
+        } else {
+          const camera = basemap.getCamera();
+          basemap.jumpTo({ zoom: camera.zoom - 0.9, bearing: camera.bearing - 25, pitch: Math.max(0, camera.pitch - 15) });
+          basemap.easeTo({ ...camera, duration: 2200 });
+        }
         loadProgress.finish();
       };
       requestAnimationFrame(() => requestAnimationFrame(reveal));
@@ -1299,7 +1314,7 @@ export default function App() {
       <PlaceTags ref={placeTagsRef} />
       {showParking && <ParkingTags ref={parkingTagsRef} />}
 
-      <LoadingScreen progress={loadProgress} />
+      <IntroScreen progress={loadProgress} preset={shownLight} />
 
       <MemoPerfMonitor counts={getPerfCounts} />
       {mapKind && (

@@ -1,0 +1,94 @@
+/* Startup overlay (IntroScreen.tsx): the intro still over the loading map. Only transform and
+   opacity animate, so the compositor does the work while the main thread parses models and builds
+   the population. The progress line is art over a photo: its own light ink in both themes. */
+
+.intro {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  background: #0b0d12;
+  transition: opacity 0.9s ease;
+}
+.intro.intro-out { opacity: 0; pointer-events: none; }
+
+/* Covers the window exactly as the live map will (centred, object-fit: cover; intro.ts works out
+   the matching zoom), pushing in slowly like a camera moving toward campus. */
+.intro-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: intro-push 30s cubic-bezier(0.2, 0.6, 0.35, 1) both;
+}
+/* Hold the framing the live map was lined up with while the still fades. */
+.intro-out .intro-still { animation-play-state: paused; }
+@keyframes intro-push {
+  from { transform: scale(1); }
+  to { transform: scale(1.1); }
+}
+
+.intro-progress {
+  position: absolute;
+  left: 50%;
+  bottom: max(32px, env(safe-area-inset-bottom));
+  width: min(320px, calc(100% - 64px));
+  transform: translateX(-50%);
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+.intro-out .intro-progress { opacity: 0; }
+.intro-step {
+  margin: 0 0 10px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65), 0 0 12px rgba(0, 0, 0, 0.45);
+}
+.intro-bar {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.intro-bar span {
+  display: block;
+  height: 100%;
+  background: #fff;
+  transform-origin: left;
+  transition: transform 0.6s ease;
+}
+
+.intro-error {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(420px, calc(100% - 32px));
+  padding: 20px 24px;
+  border-radius: 20px;
+  transform: translate(-50%, -50%);
+  color: #f5f5f7;
+  background: rgba(20, 20, 22, 0.92);
+  text-align: center;
+}
+.intro-error p { margin: 0 0 14px; }
+.intro-error button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: #0066cc;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.intro-error button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-still { animation: none; }
+  .intro { transition-duration: 0.2s; }
+}

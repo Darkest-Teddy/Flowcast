@@ -5,8 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.svg" />
     <title>Flowcast map</title>
+    <style>
+      /* Opening from the landing page's "Open the map": the old page's last frame (its still grown to
+         fill the window) and this page's first (the same still, below) cross-fade as one picture. */
+      @view-transition { navigation: auto; }
+      #intro-static { position: fixed; inset: 0; z-index: 60; width: 100%; height: 100%; object-fit: cover; background: #0b0d12; }
+    </style>
   </head>
   <body>
+    <script>
+      // The still the landing page handed over, on screen before the map's code loads; the map's
+      // intro (map-client/src/IntroScreen.tsx) shows the same file and removes this once it's up.
+      try {
+        const src = sessionStorage.getItem('flowcast.intro');
+        if (src && /^\/intro\/[a-z]+-\d+\.webp$/.test(src)) {
+          const img = document.createElement('img');
+          img.id = 'intro-static';
+          img.alt = '';
+          img.src = src;
+          document.body.append(img);
+        }
+      } catch {
+        // storage blocked: the intro appears with the map's code
+      }
+    </script>
     <div id="root"></div>
     <!-- The 3D map lives in /map-client; this page runs its entry point unchanged. -->
     <script type="module" src="/src/map-entry.ts"></script>

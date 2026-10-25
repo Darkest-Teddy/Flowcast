@@ -9,6 +9,8 @@ import { Logo } from '../ui/Logo';
 import { api, useResource } from '../data/api';
 import { formatPercent } from '../lib/format';
 import { CampusScene } from './landing/CampusScene';
+import { coverScale, INTRO_ANCHORS, INTRO_SHOT, introSources, presetNow } from '@map/intro';
+import { openMap, STILL_ATTR } from './landing/openMap';
 import { item, rise, stagger } from './landing/motion';
 import { scrollToElement, useSmoothScroll } from './landing/smoothScroll';
 import {
@@ -44,8 +46,8 @@ const HERO_HOUR = 18;
 
 /** The places the hero tags point at, with how long each tag's stem is. */
 const HERO_TAGS = [
-  { place: 'mugar', stem: 44 },
-  { place: 'warren', stem: 72 },
+  { place: 'mugar', stem: 92 },
+  { place: 'warren', stem: 24 },
   { place: 'questrom', stem: 30 },
   { place: 'fitrec', stem: 58 },
 ];
@@ -161,7 +163,7 @@ function LandingNav() {
         </a>
         <ul className={styles.navLinks}>{links}</ul>
         <div className={styles.navEnd}>
-          <a href={config.mapUrl} className={`${styles.cta} ${styles.navCta}`}>
+          <a href={config.mapUrl} onClick={openMap} className={`${styles.cta} ${styles.navCta}`}>
             Open the map
           </a>
           <button
@@ -196,22 +198,23 @@ function Hero({ day, loading }: { day: DayForecast | null; loading: boolean }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [spots, setSpots] = useState<Record<string, TagSpot | null>>({});
 
-  // Tags point at roofs in the 3D scene, so their positions come from measuring it. A tag that would
-  // leave the stage or run into the forecast card is hidden.
+  // Tags point at roofs in the still of the map. It covers the stage (centred, object-fit: cover),
+  // so a roof's spot is its place in the shot, scaled about the centre. A tag that would leave the
+  // stage or run into the forecast card is hidden.
   const measure = useCallback(() => {
     const stage = stageRef.current;
     if (!stage) return;
     const box = stage.getBoundingClientRect();
+    const scale = coverScale(box.width, box.height);
     const card = cardRef.current?.getBoundingClientRect();
     const next: Record<string, TagSpot | null> = {};
     for (const tag of HERO_TAGS) {
-      const anchor = stage.querySelector(`[data-anchor="${tag.place}"]`);
-      if (!anchor) continue;
-      const r = anchor.getBoundingClientRect();
-      const x = r.left + r.width / 2 - box.left;
-      const y = r.top + r.height / 2 - box.top;
+      const [ax, ay] = INTRO_ANCHORS[tag.place];
+      const x = (ax - INTRO_SHOT.width / 2) * scale + box.width / 2;
+      const y = (ay - INTRO_SHOT.height / 2) * scale + box.height / 2;
       const top = y - tag.stem - 34;
-      let show = x > 90 && x < box.width - 90 && top > 8;
+      // The pills are centred on their roof and up to ~260px wide ("Warren Towers (Tower A) · Busy 68%").
+      let show = x > 130 && x < box.width - 130 && top > 8;
       if (card && show) {
         const cl = card.left - box.left;
         const cr = card.right - box.left;
@@ -232,7 +235,8 @@ function Hero({ day, loading }: { day: DayForecast | null; loading: boolean }) {
     return () => ro.disconnect();
   }, [measure, day]);
 
-  const shareOf = useCallback((place: string) => day?.share(place, HERO_HOUR) ?? null, [day]);
+  // The still in the light the map opens in now: the same picture the map's intro starts from.
+  const [still] = useState(() => introSources(presetNow()));
   const mugar = day?.share('mugar', HERO_HOUR) ?? null;
   const next = [1, 2, 3, 4].map((k) => Math.min(LAST_HOUR, HERO_HOUR + k));
 
@@ -248,7 +252,7 @@ function Hero({ day, loading }: { day: DayForecast | null; loading: boolean }) {
           schedule.
         </p>
         <div className={styles.heroActions}>
-          <a href={config.mapUrl} className={`${styles.cta} ${styles.ctaLarge}`}>
+          <a href={config.mapUrl} onClick={openMap} className={`${styles.cta} ${styles.ctaLarge}`}>
             Open the map
           </a>
           <Link to="/signin" className={`${styles.glassCta} ${styles.ctaLarge}`}>
@@ -258,9 +262,15 @@ function Hero({ day, loading }: { day: DayForecast | null; loading: boolean }) {
       </div>
 
       <div ref={stageRef} className={styles.stage}>
-        <div className={styles.heroScene}>
-          <CampusScene shareOf={shareOf} dy={-30} />
-        </div>
+        <img
+          className={styles.heroStill}
+          {...still}
+          {...{ [STILL_ATTR]: '' }}
+          sizes="100vw"
+          alt="The Flowcast 3D map of Boston University’s Charles River Campus along Commonwealth Avenue"
+          fetchPriority="high"
+          onLoad={measure}
+        />
 
         {day &&
           HERO_TAGS.map((tag) => {
@@ -838,7 +848,7 @@ function Closing({ day }: { day: DayForecast | null }) {
         </motion.h2>
         <p className={styles.closingLede}>Explore hourly crowd projections for the campus’s modeled places.</p>
         <div className={styles.closingActions}>
-          <a href={config.mapUrl} className={`${styles.cta} ${styles.ctaLarge}`}>
+          <a href={config.mapUrl} onClick={openMap} className={`${styles.cta} ${styles.ctaLarge}`}>
             Open the map
           </a>
         </div>
