@@ -1,111 +1,39 @@
-import { useState } from 'react';
-import { api, locationName, useResource } from '../data/api';
-import type { EventSource, ScheduleItem } from '../data/types';
-import { formatDayLabel, isToday } from '../lib/format';
-import { Button, EmptyState, Loading, Page, PageHeader, SectionList, Tag } from '../ui';
-import { AgendaRow } from './student/AgendaRow';
-import { groupByDay, isUpcoming } from './student/days';
+import { api, useResource } from '../data/api';
+import type { ScheduleItem } from '../data/types';
+import { bostonDay, bostonDayLabel, bostonTime } from '../lib/departure';
+import { Button, EmptyState, Loading, Page, PageHeader, SectionList } from '../ui';
+import { useDepartureClock } from './student/DepartureCard';
 import styles from './Schedule.module.css';
-
-const sourceLabel: Record<EventSource, string> = {
-  calendar: 'Calendar',
-  club: 'Club',
-  habit: 'Habit',
-  suggested: 'Suggested',
-};
-
-function SourceTag({ item }: { item: ScheduleItem }) {
-  if (item.source === 'suggested') {
-    return item.accepted ? <Tag tone="ok">Added</Tag> : <Tag tone="accent">Suggested</Tag>;
-  }
-  return <Tag>{sourceLabel[item.source]}</Tag>;
-}
 
 export default function Schedule() {
   const locations = useResource(api.getLocations);
   const schedule = useResource(api.getSchedule);
-  const suggestions = useResource(api.getSuggestions);
-  const [accepting, setAccepting] = useState<string | null>(null);
-
-  const accept = (suggestionId: string) => {
-    setAccepting(suggestionId);
-    api
-      .acceptSuggestion(suggestionId)
-      .then((rest) => {
-        suggestions.setData(rest);
-        schedule.reload();
-      })
-      .finally(() => setAccepting(null));
-  };
-
-  const header = (
-    <PageHeader
-      title="Schedule"
-      description="Your personal schedule appears here when real calendar data is available."
-      actions={<Button to="/calendars">Manage calendars</Button>}
-    />
-  );
-
-  if (schedule.error) {
-    return (
-      <Page>
-        {header}
-        <EmptyState title="Your schedule didn't load" body={schedule.error.message} action={<Button onClick={schedule.reload}>Try again</Button>} />
-      </Page>
-    );
+  const now = useDepartureClock();
+  const header = <PageHeader title="Schedule" description="Imported classes · all times in Boston."
+    actions={<Button to="/calendars">Import or update .ics</Button>} />;
+  if (schedule.error) return <Page>{header}<EmptyState title="Your schedule didn't load" body={schedule.error.message}
+    action={<Button onClick={schedule.reload}>Try again</Button>} /></Page>;
+  if (!schedule.data) return <Page>{header}<Loading label="Loading your schedule" /></Page>;
+  const today = bostonDay(now);
+  const groups = new Map<string, ScheduleItem[]>([[today, []]]);
+  for (const item of [...schedule.data].sort((a, b) => Date.parse(a.start) - Date.parse(b.start))) {
+    if (!Number.isFinite(Date.parse(item.start))) continue;
+    const day = bostonDay(item.start);
+    if (day < today) continue;
+    if (!groups.has(day)) groups.set(day, []);
+    groups.get(day)!.push(item);
   }
-
-  if (!schedule.data) {
-    return (
-      <Page>
-        {header}
-        <Loading label="Loading your schedule" />
-      </Page>
-    );
-  }
-
-  const groups = groupByDay(schedule.data.filter((s) => isUpcoming(s.start)), (s) => s.start);
-  if (!groups.length || !isToday(groups[0].start)) {
-    groups.unshift({ key: 'today', start: new Date().toISOString(), items: [] });
-  }
-
-  return (
-    <Page>
-      {header}
-      <div className={styles.days}>
-        {groups.map((g) => (
-          <SectionList
-            key={g.key}
-            title={formatDayLabel(g.start)}
-            count={g.items.length}
-            empty="No personal schedule data is available for this day. Browse Events for published campus activities."
-          >
-            {g.items.map((item) => {
-              const suggestion = suggestions.data?.find((s) => s.scheduleItemId === item.id);
-              return (
-                <AgendaRow
-                  key={item.id}
-                  start={item.start}
-                  end={item.end}
-                  title={item.title}
-                  meta={locationName(locations.data, item.locationId, false)}
-                  note={item.note}
-                  aside={
-                    <>
-                      {suggestion && (
-                        <Button size="sm" onClick={() => accept(suggestion.id)} disabled={accepting === suggestion.id}>
-                          {suggestion.actionLabel}
-                        </Button>
-                      )}
-                      <SourceTag item={item} />
-                    </>
-                  }
-                />
-              );
-            })}
-          </SectionList>
-        ))}
-      </div>
-    </Page>
-  );
+  return <Page>{header}<div className={styles.days}>
+    {[...groups].map(([day, items]) => <SectionList key={day}
+      title={bostonDayLabel(items[0]?.start ?? now, now)} count={items.length} empty="No imported classes for this day.">
+      {items.map((item) => <div key={item.id} className={styles.row}>
+        <div className={styles.time}><time dateTime={item.start}>{bostonTime(item.start)}</time>
+          <time dateTime={item.end}>{bostonTime(item.end)}</time></div>
+        <div className={styles.main}><strong>{item.title}</strong>
+          <p>{item.locationText || locations.data?.find((location) => location.id === item.locationId)?.name || 'Building not mapped'}</p>
+          {Date.parse(item.start) <= now && Date.parse(item.end) > now && <p>In progress</p>}
+        </div>
+      </div>)}
+    </SectionList>)}
+  </div></Page>;
 }

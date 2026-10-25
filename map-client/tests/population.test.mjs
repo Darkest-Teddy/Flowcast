@@ -6,7 +6,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   try { return nextResolve(specifier, context); }
   catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
 } });
-const { buildPopulation, campusOfferingWeights } = await import('../src/sim/population.ts');
+const { buildPopulation, campusOfferingWeights, RESIDENCE_OCCUPANCY } = await import('../src/sim/population.ts');
 
 const population = JSON.parse(readFileSync(new URL('../public/data/population.json', import.meta.url)));
 const source = JSON.parse(readFileSync(new URL('../public/data/campus-data.json', import.meta.url)));
@@ -18,11 +18,18 @@ test('published roster conserves population with separate sourced and estimated 
   assert.equal(new Set(result.agents.map(a => a.id)).size, 36977);
   assert.equal(result.agents.filter(a => a.studentLevel === 'undergraduate').length, 18289);
   assert.equal(result.agents.filter(a => a.residency === 'resident' && a.studentLevel === 'undergraduate').length, 10048);
-  assert.equal(result.populationSummary.mappedResidents, 7401);
-  assert.equal(result.populationSummary.residentsOutsideMap, 2824);
+  assert.equal(result.populationSummary.mappedResidents, 7257);
+  assert.equal(result.populationSummary.residentsOutsideMap, 2968);
+  // Sourced halls are lived in at RESIDENCE_OCCUPANCY of their published beds, never over.
   const occupancy = {};
   for (const agent of result.agents) if (population.residentialCapacities[agent.home]) occupancy[agent.home] = (occupancy[agent.home] ?? 0) + 1;
-  assert.deepEqual(occupancy, population.residentialCapacities);
+  assert.deepEqual(occupancy, Object.fromEntries(Object.entries(population.residentialCapacities).map(([id, beds]) => [id, Math.round(beds * RESIDENCE_OCCUPANCY)])));
+  assert.equal(RESIDENCE_OCCUPANCY, 0.96);
+  // Kilachand, beds plus classrooms, is shown as a residence: against its 550 beds.
+  assert.equal(result.locations.find(l => l.id === 'kilachand').residentialBeds, 550);
+  // Hawes has no published use, so nobody is sent there; it is still shown (as 0), not "not modeled".
+  assert.equal(result.locations.find(l => l.id === 'hawes').estimatedProfile, undefined);
+  assert.equal(result.locations.find(l => l.id === 'hawes').activityModeled, true);
   assert.equal(result.locations.find(l => l.id === 'warren').name, 'Warren Towers (Tower A)');
   assert.equal(result.locations.find(l => l.id === 'warren').capacity, 600);
   assert.equal(result.locations.find(l => l.id === 'kilachand').capacity, 748);
@@ -38,7 +45,7 @@ test('published roster conserves population with separate sourced and estimated 
   assert.equal(result.populationSummary.estimatedGraduateResidents, 177);
   assert.equal(result.agents.filter(a => a.home === 'bumc-residence').length, 177);
   assert.ok(result.agents.filter(a => a.home === 'bumc-residence').every(a => a.studentLevel === 'graduate'));
-  assert.equal(result.locations.filter(l => l.estimatedHousingProfile || l.estimatedProfile).length, 22);
+  assert.equal(result.locations.filter(l => l.estimatedHousingProfile || l.estimatedProfile).length, 21);
   assert.ok(result.locations.every(l => l.activityModeled));
   assert.equal(result.locations.find(l => l.id === 'agganis').capacity, 1500);
   assert.equal(result.locations.find(l => l.id === 'agganis').estimatedProfile.capacity, 120);

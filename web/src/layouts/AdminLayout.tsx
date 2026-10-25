@@ -2,7 +2,6 @@ import { ArrowLeft, BadgeCheck, Database, LayoutGrid, Map, Radio, Settings, Slid
 import { Link, useLocation } from 'react-router';
 import { api, useResource } from '../data/api';
 import { config } from '../config';
-import { Button } from '../ui';
 import { AppShell, type NavSection } from './AppShell';
 import styles from './LayoutFooter.module.css';
 
@@ -23,6 +22,7 @@ export function AdminLayout() {
         { to: '/admin/simulation', label: 'Simulation', icon: SlidersHorizontal },
         { to: '/admin/live', label: 'Live demo', icon: Radio },
         { to: '/admin/clubs', label: 'Club verification', icon: BadgeCheck, badge: pending },
+        { to: config.mapUrl, label: 'Campus map', icon: Map, external: true },
         { to: '/admin/users', label: 'Users', icon: Users },
       ],
     },
@@ -39,7 +39,6 @@ export function AdminLayout() {
     <AppShell
       sections={sections}
       brandTag="Admin"
-      topbarActions={<Button variant="secondary" href={config.mapUrl} icon={<Map aria-hidden />}>Open the map</Button>}
       sidebarFooter={
         <Link to="/" className={styles.back}>
           <ArrowLeft aria-hidden />

@@ -17,8 +17,11 @@ const retentionOptions: { value: Settings['retention']; label: string }[] = [
 
 export default function AdminSettings() {
   const { session } = useSession();
-  const { data: settings, setData } = useResource(api.getAdminSettings);
+  const { data: settings, setData, error: settingsError } = useResource(api.getAdminSettings);
   const { data: users } = useResource(api.getAdminUsers);
+
+  const loadError = settingsError;
+  if (loadError) return <Page><PageHeader title="Settings" /><p role="alert">{loadError.message}</p></Page>;
 
   if (!settings) {
     return (

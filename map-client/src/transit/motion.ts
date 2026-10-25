@@ -1,16 +1,12 @@
 // How trains and buses move along their tracks: accelerating, cruising, braking into stops,
 // dwelling, and waiting at red lights.
 //
-// Two users:
-//   * Live (MbtaFeed): a follower per vehicle chases the reported positions one poll behind,
+// Live (MbtaFeed): a follower per vehicle chases the reported positions one poll behind,
 //     like the old linear glide, but with real speed limits, acceleration and braking. It holds
 //     at a stop when the MBTA says STOPPED_AT (or TransLoc says speed 0), brakes into and dwells
 //     at stops it must have served between reports, and stops at red signals on its approach.
 //     If a hold leaves it more than ~150 m behind the latest report it skips dwells and ambers
 //     to catch up; very far behind (missed polls, a long simulated red) it jumps.
-//   * Playback (ScheduledTransit): each scheduled trip is planned once as legs from rest to rest
-//     (trapezoidal speed profiles between stops), with a stop at every signal that is red when
-//     the vehicle would reach it, then evaluated at any time in closed form.
 //
 // Stops and signal stop lines along each track are found once and cached.
 

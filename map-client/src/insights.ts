@@ -203,9 +203,13 @@ export function walkBetween(from: CampusLocation, to: CampusLocation, routes: Re
 /** Places whose percentage the map shows; the same rule as the building tags (BuildingTags.activityDisplay). */
 export function comparable(location: CampusLocation, modeled: boolean | undefined): boolean {
   return modeled !== false && location.activityModeled !== false && location.capacity > 0
-    && location.capacityBasis !== 'residential_beds_plus_classroom_seats'
+    && (location.capacityBasis !== 'residential_beds_plus_classroom_seats' || (location.residentialBeds ?? 0) > 0)
     && location.capacityBasis !== 'estimated_student_capacity';
 }
+
+/** What a place's percentage is of: its beds for a residence with classrooms (Kilachand), else its capacity. */
+export const shownCapacity = (location: CampusLocation): number =>
+  location.capacityBasis === 'residential_beds_plus_classroom_seats' && (location.residentialBeds ?? 0) > 0 ? location.residentialBeds! : location.capacity;
 
 /**
  * Ranking tier: 0 open with a comparable percentage, 1 open with a headcount only, 2 hours not
@@ -233,7 +237,7 @@ export function rankByCrowd(ctx: AskContext, placeKind: LocationKind | null, tim
       return {
         location: o.location,
         count: o.count,
-        share: comparable(o.location, o.modeled) && !unsampled ? o.count / o.location.capacity : null,
+        share: comparable(o.location, o.modeled) && !unsampled ? o.count / shownCapacity(o.location) : null,
         modeled: o.modeled !== false && o.location.activityModeled !== false,
         walk: from ? walkBetween(from, o.location, ctx.walkRoutes) : null,
         ...(data ? { open } : {}),
@@ -256,7 +260,7 @@ export function busyOutlook(ctx: AskContext, location: CampusLocation, time: num
   const modeled = current?.modeled !== false && location.activityModeled !== false;
   const shareAt = (t: number) => {
     const o = ctx.occupancyAt(t).find((x) => x.location.id === location.id);
-    return o && comparable(o.location, o.modeled) ? o.count / location.capacity : null;
+    return o && comparable(o.location, o.modeled) ? o.count / shownCapacity(location) : null;
   };
   const data = ctx.data;
   const openNow = data ? openAt(location.id, ctx.weekday, time, data) : undefined;

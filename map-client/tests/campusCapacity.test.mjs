@@ -137,19 +137,14 @@ test('seven conditioned days have complete itineraries and no seated or optional
   }
 });
 
-test('After Hours, open only after modeled dinners end, is not modeled rather than quiet', () => {
-  for (const [weekday, day] of plainDays.entries()) {
-    const afterHours = day.locations.find((location) => location.id === 'after-hours-west');
-    const visits = day.stays.filter((stay) => stay.location === 'after-hours-west').length;
-    if (weekday <= 3) {
-      assert.equal(afterHours.activityModeled, false, `weekday ${weekday}`);
-      assert.equal(new Playback(day).occupancyAt(23 * 3600).find(row => row.location.id === afterHours.id).modeled, false);
-      assert.equal(visits, 0);
-    }
-    if (visits > 0) assert.notEqual(afterHours.activityModeled, false);
+test('After Hours, a late-night counter, is left off the map: no place, tag, visit or walk', () => {
+  for (const day of plainDays) {
+    assert.ok(!day.locations.some((location) => location.id === 'after-hours-west'), day.day);
+    assert.ok(!day.stays.some((stay) => stay.location === 'after-hours-west'), day.day);
+    assert.ok(!day.trips.some((trip) => trip.from === 'after-hours-west' || trip.to === 'after-hours-west'), day.day);
+    assert.ok(!new Playback(day).occupancyAt(23 * 3600).some((row) => row.location.id === 'after-hours-west'), day.day);
   }
-  // Friday it opens at 21:30, inside the dinner window.
-  assert.notEqual(plainDays[4].locations.find((location) => location.id === 'after-hours-west').activityModeled, false);
+  // A venue open only after modeled dinners end would not be modeled; Friday's 21:30 opening would be.
   assert.equal(inModeledVisitTimes('dining', [[22.5 * 3600, 25 * 3600]], 0), false);
   assert.equal(inModeledVisitTimes('dining', [[21.5 * 3600, 25 * 3600]], 4), true);
 });

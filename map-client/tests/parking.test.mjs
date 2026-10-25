@@ -214,3 +214,12 @@ test('all lots draw in two layers whose data arrays never change', async () => {
   assert.equal(parkingUnder(a[0].props.data[2]), 2);
   assert.equal(parkingUnder({ polygon: [], id: 'building' }), null);
 });
+
+
+test('placeholder samples never create runtime event parking demand', () => {
+ const model=createParkingModel(data([game({sample:true})]));
+ assert.deepEqual(eventsOn(model,friday.date),[]);
+ const state=parkingAt(model,friday,19*H);
+ assert.equal(state.events.length,0);
+ assert.ok(state.lots.every(l=>l.eventCars===0));
+});

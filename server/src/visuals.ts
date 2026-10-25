@@ -48,6 +48,8 @@ function visualFor(r: Result, index: number): { key: string; visual: Visual } | 
       return { key: `place_day:${o.place}:${o.day}`, visual: v };
     }
     case 'rank_places_by_crowd': {
+      // Missing published hours deliberately omit counts and percentages: there is no ranking to chart.
+      if (o.hoursNotInData) return null;
       const places: Out[] = o.places ?? [];
       if (!places.length) return null;
       const detail = (p: Out) => (p.open === false ? 'Closed' : p.open === null && p.percent === null ? 'Hours not published'

@@ -469,6 +469,8 @@ interface ActivityDisplayInput {
   share: number;
   modeled?: boolean;
   capacityBasis?: string;
+  /** A residence with classrooms (Kilachand): its percentage is of these beds, not beds plus seats. */
+  residentialBeds?: number;
   kind?: LocationKind | null;
   /** The place really can be empty (a team-only boathouse between sessions): show a plain 0. */
   allowZero?: boolean;
@@ -479,13 +481,16 @@ interface ActivityDisplayInput {
 const NEAR_ZERO_PERCENT = 5;
 const NEAR_ZERO_STUDENTS = 3;
 
-export function activityDisplay({ count, capacity, modeled, capacityBasis, kind, allowZero = false }: ActivityDisplayInput) {
+export function activityDisplay({ count, capacity: total, modeled, capacityBasis, residentialBeds, kind, allowZero = false }: ActivityDisplayInput) {
+  // A residence with classrooms reads as a residence: a percentage of its beds.
+  const beds = capacityBasis === 'residential_beds_plus_classroom_seats' && residentialBeds && residentialBeds > 0 ? residentialBeds : null;
+  const capacity = beds ?? total;
   const share = occupancyShare(count, capacity);
   const hasPercentage = modeled !== false && capacity > 0 && Number.isFinite(share)
-    && capacityBasis !== 'residential_beds_plus_classroom_seats'
+    && (capacityBasis !== 'residential_beds_plus_classroom_seats' || beds !== null)
     && capacityBasis !== 'estimated_student_capacity';
   const percent = hasPercentage ? Math.round(share * 100) : 0;
-  const seats = capacityBasis?.includes('classroom_seats') || (!capacityBasis && kind === 'classroom');
+  const seats = !beds && (capacityBasis?.includes('classroom_seats') || (!capacityBasis && kind === 'classroom'));
   const level = crowdLevel(share);
   // Plain percentages, except near zero: no building is ever truly empty (staff, visitors, people
   // the model doesn't simulate; sim/uncertainty.ts), so a near-empty place reads "<3%" rather than
@@ -510,7 +515,7 @@ export function activityDisplay({ count, capacity, modeled, capacityBasis, kind,
     icon: hasPercentage ? PERSON_ICONS[level.icon] : '',
     // Not modeled: slate on the tags, plain secondary ink and a neutral bar on the panels.
     style: hasPercentage ? crowdLevelStyle(share) : { '--lv': '148, 163, 184', '--lv-text': '#cbd5e1', '--lv-ink': 'var(--map-ink-secondary)', '--lv-fill': 'var(--color-off)' },
-    description: hasPercentage ? `${primary} of ${seats ? 'classroom seats' : 'capacity'}, ${secondary}` : primary,
+    description: hasPercentage ? `${primary} of ${seats ? 'classroom seats' : beds ? 'beds' : 'capacity'}, ${secondary}` : primary,
   };
 }
 

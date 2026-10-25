@@ -265,15 +265,20 @@ export function createChatTools(ctx: ChatContext, log: ToolLog) {
       const at = parseClock(time, ctx.time);
       if (at === null) return result(badTime(time));
       const w = weekday ?? ctx.weekday;
+      const date = ctx.date && (weekday == null || weekdayOf(ctx.date) === w)
+        ? ctx.date : dayDate(ctx, w).date;
+      if (!date || transit.dates[w] !== date) return result({
+        kind: 'unavailable', date, availableDates: transit.dates,
+        note: 'No collected timetable for this date. A matching weekday is not date-specific service evidence.',
+      });
       const p = resolvePlace(place, ctx);
       if ('error' in p) return result({ error: p.error });
       const want = (kind: string) => !mode || mode === 'all' || (mode === 'shuttle' ? kind === 'shuttle' : kind !== 'shuttle');
       const end = at + 3600;
       const inWindow = (stop: string): Departure[] => {
-        const days = transit.departures.get(stop);
-        if (!days) return [];
+        const days = transit.departures.get(stop) ?? Array.from({ length: 7 }, () => []);
         // Today's departures, plus the previous service day's ones past midnight.
-        const prev = days[(w + 6) % 7].filter(([t]) => t >= 86400).map(([t, r, d]): Departure => [t - 86400, r, d]);
+        const prev = (w === 0 ? transit.priorDepartures.get(stop) ?? [] : days[w - 1]).filter(([t]) => t >= 86400).map(([t, r, d]): Departure => [t - 86400, r, d]);
         return [...prev, ...days[w]].filter(([t]) => t >= at && t < end).sort((a, b) => a[0] - b[0]);
       };
       // Stops with the same name and kind (the two sides of a street) are one stop here.
@@ -305,12 +310,12 @@ export function createChatTools(ctx: ChatContext, log: ToolLog) {
       const shuttleShown = withService.some((x) => (x as { kind: string }).kind === 'shuttle');
       return result({
         kind: 'published schedule',
-        from: p.label, ...dayDate(ctx, w), window: `${formatClock(at)} to ${formatClock(end)}`,
+        from: p.label, day: WEEKDAYS[w], date, window: `${formatClock(at)} to ${formatClock(end)}`,
         stops: withService,
         ...(quiet.length ? { stopsWithNoDepartureInWindow: quiet } : {}),
         ...(near.size === 0 ? { note: 'No mapped stop is within 500 m of this place.' } : {}),
-        timetables: `MBTA GTFS (${clip(transit.mbtaFeed, 60)})${shuttleShown ? '; BU Shuttle from BU’s 2024–25 GTFS feed with recorded current times where captured' : ''}`,
-        method: 'Scheduled departures, not live arrivals or crowding. Distances are straight-line.',
+        timetables: `MBTA GTFS (${clip(transit.mbtaFeed, 60)})${shuttleShown ? `; BU Shuttle (${clip(transit.shuttleFeed, 60)})` : ''}`,
+        method: 'Scheduled departures, not live arrivals or crowding. Distances are straight-line. BU Shuttle historical baseline excluded unless feed coverage matches this week.',
       }, select('transit_near', p.location));
     },
   });

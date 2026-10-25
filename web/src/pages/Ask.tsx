@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Eraser } from 'lucide-react';
-import { useSession } from '../auth/session';
+import { ArrowRight, Eraser } from 'lucide-react';
 import { api } from '../data/api';
 import { bostonClock, isPersonalQuestion } from '../lib/askRouting';
 import { plainText } from '../lib/chatMarkdown';
@@ -11,16 +10,15 @@ import {
   restoreConversation,
   serializeConversation,
   STORAGE_KEY,
-  weekdayOfDate,
   type ChatContext,
   type ChatMessage,
 } from '../lib/chatHistory';
-import { parseChatBody, parseDirectoryResponse, type ChatError, type DirectoryResult } from '../lib/chatParse';
+import { parseChatBody, type ChatError, type DirectoryResult } from '../lib/chatParse';
 import { config } from '../config';
-import { Button, Page, PageHeader, Tag } from '../ui';
-import { Composer, ContextControls, MessageItem, PendingItem, QuestionChips } from './ask/Chat';
+import { Button, Page, PageHeader } from '../ui';
+import { Composer, MessageItem, PendingItem } from './ask/Chat';
 import { Directory, StartServerHint } from './ask/Directory';
-import { answerQuestion, type CampusData } from './student/campusSearch';
+import { buildPersonalSchedule } from '../lib/personalSchedule';
 import styles from './Ask.module.css';
 
 const parseStored = (body: unknown) => parseChatBody(body, config.mapUrl);
@@ -42,18 +40,23 @@ function store(messages: ChatMessage[]) {
   }
 }
 
-function nowContext(campus: ChatContext['campus'] = 'charles-river'): ChatContext {
+/** Every question goes out with now in Boston; a day, time, campus or date the person names is read from the conversation. */
+function nowContext(): ChatContext {
   const { weekday, time } = bostonClock(new Date());
-  return { weekday, time: clockText(time), campus, date: null };
+  return { weekday, time: clockText(time), campus: 'charles-river', date: null };
 }
 
 let nextId = 0;
 const newId = () => `m${Date.now().toString(36)}${(nextId++).toString(36)}`;
 
 /** Questions to start with when the directory can't load. */
-const FALLBACK_EXAMPLES = ['Least crowded library right now', 'Quietest dining hall at 6 PM', 'When is GSU quiet?', 'Where is my next class?'];
+const STARTERS = [
+  { topic: 'Find a study spot', question: 'Which library is least crowded right now?' },
+  { topic: 'Grab a bite', question: 'Is Warren dining open now?' },
+  { topic: 'Get around', question: 'How long is the walk from CAS to Mugar?' },
+  { topic: 'Plan your day', question: 'Where is my next class?' },
+];
 
-const DEVICE_NOTE = 'Answered on this device from your schedule. Your schedule isn’t sent anywhere.';
 
 function errorAnnouncement(error: ChatError): string {
   if (error.kind === 'notConfigured') return 'Answers need the Ask server’s OpenAI key.';
@@ -63,12 +66,9 @@ function errorAnnouncement(error: ChatError): string {
 }
 
 export default function Ask() {
-  const { session } = useSession();
   const [params, setParams] = useSearchParams();
-  const sampleMode = import.meta.env.DEV && params.get('sample') === '1';
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => (sampleMode ? [] : loadStored()));
-  const [context, setContext] = useState<ChatContext>(() => nowContext());
+  const [messages, setMessages] = useState<ChatMessage[]>(loadStored);
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -77,13 +77,11 @@ export default function Ask() {
 
   // Refs so send() always sees the latest values, whoever calls it (chips, Home's ?q=, retry).
   const messagesRef = useRef(messages);
-  const contextRef = useRef(context);
   const pendingRef = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLOListElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollTo = useRef<string | null>(null);
-  contextRef.current = context;
 
   const commit = useCallback((next: ChatMessage[]) => {
     messagesRef.current = next;
@@ -91,27 +89,10 @@ export default function Ask() {
     store(next);
   }, []);
 
-  // The directory (or, in development with ?sample=1, the sample conversation and directory).
   const loadDirectory = useCallback(() => {
     setDirectoryLoading(true);
-    const load = sampleMode
-      ? api.chatSample().then((sample) => {
-          if (!sample) return parseDirectoryResponse(404, null);
-          const seeded: ChatMessage[] = [];
-          for (const turn of sample.conversation) {
-            if (turn.role === 'user') seeded.push({ id: newId(), role: 'user', text: turn.text });
-            else {
-              const response = parseChatBody(turn.response, config.mapUrl);
-              if (response) seeded.push({ id: newId(), role: 'assistant', status: 'answer', response, sample: true });
-            }
-          }
-          messagesRef.current = seeded;
-          setMessages(seeded);
-          return parseDirectoryResponse(200, sample.directory);
-        })
-      : api.chatDirectory();
-    load.then(setDirectory).finally(() => setDirectoryLoading(false));
-  }, [sampleMode]);
+    api.chatDirectory().then(setDirectory).finally(() => setDirectoryLoading(false));
+  }, []);
 
   useEffect(loadDirectory, [loadDirectory]);
 
@@ -143,29 +124,32 @@ export default function Ask() {
     scrollTo.current = user.id;
     setDraft('');
 
-    // Personal questions never leave the device (lib/askRouting): answered here from the schedule.
-    if (isPersonalQuestion(q)) {
-      setPending('Checking your schedule on this device…');
-      setAnnouncement('Checking your schedule on this device.');
-      const [locations, schedule, hourly, places, geo, events, clubs] = await Promise.all([
-        api.getLocations(), api.getSchedule(), api.getHourlyForecasts(), api.getPlaceForecasts(), api.getCampusGeo(),
-        api.getCampusEvents().catch(() => []), api.getClubs(),
-      ]);
-      const data: CampusData = { locations, schedule, hourly, places, geo, events, clubs, homeLocationId: session?.user.homeLocationId ?? null };
-      const answer = answerQuestion(q, data);
-      if (!messagesRef.current.some((m) => m.id === user.id)) return;
-      finish(
-        { id: newId(), role: 'assistant', status: 'device', text: answer.text, rows: answer.rows, note: [answer.note, DEVICE_NOTE].filter(Boolean).join(' ') },
-        `Answered on this device. ${answer.text}`,
-      );
-      return;
-    }
-
     const ctrl = new AbortController();
     controller.current = ctrl;
+    setPending('Checking your schedule…');
+    setAnnouncement('Checking your schedule.');
+    const request = buildChatRequest(before, q, nowContext());
+    try {
+      request.personalSchedule = buildPersonalSchedule(await api.getSchedule());
+    } catch {
+      if (!ctrl.signal.aborted && isPersonalQuestion(q)) {
+        const text = 'Your schedule could not be loaded. Try again or open Calendars.';
+        controller.current = null;
+        finish({ id: newId(), role: 'assistant', status: 'device', text, rows: [], note: '' }, text);
+        return;
+      }
+    }
+    if (ctrl.signal.aborted) {
+      if (controller.current === ctrl) {
+        controller.current = null;
+        pendingRef.current = false;
+        setPending(null);
+        setAnnouncement('Stopped.');
+      }
+      return;
+    }
     setPending('Thinking…');
     setAnnouncement('Thinking.');
-    const request = buildChatRequest(before, q, contextRef.current);
     const result = await api.chat(request, ctrl.signal, (sec) => {
       if (ctrl.signal.aborted) return;
       setPending(`Warming up the simulation… asking again in ${sec} s`);
@@ -181,7 +165,7 @@ export default function Ask() {
     } else {
       finish({ id: newId(), role: 'assistant', status: 'error', error: result.error, question: q }, errorAnnouncement(result.error));
     }
-  }, [commit, finish, session]);
+  }, [commit, finish]);
 
   const stop = () => controller.current?.abort();
 
@@ -230,13 +214,8 @@ export default function Ask() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const changeContext = (next: ChatContext) => {
-    const day = next.date ? weekdayOfDate(next.date) : null;
-    setContext(day === null ? next : { ...next, weekday: day });
-  };
-
   const busy = pending !== null;
-  const domains = directory?.ok ? directory.value.domains : [];
+  const empty = messages.length === 0 && !busy;
   const chatOff = directory?.ok && !directory.value.chatAvailable;
   const unreachable = directory && !directory.ok && directory.error.kind === 'unreachable';
 
@@ -244,66 +223,40 @@ export default function Ask() {
     <Page wide>
       <PageHeader
         title="Ask Flowcast"
-        description="Ask about crowds, dining, events and getting around campus. Answers come from the simulation and published BU data, and say which is which."
         actions={
+          messages.length > 0 &&
           <Button variant="secondary" icon={<Eraser aria-hidden />} onClick={clear} disabled={!messages.length && !busy}>
             Clear conversation
           </Button>
         }
       />
 
-      {sampleMode && (
-        <p className={styles.banner} role="note">
-          <Tag tone="warn">Development sample</Tag>
-          This conversation is a sample response — not from the model. Its figures are made up to check the layout.
-        </p>
-      )}
       {chatOff && (
         <div className={styles.banner} role="note">
           <strong>Answers need the Ask server’s OpenAI key.</strong>
-          <span>The directory still works, and questions about your own schedule are answered on this device.</span>
+          <span>The directory and your calendar still work.</span>
         </div>
       )}
-      {unreachable && !sampleMode && (
+      {unreachable && (
         <div className={styles.banner} role="note">
           <strong>The Ask server isn’t running.</strong>
           <StartServerHint />
         </div>
       )}
 
-      <div className={styles.layout}>
+      <div className={`${styles.layout} ${empty ? styles.empty : ''}`}>
         <section className={styles.chat} aria-label="Conversation">
-          <ContextControls context={context} onChange={changeContext} onNow={() => setContext(nowContext(context.campus))} />
-
-          {messages.length === 0 && !busy ? (
+          {empty ? (
             <div className={styles.intro}>
-              <h2 className={styles.introTitle}>Ask about campus in your own words</h2>
+              <h2 className={styles.introTitle}>What’s your next stop?</h2>
               <p className={styles.introBody}>
-                Flowcast answers with charts and tables from its tools and names every source. Crowd figures are simulated projections, not live counts.
-                Questions about your own schedule stay on this device.
+                Find a quiet spot, grab food, or figure out your day at BU.
               </p>
-              {domains.some((d) => d.examples.length) ? (
-                <div className={styles.examples}>
-                  {domains.filter((d) => d.examples.length).map((d) => (
-                    <div key={d.id} className={styles.exampleGroup}>
-                      <h3 className={styles.groupTitle}>{d.title}</h3>
-                      <QuestionChips questions={d.examples} onAsk={ask} label={`Example questions about ${d.title}`} />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className={styles.examples}>
-                  <div className={styles.exampleGroup}>
-                    <h3 className={styles.groupTitle}>Try asking</h3>
-                    <QuestionChips questions={FALLBACK_EXAMPLES} onAsk={ask} label="Example questions" />
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <ol ref={listRef} className={styles.list} aria-label="Messages">
               {messages.map((m) => (
-                <MessageItem key={m.id} message={m} onAsk={ask} onRetry={retry} busy={busy} />
+                <MessageItem key={m.id} message={m} onRetry={retry} busy={busy} />
               ))}
               {pending && <PendingItem status={pending} />}
             </ol>
@@ -311,7 +264,20 @@ export default function Ask() {
 
           <div className={styles.dock}>
             <Composer value={draft} onChange={setDraft} onSend={() => void send(draft)} onStop={stop} busy={busy} textareaRef={textareaRef} />
+            <p className={styles.disclosure}>Answers are for now in Boston unless you name a day, time or campus. Crowds are simulated, not live. Answers include sources. Your next two weeks of imported classes are shared with the AI.</p>
           </div>
+          {empty && (
+            <ul className={styles.starters} aria-label="Try a question">
+              {STARTERS.map(({ topic, question }) => (
+                <li key={topic}>
+                  <button type="button" onClick={() => ask(question)}>
+                    <span className={styles.starterTopic}>{topic}<ArrowRight aria-hidden /></span>
+                    <span>{question}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
             {announcement}
           </p>

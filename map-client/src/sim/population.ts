@@ -13,7 +13,7 @@ export interface PopulationData {
   locationNames?: Record<string, string>;
   locationEstimatedProfiles?: Record<string, EstimatedActivityProfile>;
   estimatedHousingProfiles?: Record<string, EstimatedHousingProfile>;
-  locationCapacityBasis?: Record<string, { basis: string }>;
+  locationCapacityBasis?: Record<string, { basis: string; estimatedResidentialBeds?: number }>;
   campusResidentMinimums?: { campus: string; students: number; sourceUrl: string; basis: string }[];
   sources: { url: string }[];
 }
@@ -74,6 +74,15 @@ export function campusOfferingWeights(base: DayData, source: CampusData): Record
   return weights;
 }
 
+/** Share of a sourced residence's beds that are lived in. A published bed count is the most it can
+ * hold; a full hall in term still has a few beds empty (late arrivals, withdrawals, rooms held back),
+ * so mapped halls sit just under full, like the estimated halls (0.95). Assumption, uncalibrated. */
+export const RESIDENCE_OCCUPANCY = 0.96;
+
+/** Places with no published classes or hours whose only activity was an estimated profile, set to
+ * nobody: Hawes (Wightman Mansion, Fenway) has no student use on record. */
+export const UNUSED_LOCATIONS: ReadonlySet<string> = new Set(['hawes']);
+
 /** The institutional roster includes people outside the mapped study area. */
 export function buildPopulation(base: DayData, source: CampusData, population: PopulationData): PopulationBase {
   const cohorts = population.students.cohorts;
@@ -96,10 +105,12 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
       capacity: population.locationCapacities[location.id] ?? location.capacity,
       referenceCapacity: population.locationCapacities[location.id] ?? location.capacity,
       capacityBasis: population.locationCapacityBasis?.[location.id]?.basis,
-      estimatedProfile: population.locationEstimatedProfiles?.[location.id],
+      residentialBeds: location.kind === 'dorm' ? population.locationCapacityBasis?.[location.id]?.estimatedResidentialBeds : undefined,
+      estimatedProfile: UNUSED_LOCATIONS.has(location.id) ? undefined : population.locationEstimatedProfiles?.[location.id],
       estimatedHousingProfile: population.estimatedHousingProfiles?.[location.id],
       activityModeled: (population.residentialCapacities[location.id] ?? 0) > 0
         || (published?.meetings.length ?? 0) > 0 || openThisWeek
+        // An unused place is still modeled: it shows 0 people, not "no data".
         || !!population.locationEstimatedProfiles?.[location.id] || !!population.estimatedHousingProfiles?.[location.id] };
   });
   const campuses = base.campuses?.map((c) => c.id) ?? ['charles-river'];
@@ -114,10 +125,10 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
     for (let i = 0; i < campuses.length; i++) { point -= weights[i]; if (point < 0) return campuses[i]; }
     return campuses[0];
   };
-  // Only sourced whole-residence capacities provide mapped residential slots.
+  // Only sourced whole-residence capacities provide mapped residential slots, RESIDENCE_OCCUPANCY of them lived in.
   const beds: { location: string; campus: string }[] = [];
   for (const location of locations.filter((l) => l.kind === 'dorm')) {
-    const capacity = population.residentialCapacities[location.id] ?? 0;
+    const capacity = Math.round((population.residentialCapacities[location.id] ?? 0) * RESIDENCE_OCCUPANCY);
     for (let i = 0; i < capacity; i++) beds.push({ location: location.id, campus: location.campus ?? 'charles-river' });
   }
   const agents: Agent[] = [];

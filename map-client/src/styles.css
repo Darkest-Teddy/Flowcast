@@ -1182,6 +1182,16 @@ select.tool { padding: 0 8px 0 12px; }
 /* Brand mark beside the sheet title (the favicon art). */
 .sheet-logo { width: 24px; height: 24px; margin-right: var(--space-2); vertical-align: -4px; }
 
+/* The intro (App.tsx): its sky (IntroSky, public/intro/sky.css) between the still and the progress
+   line; the interface hidden until the camera has landed, then coming in. */
+.app > .intro-sky { z-index: 40; }
+.app.is-intro :is(.sheet, .toolbar, .sheet-dim, .perf, .btags, .gtags, .hud, .join-slot, .wi-circle) { visibility: hidden; }
+.app.is-swoop :is(.sheet, .toolbar, .perf, .btags, .gtags, .hud, .join-slot) { animation: intro-interface-in 0.6s ease both; }
+@keyframes intro-interface-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .app.is-swoop :is(.sheet, .toolbar, .perf, .btags, .gtags, .hud, .join-slot) { animation: none; }
+}
+
 /* ---------------------------------------------------------------------------
  * The what-if's area on the map (WhatIfCircle.tsx)
  * ------------------------------------------------------------------------- */

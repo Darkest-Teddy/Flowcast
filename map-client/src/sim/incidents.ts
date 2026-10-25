@@ -11,6 +11,7 @@ export { DISASTER_ASSUMPTIONS, DISASTER_LIMITATIONS, isDisasterKind, type Disast
 import { computeCasualties, type CasualtyEvent } from './casualties';
 export { CASUALTY_ASSUMPTIONS, CASUALTY_LIMITATIONS, computeCasualties, type CasualtyEvent } from './casualties';
 import { fireGeometry, concat, polyline, type FireGeometry, type LngLat, type Polyline, type Tree } from './fireEvacuation';
+import { meteorEscape, METEOR_RUN_SPEED_MULTIPLIER } from './meteorFlee';
 import { cutPolyline, FIRE_CROWD_ASSUMPTIONS, planSpot, turnBackDistance, type CrowdPlan, type FireCrowd, type FireDispersal } from './fireCrowd';
 export { FIRE_CROWD_ASSUMPTIONS, FIRE_CROWD_LIMITATIONS, type FireCrowd, type FireDispersal } from './fireCrowd';
 
@@ -330,6 +331,13 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
     if (!Number.isFinite(speed) || speed <= 0) fail(`invalid walking speed for ${id}`);
     return speed;
   };
+  const meteorWalkers = new Map<string, { event: Event; route: WalkRoute; destination: string; approach: WalkRoute }>();
+  if (incident.kind === 'meteor') for (const [id, events] of byAgent) {
+    const event = events.find(e => e.trip && e.start <= incident.start && incident.start < e.end);
+    if (!event) continue;
+    const escape = meteorEscape(event.trip!, incident.start, target.position, radiusMetres, blocked);
+    if (escape) meteorWalkers.set(id, { event, ...escape });
+  }
   const occupants = [...byAgent].flatMap(([id, events]) => {
     const event = events.find(e => e.stay && e.start <= incident.start && incident.start < e.end && blocked.has(e.to));
     if (!event) return [];
@@ -576,6 +584,13 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
   }
   if (drill && endsAt >= DAY) throw new Error('Invalid incident: evacuation and muster must finish before midnight');
   const affected = new Map(occupants.map(o => [o.id, { event: o.event, at: incident.start }]));
+  for (const [id, plan] of meteorWalkers) {
+    affected.set(id, { event: plan.event, at: incident.start });
+    participants.push({ agentId: id, role: 'arrival', departAt: incident.start, assemblyAt: null,
+      releaseAt: incident.start, resumedAt: 0, outcome: 'cancelled',
+      decision: { activity: 'unknown', action: 'leave', at: incident.start, destinationId: plan.destination,
+        reason: 'runs away from the meteor along the current saved walk' } });
+  }
   for (const [id, events] of byAgent) {
     if (affected.has(id)) continue;
     const inbound = events.find(e => e.trip && blocked.has(e.to) && e.end > incident.start && e.end < endsAt);
@@ -614,9 +629,9 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
   };
   const waitPurpose = (kind: IncidentActivity): StayPurpose | undefined =>
     POLICY_KINDS.has(kind) ? { kind: 'wait', fixed: false, before: kind === 'class' ? 'class' : 'activity' } : undefined;
-  const walk = (agent: string, from: string, to: string, route: WalkRoute, at: number) => {
-    const end = at + route.cumulative.at(-1)! / speedOf(agent);
-    if (end > at && at < DAY) trips.push({ agent, from, to, path: route.path, timestamps: route.cumulative.map(d => at + d / speedOf(agent)) });
+  const walk = (agent: string, from: string, to: string, route: WalkRoute, at: number, speed = speedOf(agent)) => {
+    const end = at + route.cumulative.at(-1)! / speed;
+    if (end > at && at < DAY) trips.push({ agent, from, to, path: route.path, timestamps: route.cumulative.map(d => at + d / speed) });
     return end;
   };
   // Return flow is per footprint, like exits.
@@ -771,7 +786,19 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       else if (e.stay && e.start < at) stay(id, e.from, e.start, at, e.stay.purpose);
     }
     let crowdHandled = false, crowdOffMap: { at: number; point: [number, number] } | undefined;
-    if (geometry && participant.role === 'occupant') {
+    const meteorPlan = meteorWalkers.get(id);
+    if (meteorPlan) {
+      const trip = event.trip!;
+      if (at > event.start) trips.push({ ...trip, path: meteorPlan.approach.path,
+        timestamps: meteorPlan.approach.cumulative.map(t => event.start + t) });
+      availableAt = walk(id, at > event.start ? trip.to : trip.from, meteorPlan.destination, meteorPlan.route, at,
+        speedOf(id) * METEOR_RUN_SPEED_MULTIPLIER);
+      location = meteorPlan.destination;
+      if (location === trip.to) cursor++;
+      else ({ location, availableAt, cursor } = continueOutside(id, events, cursor, location, meteorPlan.route.path.at(-1)!, availableAt));
+      crowdHandled = true;
+      if (location === 'off-campus') crowdOffMap = { at: availableAt, point: meteorPlan.route.path.at(-1)! };
+    } else if (geometry && participant.role === 'occupant') {
       // Out by the chosen exit to a standing spot, wait there, then move on.
       const plan = crowdPlans.get(id)!, label = crowdLocations[plan.area.index].id;
       remain(id, event, at, participant.departAt);
@@ -836,7 +863,9 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       const plan = relocations.get(id)!, kind = participant.decision!.activity as 'dining' | 'library' | 'gym';
       const origin = event.trip ? event.from : event.to;
       if (!event.trip) remain(id, event, at, participant.departAt);
-      walk(id, origin, plan.venue.id, plan.toVenue, participant.departAt);
+      const arrived = walk(id, origin, plan.venue.id, plan.toVenue, participant.departAt,
+        speedOf(id) * (incident.kind === 'meteor' && participant.role === 'occupant' ? METEOR_RUN_SPEED_MULTIPLIER : 1));
+      stay(id, plan.venue.id, arrived, plan.arrive, waitPurpose(kind));
       stay(id, plan.venue.id, plan.arrive, plan.activityEnd, { kind, fixed: false });
       location = events[plan.leaveIndex].to;
       availableAt = walk(id, plan.venue.id, location, plan.toNext, plan.activityEnd);
@@ -846,7 +875,8 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       // Damaged building: wait outside the zone, then rejoin the schedule outside it. No return walk.
       const [waitId, route] = waitFor(id, event)!;
       remain(id, event, at, participant.departAt);
-      const arrived = walk(id, event.to, waitId, route, participant.departAt);
+      const arrived = walk(id, event.to, waitId, route, participant.departAt,
+        speedOf(id) * (incident.kind === 'meteor' ? METEOR_RUN_SPEED_MULTIPLIER : 1));
       participant.releaseAt = participant.departAt;
       ({ location, availableAt, cursor } = continueOutside(id, events, cursor, waitId, route.path.at(-1)!, arrived,
         waitPurpose(participant.decision!.activity)));
@@ -858,9 +888,10 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       for (let i = cursor + 1; i <= leaveIndex; i++) {
         const trip = events[i].trip;
         if (!trip) continue;
-        const shift = availableAt - events[i].start;
-        trips.push(shift === 0 ? trip : { ...trip, timestamps: trip.timestamps.map(t => t + shift) });
-        availableAt = events[i].end + shift;
+        const factor = incident.kind === 'meteor' ? METEOR_RUN_SPEED_MULTIPLIER : 1;
+        const timestamps = trip.timestamps.map(t => availableAt + (t - events[i].start) / factor);
+        trips.push(factor === 1 && availableAt === events[i].start ? trip : { ...trip, timestamps });
+        availableAt = timestamps.at(-1)!;
       }
       location = events[leaveIndex].to;
       cursor = leaveIndex + 1;

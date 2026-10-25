@@ -69,3 +69,8 @@
 .input:focus-visible {
   outline: none;
 }
+
+.submit {
+  min-width: var(--space-20);
+  flex-shrink: 0;
+}

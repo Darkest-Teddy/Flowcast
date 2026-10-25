@@ -1,9 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import type { PickingInfo } from '@deck.gl/core';
-import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
+import { createBasemap, INITIAL_VIEW, TRAFFIC_LEVELS, VIEW_IN_URL, type Basemap, type LightPreset, type ViewPadding } from './map/basemap';
 import { HudAsk, HudBrand, HudDate, HudIcons, HudLegend, HudRail, HudStatus, HudTabs, HudTime, type HudTab, type RailItem } from './hud/Chrome';
-import { agentLayers, loadCharacterModels, type LoadedModels } from './layers/agents';
+import { agentLayers, loadCharacterModels, type Character, type LoadedModels } from './layers/agents';
 import { crowdLayers, modelRoofHeights, modelVolumes, type RoofHeights } from './layers/crowd';
 import { CROWD_LEVELS } from './layers/crowdLevels';
 import { activityDisplay, BuildingTags, type BuildingTagsHandle, type TagMode } from './BuildingTags';
@@ -31,7 +31,7 @@ import { Playback, formatClock, loadDay, occupancyShare, type BuildingFootprint,
 import { MbtaFeed, loadTransit, minutesUntil, type TransitData, type TransitSource } from './transit/mbta';
 import { loadShuttles } from './transit/buShuttle';
 import { trackCorridors } from './transit/tracks';
-import { PublishedTransit, loadPublishedSchedule } from './transit/publishedSchedule';
+import { PublishedTransit, loadPublishedSchedule, scheduleCoversDate } from './transit/publishedSchedule';
 import { buildPopulation, loadPopulation, type PopulationBase } from './sim/population';
 import { advanceTime } from './sim/clock';
 import { dateForWeekday, loadCampusData, WEEKDAYS, type CampusData } from './data/campusData';
@@ -52,6 +52,7 @@ import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
 import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
+import { atmosphereLayers } from './weather/atmosphere';
 import { quality } from './perf/quality';
 import { pacer } from './perf/pacer';
 import {
@@ -67,7 +68,11 @@ import {
 } from './bikes/bluebikes';
 import { bikeLayers, bikeTooltip, loadBikeModels } from './layers/bikes';
 import { ActivityChart } from './ActivityChart';
-import { LoadingScreen, createLoadProgress } from './LoadingScreen';
+import { IntroScreen, createLoadProgress } from './IntroScreen';
+import { IntroSky } from './IntroSky';
+import { introSound } from './introSound';
+import { INTRO_VIEW, introZoom } from './intro';
+import { prefersReducedMotion } from './map/camera';
 import { loadMobility, mobilityAt, type MobilityData, type MobilityMode, type MobilityView, type MobilityPoint, type MobilityArc } from './data/mobility';
 import { mobilityLayers, mobilityTooltip } from './layers/mobility';
 import { MobilityPanel } from './MobilityPanel';
@@ -79,18 +84,21 @@ import { dayWeather } from './sim/conditions';
 import type { DayComparison } from './sim/compare';
 import type { DayInfo } from './sim/explain';
 import { loadOutdoor, type OutdoorFile } from './sim/outdoor';
-import { outdoorCount, outdoorIndex, outdoorLayers, outdoorPeople, type OutdoorIndex } from './layers/outdoor';
+import { outdoorCount, outdoorIndex, outdoorPeople, type OutdoorIndex } from './layers/outdoor';
 import type { WeatherMode } from './weather/weather';
 import { IncidentPanel, type IncidentRun } from './IncidentPanel';
 import { applyIncident, type IncidentKind } from './sim/incidents';
 import { damageAt } from './sim/disasterDamage';
 import { damageExclusionAreas, fallbackDamageLayers } from './layers/damageFallback';
 import { incidentLayers } from './layers/incidents';
+import { METEOR_APPROACH_SECONDS } from './layers/disasterEffects';
+import { impactShake } from './layers/impactShake';
 import { planFireResponse as planDisasterFireResponse, fireResponseAt } from './sim/disasterFireResponse';
 import { fireResponseLayers } from './layers/fireResponse';
 import { AskPanel, type AskShow } from './AskPanel';
 import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
+import { LiveVoice } from './LiveVoice';
 import type { Stay, WalkRoute } from './sim/playback';
 import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireModels } from './layers/fireTrucks';
 import { loadFireNetwork, planFireResponse, roadsNear, signalOracle, type FireNetwork } from './sim/fireResponse';
@@ -107,6 +115,7 @@ import { campusParkingEvents, createParkingModel, loadParking, parkingAt, parkin
 import { loadEventSources, type EventSources } from './data/eventCalendar';
 import { eventLoadAt, eventLoadLabel, NO_EVENT_DAY, planEventDay, setCurrentEventDay, type EventDay } from './sim/eventAttendance';
 import { NO_VISITORS, planVisitors, setCurrentVisitorPlan, visitorFromId, visitorsAt, type VisitorPlan } from './sim/visitors';
+import { GAME_ID, withSimulatedGame, type SimulatedGame } from './sim/simulatedGame';
 // Joined students (persona/): a phone builds a character at /join, this display draws it, starred.
 import { JoinQrCard } from './persona/JoinQrCard';
 import { PersonaDetails } from './persona/PersonaDetails';
@@ -181,6 +190,44 @@ const SCENARIO_LOOK: Record<string, WeatherMode> = { clear: 'clear', rain: 'rain
 const START_AT = START_LIVE ? wallClockSeconds() : startTimeFromUrl();
 const START_SPEED = START_LIVE ? 1 : Number(params.get('speed')) || SPEEDS[1];
 const OCCUPANCY_REFRESH_MS = 500;
+/** The map opens on the intro still (IntroScreen) and flies in from its camera, unless the URL sets the view. */
+const FROM_INTRO = !VIEW_IN_URL;
+const NO_PADDING = { top: 0, left: 0, right: 0, bottom: 0 };
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const nextFrames = (n: number) => new Promise<void>((resolve) => { const step = (left: number) => (left ? requestAnimationFrame(() => step(left - 1)) : resolve()); step(n); });
+/** Lets the page paint (a stage label, the bar's next ease) before work that blocks it; timers, not frames, so it also runs in a prerendered page. */
+const letPaint = () => new Promise<void>((resolve) => setTimeout(resolve, 40));
+/** Waits until `count` frames in a row come under `ms` apart (the app has settled), or `capMs` at most. */
+async function steadyFrames(count: number, ms: number, capMs: number) {
+  const from = performance.now();
+  let last = from;
+  let run = 0;
+  while (run < count && performance.now() - from < capMs) {
+    await nextFrames(1);
+    const now = performance.now();
+    run = now - last < ms ? run + 1 : 0;
+    last = now;
+  }
+}
+/** Waits for the view's tiles, or `capMs` at most. */
+async function tilesIn(basemap: Basemap, capMs: number) {
+  const from = performance.now();
+  await nextFrames(2);
+  while (!basemap.tilesLoaded() && performance.now() - from < capMs) await nextFrames(1);
+}
+/**
+ * The intro's camera, like GTA V's character switch: the map opens on the view from the sky (the
+ * intro still, under haze and clouds) and loads underneath it at the same camera. When everything
+ * is in, the live map takes over unseen, drops in two quick steps while the clouds rush past, and
+ * swoops into the opening view, tilting and turning. Zooms are down from the still's, which
+ * depends on the window's shape.
+ */
+const INTRO_DROPS = [
+  { zoomDown: 1.1, ms: 420, hold: 150 },
+  { zoomDown: 2.2, ms: 420, hold: 150 },
+];
+const INTRO_SWOOP_MS = 1000;
 /* How often the chrome's footprint is re-measured for the label placer. */
 const CHROME_REFRESH_MS = 400;
 
@@ -377,6 +424,11 @@ export default function App() {
   const openPersonaRef = useRef<string | null>(null);
 
   const [loadProgress] = useState(createLoadProgress);
+  const introRef = useRef(FROM_INTRO); // the intro owns the camera (no panel padding) until it has flown in
+  // 'sky': the intro still, hazy and cloudy, covers the loading map (the loading screen); 'drop': the
+  // live map dropping down, the clouds rushing past; 'land': swooping into the opening view, clear;
+  // 'swoop': landed, the interface coming in.
+  const [introPhase, setIntroPhase] = useState<'sky' | 'drop' | 'land' | 'swoop' | 'done'>(FROM_INTRO ? 'sky' : 'done');
   const [mapKind, setMapKind] = useState<Basemap['kind'] | null>(null);
   const [hud, setHud] = useState<Hud | null>(null);
   const [range, setRange] = useState<[number, number]>([0, 86400]);
@@ -429,7 +481,8 @@ export default function App() {
     const p = paddingRef.current;
     if (next.top === p.top && next.bottom === p.bottom && next.left === p.left && next.right === p.right) return;
     paddingRef.current = next;
-    basemapRef.current?.setViewPadding(next);
+    // Under the intro the map stays framed like the still (no padding); the fly-in brings it in.
+    if (!introRef.current) basemapRef.current?.setViewPadding(next);
   }, []);
   const onSheetCover = useCallback((cover: SheetCover) => {
     coverRef.current = cover;
@@ -483,16 +536,23 @@ export default function App() {
   const [eventsOn, setEventsOn] = useState(START_EVENTS);
   const eventsOnRef = useRef(START_EVENTS);
   const pinnedDateRef = useRef<string | null>(URL_DATE);
-  const [simDay, setSimDay] = useState<Pick<SourceDay, 'eventDate' | 'gatherings'> | null>(null);
+  // Only the two fields the Events panel reads. Holding the whole day here (trips, stays, source
+  // stats) made React's development build diff and log megabytes of props on every day swap: a
+  // multi-second freeze when the conditions engine's day arrived.
+  const [simDay, setSimDayState] = useState<Pick<SourceDay, 'eventDate' | 'gatherings'> | null>(null);
+  const setSimDay = (day: Pick<SourceDay, 'eventDate' | 'gatherings'>) => setSimDayState({ eventDate: day.eventDate, gatherings: day.gatherings });
   // Venue events (Agganis, Fenway...): calendar, Trends popularity and visitor walks, loaded once.
   // Visitors are their own population, drawn with the walkers but never counted as students.
   const eventSourcesRef = useRef<EventSources>({ calendar: null, popularity: null, routes: null });
   const eventDayRef = useRef<EventDay>(NO_EVENT_DAY);
   const visitorPlanRef = useRef<VisitorPlan>(NO_VISITORS);
   const [eventDay, setEventDay] = useState<EventDay>(NO_EVENT_DAY);
+  // A simulated Red Sox game (Incidents tab): planned with the day's venue events, on the shown day.
+  const simulatedGameRef = useRef<SimulatedGame | null>(null);
+  const [simulatedGame, setSimulatedGame] = useState<SimulatedGame | null>(null);
   /** Plan the venue events (and their visitors) for the date whose events are playing. */
   const planVenueEvents = (date: string | null) => {
-    const planned = planEventDay(eventSourcesRef.current, date);
+    const planned = planEventDay(withSimulatedGame(eventSourcesRef.current, date, simulatedGameRef.current), date);
     eventDayRef.current = planned;
     visitorPlanRef.current = planVisitors(planned);
     // Other features read these by time alone (currentEventLoadAt, eventVisitorsAt).
@@ -584,6 +644,7 @@ export default function App() {
     const mapElement = document.createElement('div');
     mapElement.className = 'map';
     containerRef.current!.appendChild(mapElement);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     (async () => {
       loadProgress.reset();
@@ -594,8 +655,13 @@ export default function App() {
       const venueEvents = loadEventSources();
       // Observed counts for the public crowd; without them the map shows students only.
       const observationsLoad = loadObservations().catch(() => null);
+      let introStopped = false; // a drag or wheel during the intro hands the camera to the user
+      // From the intro: the base map starts under the still at its exact camera, above the Boston limits.
+      const basemapLoad = track('Drawing the map', FROM_INTRO
+        ? createBasemap(mapElement, shownLight, { ...INTRO_VIEW, zoom: introZoom(mapElement.clientWidth, mapElement.clientHeight) }, false)
+        : createBasemap(mapElement, shownLight));
       const [basemap, day, models, transitData, vehicleModels, detailedBuildings, street, snapshot, monuments, bikeData, boats, population, mbtaTimetable, mobilitySnapshot, fields, , signs] = await Promise.all([
-        track('Drawing the map', createBasemap(mapElement, shownLight)),
+        basemapLoad,
         track('Loading the day’s schedules', loadDay('/data/demo-day.json')),
         track('Dressing the students', loadCharacterModels() as Promise<LoadedModels>),
         // Transit and bikes are extras: the campus view must still start if they can't load.
@@ -617,12 +683,19 @@ export default function App() {
         track('Hanging shop signs', loadSigns()).catch(() => null),
       ]);
       if (cancelled) return basemap.remove();
+      // The downloads are in; what follows is computing, which blocks the page: name each part and
+      // give the bar its rough length, so it keeps moving through it.
+      loadProgress.stage('Placing students', 0.62, 4500);
+      await letPaint();
+      if (cancelled) return basemap.remove();
       const shuttleSchedule = await shuttleTimetable;
       observationsRef.current = await observationsLoad;
-      const timetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
+      const candidateTimetable = mbtaTimetable ? mergeSchedules(mbtaTimetable, shuttleSchedule) : shuttleSchedule;
+      const timetable = candidateTimetable && Array.from({ length: 7 }, (_, weekday) => dateForWeekday(snapshot, weekday))
+        .every(date => scheduleCoversDate(candidateTimetable, date)) ? candidateTimetable : null;
       basemapRef.current = basemap;
       // The panels were laid out while the map loaded: start centred in what they leave.
-      basemap.setViewPadding(paddingRef.current, false);
+      if (!introRef.current) basemap.setViewPadding(paddingRef.current, false);
       setMapKind(basemap.kind);
       const modelled = new Set(detailedBuildings?.manifest.campuses.flatMap((c) => c.buildings.map((b) => b.osm)) ?? []);
       // Draw the city's buildings, leaving out the ones we have detailed models for (always called:
@@ -681,6 +754,9 @@ export default function App() {
       setMobilityData(mobilitySnapshot);
       transitServiceRef.current = timetable ? createTransitService(timetable) : undefined;
       const playback = playDay(populationBase, snapshot, weekdayRef.current);
+      loadProgress.stage('Starting the simulation', 0.84, 3000);
+      await letPaint();
+      if (cancelled) return basemap.remove();
       playbackRef.current = playback;
       // Conditions engine: the day above (the unconditioned model) shows until the worker's
       // conditioned day for the live conditions is ready.
@@ -816,12 +892,64 @@ export default function App() {
         .catch(() => null);
       // Dev-only handle for poking at layers from the browser console.
       if (import.meta.env.DEV || params.has('debug')) Object.assign(window, { __flowcast: { overlay, basemap, get playback() { return playbackRef.current; }, get time() { return timeRef.current; }, get incident() { return incidentRunRef.current; }, transitRef, bikesRef, populationBase, quality } });
-      // Lift the loading screen once the first frames are drawn and the view's tiles are in (or
-      // after 4 s regardless), sweeping the camera in from a wider, turned view as it fades.
+      // Lift the intro once the first frames are drawn and the view's tiles are in (or after 4 s
+      // regardless). From the intro still: the live map takes over at the still's exact camera (no
+      // fade: the two are the same picture) and drops in (INTRO_DROPS). With a view from the URL:
+      // sweep in from a wider, turned view.
+      const dropIn = async () => {
+        const width = mapElement.clientWidth;
+        const height = mapElement.clientHeight;
+        const sky = { ...INTRO_VIEW, zoom: introZoom(width, height), padding: NO_PADDING };
+        if (prefersReducedMotion()) {
+          // Reduced motion: from the still straight to the opening view.
+          basemap.jumpTo({ ...INITIAL_VIEW, padding: paddingRef.current });
+          await nextFrames(2);
+          loadProgress.finish();
+        } else {
+          loadProgress.stage('Lining up the view', 0.97, 2000);
+          introSound.prepare();
+          // Still under the still: fetch the tiles of the views the camera will pass through (it would
+          // otherwise fetch them on the way, in stutters), then back to the sky. The first frames after
+          // loading also build layers and shaders: let them settle so the drops run smoothly.
+          for (const view of [...INTRO_DROPS.map((step) => ({ ...sky, zoom: sky.zoom + step.zoomDown })), { ...INITIAL_VIEW, padding: NO_PADDING }, sky]) {
+            if (cancelled) return;
+            basemap.jumpTo(view);
+            await tilesIn(basemap, 1200);
+          }
+          await steadyFrames(6, 45, 2500);
+          if (cancelled) return;
+          const unwatch = basemap.onUserInteraction(() => { introStopped = true; });
+          loadProgress.finish(); // the still goes: the live map is under it at the same camera
+          setIntroPhase('drop');
+          introSound.clouds(900);
+          for (const [i, step] of INTRO_DROPS.entries()) {
+            if (cancelled || introStopped) break;
+            introSound.drop(step.ms, i > 0); // the clouds' whoosh carries the first drop
+            basemap.easeTo({ zoom: sky.zoom + step.zoomDown, duration: step.ms, easing: easeInOutCubic });
+            await sleep(step.ms + step.hold);
+          }
+          setIntroPhase('land');
+          if (!cancelled && !introStopped) {
+            introSound.swoop(INTRO_SWOOP_MS);
+            basemap.easeTo({ ...INITIAL_VIEW, padding: paddingRef.current, duration: INTRO_SWOOP_MS, easing: easeInOutCubic });
+            await sleep(INTRO_SWOOP_MS);
+          }
+          // The interface comes in once the camera has landed (moving it with the camera costs frames).
+          setIntroPhase('swoop');
+          await sleep(600);
+          unwatch();
+        }
+        if (cancelled) return;
+        introRef.current = false;
+        basemap.setLimits(true);
+        if (introStopped) basemap.setViewPadding(paddingRef.current);
+        setIntroPhase('done');
+      };
       const revealFrom = performance.now();
       const reveal = () => {
         if (cancelled) return;
         if (!basemap.tilesLoaded() && performance.now() - revealFrom < 4000) return void requestAnimationFrame(reveal);
+        if (FROM_INTRO) return void dropIn();
         const camera = basemap.getCamera();
         basemap.jumpTo({ zoom: camera.zoom - 0.9, bearing: camera.bearing - 25, pitch: Math.max(0, camera.pitch - 15) });
         basemap.easeTo({ ...camera, duration: 2200 });
@@ -852,7 +980,8 @@ export default function App() {
       let dockStatus = new Map<string, DockEstimate>(); // Bluebikes at the shown time, refreshed with occupancy
       let parkingState: ParkingState | null = null; // only while the Parking toggle is on
       let lastParking = 0;
-      let outdoorSeenAt = -Infinity; // last frame with people sitting by the river near the camera
+      let runnersFor: IncidentRun | null = null;
+      let meteorRunners = new Map<string, IncidentRun['participants'][number]>();
       const tick = (now: number) => {
         // Off-beat display frames (perf/pacer.ts) do nothing: the map doesn't draw on them either.
         if (!pacer.shouldRender(now)) {
@@ -881,6 +1010,12 @@ export default function App() {
         }
         const playback = playbackRef.current!;
         const t = timeRef.current;
+        const impact = incidentRunRef.current;
+        const [shakeX, shakeY] = impact?.incident.kind === 'meteor' && playingRef.current
+          ? impactShake(t - impact.incident.start, impact.hazard?.radiusMetres ?? 100, reducedMotion.matches)
+          : [0, 0];
+        mapElement.style.transform = shakeX || shakeY
+          ? `translate(${shakeX}px, ${shakeY}px) scale(1.025)` : '';
         if (lightModeRef.current === 'auto') {
           // Mapbox Standard has four presets: pick one by the sun (cached per sim half-minute) and set
           // the veil in the same frame, so the switch itself doesn't flash.
@@ -903,22 +1038,32 @@ export default function App() {
         const q = quality.settings;
         setParticleScale(q.particles);
         const walking = playback.walkingAt(t);
+        if (runnersFor !== impact) {
+          runnersFor = impact;
+          meteorRunners = new Map(impact?.incident.kind === 'meteor'
+            ? impact.participants.map(p => [p.agentId, p]) : []);
+        }
+        const runningIds = new Set<string>();
+        for (const person of walking) {
+          const p = meteorRunners.get(person.id);
+          if (p && t >= p.departAt && t < p.resumedAt && person.to === p.decision?.destinationId) runningIds.add(person.id);
+        }
         const publicWalking = publicCrowdRef.current?.walkingAt(t) ?? [];
         const waitingRiders = playback.waitingAt(t);
         // Outdoor free time by the river (layers/outdoor.ts): indexed once per day, drawn near the camera.
         const outdoor = outdoorRef.current;
         if (outdoor.of !== playback) { outdoor.index = outdoorIndex(outdoorStaysRef.current.get(playback), playback.data.agents, outdoor.file); outdoor.of = playback; }
         const outside = outdoor.index ? outdoorPeople(outdoor.index, t, basemap.getCamera().center, q.walkerRadius) : null;
-        // The idle layers join the frame only while someone sits nearby (kept for a minute after, so
-        // they aren't torn down and rebuilt as people come and go); otherwise they cost nothing.
-        if (outside?.sitting.length) outdoorSeenAt = now;
-        const drawSitters = now - outdoorSeenAt < 60_000;
+        // People sitting by the river join the waiting riders' idle layers (same models, same idle
+        // clip): no layers of their own, so no extra draws, and nothing to build when the first one
+        // sits down. They stay unpickable there, as before.
+        const sitters: Character[] = outside?.sitting.length ? outside.sitting.map((agent) => ({ ...agent, unpickable: true })) : [];
         const bikes = bikesRef.current;
         const riding = bikes ? bikes.replay.ridingAt(t) : [];
         if (now - lastOccupancy > OCCUPANCY_REFRESH_MS) {
           occupancy = playback.occupancyAt(t);
           lastOccupancy = now;
-          if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t);
+          if (bikesRef.current) dockStatus = dockStatusAt(bikesRef.current, liveRef.current ? wallClockSeconds() : t, !liveRef.current);
           const ridingByCampus = new Map<string, number>();
           for (const r of riding) ridingByCampus.set(bikes!.campusOf(r.trip), (ridingByCampus.get(bikes!.campusOf(r.trip)) ?? 0) + 1);
           setHud({ time: t, walking: walking.length, occupancy, riding: ridingByCampus, waiting: waitingRiders.length,
@@ -987,7 +1132,7 @@ export default function App() {
         } else parkingState = null;
         const transit = transitRef.current;
         // Live feeds and published playback share the rendering interface.
-        const source = transit ? transitSourceAt(transit, t, liveRef.current, weekdayRef.current) : null;
+        const source = transit ? transitSourceAt(transit, t, liveRef.current, weekdayRef.current, dateForWeekday(snapshot, weekdayRef.current)) : null;
         const showBikesNow = bikes && showBikesRef.current;
         // Shown time and day (0 = Sunday), for BU shuttle service hours.
         const serviceTime = liveRef.current ? wallClockSeconds() : t;
@@ -1054,7 +1199,7 @@ export default function App() {
           // Students walking, plus river walkers/runners (conditions engine), plus event visitors; then the
           // public (non-student) crowd, thinned on its own (data/observations.ts, sim/publicCrowd.ts).
           ...agentLayers(withPublic(thinForZoom(withVisitors(inView(nearView(walking, camera.center, q.walkerRadius).concat(nearView(outside?.moving ?? [], camera.center, q.walkerRadius)), view), visitorFrame.drawn), basemap.getZoom()),
-            thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom() }),
+            thinForZoom(inView(nearView(publicWalking, camera.center, q.walkerRadius), view), basemap.getZoom())), models, t, { zoom: basemap.getZoom(), runningIds }),
           // Students who joined from a phone. Drawn with the same character layers as everyone else
           // so they walk identically, but starred with their name so they read as real people in the
           // simulated crowd. On the simulation clock (t), not wall time, so they keep pace with it.
@@ -1063,16 +1208,17 @@ export default function App() {
             selectedId: openPersonaRef.current,
             showLabels: !cleanRef.current,
           }),
-          ...(outside && drawSitters ? outdoorLayers(outside.sitting, models, t, basemap.getZoom()) : []),
           ...incidentFrameLayers,
           // Fire apparatus: no layers unless a fire alarm's response is under way.
           ...fireLayers(incidentRunRef.current?.response ?? null, { time: t, now, zoom: basemap.getZoom(), night: lightRef.current !== 'day', models: fireModelsRef.current }),
-          // People standing about: riders waiting at stops, and a fire's evacuees in their crowds (same idle layers).
-          ...(transit || standing.length ? waitingRiderLayers(nearView(standing.length
+          // People standing about: riders waiting at stops, a fire's evacuees in their crowds, and
+          // people sitting by the river (all in the same idle layers).
+          ...(transit || standing.length || sitters.length ? waitingRiderLayers(withSitters(transit || standing.length ? nearView(standing.length
             ? [...(transit ? waitingCharacters(waitingRiders, transit.feed.tracks) : []), ...standing]
-            : waitingCharacters(waitingRiders, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
+            : waitingCharacters(waitingRiders, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius) : [], sitters), models, t, basemap.getZoom()) : []),
           ...(cleanRef.current ? [] : askRouteLayers(askRouteRef.current)),
           ...(currentMobility && showCountsRef.current && !cleanRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
+          ...atmosphereLayers(weatherRef.current, basemap.getCamera(), now, lightRef.current),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
@@ -1173,7 +1319,7 @@ export default function App() {
     weatherRef.current = w;
     // The conditions engine only rebuilds when the weather's behaviour family or temperature band changes.
     const shown = dayWeather({ condition: w.condition, temperatureF: w.temperatureF });
-    setWeatherKey(`${shown.kind}|${shown.band}`);
+    setWeatherKey(`${w.source}|${w.reading?.observedAt.slice(0, 10) ?? ""}|${shown.kind}|${shown.band}`);
   }, []);
   const openWeather = useCallback(() => {
     setTab('weather');
@@ -1278,6 +1424,15 @@ export default function App() {
     setEventsOn(on);
     changeDay(weekdayRef.current);
   };
+  /** Start (or, with null, end) a simulated Red Sox game at Fenway on the shown day. */
+  const playSimulatedGame = (game: SimulatedGame | null) => {
+    simulatedGameRef.current = game;
+    setSimulatedGame(game);
+    const data = sourceData;
+    const date = eventDayRef.current.date ?? (data ? eventDateFor(data, weekdayRef.current) : null)
+      ?? (liveRef.current ? wallClockDate() : data ? dateForWeekday(data, weekdayRef.current) : null);
+    planVenueEvents(date);
+  };
   /** Play a specific date's events: switches to that date's weekday. */
   const pickEventDate = (date: string) => {
     pinnedDateRef.current = date;
@@ -1368,8 +1523,9 @@ export default function App() {
   const startIncident = (kind: IncidentKind, locationId: string, duration: number, radiusMetres?: number, outdoorCrowd?: boolean) => {
     const baseline = playbackRef.current;
     if (!baseline || baselinePlaybackRef.current) throw new Error('Reset the current scenario before starting another incident.');
-    if (timeRef.current + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
-    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start: timeRef.current, duration, radiusMetres,
+    const start = timeRef.current + (kind === 'meteor' ? METEOR_APPROACH_SECONDS : 0);
+    if (start + duration > 86400) throw new Error('This incident would extend past midnight. Choose a shorter duration or an earlier simulation time.');
+    const incident = { id: `incident-${weekdayRef.current}-${timeRef.current}`, kind, locationId, start, duration, radiusMetres,
       ...(kind === 'fire' && outdoorCrowd ? { outdoorCrowd: true } : {}) };
     const location = baseline.locations.find((entry) => entry.id === locationId)!;
     // The trucks depend only on the fire's active period, so they are planned first: the outdoor crowd keeps clear of where they park.
@@ -1764,10 +1920,21 @@ export default function App() {
     .slice(0, 2);
 
   const dockRows: DockRow[] = (bikes && hud
-    ? docks.map((dock): DockRow => {
+    ? docks.flatMap((dock): DockRow[] => {
         // "Now" is the shown time: the live count in Live mode, else an estimate.
+        // A dock the feed has never reported gets no estimate at all, and a row
+        // of dashes is worse than one fewer row, so it drops out.
         const estimate = estimateDock(dock, bikes.feed.status(dock), bikes.data.binSeconds, wallClockSeconds(), live ? wallClockSeconds() : hud.time);
-        return { id: dock.id, name: dock.short, bikes: estimate.bikes, ebikes: estimate.ebikes, empty: estimate.docks, estimated: estimate.estimated };
+        if (!estimate) return [];
+        return [{
+          id: dock.id,
+          name: dock.short,
+          bikes: estimate.bikes,
+          // Null where the feed does not break e-bikes out; the row then shows none.
+          ebikes: estimate.ebikes ?? 0,
+          empty: estimate.docks,
+          estimated: estimate.estimated,
+        }];
       })
     : []
   )
@@ -1871,9 +2038,12 @@ export default function App() {
   );
 
   return (
-    // 'none' rather than omitting the attribute: a missing attribute cannot be
-    // selected on, and the closed state is the one that has to hide the sheet.
-    <div className={clean ? 'app is-clean' : 'app'} data-view={view ?? 'none'}>
+    /* 'none' rather than omitting the attribute: a missing attribute cannot be
+       selected on, and the closed state is the one that has to hide the panel. */
+    <div
+      className={`app${clean ? ' is-clean' : ''}${introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land' ? ' is-intro' : ''}${introPhase === 'swoop' ? ' is-swoop' : ''}`}
+      data-view={view ?? 'none'}
+    >
       {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
@@ -1886,7 +2056,9 @@ export default function App() {
       <PlaceTags ref={placeTagsRef} />
       {showParking && <ParkingTags ref={parkingTagsRef} />}
 
-      <LoadingScreen progress={loadProgress} />
+      {/* The intro's haze and clouds, over the still and then the live map until the camera has dropped in. */}
+      {(introPhase === 'sky' || introPhase === 'drop' || introPhase === 'land') && <IntroSky phase={introPhase} light={shownLight} />}
+      <IntroScreen progress={loadProgress} preset={shownLight} />
 
       {/*
         The chrome. Each piece owns a corner so the map stays one uninterrupted
@@ -1982,7 +2154,7 @@ export default function App() {
       <MemoPerfMonitor counts={getPerfCounts} />
       {mapKind && (
         <MemoWeatherControls basemap={basemapRef.current} light={shownLight} simTime={hud?.time} live={live} onChange={onWeather}
-          panel={weatherPanel} chip={weatherChip} onOpen={openWeather} forceMode={scenarioLook} />
+          selectedDate={live ? wallClockDate() : conditionsInput?.date ?? (sourceData ? dateForWeekday(sourceData, weekday) : undefined)} panel={weatherPanel} chip={weatherChip} onOpen={openWeather} forceMode={scenarioLook} />
       )}
       <div className="sheet-dim" data-dim={dim} aria-hidden="true" />
 
@@ -2006,8 +2178,15 @@ export default function App() {
             {hud.outdoors ? <span><b>{hud.outdoors.toLocaleString()}</b> by the river</span> : null}
           </p>
         )}
-        /* The weather chip lives in the top-right status now; it can only be
-           portalled into one slot, and setting the ref twice would race. */
+        actions={<>
+          {askContext && <LiveVoice compact context={{ weekday, time: askContext.time,
+            campus: campus === 'fenway' || campus === 'medical' ? campus : 'charles-river' }}
+            onAnswer={(answer) => {
+              if (answer.show) showAsk({ ...answer.show,
+                select: askContext.locations.find(location => location.id === answer.show?.select) ?? null });
+            }} />}
+          <span className="weather-chip-slot" ref={setWeatherChip} />
+        </>}
       >
         <div className="sheet-context">
           <p className="model-note">
@@ -2330,7 +2509,7 @@ export default function App() {
               {SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}
               {!SPEEDS.includes(speed) && <option value={speed}>{speed}×</option>}
             </select>
-            {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} />}
+            {mapKind && <MemoCameraControls basemap={basemapRef.current} locations={tourLocations} intro={introPhase !== 'done'} />}
             <Popover title="Layers" hint="Map layers and lighting" className="layers" label={<><LayersIcon /> <span className="tool-word">Layers</span></>}>
               <ul className="layer-list">
                 <LayerSwitch label="MBTA" detail="Trains, buses and BU shuttles" on={showTransit} onToggle={toggleTransit} />
@@ -2461,6 +2640,11 @@ function waitingByStop(waiting: { stop: string }[]): Map<string, number> {
   return counts;
 }
 
+/** People standing about plus people sitting by the river (unpickable), for the shared idle layers. */
+function withSitters(standing: WalkingAgent[], sitters: Character[]): Character[] {
+  return sitters.length ? [...standing, ...sitters] : standing;
+}
+
 /** Students drawn plus event visitors drawn (the same character layers; visitors are never counted as students). */
 function withVisitors(students: WalkingAgent[], visitors: WalkingAgent[]): WalkingAgent[] {
   return visitors.length ? students.concat(visitors) : students;
@@ -2559,16 +2743,19 @@ function thinForZoom(walkers: WalkingAgent[], zoom: number): WalkingAgent[] {
  * Live mode draws the real MBTA and BU feeds. When the day is played back or fast-forwarded,
  * live vehicles can't keep up, so scheduled service on the simulation clock takes over.
  */
-function transitSourceAt(transit: Transit, t: number, live: boolean, weekday: number): TransitSource | null {
+function transitSourceAt(transit: Transit, t: number, live: boolean, weekday: number, date: string): TransitSource | null {
   if (live) return transit.feed;
-  transit.schedule?.setTime(t, weekday);
+  transit.schedule?.setTime(t, weekday, date);
   return transit.schedule;
 }
 
 /** Bikes and empty docks at every BU dock at `target` (sim seconds): live if that's now, else estimated. */
-function dockStatusAt({ data, feed }: Bikes, target: number): Map<string, DockEstimate> {
+function dockStatusAt({ data, feed }: Bikes, target: number, scenario = false): Map<string, DockEstimate> {
   const now = wallClockSeconds();
-  return new Map(data.stations.map((s) => [s.id, estimateDock(s, feed.status(s), data.binSeconds, now, target)]));
+  return new Map(data.stations.flatMap((s) => {
+    const estimate = estimateDock(s, feed.status(s), data.binSeconds, now, target);
+    return estimate ? [[s.id, scenario ? { ...estimate, estimated: true } : estimate] as const] : [];
+  }));
 }
 
 // Sailboats tack against the shown weather's wind, rounded to 15° so a slowly veering wind doesn't

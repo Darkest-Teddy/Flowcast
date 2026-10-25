@@ -1,19 +1,39 @@
-/* Date picker on the left, the day's detail on the right. The detail is plain block flow: section
-   headings bring their own space above, and everything else is a card gap (--space-5) or less
-   from what it belongs to. */
 .layout {
   display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-  gap: var(--space-8);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
   align-items: start;
 }
 
 .picker {
-  position: sticky;
-  top: calc(var(--topbar-height) + var(--space-4));
+  min-width: 0;
+}
+
+.datePicker summary,
+.allPlaces summary {
+  min-height: var(--control-height-touch);
+  padding-block: var(--space-3);
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+}
+
+.datePicker summary span {
+  margin-left: var(--space-3);
+  color: var(--color-ink-secondary);
+  font-weight: var(--weight-regular);
+}
+
+.dateOptions {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+  max-width: 24rem;
+  padding-block: var(--space-3);
+}
+
+.allPlaces {
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--color-hairline);
 }
 
 .jump {
@@ -66,7 +86,7 @@
   min-width: 0;
 }
 
-/* The date heading lines up with the top of the calendar. */
+/* The date selector already provides the gap above this heading. */
 .detail > :first-child {
   margin-top: 0;
 }
@@ -92,11 +112,9 @@
   margin-bottom: var(--space-5);
 }
 
-.reasons {
-  margin: var(--space-3) 0 0;
-  padding-left: var(--space-5);
-  font-size: var(--text-sm);
-  color: var(--color-ink-secondary);
+.eventReason {
+  display: block;
+  margin-top: var(--space-1);
 }
 
 .places {
@@ -183,9 +201,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .picker {
-    position: static;
-  }
 }
 
 @media (max-width: 560px) {

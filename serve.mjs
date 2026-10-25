@@ -115,7 +115,7 @@ export function createHostServer({ root = ROOT, apiUrl = '', timeoutMs = 30_000 
     const url = req.url || '/';
 
     const pathname = url.split('?')[0];
-    if (/^\/api\/(dashboard(?:\/|$)|ask$|health$)/.test(pathname)) {
+    if (/^\/api\/(dashboard(?:\/|$)|ask$|health$)/.test(pathname) || (req.method === 'POST' && pathname === '/api/voice/session')) {
       return proxy(req, res, apiUrl, timeoutMs);
     }
     if (pathname === '/api' || pathname.startsWith('/api/')) return jsonError(res, 404, 'API route not found');

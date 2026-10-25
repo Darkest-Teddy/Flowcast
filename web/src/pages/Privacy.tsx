@@ -7,13 +7,14 @@ import { Button, ListRow, Page, PageHeader, SectionHeading, SectionList } from '
 import styles from './Privacy.module.css';
 
 const kept = [
+  { title: 'Your imported schedule', detail: 'Saved to your account. Ask sends up to two weeks of classes, times and rooms to the AI with each question; they do not enter the campus simulation.' },
   { title: 'Your profile', detail: 'The name, dorm, meal times, study spot and avatar colour you enter' },
-  { title: 'Your preferences', detail: 'Notification preferences and club follows saved by Flowcast for this browser' },
+  { title: 'Your preferences', detail: 'Notification preferences and club follows saved to your Flowcast account' },
 ];
 
 const notKept = [
-  { title: 'Google account or calendar', detail: 'Google sign-in and calendar sync are unavailable' },
-  { title: 'A verified identity', detail: 'Your browser-linked profile is not a verified account' },
+  { title: 'Google Calendar', detail: 'Sign-in does not request calendar access; calendar sync is unavailable' },
+  { title: 'Your Google password', detail: 'You sign in with Google; Flowcast does not receive your Google password' },
 ];
 
 export default function Privacy() {
@@ -39,7 +40,7 @@ export default function Privacy() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setMessage('Your profile data couldn’t be prepared. Please try again.');
+      setMessage('Your account data couldn’t be prepared. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -50,20 +51,20 @@ export default function Privacy() {
     setMessage(null);
     try {
       await api.deleteMyData();
-      signOut();
+      await signOut();
       navigate('/signin', { replace: true });
     } catch {
-      setMessage('Your profile data wasn’t deleted. Please try again.');
+      setMessage('Profile deletion or sign-out could not finish. Please try again.');
       setDeleting(false);
     }
   }
 
   return (
     <Page>
-      <PageHeader title="Privacy & data" description="Manage profile details and preferences saved by Flowcast and linked to this browser." />
+      <PageHeader title="Privacy & data" description="Manage data saved to your Flowcast account." />
 
       <div className={styles.columns}>
-        <SectionList title="Browser-linked data">
+        <SectionList title="Flowcast account data">
           {kept.map((k) => (
             <ListRow key={k.title} title={k.title} subtitle={k.detail} />
           ))}
@@ -75,17 +76,17 @@ export default function Privacy() {
         </SectionList>
       </div>
 
-      <p className={styles.notice}>This profile is linked to this browser, not a Google login. Appearance settings are stored separately on this browser and are not removed by deleting your profile.</p>
+      <p className={styles.notice}>Your Flowcast profile is linked to your Google sign-in. Appearance settings are stored separately on this browser and are not removed by deleting your profile.</p>
 
       <SectionHeading>Your data</SectionHeading>
       <div className={styles.actions}>
         <div className={styles.action}>
           <div>
-            <p className={styles.actionTitle}>Download profile data</p>
-            <p className={styles.actionBody}>A JSON file of your saved profile, notification preferences and club follows.</p>
+            <p className={styles.actionTitle}>Download account data</p>
+            <p className={styles.actionBody}>A JSON file of your saved profile, imported schedule, notification preferences and club follows.</p>
           </div>
           <Button icon={<Download aria-hidden />} onClick={download} disabled={downloading}>
-            {downloading ? 'Preparing…' : 'Download profile data'}
+            {downloading ? 'Preparing…' : 'Download account data'}
           </Button>
         </div>
 
@@ -93,7 +94,7 @@ export default function Privacy() {
           <div>
             <p className={styles.actionTitle}>Delete profile data</p>
             <p className={styles.actionBody}>
-              Clears your saved profile, notification preferences and club follows. You can continue browsing campus afterward.
+              Clears your Flowcast profile, imported schedule, notification preferences and club follows, then signs you out. This does not delete your Google account.
             </p>
           </div>
           {!confirming && (
@@ -105,7 +106,7 @@ export default function Privacy() {
 
         {confirming && (
           <div className={styles.confirm} role="group" aria-labelledby="delete-confirm">
-            <p id="delete-confirm">Delete your saved profile, preferences and club follows? This can’t be undone.</p>
+            <p id="delete-confirm">Delete your saved profile, imported schedule, preferences and club follows? This can’t be undone.</p>
             <div className={styles.confirmActions}>
               <Button variant="danger" onClick={remove} disabled={deleting}>
                 {deleting ? 'Deleting…' : 'Delete profile data'}

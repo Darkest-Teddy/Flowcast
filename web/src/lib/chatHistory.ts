@@ -20,7 +20,7 @@ export interface DeviceRow {
 
 export type ChatMessage =
   | { id: string; role: 'user'; text: string }
-  /** An answer from the Ask server. `sample`: a dev-only fixture, never from the model. */
+  /** `sample` is retained only to reject legacy development messages. */
   | { id: string; role: 'assistant'; status: 'answer'; response: ChatResponse; sample?: boolean }
   /** A personal question answered on this device. Never sent to the server, now or later. */
   | { id: string; role: 'assistant'; status: 'device'; text: string; rows: DeviceRow[]; note: string }
@@ -71,8 +71,7 @@ export function weekdayOfDate(date: string): number | null {
 /**
  * The turns sent with a new question: earlier question-and-answer pairs the server answered, oldest
  * first, then the new question; at most `max` turns, never starting with an answer. Personal
- * questions answered on this device, failed questions and dev samples are left out, so a schedule
- * never reaches the server through the history.
+ * questions answered on this device, failed questions and dev samples are left out.
  */
 export function historyForRequest(messages: ChatMessage[], question: string, max = MAX_TURNS): ChatTurn[] {
   const pairs: ChatTurn[] = [];
@@ -128,7 +127,7 @@ export function restoreConversation(raw: string | null, parseBody: (body: unknow
   if (!Array.isArray(data)) return [];
   const out: ChatMessage[] = [];
   for (const m of data.slice(-MAX_STORED_MESSAGES)) {
-    if (!isObject(m) || !isStr(m.id)) continue;
+    if (!isObject(m) || !isStr(m.id) || m.sample === true) continue;
     if (m.role === 'user' && isStr(m.text) && m.text.trim()) {
       out.push({ id: m.id, role: 'user', text: m.text.slice(0, MAX_QUESTION_CHARS) });
     } else if (m.role === 'assistant' && m.status === 'answer') {

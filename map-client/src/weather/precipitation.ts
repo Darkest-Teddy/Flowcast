@@ -64,6 +64,8 @@ const streakSrc = doubleBuffer(POOL * 3);
 const streakDst = doubleBuffer(POOL * 3);
 const flakePos = doubleBuffer(POOL * 3);
 const flakeSize = doubleBuffer(POOL);
+const streakColorBufs = [new Uint8Array(POOL * 4), new Uint8Array(POOL * 4)];
+let streakColorIndex = 0;
 const ripplePos = doubleBuffer(MAX_RIPPLES * 4 * 3);
 const rippleRadius = doubleBuffer(MAX_RIPPLES * 4);
 const rippleColorBufs = [new Uint8Array(MAX_RIPPLES * 4 * 4), new Uint8Array(MAX_RIPPLES * 4 * 4)];
@@ -131,6 +133,9 @@ export function precipitationLayers(next: Precipitation | null | undefined, came
     const fallSeconds = 0.75;
     const src = streakSrc();
     const dst = streakDst();
+    const color = streakColorBufs[(streakColorIndex ^= 1)];
+    const alpha = (dark ? 105 : 165) * (0.75 + 0.25 * p.strength) * fadeIn;
+    const [r, g, b] = dark ? [160, 176, 206] : [196, 208, 226]; // mid-tone: reads on pale ground and dark roofs
     for (let i = 0; i < n; i++) {
       const j = RJ[i];
       const f = fract(RZ[i] + (t / fallSeconds) * (0.8 + 0.4 * j)); // 0 at the top, 1 at the ground
@@ -146,14 +151,21 @@ export function precipitationLayers(next: Precipitation | null | undefined, came
       dst[k] = x - wx * slant * len;
       dst[k + 1] = y - wy * slant * len;
       dst[k + 2] = z + len;
+      // Depth: longer (nearer, faster-looking) streaks are brighter, short ones fade into the distance;
+      // a streak brightens a little as it nears the ground, where it catches the light.
+      const c = i * 4;
+      color[c] = r; color[c + 1] = g; color[c + 2] = b;
+      color[c + 3] = Math.round(alpha * (0.45 + 0.55 * j) * (0.8 + 0.2 * f));
     }
-    const alpha = Math.round((dark ? 105 : 165) * (0.75 + 0.25 * p.strength) * fadeIn);
     const layers: Layer[] = [
       new LineLayer({
         ...common,
         id: 'weather-rain',
-        data: { length: n, attributes: { getSourcePosition: { value: src, size: 3 }, getTargetPosition: { value: dst, size: 3 } } },
-        getColor: dark ? [160, 176, 206, alpha] : [196, 208, 226, alpha], // mid-tone: reads on pale ground and dark roofs
+        data: { length: n, attributes: {
+          getSourcePosition: { value: src, size: 3 },
+          getTargetPosition: { value: dst, size: 3 },
+          getColor: { value: color, size: 4, normalized: true },
+        } },
         getWidth: 1,
         widthUnits: 'pixels',
       }),

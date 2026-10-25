@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { Basemap, LightPreset } from './map/basemap';
+import { announceStrike } from './weather/lightning';
 import {
   FORECAST_REFRESH_MS,
   GROUND_BUILD_SECONDS,
@@ -16,7 +17,7 @@ import {
   RETRY_MS,
   WEATHER_MODES,
   activeWeather,
-  cachedWeather,
+  bostonDate,
   compass,
   fetchForecast,
   fetchWeather,
@@ -39,6 +40,7 @@ interface Props {
   /** The time on the app's clock (seconds since midnight) and whether it is following real time. */
   simTime?: number | null;
   live?: boolean;
+  selectedDate?: string;
   onChange?: (weather: ActiveWeather) => void;
   /** Where the readout and mode buttons go (the Weather tab panel); nothing is drawn there without one. */
   panel?: HTMLElement | null;
@@ -71,6 +73,7 @@ function usePolled<T>(load: (signal: AbortSignal) => Promise<T>, every: number, 
         timer = window.setTimeout(run, every);
       } catch (err) {
         if (disposed) return;
+        setValue(null);
         setError(err instanceof Error && err.name !== 'AbortError' ? err.message : 'timed out');
         timer = window.setTimeout(run, RETRY_MS);
       } finally {
@@ -88,7 +91,7 @@ function usePolled<T>(load: (signal: AbortSignal) => Promise<T>, every: number, 
   return [value, error] as const;
 }
 
-export function WeatherControls({ basemap, light, simTime = null, live = true, onChange, panel = null, chip = null, onOpen, forceMode = null }: Props) {
+export function WeatherControls({ basemap, light, simTime = null, live = true, selectedDate = bostonDate(), onChange, panel = null, chip = null, onOpen, forceMode = null }: Props) {
   const [mode, setMode] = useState<WeatherMode>('live');
   // A scenario sets the look; leaving it goes back to live weather.
   const forced = useRef<WeatherMode | null>(null);
@@ -97,14 +100,20 @@ export function WeatherControls({ basemap, light, simTime = null, live = true, o
     else if (forced.current) setMode('live');
     forced.current = forceMode;
   }, [forceMode]);
-  const [reading, error] = usePolled<WeatherReading>(fetchWeather, REFRESH_MS, cachedWeather()?.reading ?? null);
-  const [forecast] = usePolled<Forecast>(fetchForecast, FORECAST_REFRESH_MS, null);
+  const [reading, error] = usePolled<WeatherReading>(fetchWeather, REFRESH_MS, null);
+  const [forecast, forecastError] = usePolled<Forecast>(fetchForecast, FORECAST_REFRESH_MS, null);
+
+  const [freshnessTick, setFreshnessTick] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setFreshnessTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Recomputed once a simulated minute: temperature and wind glide between forecast hours.
   const minute = simTime == null ? null : Math.floor(simTime / 60);
   const active = useMemo(
-    () => activeWeather(mode, reading, forecast, { live, seconds: minute == null ? null : minute * 60 }),
-    [mode, reading, forecast, live, minute],
+    () => activeWeather(mode, reading, forecast, { live, seconds: minute == null ? null : minute * 60, date: selectedDate }),
+    [mode, reading, forecast, live, minute, selectedDate, freshnessTick],
   );
 
   // The effect only changes identity when it actually looks different, so the map isn't redone
@@ -168,15 +177,15 @@ export function WeatherControls({ basemap, light, simTime = null, live = true, o
   } else if (active.source === 'forecast') {
     detail = `${active.when} · feels ${Math.round(active.feelsLikeF!)}° · ${windText}`;
   } else if (active.source === 'simulated') {
-    detail = reading ? `Actual now: ${Math.round(reading.temperatureF)}°F, ${reading.text.toLowerCase()}` : 'Not the real weather';
+    detail = 'Weather scenario · representative conditions, not an observation';
   } else {
-    detail = error ? 'Open-Meteo unreachable · retrying' : 'Fetching Boston weather…';
+    detail = (live ? error : forecastError) ? 'Open-Meteo unavailable · retrying' : `No weather data for ${selectedDate} in the current feed window`;
   }
 
   // The next hours from the time on the clock (the shown hour first).
-  const nowSeconds = live || simTime == null ? new Date().getHours() * 3600 : simTime;
-  const strip = forecast ? forecastHours(forecast, nowSeconds, 6) : [];
-  const badge = { live: 'LIVE', forecast: 'FORECAST', simulated: 'SIMULATED', none: 'NO DATA' }[active.source];
+  const nowSeconds = live || simTime == null ? Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date())) * 3600 : simTime;
+  const strip = forecast ? forecastHours(forecast, nowSeconds, 6, selectedDate) : [];
+  const badge = { live: 'CURRENT', forecast: 'FORECAST', simulated: 'SIMULATED', none: 'NO DATA' }[active.source];
 
   return (
     <>
@@ -216,7 +225,7 @@ export function WeatherControls({ basemap, light, simTime = null, live = true, o
               </button>
             ))}
           </div>
-          <p className="weather-hint">W cycles · data: Open-Meteo</p>
+          <p className="weather-hint">W cycles · Open-Meteo model data. Hourly feed covers yesterday through tomorrow; other dates are unavailable. Scenario modes are simulated.</p>
         </section>,
         panel,
       )}
@@ -250,6 +259,7 @@ function useLightning(enabled: boolean) {
     if (!enabled || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let timer = 0;
     const strike = () => {
+      announceStrike();
       ref.current?.animate(
         [
           { opacity: 0 },

@@ -4,6 +4,9 @@ import { bostonClock, isPersonalQuestion, mentionsHome, planQuestion, routeQuest
 
 const PERSONAL = [
   'Where is my next class?',
+  'When should I leave?',
+  'Am I late?',
+  'Can I make it?',
   'where’s my next class',
   'My classes today',
   'How far apart are my classes today?',
@@ -94,7 +97,7 @@ test('follow-ups after personal context stay on-device until a self-contained pl
   const agent = async (q: string) => { sent.push(q); return { ok: true as const, value: 'Campus answer' }; };
   const context = { afterDevice: true, locationNames: ['Mugar Memorial Library', 'Mugar', 'CAS'] };
   for (const question of ['How far is it?', 'When should I leave?', 'What about tomorrow?', 'Is that near Mugar?', 'How about there?', 'Mugar instead?', 'Is it busy at CAS?', 'Where should I eat?']) {
-    assert.deepEqual(await routeQuestion(question, agent, null, context), { source: 'device', reason: 'privateFollowup' }, question);
+    assert.deepEqual(await routeQuestion(question, agent, null, context), { source: 'device', reason: question === 'When should I leave?' ? 'personal' : 'privateFollowup' }, question);
   }
   assert.deepEqual(sent, []);
   assert.deepEqual(await routeQuestion('When is Mugar quiet?', agent, null, context), { source: 'agent', question: 'When is Mugar quiet?', answer: 'Campus answer' });

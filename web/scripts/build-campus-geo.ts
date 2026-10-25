@@ -5,7 +5,6 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { locations } from '../src/data/fixtures.ts';
 
 interface DemoDay {
   locations: { id: string; position: [number, number] }[];
@@ -17,7 +16,8 @@ const source = fileURLToPath(new URL('../../map-client/public/data/demo-day.json
 const target = fileURLToPath(new URL('../src/data/campusGeo.ts', import.meta.url));
 const day = JSON.parse(readFileSync(source, 'utf8')) as DemoDay;
 
-const ids = locations.map((l) => l.id);
+const impact = JSON.parse(readFileSync(new URL('../../map-client/public/data/event-impact.json', import.meta.url), 'utf8')) as { places: { id: string }[] };
+const ids = impact.places.map(location => location.id);
 const positions: Record<string, [number, number]> = {};
 for (const loc of day.locations) if (ids.includes(loc.id)) positions[loc.id] = loc.position;
 

@@ -84,6 +84,8 @@ export interface Transit {
   /** Stop id → weekday → departures sorted by time. */
   departures: Map<string, Departure[][]>;
   mbtaFeed: string; shuttleFeed: string;
+  dates: string[];
+  priorDepartures: Map<string, Departure[]>;
   shuttleNote: string | null;
 }
 
@@ -148,6 +150,9 @@ const hourly = (bins: number[], binSeconds: number): number[] => {
 };
 
 export function buildTransit(transitJson: any, mbta: any, shuttle: any): Transit {
+  // A historic BU baseline is not evidence for current departures.
+  if (!shuttle?.dates?.every((d: string) => mbta.dates?.includes(d)
+      && shuttle.feed?.start <= d.replaceAll('-', '') && d.replaceAll('-', '') <= shuttle.feed?.end)) shuttle = null;
   const routes: Transit['routes'] = (transitJson.routes ?? []).map((r: any) => ({
     id: String(r.id), name: String(r.longName ?? r.name ?? r.id),
     directions: Array.isArray(r.directions) && r.directions.length === 2 ? [String(r.directions[0]), String(r.directions[1])] : null,
@@ -169,8 +174,12 @@ export function buildTransit(transitJson: any, mbta: any, shuttle: any): Transit
   for (const s of transitJson.stops ?? []) for (const p of s.platforms ?? []) platformOf.set(String(p), String(s.id));
   for (const [id, s] of Object.entries<any>(mbta.stops ?? {})) if (s.mapStopId && !platformOf.has(id)) platformOf.set(id, String(s.mapStopId));
   const departures = new Map<string, Departure[][]>();
+  const priorDepartures = new Map<string, Departure[]>();
   const add = (stop: string, weekday: number, dep: Departure) => {
     // Weekday -1 is the schedule's prior date (only for service past its midnight): not a reference-week day.
+    if (weekday === -1) {
+      const rows = priorDepartures.get(stop) ?? []; rows.push(dep); priorDepartures.set(stop, rows); return;
+    }
     if (!(weekday >= 0 && weekday <= 6)) return;
     let days = departures.get(stop);
     if (!days) departures.set(stop, (days = Array.from({ length: 7 }, () => [])));
@@ -194,7 +203,8 @@ export function buildTransit(transitJson: any, mbta: any, shuttle: any): Transit
   }
   for (const days of departures.values()) for (const d of days) d.sort((a, b) => a[0] - b[0]);
   return {
-    stops, routes, departures,
+    stops, routes, departures, priorDepartures,
+    dates: mbta.dates?.length === 7 && mbta.dates.every((d: string) => mbta.feed?.start <= d.replaceAll('-', '') && d.replaceAll('-', '') <= mbta.feed?.end) ? mbta.dates : [],
     mbtaFeed: String(mbta.feed?.version ?? 'MBTA GTFS'),
     shuttleFeed: String(shuttle?.feed?.version ?? 'BU Shuttle GTFS'),
     shuttleNote: Array.isArray(shuttle?.assumptions) ? String(shuttle.assumptions[0]) : null,

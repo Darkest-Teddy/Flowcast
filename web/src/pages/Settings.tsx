@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSession } from '../auth/session';
 import { api, useResource } from '../data/api';
 import type { NotificationPrefs } from '../data/types';
 import { savedTheme, savedTransparency, setTheme, setTransparency, type ThemeChoice } from '../lib/theme';
@@ -9,21 +10,22 @@ const notificationRows: { key: keyof NotificationPrefs; label: string; descripti
   {
     key: 'packedRoute',
     label: 'Crowding alerts preference',
-    description: 'Saved with your browser-linked profile. Crowding alerts are not delivered in this version.',
+    description: 'Saved with your Flowcast profile. Crowding alerts are not delivered in this version.',
   },
   {
     key: 'clubEvents',
     label: 'New events from clubs I follow',
-    description: 'Saved with your browser-linked profile. Club event notifications are not delivered in this version.',
+    description: 'Saved with your Flowcast profile. Club event notifications are not delivered in this version.',
   },
   {
     key: 'scheduleChanges',
     label: 'Changes to my classes',
-    description: 'Saved with your browser-linked profile. Calendar sync and class alerts are unavailable.',
+    description: 'Saved with your Flowcast profile. Calendar sync and class alerts are unavailable.',
   },
 ];
 
 export default function Settings() {
+  const { signOut } = useSession();
   const [theme, setThemeChoice] = useState<ThemeChoice>(savedTheme);
   const [reduced, setReduced] = useState(savedTransparency);
   // The device setting wins in tokens.css, so the switch shows it and can't turn it off.
@@ -60,7 +62,15 @@ export default function Settings() {
 
   return (
     <Page>
-      <PageHeader title="Settings" description="Appearance is saved on this browser. Flowcast saves notification preferences with your browser-linked profile; no notifications are sent." />
+      <PageHeader title="Settings" description="Appearance is saved on this browser. Flowcast saves notification preferences with your Flowcast profile; no notifications are sent." />
+
+      <SectionHeading>Account</SectionHeading>
+      <p>Signed in with Google. Signing out of Flowcast does not sign you out of Google.</p>
+      <Button onClick={async () => {
+        setSaving(true);
+        try { await signOut(); } catch (e) { setError(e instanceof Error ? e.message : 'Sign-out failed.'); }
+        finally { setSaving(false); }
+      }} disabled={saving}>Sign out of Flowcast</Button>
 
       <SectionHeading>Appearance</SectionHeading>
       <div className={styles.rows}>
