@@ -1,0 +1,913 @@
+<title>Flowcast Keynote</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+  /* ------------------------------------------------------------------
+     Flowcast keynote. Colour, type and motion are taken from the
+     product's own theme/tokens.css and theme/crowd.ts, so the deck
+     looks like the thing it describes.
+
+     Deliberately single-theme: a presentation stage is always dark, so
+     every colour is painted explicitly rather than inherited.
+     ------------------------------------------------------------------ */
+  :root {
+    --stage:        #0b0c0e;  /* --landing-canvas */
+    --raised:       #141518;  /* --landing-raised */
+    --ink:          #f5f5f7;
+    --ink-2:        #a1a1a6;
+    --ink-3:        #8e8e93;
+    --hairline:     rgba(255, 255, 255, 0.1);
+    --hairline-2:   rgba(255, 255, 255, 0.055);
+    --accent:       #2997ff;
+    --quiet:        #38bdf8;
+    --busy:         #facc15;
+    --packed:       #f43f5e;
+    --quiet-text:   #7dd3fc;
+    --busy-text:    #fde047;
+    --packed-text:  #fda4af;
+
+    --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --font-text:    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --font-mono:    ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --tracking-mono: 0.1em;
+    --tracking-display: -0.035em;
+    --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--stage);
+    color: var(--ink);
+    font-family: var(--font-text);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  /* The stage: a 16:9 box filling as much of the viewport as it can,
+     carrying container-query units so every size below scales with it. */
+  .stage {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(100vw, calc(100vh * 16 / 9));
+    height: min(100vh, calc(100vw * 9 / 16));
+    container-type: inline-size;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: 7cqw 8cqw 10cqw;
+    gap: 2.4cqw;
+  }
+  .slide[data-active] { display: flex; }
+
+  .slide[data-active] > * { animation: rise 620ms var(--ease) backwards; }
+  .slide[data-active] > *:nth-child(1) { animation-delay: 40ms; }
+  .slide[data-active] > *:nth-child(2) { animation-delay: 110ms; }
+  .slide[data-active] > *:nth-child(3) { animation-delay: 180ms; }
+  .slide[data-active] > *:nth-child(4) { animation-delay: 250ms; }
+  .slide[data-active] > *:nth-child(5) { animation-delay: 320ms; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(1.5cqw); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* ---- Type ---- */
+  .eyebrow {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 1.15cqw;
+    letter-spacing: var(--tracking-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .eyebrow b { color: var(--accent); font-weight: 500; }
+
+  h1, h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: var(--tracking-display);
+    line-height: 1.04;
+    text-wrap: balance;
+  }
+  h1 { font-size: 7.6cqw; max-width: 30ch; }
+  h2 { font-size: 5.4cqw; max-width: 34ch; }
+  h2.small { font-size: 4.2cqw; max-width: 40ch; }
+
+  .lede {
+    margin: 0;
+    max-width: 48ch;
+    font-size: 1.95cqw;
+    line-height: 1.42;
+    letter-spacing: -0.01em;
+    color: var(--ink-2);
+  }
+  .lede.wide { max-width: 64ch; }
+  .lede strong { color: var(--ink); font-weight: 500; }
+
+  .quiet-note {
+    margin: 0;
+    max-width: 78ch;
+    font-family: var(--font-mono);
+    font-size: 1.05cqw;
+    letter-spacing: 0.03em;
+    line-height: 1.65;
+    color: var(--ink-3);
+  }
+
+  /* ---- Big figures ---- */
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+    gap: 3cqw;
+    margin: 0;
+  }
+  .figure { display: flex; flex-direction: column; gap: 0.7cqw; }
+  .figure dt {
+    font-family: var(--font-display);
+    font-size: 5cqw;
+    font-weight: 600;
+    letter-spacing: var(--tracking-display);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .figure dd {
+    margin: 0;
+    font-size: 1.3cqw;
+    line-height: 1.45;
+    color: var(--ink-2);
+    max-width: 28ch;
+  }
+  /* Figures whose caption is a sentence rather than a label need more measure. */
+  .figures.prose dd { max-width: 44ch; font-size: 1.35cqw; }
+  .figure.packed dt { color: var(--packed-text); }
+  .figure.busy dt   { color: var(--busy-text); }
+  .figure.quiet dt  { color: var(--quiet-text); }
+  .figure.accent dt { color: var(--accent); }
+
+  /* ---- Cards ---- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+    gap: 1.3cqw;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .card {
+    background: var(--raised);
+    border: 1px solid var(--hairline-2);
+    border-radius: 1cqw;
+    padding: 1.7cqw;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55cqw;
+  }
+  .card h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.6cqw;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+  .card p { margin: 0; font-size: 1.16cqw; line-height: 1.45; color: var(--ink-2); }
+  .card .tag {
+    font-family: var(--font-mono);
+    font-size: 0.9cqw;
+    letter-spacing: var(--tracking-mono);
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  /* ---- Counted rows: the published / missing contrast ---- */
+  .rows { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+  .rows li {
+    display: grid;
+    grid-template-columns: 8cqw 1fr auto;
+    gap: 2cqw;
+    align-items: baseline;
+    padding: 1.1cqw 0;
+    border-top: 1px solid var(--hairline-2);
+    font-size: 1.42cqw;
+  }
+  .rows li:last-child { border-bottom: 1px solid var(--hairline-2); }
+  .rows .n {
+    font-family: var(--font-display);
+    font-size: 2cqw;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .rows .what { color: var(--ink-2); }
+  .rows .src {
+    font-family: var(--font-mono);
+    font-size: 0.92cqw;
+    letter-spacing: 0.03em;
+    color: var(--ink-3);
+    text-align: right;
+  }
+  .rows.measured .n { color: var(--packed-text); }
+  .rows.published .n { color: var(--quiet-text); }
+
+  /* The audience list: a named group on the left, what it gets on the right. */
+  .rows.who li { grid-template-columns: 18cqw 1fr; gap: 3cqw; padding: 1.35cqw 0; }
+  .rows.who .n {
+    font-family: var(--font-display);
+    font-size: 1.75cqw;
+    letter-spacing: -0.018em;
+    color: var(--ink);
+  }
+  .rows.who .what { font-size: 1.5cqw; }
+
+  /* ---- Validation chart ---- */
+  .chart { display: flex; flex-direction: column; gap: 1.2cqw; margin: 0; }
+  .bar-row { display: grid; grid-template-columns: 17cqw 1fr; gap: 1.8cqw; align-items: center; }
+  .bar-label { font-size: 1.16cqw; color: var(--ink-2); line-height: 1.32; }
+  .bar-pair { display: flex; flex-direction: column; gap: 0.45cqw; }
+  .bar { display: flex; align-items: center; gap: 0.8cqw; height: 1.35cqw; }
+  .bar i { display: block; height: 100%; border-radius: 0.2cqw; background: var(--ink-3); }
+  .bar.sim i { background: var(--accent); }
+  .bar b {
+    font-family: var(--font-mono);
+    font-size: 0.98cqw;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    color: var(--ink-2);
+    font-weight: 400;
+  }
+  .legend {
+    display: flex;
+    gap: 2.2cqw;
+    font-family: var(--font-mono);
+    font-size: 0.92cqw;
+    letter-spacing: var(--tracking-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .legend span { display: flex; align-items: center; gap: 0.6cqw; }
+  .legend i { width: 1.6cqw; height: 0.45cqw; border-radius: 0.15cqw; background: var(--ink-3); display: block; }
+  .legend .sim i { background: var(--accent); }
+
+  /* ---- Crowd chips, as the product draws them ---- */
+  .chips { display: flex; gap: 1cqw; margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .chip {
+    display: flex;
+    align-items: center;
+    gap: 0.7cqw;
+    padding: 0.7cqw 1.3cqw;
+    border-radius: 999px;
+    background: var(--raised);
+    border: 1px solid var(--hairline-2);
+    font-size: 1.22cqw;
+    color: var(--ink-2);
+  }
+  .chip i { width: 0.85cqw; height: 0.85cqw; border-radius: 999px; display: block; }
+  .chip.q i { background: var(--quiet); }
+  .chip.b i { background: var(--busy); }
+  .chip.p i { background: var(--packed); }
+  .chip b { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 500; }
+
+  /* ---- Pipeline ---- */
+  .flow { display: flex; align-items: stretch; gap: 0.85cqw; margin: 0; padding: 0; list-style: none; }
+  .flow li {
+    flex: 1;
+    background: var(--raised);
+    border: 1px solid var(--hairline-2);
+    border-radius: 0.8cqw;
+    padding: 1.45cqw;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45cqw;
+  }
+  .flow .step {
+    font-family: var(--font-mono);
+    font-size: 0.88cqw;
+    letter-spacing: var(--tracking-mono);
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .flow strong { font-family: var(--font-display); font-size: 1.4cqw; font-weight: 600; letter-spacing: -0.015em; }
+  .flow span { font-size: 1.06cqw; line-height: 1.4; color: var(--ink-2); }
+
+  /* ---- Title slide ---- */
+  .slide.title { justify-content: center; gap: 2.6cqw; }
+  .mark { display: flex; align-items: flex-end; gap: 1.1cqw; }
+  .mark .bars { display: flex; align-items: flex-end; gap: 0.35cqw; height: 2.6cqw; }
+  .mark .bars i { width: 0.7cqw; border-radius: 0.18cqw; display: block; }
+  .mark .bars i:nth-child(1) { height: 40%; background: var(--quiet); }
+  .mark .bars i:nth-child(2) { height: 70%; background: var(--busy); }
+  .mark .bars i:nth-child(3) { height: 100%; background: var(--packed); }
+  .mark span {
+    font-family: var(--font-display);
+    font-size: 2.2cqw;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1;
+  }
+
+  /* ---- The one damning quotation ---- */
+  blockquote {
+    margin: 0;
+    padding-left: 2cqw;
+    border-left: 2px solid var(--packed);
+    font-family: var(--font-display);
+    font-size: 3.5cqw;
+    font-weight: 600;
+    letter-spacing: var(--tracking-display);
+    line-height: 1.12;
+    color: var(--ink);
+    text-wrap: balance;
+    max-width: 32ch;
+  }
+  blockquote cite {
+    display: block;
+    margin-top: 1.3cqw;
+    font-family: var(--font-mono);
+    font-size: 1cqw;
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    color: var(--ink-3);
+  }
+
+  /* ---- Chrome ---- */
+  .rail {
+    position: absolute;
+    left: 8cqw;
+    right: 8cqw;
+    bottom: 4.6cqw;
+    display: flex;
+    gap: 0.3cqw;
+    pointer-events: none;
+  }
+  .rail i {
+    flex: 1;
+    height: 0.16cqw;
+    background: var(--hairline);
+    border-radius: 999px;
+    transition: background 240ms var(--ease);
+  }
+  .rail i[data-done] { background: var(--ink-3); }
+  .rail i[data-now]  { background: var(--accent); }
+
+  .foot {
+    position: absolute;
+    left: 8cqw;
+    right: 8cqw;
+    bottom: 2.5cqw;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 0.98cqw;
+    letter-spacing: var(--tracking-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    pointer-events: none;
+  }
+  .foot b { color: var(--ink-2); font-weight: 400; font-variant-numeric: tabular-nums; }
+
+  /* ---- Speaker notes ---- */
+  .notes { display: none; }
+  .drawer {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    max-height: 44vh;
+    overflow-y: auto;
+    background: rgba(10, 11, 13, 0.97);
+    border-top: 1px solid var(--hairline);
+    padding: 20px clamp(20px, 5vw, 64px) 26px;
+    transform: translateY(101%);
+    transition: transform 280ms var(--ease);
+    z-index: 10;
+  }
+  .drawer[data-open] { transform: none; }
+  .drawer h4 {
+    margin: 0 0 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: var(--tracking-mono);
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .drawer p { margin: 0 0 10px; font-size: 15px; line-height: 1.55; color: var(--ink-2); max-width: 80ch; }
+  .drawer p:last-child { margin-bottom: 0; }
+  .drawer strong { color: var(--ink); font-weight: 600; }
+
+  .hint {
+    position: fixed;
+    right: 14px;
+    top: 14px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--tracking-mono);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: rgba(10, 11, 13, 0.82);
+    border: 1px solid var(--hairline-2);
+    border-radius: 999px;
+    padding: 6px 12px;
+    z-index: 11;
+    transition: opacity 500ms var(--ease);
+  }
+  .hint[data-gone] { opacity: 0; pointer-events: none; }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide[data-active] > * { animation: none; }
+    .drawer { transition: none; }
+  }
+</style>
+
+<div class="stage" id="stage">
+
+  <!-- 01 ------------------------------------------------------------ -->
+  <section class="slide title">
+    <div class="mark">
+      <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>Flowcast</span>
+    </div>
+    <h1>See how busy campus is before you go.</h1>
+    <p class="lede">Hourly crowd forecasts for Boston University's libraries, dining halls and gyms.</p>
+    <p class="quiet-note">Hackachusetts &middot; Civic Action track</p>
+    <div class="notes">
+      <p><strong>Open cold, no preamble.</strong> Read the headline, then stop talking for a beat. Everyone in the room has stood in a line they could have avoided.</p>
+      <p>Do not introduce the team or the tech yet. The first ninety seconds belong to the problem.</p>
+    </div>
+  </section>
+
+  <!-- 02 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>01</b> &nbsp; The setting</p>
+    <h2>A campus is a small city that nobody runs like one.</h2>
+    <dl class="figures" style="--cols: 3">
+      <div class="figure"><dt>48,000</dt><dd>people sharing the same sidewalks, dining halls and libraries &mdash; 36,977 students and 11,140 staff</dd></div>
+      <div class="figure"><dt>101</dt><dd>places across the Charles River, Fenway and Medical campuses</dd></div>
+      <div class="figure"><dt>1</dt><dd>avenue most of them walk down to get anywhere</dd></div>
+    </dl>
+    <div class="notes">
+      <p>Frame the scale before the pain. A city of this size would have traffic engineers, published occupancy and a planning department. A campus has none of that, even though its population moves far more predictably.</p>
+      <p><strong>Say the student number out loud as a person-count, not a statistic:</strong> thirty-seven thousand people, all trying to eat inside the same ninety minutes.</p>
+    </div>
+  </section>
+
+  <!-- 03 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>02</b> &nbsp; 12:20 PM</p>
+    <h2>You have fifty minutes to eat.</h2>
+    <p class="lede wide">You walk ten minutes to the dining hall. The line is out the door. You walk back with a granola bar and eat it in a hallway before your 1:25.</p>
+    <p class="quiet-note">Nothing warned you. Nothing could have.</p>
+    <div class="notes">
+      <p>This is the whole pitch in one anecdote. Keep it in second person and keep it specific &mdash; ten minutes, the hallway, the 1:25. Judges have lived it.</p>
+      <p>Resist adding a second example. One concrete scene beats three abstract ones.</p>
+    </div>
+  </section>
+
+  <!-- 04 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>03</b> &nbsp; The problem is measured, not imagined</p>
+    <h2 class="small">This is not a feeling. It is a count.</h2>
+    <ul class="rows measured">
+      <li><span class="n">1,995</span><span class="what">people crossing Comm Ave at Granby St, in one hour, 5&ndash;6 PM</span><span class="src">BU Warren Towers EPNF 2024 &middot; Table 7-6</span></li>
+      <li><span class="n">1,818</span><span class="what">people crossing Comm Ave at Silber Way, in the same hour</span><span class="src">same filing &middot; counted 18&ndash;19 Oct 2023</span></li>
+      <li><span class="n">3,913</span><span class="what">entries at FitRec on an ordinary weekday</span><span class="src">BU FitRec peak-hours report</span></li>
+      <li><span class="n">3,850</span><span class="what">meals a day served at Warren Dining alone</span><span class="src">BU Dining published aggregates</span></li>
+    </ul>
+    <p class="quiet-note">BU already counts this. It files the numbers with the City of Boston. Crowding is not the discovery here.</p>
+    <div class="notes">
+      <p><strong>This slide buys you credibility.</strong> We are not asserting a problem; we are citing BU's own Article 80 filings and reports. Name the source out loud once &mdash; "BU's own Warren Towers filing with the City" &mdash; so nobody thinks these are our estimates.</p>
+      <p>The point to land: everybody already knows campus is crowded, and it is measurable to the person. So the gap is not awareness.</p>
+    </div>
+  </section>
+
+  <!-- 05 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>04</b> &nbsp; And almost all the data is already public</p>
+    <h2 class="small">BU publishes nearly everything you would need.</h2>
+    <ul class="rows published">
+      <li><span class="n">5,904</span><span class="what">class meetings, each with a time and a room</span><span class="src">BU course catalog</span></li>
+      <li><span class="n">437</span><span class="what">classrooms with published seat counts</span><span class="src">BU classroom directory</span></li>
+      <li><span class="n">24</span><span class="what">study spaces, with amenities, hours and booking limits</span><span class="src">BU Libraries</span></li>
+      <li><span class="n">88</span><span class="what">public campus events, each with a venue</span><span class="src">Terrier Central</span></li>
+      <li><span class="n">101</span><span class="what">places with posted opening hours</span><span class="src">BU Dining, Libraries, Housing, FitRec</span></li>
+    </ul>
+    <p class="quiet-note">All free. No login. Scattered across dozens of separate pages, none of which is shaped like an hour of your day.</p>
+    <div class="notes">
+      <p>The turn in the argument. Pause before this slide. The audience expects "and there's no data" &mdash; give them the opposite.</p>
+      <p><strong>Emphasise "no login".</strong> Everything on this list is already paid for by the university and already public. Nobody has to be convinced to release anything.</p>
+    </div>
+  </section>
+
+  <!-- 06 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>05</b> &nbsp; Except for exactly one thing</p>
+    <blockquote>
+      Live building occupancy, study-seat counts, room bookings.
+      <cite>Unavailable. &mdash; Flowcast source audit, 25 October 2026</cite>
+    </blockquote>
+    <p class="lede wide">BU publishes the seats. It cannot publish whether anyone is sitting in them. There is no occupancy feed &mdash; not on this campus, and not on almost any other.</p>
+    <div class="notes">
+      <p><strong>This is the problem slide.</strong> Everything before it was setup. Say it plainly: the one number that would answer "should I walk over there?" is the only number nobody has.</p>
+      <p>If asked why BU does not just install sensors: cost, privacy and retrofit across 101 buildings. That is exactly why a schedule-based projection is the practical route &mdash; it needs no new hardware and no new data collection about real people.</p>
+      <p>We know this gap precisely because we audited every source and wrote down what was missing. That audit is in the repo.</p>
+    </div>
+  </section>
+
+  <!-- 07 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>06</b> &nbsp; So what does everyone actually do?</p>
+    <h2>They check the only way you can. They go and look.</h2>
+    <p class="lede wide">Thirty-seven thousand people, solving the same question separately, all day, with their feet &mdash; every meal, every study session, every trip to the gym.</p>
+    <p class="quiet-note">The information to answer it in advance already exists. It is simply not in one place, and not in the shape of an hour.</p>
+    <div class="notes">
+      <p>Name the cost without inventing a number for it. We deliberately do not claim "X hours wasted per student" &mdash; we have not measured that, and a judge will catch an invented figure.</p>
+      <p><strong>The honest cost statement:</strong> the same question is being answered thousands of times a day by the most expensive possible method, when the inputs to answer it cheaply are already published.</p>
+    </div>
+  </section>
+
+  <!-- 08 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>07</b> &nbsp; And when it matters far more than lunch</p>
+    <h2>A building empties. Where do three thousand people go?</h2>
+    <p class="lede wide">A fire drill, an alarm, a closure. Safety and facilities staff plan for it on paper, because nobody can watch it happen before it happens.</p>
+    <p class="quiet-note">This is the same question as the lunch rush, asked at a much worse moment.</p>
+    <div class="notes">
+      <p>This widens the problem from student convenience to civic infrastructure &mdash; which is the track we are in. Do not oversell it: we are not claiming to predict emergencies, only to let planners rehearse one against a realistic campus.</p>
+      <p><strong>Link the two halves explicitly:</strong> the same model that tells a student where to eat tells a safety officer where the overflow lands. One engine, two very different stakes.</p>
+    </div>
+  </section>
+
+  <!-- 09 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>08</b> &nbsp; The insight</p>
+    <h2>You do not need sensors. You need the schedule.</h2>
+    <p class="lede wide">Where people will be is mostly decided in advance &mdash; by class times, room assignments, posted hours and event venues. All of it published. Put it together and the crowd becomes a calculation instead of a measurement.</p>
+    <div class="notes">
+      <p>The pivot from problem to solution. Deliver this as the obvious-in-hindsight line it is.</p>
+      <p><strong>Why this works on a campus specifically:</strong> unlike a shopping street, a campus population is scheduled. Thirty-seven thousand people have told the university in advance where they will be at 10 AM. That is the structural fact the product rests on.</p>
+    </div>
+  </section>
+
+  <!-- 10 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>09</b> &nbsp; Flowcast</p>
+    <h2>A live 3D model of the whole campus.</h2>
+    <p class="lede wide">36,977 simulated students follow BU's real published class schedules across 101 places, so anyone can see which dining halls, libraries, gyms and buildings will be packed, hour by hour.</p>
+    <ul class="chips">
+      <li class="chip q"><i aria-hidden="true"></i>Quiet <b>under 40%</b></li>
+      <li class="chip b"><i aria-hidden="true"></i>Busy <b>40&ndash;85%</b></li>
+      <li class="chip p"><i aria-hidden="true"></i>Packed <b>85%+</b></li>
+    </ul>
+    <p class="quiet-note">Free. No login. Runs in a browser.</p>
+    <div class="notes">
+      <p>Say the student count precisely &mdash; 36,977, not "about 37,000". It matches BU's published Fall 2025 census by level and full/part-time status, and the precision signals that the roster was built, not guessed.</p>
+      <p><strong>Point at the three chips.</strong> Every crowd level in the product always carries a word, a percentage and a people icon &mdash; never colour alone. That is an accessibility decision, and it comes up again later.</p>
+    </div>
+  </section>
+
+  <!-- 11 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>10</b> &nbsp; Demo &middot; the map</p>
+    <h2>Every building glows by how full it is.</h2>
+    <ul class="cards" style="--cols: 3">
+      <li class="card">
+        <span class="tag">Timeline</span>
+        <h3>Scrub the whole week</h3>
+        <p>Drag to any hour and watch students walk real pedestrian routes between classes, meals, study and the gym.</p>
+      </li>
+      <li class="card">
+        <span class="tag">Speed</span>
+        <h3>Play at up to 600&times;</h3>
+        <p>A whole day of campus movement in a few seconds, or slow down to watch one building fill.</p>
+      </li>
+      <li class="card">
+        <span class="tag">Clock mode</span>
+        <h3>Follow the real time in Boston</h3>
+        <p>Switch to now, and the map tracks the actual hour, with live MBTA, BU Shuttle and Bluebikes on top.</p>
+      </li>
+    </ul>
+    <div class="notes">
+      <p><strong>Switch to the live map here.</strong> Open at a busy hour &mdash; 12:20 on a weekday &mdash; so the first thing judges see is a packed building, then scrub to 3 PM and let them watch it drain.</p>
+      <p>If the demo is slow to load, keep talking: first load simulates a full week, which is also the honest reason it is deterministic rather than cached.</p>
+    </div>
+  </section>
+
+  <!-- 12 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>11</b> &nbsp; Demo &middot; event impact</p>
+    <h2 class="small">"If I go in on Thursday, what will be different?"</h2>
+    <p class="lede wide">Pick any date. See that day's events and, for every place, hour-by-hour crowding with and without them.</p>
+    <dl class="figures" style="--cols: 3">
+      <div class="figure quiet"><dt>88</dt><dd>public events collected from Terrier Central</dd></div>
+      <div class="figure accent"><dt>55</dt><dd>at mapped venues, so they actually move the crowd</dd></div>
+      <div class="figure"><dt>33</dt><dd>still listed, each with the reason it cannot affect the map</dd></div>
+    </dl>
+    <div class="notes">
+      <p>The third figure is the one to dwell on. Events whose venue is login-only or unmapped are shown anyway, with the reason. <strong>We list our own coverage gaps in the product's interface, not just in the README.</strong></p>
+      <p>During an event, students who are free attend, up to the room's published seat count &mdash; never beyond it. Registrations are never treated as attendance.</p>
+    </div>
+  </section>
+
+  <!-- 13 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>12</b> &nbsp; Demo &middot; incidents</p>
+    <h2>Rehearse the drill before you run it.</h2>
+    <p class="lede wide">Start a fire drill, alarm or closure on any building. Occupants evacuate, gather, then choose a feasible next place &mdash; one that is open, in range and has room. Classes stay where they are scheduled; meals and study move.</p>
+    <p class="quiet-note">Everything is compared against the same day without the incident, so planners can see exactly where the overflow goes.</p>
+    <div class="notes">
+      <p>This is the slide for the civic and safety judges. Demo a drill on a big building &mdash; Warren or CDS &mdash; and point at the two or three places that absorb the people.</p>
+      <p><strong>State the limit before you are asked:</strong> these are scenarios, not operational predictions. We have no observed evacuation measurements to calibrate against, and the product says so.</p>
+    </div>
+  </section>
+
+  <!-- 14 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>13</b> &nbsp; Demo &middot; for one student</p>
+    <h2 class="small">"Least crowded library right now."</h2>
+    <p class="lede wide">Ask in plain language and the answer comes from the same simulation and the same walking routes the map uses. Alongside it: today's schedule, forecasts for your places, and a leave-by time for your next class.</p>
+    <p class="quiet-note">Walking times come from saved campus routes at 1.4 m/s, rounded up to whole minutes, plus a five-minute arrival buffer. Unmapped buildings get no guessed departure time.</p>
+    <div class="notes">
+      <p>Ask one question live. Good ones: "quietest dining hall at 6 PM", "how far is CS 132 from DS 340?" Then follow up &mdash; the chat keeps context.</p>
+      <p><strong>Privacy line, say it here:</strong> questions about your own schedule are always answered on the device. Your schedule never goes to the server.</p>
+    </div>
+  </section>
+
+  <!-- 15 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>14</b> &nbsp; Checked against reality</p>
+    <h2 class="small">We scored the model against every real count we could find.</h2>
+    <div class="chart">
+      <div class="bar-row">
+        <span class="bar-label">FitRec visits<br>Saturday, hourly</span>
+        <span class="bar-pair">
+          <span class="bar"><i style="width: 48.3%"></i><b>2,510 observed</b></span>
+          <span class="bar sim"><i style="width: 48.1%"></i><b>2,500 simulated &middot; 100%</b></span>
+        </span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Comm Ave &times; Granby St<br>walkers, 5&ndash;6 PM</span>
+        <span class="bar-pair">
+          <span class="bar"><i style="width: 38.4%"></i><b>1,995 observed</b></span>
+          <span class="bar sim"><i style="width: 30.2%"></i><b>1,572 simulated &middot; 79%</b></span>
+        </span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Comm Ave &times; Silber Way<br>walkers, 5&ndash;6 PM</span>
+        <span class="bar-pair">
+          <span class="bar"><i style="width: 35.0%"></i><b>1,818 observed</b></span>
+          <span class="bar sim"><i style="width: 29.8%"></i><b>1,547 simulated &middot; 85%</b></span>
+        </span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Warren Dining<br>meals per day</span>
+        <span class="bar-pair">
+          <span class="bar"><i style="width: 74.0%"></i><b>3,850 observed</b></span>
+          <span class="bar sim"><i style="width: 52.3%"></i><b>2,722 simulated &middot; 71%</b></span>
+        </span>
+      </div>
+    </div>
+    <p class="legend"><span><i aria-hidden="true"></i>Observed</span><span class="sim"><i aria-hidden="true"></i>Simulated</span></p>
+    <div class="notes">
+      <p>Do not rush this. A simulation with no validation section is a cartoon; this is what separates the project from one.</p>
+      <p><strong>Observed counts include everyone</strong> &mdash; staff, visitors, neighbours &mdash; while we simulate students only. That is why simulated sits below observed almost everywhere, and it is a known, named limitation rather than a tuning failure.</p>
+    </div>
+  </section>
+
+  <!-- 16 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>15</b> &nbsp; And where it is wrong</p>
+    <h2 class="small">The biggest gap is the one we publish.</h2>
+    <dl class="figures prose" style="--cols: 2">
+      <div class="figure packed"><dt>37%</dt><dd>FitRec on a weekday: 1,465 simulated against 3,913 measured. The measured figure counts every pass holder; we simulate students only, and BU's 11,140 employees are not in the model yet.</dd></div>
+      <div class="figure accent"><dt>#1</dt><dd>which is why adding staff and visitors as a separate, clearly labelled layer is the first item on our roadmap &mdash; not a footnote in it.</dd></div>
+    </dl>
+    <p class="lede wide">A civic tool that hides its misses is not a civic tool.</p>
+    <div class="notes">
+      <p><strong>Volunteer the worst number.</strong> Judges will trust everything else on the previous slide far more once you have shown them this one, unprompted.</p>
+      <p>The gaps are not embarrassing &mdash; they are a work plan. Each one points at a specific next step, and every step is additive rather than a rewrite.</p>
+    </div>
+  </section>
+
+  <!-- 17 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>16</b> &nbsp; Honest by design</p>
+    <h2 class="small">Published evidence and model assumptions never mix.</h2>
+    <ul class="cards" style="--cols: 2">
+      <li class="card">
+        <span class="tag">Published</span>
+        <h3>Measured, sourced, checksummed</h3>
+        <p>Class times, seat counts, posted hours, bed counts, event venues. Every value keeps its source URL, retrieval time and SHA-256, so any number on screen can be traced back to the page it came from.</p>
+      </li>
+      <li class="card">
+        <span class="tag">Modeled</span>
+        <h3>Named, tunable, labelled as such</h3>
+        <p>Enrollment, meals, study time, event attendance. Each is a named constant with a plain-language entry in the simulation's assumptions list, and the interface says which is which.</p>
+      </li>
+    </ul>
+    <p class="quiet-note">Never invented: no made-up venue, capacity or coordinate. Registrations are never attendance. Private events are skipped, not parsed. Records we cannot resolve stay unmapped and say so, rather than becoming a plausible-looking number.</p>
+    <div class="notes">
+      <p>This is the Responsibility and Ethics answer, and it is a design rule enforced in the codebase, not a promise in a slide. Steering rules in the repo make it non-negotiable for every session.</p>
+      <p><strong>The line to land:</strong> if a source fails or lacks a field, the application shows the limitation. Adding another plausible number is not a replacement for an integration.</p>
+    </div>
+  </section>
+
+  <!-- 18 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>17</b> &nbsp; Who it is for</p>
+    <h2 class="small">One model. Five very different questions.</h2>
+    <ul class="rows who">
+      <li><span class="n">Students</span><span class="what">Avoid the rush, find a quiet seat, see how an event changes a building, plan an accessible walk.</span></li>
+      <li><span class="n">Clubs</span><span class="what">Pick a room and an hour that will not collide with peak crowds.</span></li>
+      <li><span class="n">Dining &amp; libraries</span><span class="what">An hour-by-hour picture of expected demand, built only from pages they already publish.</span></li>
+      <li><span class="n">Safety</span><span class="what">Rehearse drills and closures, and see where thousands of people go next.</span></li>
+      <li><span class="n">Boston &amp; the MBTA</span><span class="what">Student flow onto Comm Ave sidewalks, Green Line stops and Bluebikes docks.</span></li>
+    </ul>
+    <div class="notes">
+      <p>Do not read all five. Name students, then jump to safety and the City &mdash; the distance between those two is the argument that this is infrastructure, not an app.</p>
+      <p>For students with anxiety, sensory sensitivities or mobility needs, knowing where it is quiet is the difference between going and staying home. <strong>Say that one.</strong></p>
+    </div>
+  </section>
+
+  <!-- 19 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>18</b> &nbsp; Beyond BU</p>
+    <h2>Every input is something campuses already publish.</h2>
+    <p class="lede wide">Course schedules, room capacities, opening hours, event calendars, public transit feeds. The pipeline records where each value came from, so another campus swaps in its own pages rather than rebuilding the model.</p>
+    <p class="quiet-note">The same approach fits any public venue with a schedule: hospitals, convention centres, stadium districts.</p>
+    <div class="notes">
+      <p>Keep this short &mdash; it is a scope claim, not a business plan. The strength is that it requires no new agreement, no new hardware and no new data about people: only pages that are already public.</p>
+      <p>If pressed on what porting actually costs: the collectors are per-source Python modules with recorded provenance, so a new campus is new collectors against the same simulation.</p>
+    </div>
+  </section>
+
+  <!-- 20 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>19</b> &nbsp; Responsibility</p>
+    <h2>Nobody is tracked. Nobody is guessed at.</h2>
+    <ul class="cards" style="--cols: 3">
+      <li class="card">
+        <span class="tag">Synthetic people</span>
+        <h3>No real student is modelled</h3>
+        <p>The 36,977 students are generated to match BU's published census. Not one of them represents or is derived from a real person, and no real location is ever tracked.</p>
+      </li>
+      <li class="card">
+        <span class="tag">Nothing private</span>
+        <h3>Public pages only</h3>
+        <p>No login-only or personal data is collected. Private events are skipped rather than parsed. Your own schedule stays in your session, and schedule questions are answered on your device.</p>
+      </li>
+      <li class="card">
+        <span class="tag">Readable by everyone</span>
+        <h3>Never colour alone</h3>
+        <p>Every crowd level carries a word, a percentage and a one, two or three-person icon, at 4.5:1 contrast. Full keyboard support, and the map honours reduced-motion settings.</p>
+      </li>
+    </ul>
+    <div class="notes">
+      <p>The ethics slide is worth real points and takes thirty seconds. The central claim: a crowd-forecasting tool is exactly the kind of product that would normally be built on location surveillance &mdash; and this one is built on timetables instead.</p>
+      <p><strong>That is a design choice, not a limitation.</strong> We get the same answer without collecting anything about anyone.</p>
+    </div>
+  </section>
+
+  <!-- 21 ------------------------------------------------------------ -->
+  <section class="slide">
+    <p class="eyebrow"><b>20</b> &nbsp; How it is built</p>
+    <h2 class="small">Public pages in. A deterministic model out.</h2>
+    <ol class="flow">
+      <li>
+        <span class="step">01 &middot; Collect</span>
+        <strong>Python pipeline</strong>
+        <span>Cached, rate-limited collectors scrape and normalise public BU, MBTA and City of Boston pages.</span>
+      </li>
+      <li>
+        <span class="step">02 &middot; Commit</span>
+        <strong>Checksummed snapshots</strong>
+        <span>Every value keeps its source URL, retrieval time and SHA-256. The whole build runs offline from these.</span>
+      </li>
+      <li>
+        <span class="step">03 &middot; Simulate</span>
+        <strong>TypeScript model</strong>
+        <span>Enrols students in real sections within seat limits and plans seven days around hours, capacity and walking time.</span>
+      </li>
+      <li>
+        <span class="step">04 &middot; Show</span>
+        <strong>Map and dashboard</strong>
+        <span>GPU-instanced walkers and crowd glow on MapLibre and deck.gl, plus a React dashboard.</span>
+      </li>
+    </ol>
+    <p class="quiet-note">Deterministic: random choices are stable hashes keyed by student and activity, so the same inputs always give the same campus and one change never reshuffles unrelated students. 522 tests, including property-based event-day tests that caught a real bug where events in classrooms could push a building over capacity.</p>
+    <div class="notes">
+      <p>Thirty seconds, no longer. Determinism is the detail worth saying aloud: it is what makes the forecasts reproducible and the validation above meaningful.</p>
+      <p>Built with Kiro's spec-driven workflow &mdash; EARS requirements, steering rules that enforce the data-honesty policy on every session, and agent hooks that fail a commit when a data snapshot changes without its checksum.</p>
+    </div>
+  </section>
+
+  <!-- 22 ------------------------------------------------------------ -->
+  <section class="slide title">
+    <div class="mark">
+      <span class="bars" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>Flowcast</span>
+    </div>
+    <h1>Beat the rush.</h1>
+    <p class="lede">Check the next few hours before you head out.</p>
+    <p class="quiet-note">github.com/Darkest-Teddy/Flowcast &nbsp;&middot;&nbsp; 100% public data &nbsp;&middot;&nbsp; Built at Hackachusetts, Civic Action track</p>
+    <div class="notes">
+      <p>Close on the student, not the technology. The last thing in the room should be the small, ordinary promise &mdash; you will not waste the walk.</p>
+      <p><strong>Then stop.</strong> Leave the map open behind you for questions.</p>
+    </div>
+  </section>
+
+  <div class="rail" id="rail" aria-hidden="true"></div>
+  <div class="foot">
+    <span>Flowcast</span>
+    <span><b id="counter">01</b> &nbsp;/&nbsp; <span id="total">22</span></span>
+  </div>
+</div>
+
+<div class="hint" id="hint">&larr; &rarr; move &nbsp;&middot;&nbsp; N notes</div>
+<div class="drawer" id="drawer" aria-live="polite">
+  <h4>Speaker notes</h4>
+  <div id="drawer-body"></div>
+</div>
+
+<script>
+  (function () {
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var rail = document.getElementById('rail');
+    var counter = document.getElementById('counter');
+    var drawer = document.getElementById('drawer');
+    var drawerBody = document.getElementById('drawer-body');
+    var hint = document.getElementById('hint');
+    var at = 0;
+
+    document.getElementById('total').textContent = String(slides.length);
+
+    slides.forEach(function () {
+      rail.appendChild(document.createElement('i'));
+    });
+    var ticks = Array.prototype.slice.call(rail.children);
+
+    function show(next) {
+      at = Math.max(0, Math.min(slides.length - 1, next));
+      slides.forEach(function (slide, i) {
+        if (i === at) slide.setAttribute('data-active', '');
+        else slide.removeAttribute('data-active');
+      });
+      ticks.forEach(function (tick, i) {
+        tick.removeAttribute('data-done');
+        tick.removeAttribute('data-now');
+        if (i < at) tick.setAttribute('data-done', '');
+        if (i === at) tick.setAttribute('data-now', '');
+      });
+      counter.textContent = String(at + 1).padStart(2, '0');
+      var notes = slides[at].querySelector('.notes');
+      drawerBody.innerHTML = notes ? notes.innerHTML : '<p>No notes for this slide.</p>';
+      if (window.location.hash !== '#' + (at + 1)) {
+        window.history.replaceState(null, '', '#' + (at + 1));
+      }
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      var k = e.key;
+      if (k === 'ArrowRight' || k === 'ArrowDown' || k === ' ' || k === 'PageDown') {
+        e.preventDefault();
+        show(at + 1);
+      } else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp') {
+        e.preventDefault();
+        show(at - 1);
+      } else if (k === 'Home') {
+        e.preventDefault();
+        show(0);
+      } else if (k === 'End') {
+        e.preventDefault();
+        show(slides.length - 1);
+      } else if (k === 'n' || k === 'N') {
+        e.preventDefault();
+        drawer.toggleAttribute('data-open');
+      } else if (k === 'Escape') {
+        drawer.removeAttribute('data-open');
+      }
+      hint.setAttribute('data-gone', '');
+    });
+
+    // Click the right or left side of the stage to move through the deck.
+    document.getElementById('stage').addEventListener('click', function (e) {
+      var box = this.getBoundingClientRect();
+      show(e.clientX - box.left > box.width * 0.35 ? at + 1 : at - 1);
+      hint.setAttribute('data-gone', '');
+    });
+
+    var start = parseInt((window.location.hash || '').slice(1), 10);
+    show(isNaN(start) ? 0 : start - 1);
+    window.setTimeout(function () { hint.setAttribute('data-gone', ''); }, 6000);
+  })();
+</script>
