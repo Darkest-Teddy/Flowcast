@@ -243,6 +243,17 @@
         "kind": "assumption",
         "note": "Scales commuters' outdoor visits; residents live next to BU Beach and the Esplanade."
       }
+    },
+    "campusRideFactor": {
+      "base": 1,
+      "min": 0,
+      "max": 2,
+      "unit": "×",
+      "label": "rides between campus stops (relative to a dry day)",
+      "provenance": {
+        "kind": "assumption",
+        "note": "Scales the share of long walks between campus places taken as a published ride instead (sim/campusRides.ts). Above 1, rides no slower than walking and walks from 9 minutes also qualify."
+      }
     }
   },
   "activities": {
@@ -1647,6 +1658,50 @@
       "provenance": {
         "kind": "assumption",
         "note": "Below 32°F students eat on campus more and linger less outside. Sizes are assumptions."
+      }
+    },
+    {
+      "id": "campus-rides-wet",
+      "label": "Rain, snow or storm (rides between campus stops)",
+      "group": "conditions",
+      "when": {
+        "weather": [
+          "rain",
+          "storm",
+          "snow"
+        ]
+      },
+      "effects": [
+        {
+          "target": "campusRideFactor",
+          "op": "mul",
+          "value": 1.4
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Wet weather sends more students onto the Green Line and the BU Shuttle for long hops along Comm Ave. The size is an assumption."
+      }
+    },
+    {
+      "id": "campus-rides-cold",
+      "label": "Below freezing (rides between campus stops)",
+      "group": "conditions",
+      "when": {
+        "band": [
+          "cold"
+        ]
+      },
+      "effects": [
+        {
+          "target": "campusRideFactor",
+          "op": "mul",
+          "value": 1.25
+        }
+      ],
+      "provenance": {
+        "kind": "assumption",
+        "note": "Below 32°F more students ride rather than walk a long way. The size is an assumption."
       }
     },
     {

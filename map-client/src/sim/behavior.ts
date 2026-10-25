@@ -20,6 +20,7 @@ export const SCALAR_NAMES = [
   'offCampusMealShare', 'shoulderShare', 'walkSpeedFactor', 'walkSpeedSpread', 'postClassLingerMinutes', 'visitLengthSpread',
   'gapPlacement', 'commuterMinClasses', 'commuterActivityWindowMinutes', 'unmappedAcademicMinutes', 'offMapAcademicShare',
   'habitualTimeShare', 'favoriteVenueWeight', 'awayShareResidents', 'awayShareCommuters', 'eventAttendanceFactor', 'commuterOutdoorFactor',
+  'campusRideFactor',
 ] as const;
 export type ScalarName = typeof SCALAR_NAMES[number];
 export type Scalars = Record<ScalarName, number>;

@@ -1112,8 +1112,9 @@ export function applyIncident(day: DayData, incident: Incident, context?: Incide
       && ride.time - endOf(trip) <= MAX_STOP_WAIT_SECONDS && samePoint(trip.path.at(-1)!, ride.position)
       && offMap.some(item => Math.abs(item.start - endOf(trip)) < EPS && item.end > ride.time));
     if (walk) return { ...ride, waitStart: endOf(walk) };
-    // Outdoor crowd: someone heading home early takes the next published departure of their usual service.
-    const visits = geometry && context?.transit?.visits(ride.stop, ride.route, ride.direction, context.weekday, 'board');
+    // Outdoor crowd: someone heading home early takes the next published departure of their usual service
+    // (a ride between campus stops, sim/campusRides.ts, is not a way home: it is kept or cancelled).
+    const visits = ride.alightsAt === undefined && geometry && context?.transit?.visits(ride.stop, ride.route, ride.direction, context.weekday, 'board');
     const early = visits && walks.filter(trip => trip.to === 'off-campus' && !rematched.has(trip) && endOf(trip) >= incident.start
       && endOf(trip) <= ride.time && samePoint(trip.path.at(-1)!, ride.position)).sort((a, b) => endOf(a) - endOf(b))[0];
     const offStay = early && offMap.find(item => Math.abs(item.start - endOf(early)) < EPS);
