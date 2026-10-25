@@ -10,9 +10,9 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return nextResolve(`${specifier}.ts`, context); throw error; }
 } });
 const { publishedOpenWindows } = await import('../src/sim/sourceDay.ts');
-const { closedAt, Playback } = await import('../src/sim/playback.ts');
+const { closedAt, reopensAt, Playback } = await import('../src/sim/playback.ts');
 
-const h = (hour) => hour * 3600;
+const h = (hour, minute = 0) => hour * 3600 + minute * 60;
 const entry = (date, windows) => ({ date, windows, text: '', sourceUrl: 'https://www.bu.edu/', qualifier: null });
 const library = { id: 'mugar', kind: 'library' };
 
@@ -76,4 +76,17 @@ test("the shipped bundle carries BU's published academic building hours, valid w
   }
   // COM is closed at weekends while classes are in session.
   assert.deepEqual(data.locations.com.buildingHours.find((e) => e.weekday === 5).windows, []);
+});
+
+test('a closed place says when it opens again: later today, tomorrow, or on a named day', () => {
+  const hours = [entry('2026-10-30', [[h(7), h(22)]]), entry('2026-10-31', []), entry('2026-11-01', []), entry('2026-11-02', [[h(7, 30), h(22)]])];
+  const friday = publishedOpenWindows(library, hours, '2026-10-30', 4);
+  assert.equal(reopensAt(friday, h(5)), 'Opens 7:00 AM');
+  // Closed all weekend: Monday's opening, by name.
+  assert.deepEqual(friday.nextOpening, { days: 3, weekday: 0, sec: h(7.5) });
+  assert.equal(reopensAt(friday, h(23)), 'Opens Monday 7:30 AM');
+  const sunday = publishedOpenWindows(library, hours, '2026-11-01', 6);
+  assert.equal(reopensAt(sunday, h(12)), 'Opens tomorrow 7:30 AM');
+  // Past the published dates the next opening is unknown, so nothing is promised.
+  assert.equal(reopensAt(publishedOpenWindows(library, hours, '2026-11-02', 0), h(23)), null);
 });

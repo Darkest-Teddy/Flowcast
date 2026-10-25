@@ -1924,6 +1924,7 @@ export default function App() {
     capacityBasis: detailLocation?.capacityBasis,
     kind: detailLocation?.kind,
     closed: detailEntry?.closed,
+    opens: detailEntry?.opens,
   });
 
   /** An event in this building today, so the detail can point at it. */
@@ -2902,7 +2903,7 @@ function splitSharedTags(
     const open = rest.filter((o) => !o.closed);
     const main = (open.length ? open : rest).reduce((a, o) => (o.share > a.share ? o : a));
     out.push({ ...b, position: centre, name: displayName(main.location.name), short: displayShort(main.location.short, main.location.name),
-      count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, closed: !open.length, capacityBasis: main.location.capacityBasis });
+      count: main.count, capacity: main.location.capacity, share: main.share, modeled: main.modeled, closed: !open.length, opens: open.length ? undefined : main.opens, capacityBasis: main.location.capacityBasis });
     // Amenities recorded at (nearly) the same point would stack and the label placer would hide all
     // but one: those are fanned out around their shared point, AMENITY_SPREAD_M apart.
     const kx = 111_320 * Math.cos((centre[1] * Math.PI) / 180);
@@ -2921,6 +2922,7 @@ function splitSharedTags(
         position: spot(d),
         modeled: d.modeled,
         closed: d.closed,
+        opens: d.opens,
         capacityBasis: d.location.capacityBasis,
         count: d.count,
         capacity: d.location.capacity,

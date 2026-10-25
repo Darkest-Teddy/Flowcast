@@ -329,6 +329,8 @@ interface ActivityDisplayInput {
   allowZero?: boolean;
   /** Closed right now by its published hours: shown as "Closed" in grey, not as a quiet figure. */
   closed?: boolean;
+  /** When closed: when it opens again, shown on the opened card. */
+  opens?: string;
 }
 
 /** Grey, for places with no level to show: not modeled, or closed. */
@@ -343,10 +345,10 @@ const NEAR_ZERO_STUDENTS = 3;
  * RESIDENCE_OCCUPANCY, estimated halls 0.95), and the real figure could be higher. */
 const NEAR_FULL_RESIDENCE_PERCENT = 95;
 
-export function activityDisplay({ count, capacity: total, modeled, capacityBasis, residentialBeds, kind, allowZero = false, closed = false }: ActivityDisplayInput) {
+export function activityDisplay({ count, capacity: total, modeled, capacityBasis, residentialBeds, kind, allowZero = false, closed = false, opens }: ActivityDisplayInput) {
   if (closed) {
-    return { primary: 'Closed', tagText: 'Closed', secondary: '', percent: 0, hasPercentage: false, level: 'closed',
-      icon: '', style: NO_LEVEL_STYLE, description: 'Closed now, by its published hours' };
+    return { primary: 'Closed', tagText: 'Closed', secondary: opens ?? '', percent: 0, hasPercentage: false, level: 'closed',
+      icon: '', style: NO_LEVEL_STYLE, description: opens ? `Closed now. ${opens}` : 'Closed now, by its published hours' };
   }
   // A residence with classrooms reads as a residence: a percentage of its beds.
   const beds = capacityBasis === 'residential_beds_plus_classroom_seats' && residentialBeds && residentialBeds > 0 ? residentialBeds : null;
@@ -395,7 +397,7 @@ function writeContent(tag: Tag, b: BuildingOccupancy, kind: LocationKind | null,
     ? { primary: '', tagText: '', secondary: '', percent: 0, hasPercentage: false, level: 'event', icon: '', style:{ '--lv': '167, 139, 250', '--lv-text': '#ddd6fe', '--lv-ink': 'var(--tag-event-ink)', '--lv-fill': 'rgb(var(--tag-event-rgb))' }, description: '' }
     : activityDisplay({ ...b, kind, allowZero });
   const eventText = b.event?.text ?? '';
-  const key = `${b.name}|${b.short}|${display.primary}|${display.level}|${kind}|${eventText}`;
+  const key = `${b.name}|${b.short}|${display.primary}|${display.secondary}|${display.level}|${kind}|${eventText}`;
   if (key === tag.key) return false;
   tag.key = key;
   if (tag.kind !== kind) {

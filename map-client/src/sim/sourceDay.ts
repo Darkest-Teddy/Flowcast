@@ -1,3 +1,4 @@
+import type { NextOpening } from './playback';
 import { carriedForwardHours, CARRY_FORWARD_DAYS, dateForWeekday, openingHoursForDate, WEEKDAYS, type CampusData, type OpeningHours, type SourceMeeting } from '../data/campusData';
 import { fitrecVisitStart } from '../data/fitrecUsage';
 import { effectiveMeetingIntervals } from '../data/academicCalendar';
@@ -1892,14 +1893,28 @@ function publishedEntries(hours: OpeningHours[], date: string, weekday: number):
  * the previous night's late opening (a library open till 2 AM is open at 1 AM). Places with no
  * published hours, or none for this date or week, are left alone: unknown hours never read as closed.
  */
-export function publishedOpenWindows<T extends { kind: string }>(location: T, hours: OpeningHours[], date: string, weekday: number): T & { openWindows?: [number, number][] } {
+export function publishedOpenWindows<T extends { kind: string }>(location: T, hours: OpeningHours[], date: string, weekday: number): T & { openWindows?: [number, number][]; nextOpening?: NextOpening } {
   if (!hours.length || location.kind === 'dorm') return location;
   const today = publishedEntries(hours, date, weekday);
   if (!today.length) return location;
   const yesterday = publishedEntries(hours, previousDate(date), (weekday + 6) % 7);
   const spill = yesterday.flatMap(entry => entry.windows).filter(([, to]) => to > 86400).map(([, to]): [number, number] => [0, to - 86400]);
   const windows = [...spill, ...today.flatMap(entry => entry.windows).map(([from, to]): [number, number] => [from, Math.min(to, 86400)])];
-  return { ...location, openWindows: windows.filter(([from, to]) => to > from) };
+  const nextOpening = laterOpening(hours, date, weekday);
+  return { ...location, openWindows: windows.filter(([from, to]) => to > from), ...(nextOpening ? { nextOpening } : {}) };
+}
+
+/** The first published opening on a later day, up to a week ahead; none once a day's hours are unknown. */
+function laterOpening(hours: OpeningHours[], date: string, weekday: number): NextOpening | null {
+  const start = Date.parse(`${date}T12:00:00Z`);
+  for (let days = 1; days <= 7; days++) {
+    const later = new Date(start + days * 86400000).toISOString().slice(0, 10);
+    const entries = publishedEntries(hours, later, (weekday + days) % 7);
+    if (!entries.length) return null;
+    const starts = entries.flatMap(entry => entry.windows.map(([from]) => from));
+    if (starts.length) return { days, weekday: (weekday + days) % 7, sec: Math.min(...starts) };
+  }
+  return null;
 }
 
 /** A class's doors open this long before it starts. */
