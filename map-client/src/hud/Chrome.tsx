@@ -225,6 +225,9 @@ function useDismiss(open: boolean, root: { current: HTMLElement | null }, close:
  * the label reads "{campus} · {weekday}", because those two together are the
  * answer to "what am I looking at".
  */
+/** The landing page, served by the web app on the same origin as /map (web/src/App.tsx). */
+const LANDING_URL = '/landing';
+
 export function HudBrand({
   name,
   campus,
@@ -247,11 +250,14 @@ export function HudBrand({
 
   return (
     <div className="hud-brand" ref={root}>
-      {/* Drawn inline, so it takes the app's theme (--brand-mark) rather than the system's, as the favicon would. */}
-      <svg className="hud-brand-mark" viewBox={MARK_VIEWBOX} aria-hidden focusable="false">
-        <path d={MARK_PATH} />
-      </svg>
-      <span className="hud-brand-name">{name}</span>
+      {/* The mark and name go to the landing page, as the dashboard's logo does (web/src/layouts/AppShell.tsx). */}
+      <a className="hud-brand-home" href={LANDING_URL} aria-label={`${name} home page`}>
+        {/* Drawn inline, so it takes the app's theme (--brand-mark) rather than the system's, as the favicon would. */}
+        <svg className="hud-brand-mark" viewBox={MARK_VIEWBOX} aria-hidden focusable="false">
+          <path d={MARK_PATH} />
+        </svg>
+        <span className="hud-brand-name">{name}</span>
+      </a>
 
       {campus &&
         (pickable ? (

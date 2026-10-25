@@ -87,7 +87,7 @@
 }
 
 /* One focus ring for every control in the chrome. */
-.hud :is(button, input, [role='tab']):focus-visible {
+.hud :is(a, button, input, [role='tab']):focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -123,6 +123,21 @@
   height: var(--hud-bar-height);
   padding: 0 var(--space-1) 0 var(--space-3);
   border-radius: var(--radius-capsule);
+}
+
+/* The mark and name: a link back to the landing page. */
+.hud-brand-home {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-capsule);
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.hud-brand-home:hover {
+  opacity: 0.75;
 }
 
 /* The mark (theme/mark.ts): a solid block, so a little smaller than an icon to sit level with the name. */
