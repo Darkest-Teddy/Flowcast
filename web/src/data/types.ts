@@ -344,3 +344,11 @@ export interface DashboardMe {
   notificationPrefs: NotificationPrefs;
   following: string[];
 }
+
+/** "Was it busy?" answers a student can send. "Didn't go" is never sent. */
+export type CrowdAnswer = 'quiet' | 'ok' | 'packed';
+export interface CrowdTally { quiet: number; ok: number; packed: number; total: number }
+/** Anonymous student reports for one place over the read window, overall and per Boston hour of day. */
+export interface PlaceCrowdReports extends CrowdTally { locationId: string; hours: (CrowdTally & { hour: number })[] }
+/** GET /api/dashboard/crowd-reports: anonymous counts, separate from (and never fed into) the model. */
+export interface CrowdReportSummary { label: 'student reports'; since: string; days: number; minReports: number; places: PlaceCrowdReports[]; note: string }

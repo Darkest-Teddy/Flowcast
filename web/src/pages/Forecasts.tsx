@@ -6,6 +6,7 @@ import type { HourFigure, PlaceWeek } from '@map/bestTimes';
 import { formatHour, formatPercent, formatWeekday } from '../lib/format';
 import { Button, CrowdMeter, EmptyState, ListRow, Loading, Page, PageHeader, SectionHeading, SectionList, SelectField } from '../ui';
 import { HourlyChart } from './student/HourlyChart';
+import { CrowdReportNow, PRIVACY_NOTE, StudentReports, useCrowdReports } from './student/CrowdReport';
 import styles from './Forecasts.module.css';
 
 const peakOf = (f: HourlyForecast) => f.hours.reduce((a, b) => (b.share > a.share ? b : a));
@@ -95,6 +96,7 @@ export default function Forecasts() {
   const locations = useResource(api.getLocations);
   const hourly = useResource(api.getHourlyForecasts);
   const bestTimes = useResource(api.getBestTimes);
+  const reports = useCrowdReports();
   const [params, setParams] = useSearchParams();
 
   const forecasts = hourly.data?.filter((f) => f.hours.length) ?? [];
@@ -147,6 +149,7 @@ export default function Forecasts() {
       {shown.some(f => f.basis) && <details className={styles.basis}>
         <summary>About these projections</summary>
         {[...new Set(shown.map(f => f.basis).filter(Boolean))].map(basis => <p key={basis}>{basis}</p>)}
+        <p>“Students reported” lines are separate: anonymous Quiet, OK or Packed answers from students over the last week, shown as they are and never used to change the projections. {PRIVACY_NOTE}</p>
       </details>}
 
       <div className={`${styles.places} ${selected === 'all' ? styles.grid : ''}`}>
@@ -162,6 +165,7 @@ export default function Forecasts() {
                   Peak <strong>{describe(peak.share)}</strong> at {formatHour(peak.hour)}
                   <span className={styles.sep}>Quietest {describe(quiet.share)} at {formatHour(quiet.hour)}</span>
                 </p>
+                <StudentReports summary={reports} locationId={f.locationId} />
               </header>
               <HourlyChart hours={f.hours} label={`Hourly forecast for ${full}`} tall={selected !== 'all'} />
               {selected !== 'all' && (
@@ -174,6 +178,7 @@ export default function Forecasts() {
                   </SectionList>
                 </details>
               )}
+              {selected !== 'all' && <CrowdReportNow locationId={f.locationId} name={full} />}
             </section>
           );
         })}

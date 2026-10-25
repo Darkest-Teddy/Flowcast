@@ -33,6 +33,14 @@ export async function migrate(pool: pg.Pool) {
         created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
         expires_at timestamptz NOT NULL DEFAULT now() + interval '30 days'
       );
+      -- "Was it busy?" reports: anonymous counts only. No account, session or timestamp column.
+      CREATE TABLE IF NOT EXISTS dashboard_crowd_reports (
+        location_id text NOT NULL, day date NOT NULL,
+        hour smallint NOT NULL CHECK (hour BETWEEN 0 AND 23),
+        answer text NOT NULL CHECK (answer IN ('quiet','ok','packed')),
+        count integer NOT NULL CHECK (count > 0),
+        PRIMARY KEY (location_id, day, hour, answer)
+      );
     `);
     await client.query(`
       ALTER TABLE dashboard_accounts ADD COLUMN IF NOT EXISTS schedule jsonb NOT NULL DEFAULT '[]'::jsonb;
@@ -41,13 +49,14 @@ export async function migrate(pool: pg.Pool) {
       ALTER TABLE dashboard_snapshots ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_current ENABLE ROW LEVEL SECURITY;
       ALTER TABLE dashboard_guests ENABLE ROW LEVEL SECURITY;
-      REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts FROM PUBLIC;
+      ALTER TABLE dashboard_crowd_reports ENABLE ROW LEVEL SECURITY;
+      REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts, dashboard_crowd_reports FROM PUBLIC;
       DO $$ BEGIN
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts FROM anon;
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts, dashboard_crowd_reports FROM anon;
         END IF;
         IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts FROM authenticated;
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests, dashboard_accounts, dashboard_crowd_reports FROM authenticated;
         END IF;
       END $$;
     `);

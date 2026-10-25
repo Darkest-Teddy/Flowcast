@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { crowdFor } from '@theme/tokens';
 import type { CampusGeo, CampusLocation, HourlyForecast, Profile, ScheduleItem } from '../../data/types';
 import { bostonTime } from '../../lib/departure';
 import { planGap, type GapActivity } from '../../lib/gapPlanner';
 import type { StudyHoursByLocation } from '../../lib/studyFinder';
+import { rememberCrowdSuggestion, StudentReports, useCrowdReports } from './CrowdReport';
 import styles from './GapCard.module.css';
 
 const VERB: Record<GapActivity, string> = { eat: 'Eat', study: 'Study', gym: 'Work out' };
@@ -13,8 +15,12 @@ export function GapCard({ schedule, locations, geo, hours, forecasts, profile, h
   schedule: ScheduleItem[]; locations: CampusLocation[]; geo: CampusGeo; hours: StudyHoursByLocation;
   forecasts: HourlyForecast[]; profile: Profile | null; homeLocationId: string | null; now: number; loading: boolean;
 }) {
-  if (loading || !schedule.length) return null;
-  const plan = planGap({ schedule, locations, geo, hours, forecasts, profile, homeLocationId, now });
+  const reports = useCrowdReports();
+  const plan = loading || !schedule.length ? null : planGap({ schedule, locations, geo, hours, forecasts, profile, homeLocationId, now });
+  // The first option is the suggestion a later open may ask about ("Were you at ... around ...?").
+  const first = plan?.status === 'gap' ? plan.options[0] : undefined;
+  useEffect(() => { if (first) rememberCrowdSuggestion(first.locationId, first.arriveAt, 'gap'); }, [first?.locationId, first?.arriveAt]);
+  if (!plan) return null;
   const name = (id: string | null) => locations.find((l) => l.id === id)?.name ?? 'your building';
   if (plan.status === 'no-next' || plan.status === 'unmapped-class' || !plan.next) return null;
   const next = plan.next;
@@ -45,11 +51,12 @@ export function GapCard({ schedule, locations, geo, hours, forecasts, profile, h
                 {option.closesAt ? `open until ${bostonTime(option.closesAt)}` : 'open'} (published hours)
               </p>
               <p className={styles.detail}>Up to {option.stayMinutes} min there · leave by <strong>{bostonTime(option.leaveBy)}</strong> ({option.walkBack} min back to class)</p>
+              <StudentReports summary={reports} locationId={option.locationId} at={option.arriveAt} className={styles.detail} />
             </li>;
           })}
         </ul> : <p>Nothing with published hours fits this gap. <Link to="/study">Find a study spot</Link></p>}
       </>}
-      <p className={styles.note}>All crowd levels here are model projections built from real day-to-day data (MBTA ridership, pedestrian and FitRec counts, published class schedules and hours), not live head counts. Opening hours are BU's published hours; check before you go.</p>
+      <p className={styles.note}>All crowd levels here are model projections built from real day-to-day data (MBTA ridership, pedestrian and FitRec counts, published class schedules and hours), not live head counts. "Students reported" lines are anonymous counts from students, shown separately and never fed into the model. Opening hours are BU's published hours; check before you go.</p>
     </section>
   );
 }
