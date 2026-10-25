@@ -3944,12 +3944,13 @@ def landmark_ballpark(mesh, b, ctx, rng, vols):
             vb, vt = band_v(band)
             mesh.wall(facade, a, c, ys[k], ys[k + 1], (u0, u1, vb, vt))
         mesh.wall("trim_stone", a, c, H - 0.7, H)
-    # 4. The bowl: padded wall, then NROWS stepped rows of green seats (a concrete riser, a tread,
-    #    a seat back) up to the concourse roof, with a concrete cross-aisle walkway part way up and
+    # 4. The bowl: padded wall, then NROWS rows of green seats on stepped terraces up to the
+    #    concourse roof, with a concrete cross-aisle walkway part way up and
     #    stair aisles every AISLE_EVERY metres along the field. Where the stand is too thin for seats
     #    (left field, along Lansdowne Street) the bowl is the Green Monster, with three rows of
     #    Monster seats on its top. Every row of seats is kept (local metres) for the manifest.
     NROWS, CROSS, AISLE_EVERY, AISLE_HALF, SEAT_W = 26, 15, 22.0, 0.7, 0.5
+    STEPS = (0, 3, 6, 9, 12, 15, 16, 19, 22, 26)  # terrace edges, in rows; row CROSS is the walkway
     cum = [0.0]
     for k in range(m - 1):
         cum.append(cum[-1] + seg[k])
@@ -3963,14 +3964,7 @@ def landmark_ballpark(mesh, b, ctx, rng, vols):
         L = dist(p0, p1)
         if L < SEAT_W * 2:
             return
-        edges, f = [], 0.0
-        for g0, g1 in sorted(gaps):
-            if g0 > f:
-                edges.append((f, g0))
-            f = max(f, g1)
-        if f < 1.0:
-            edges.append((f, 1.0))
-        for f0, f1 in edges:
+        for f0, f1 in _complement(gaps):
             n = int((f1 - f0) * L / SEAT_W)
             if n >= 2:
                 q0, q1 = lerp(p0, p1, f0 + SEAT_W / 2 / L), lerp(p0, p1, f1 - SEAT_W / 2 / L)
@@ -3997,26 +3991,26 @@ def landmark_ballpark(mesh, b, ctx, rng, vols):
                 hw = AISLE_HALF / seg[k]
                 if 0.0 < f < 1.0:
                     gaps.append((max(0.0, f - hw), min(1.0, f + hw)))
-        for r in range(NROWS):
-            t0, t1 = r / NROWS, (r + 1) / NROWS
+        # A few wide terraces, each a riser and a green tread a few rows deep, carry the seats:
+        # one quad per row (riser, tread, seat back, stairs) cost tens of thousands of faces and
+        # slowed the whole map. The seat rows themselves are kept for the fans.
+        for s0, s1 in zip(STEPS, STEPS[1:]):
+            t0, t1 = s0 / NROWS, s1 / NROWS
             y0 = WALL_H + (H - WALL_H) * t0
             y1 = WALL_H + (H - WALL_H) * t1
             fa0, fc0, fa1, fc1 = lerp(a, sa, t0), lerp(c, sc, t0), lerp(a, sa, t1), lerp(c, sc, t1)
             mesh.wall("trim_concrete", fa0, fc0, y0, y1)  # the riser
-            walk = r == CROSS
+            walk = s0 == CROSS
             _face_up(mesh, "trim_concrete" if walk else "seat_green",
                      [(fa0[0], y1, -fa0[1]), (fc0[0], y1, -fc0[1]), (fc1[0], y1, -fc1[1]), (fa1[0], y1, -fa1[1])])
             if walk:
                 continue
-            tb = t0 + (t1 - t0) * 0.78  # the seat backs, towards the back of the tread
-            ba, bc = lerp(a, sa, tb), lerp(c, sc, tb)
-            for g0, g1 in [(0.0, 1.0)] if not gaps else _complement(gaps):
-                mesh.wall("seat_green", lerp(ba, bc, g0), lerp(ba, bc, g1), y1, y1 + 0.38)
-            for g0, g1 in gaps:  # concrete stairs over the seats
+            for g0, g1 in gaps:  # concrete stair aisles across the terrace
                 _face_up(mesh, "trim_concrete", [(p[0], y1 + 0.03, -p[1]) for p in
                          (lerp(fa0, fc0, g0), lerp(fa0, fc0, g1), lerp(fa1, fc1, g1), lerp(fa1, fc1, g0))])
-            tm = t0 + (t1 - t0) * 0.55  # where people sit
-            seat_runs(lerp(a, sa, tm), lerp(c, sc, tm), gaps, y1, facing, 0)
+            for r in range(s0, s1):
+                tm = (r + 0.55) / NROWS  # where people sit
+                seat_runs(lerp(a, sa, tm), lerp(c, sc, tm), gaps, y1, facing, 0)
     mesh.flat("roof_gravel", [oriented(outline_o, True), oriented(back, False)], H, True)
     # 5. Upper deck: glazed suites and press box facing the field, brick behind, a metal roof
     #    overhanging the upper rows.
