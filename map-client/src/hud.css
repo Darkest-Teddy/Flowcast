@@ -188,7 +188,7 @@
 }
 
 /* Narrow screens: the icon alone, so the brand bar still fits beside the clock. */
-@media (max-width: 800px) {
+@media (max-width: 980px) {
   .hud-dashboard {
     padding: 0 var(--space-2);
   }
