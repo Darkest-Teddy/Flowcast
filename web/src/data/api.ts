@@ -75,11 +75,26 @@ function pause(ms: number, signal?: AbortSignal): Promise<boolean> {
   });
 }
 
-/** The published class schedule and its sidecar, loaded once per page load (campus-data.json is ~3 MB). */
+/**
+ * The published campus bundle (hours, class meetings, calendar), fetched and parsed once per page load
+ * and shared by every reader: it is ~3 MB, and Home alone asked for it twice. Callers only read it.
+ * Rejects with `failure` (each caller's own wording) when it can't be fetched.
+ */
+let campusLoad: Promise<CampusBundle> | null = null;
+function loadCampus(failure: string): Promise<CampusBundle> {
+  campusLoad ??= fetch('/data/campus-data.json').then((r) => {
+    if (!r.ok) throw new Error(`campus-data.json: HTTP ${r.status}`);
+    return r.json() as Promise<CampusBundle>;
+  });
+  campusLoad.catch(() => { campusLoad = null; });
+  return campusLoad.catch(() => { throw new Error(failure); });
+}
+
+/** The published class schedule and its sidecar, loaded once per page load. */
 let classFinderLoad: Promise<ClassFinderData & { data: CampusBundle }> | null = null;
 function loadClassFinder() {
   classFinderLoad ??= Promise.all([
-    fetch('/data/campus-data.json').then((r) => { if (!r.ok) throw new Error('The published class schedule could not be loaded.'); return r.json() as Promise<CampusBundle>; }),
+    loadCampus('The published class schedule could not be loaded.'),
     fetch('/data/class-directory.json').then((r) => (r.ok ? r.json() as Promise<ClassDirectory> : { buildings: {}, instructors: {} }), () => ({ buildings: {}, instructors: {} })),
   ]).then(([data, directory]) => {
     if (!data.locations || typeof data.locations !== 'object') throw new Error('The published class schedule is unavailable.');
@@ -112,17 +127,13 @@ export const api = {
   },
   /** Published hours for every mapped place (dining halls, libraries, FitRec...), as the study finder reads them. */
   async getPlaceHours(): Promise<StudyHoursByLocation> {
-    const response = await fetch('/data/campus-data.json');
-    if (!response.ok) throw new Error('Published opening hours could not be loaded.');
-    const data = await response.json();
+    const data = await loadCampus('Published opening hours could not be loaded.');
     if (!data.locations || typeof data.locations !== 'object') throw new Error('Published hours are unavailable.');
     return Object.fromEntries(Object.entries(data.locations as Record<string, { hours?: StudyHoursByLocation[string]['hours']; hoursStatus?: string }>)
       .map(([id, location]) => [id, { hours: location.hours ?? [], hoursStatus: location.hoursStatus }]));
   },
   async getStudyHours(): Promise<StudyHoursByLocation> {
-    const response = await fetch('/data/campus-data.json');
-    if (!response.ok) throw new Error('Published study-space hours could not be loaded.');
-    const data = await response.json();
+    const data = await loadCampus('Published study-space hours could not be loaded.');
     if (!data.locations || typeof data.locations !== 'object') throw new Error('Published hours are unavailable.');
     return Object.fromEntries(studySpots.map(spot => {
       const location = data.locations[spot.locationId];
@@ -131,9 +142,7 @@ export const api = {
   },
   /** Published class meetings by room, on the reference week's actual class days (term dates, holidays and substituted days applied). */
   async getClassMeetings(): Promise<ClassMeeting[]> {
-    const response = await fetch('/data/campus-data.json');
-    if (!response.ok) throw new Error('The published class schedule could not be loaded.');
-    const data = await response.json() as CampusData;
+    const data: CampusData = await loadCampus('The published class schedule could not be loaded.');
     if (!data.locations || typeof data.locations !== 'object') throw new Error('The published class schedule is unavailable.');
     return Object.entries(data.locations).flatMap(([locationId, location]) => (location.meetings ?? []).flatMap((meeting) => {
       const intervals = effectiveMeetingIntervals(meeting, data).map(({ startSec, endSec }) => ({ startSec, endSec }));
@@ -268,9 +277,7 @@ export const api = {
   getCalendarImports: (_clubId: string): Promise<CalendarImport[]> => unsupported('Club calendar import history'),
   uploadClubCalendar: (_clubId: string, _fileName: string, _eventCount: number): Promise<CalendarImport> => unsupported('Club calendar upload'),
   async getDataSources(): Promise<DataSource[]> {
-    const response = await fetch('/data/campus-data.json');
-    if (!response.ok) throw new Error('The deployed campus source inventory could not be loaded.');
-    return sourcesFromCampusBundle(await response.json());
+    return sourcesFromCampusBundle(await loadCampus('The deployed campus source inventory could not be loaded.'));
   },
   updateDataSource: (_id: string, _patch: Partial<DataSource>): Promise<DataSource> => unsupported('Data source updates'),
   testDataSource: (_id: string, _settings: DataSource['settings']): Promise<{ ok: boolean; message: string }> => unsupported('Data source connection test'),
