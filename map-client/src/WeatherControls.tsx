@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { Basemap, LightPreset } from './map/basemap';
+import { announceStrike } from './weather/lightning';
 import {
   FORECAST_REFRESH_MS,
   GROUND_BUILD_SECONDS,
@@ -250,6 +251,7 @@ function useLightning(enabled: boolean) {
     if (!enabled || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let timer = 0;
     const strike = () => {
+      announceStrike();
       ref.current?.animate(
         [
           { opacity: 0 },

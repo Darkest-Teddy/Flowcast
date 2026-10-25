@@ -42,6 +42,7 @@ import { WeatherControls } from './WeatherControls';
 import { activeWindFromDegrees } from './weather/weather';
 import { type ActiveWeather } from './weather/weather';
 import { precipitationLayers, setParticleScale } from './weather/precipitation';
+import { atmosphereLayers } from './weather/atmosphere';
 import { quality } from './perf/quality';
 import { pacer } from './perf/pacer';
 import {
@@ -859,6 +860,7 @@ export default function App() {
             : waitingCharacters(waitingRiders, transit!.feed.tracks), basemap.getCamera().center, q.walkerRadius), models, t, basemap.getZoom()) : []),
           ...(cleanRef.current ? [] : askRouteLayers(askRouteRef.current)),
           ...(currentMobility && showCountsRef.current && !cleanRef.current ? mobilityLayers(currentMobility, { selectedId: selectedMobilityRef.current, placer }) : []),
+          ...atmosphereLayers(weatherRef.current, basemap.getCamera(), now, lightRef.current),
           ...precipitationLayers(weatherRef.current?.effect.precipitation, basemap.getCamera(), now, lightRef.current),
         ];
         overlay!.setProps({ layers: frameLayers });
