@@ -44,6 +44,8 @@ export interface CampusLocation {
   estimatedHousingProfile?: EstimatedHousingProfile;
   activityModeled?: boolean;
   capacityBasis?: string;
+  /** A residence that also holds classrooms (Kilachand): its beds, which its percentage is shown against. */
+  residentialBeds?: number;
   id: string;
   name: string;
   short: string; // what students call it: "CDS", "GSU", "StuVi"
@@ -74,6 +76,7 @@ export interface BuildingFootprint {
 export interface BuildingOccupancy {
   modeled?: boolean;
   capacityBasis?: string;
+  residentialBeds?: number;
   id: string;
   name: string; // the building's busiest location right now
   short: string;
@@ -189,14 +192,21 @@ export async function loadDay(url: string): Promise<DayData> {
   return expandDay(await res.json());
 }
 
+/** Places left off the map: After Hours at West Campus, a late-night counter in Claflin Hall, would
+ * only ever show an empty tag through the modeled day (late-night snacks are not modeled). */
+export const HIDDEN_LOCATIONS: ReadonlySet<string> = new Set(['after-hours-west']);
+
 /** The parsed day file as playable data. The server reads the same file from disk. */
 export function expandDay(file: DayFile): DayData {
+  const shown = (key: string) => !key.split('>').some((id) => HIDDEN_LOCATIONS.has(id));
+  const walkRoutes = Object.fromEntries(Object.entries(file.walkRoutes).filter(([key]) => shown(key)));
+  const stopRoutes = file.stopRoutes && Object.fromEntries(Object.entries(file.stopRoutes).filter(([key]) => shown(key)));
   // Expand to full trips; trips on the same route share its path array.
-  const trips = file.trips.map(({ agent, from, to, depart, speed }) => {
-    const route = file.walkRoutes[`${from}>${to}`];
+  const trips = file.trips.filter(({ from, to }) => shown(`${from}>${to}`)).map(({ agent, from, to, depart, speed }) => {
+    const route = walkRoutes[`${from}>${to}`];
     return { agent, from, to, path: route.path, timestamps: route.cumulative.map((m) => depart + m / speed) };
   });
-  return { ...file, trips };
+  return { ...file, locations: file.locations.filter((location) => !HIDDEN_LOCATIONS.has(location.id)), walkRoutes, stopRoutes, trips };
 }
 
 function bearingBetween(a: [number, number], b: [number, number]): number {
@@ -481,6 +491,7 @@ export class Playback {
         share,
         modeled,
         capacityBasis: location.capacityBasis,
+        residentialBeds: location.residentialBeds,
       });
     }
     return [...out.values()];

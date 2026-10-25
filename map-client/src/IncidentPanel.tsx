@@ -8,6 +8,8 @@ import { IncidentDecisions } from './IncidentDecisions';
 import { FireResponsePanel } from './FireResponsePanel';
 import type { FireResponse } from './sim/fireResponse';
 import { FIRE_CROWD_LIMITATIONS, type FireCrowd, type FireDispersal } from './sim/fireCrowd';
+import { GAME_MINUTES, OPPONENTS, type SimulatedGame } from './sim/simulatedGame';
+import type { VenueEventEstimate } from './sim/eventAttendance';
 
 const dispersalNames: Record<FireDispersal, string> = {
   'next-activity': 'Went on to their next class or activity',
@@ -49,7 +51,62 @@ export interface IncidentRun {
   crowd?: FireCrowd;
 }
 
-export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate, siren = false, onSiren, responsePending }: {
+/** A simulated Red Sox game at Fenway: start one with a first pitch and opponent, follow its crowd, end it. */
+function SimulatedGamePanel({ time, game, estimate, onGame }: {
+  time: number;
+  game: SimulatedGame | null;
+  estimate: VenueEventEstimate | null;
+  onGame: (game: SimulatedGame | null) => void;
+}) {
+  const [lead, setLead] = useState(60);
+  const [opponent, setOpponent] = useState(OPPONENTS[0]);
+  // First pitch on a whole five minutes, `lead` minutes from the shown time, within the day.
+  const firstPitch = Math.min(23 * 3600, Math.ceil((time + lead * 60) / 300) * 300);
+  if (game) {
+    const phase = !estimate ? 'Not shown (turn on campus events)'
+      : time < estimate.arrivalFrom ? 'Scheduled'
+      : time < estimate.startSec ? 'Fans arriving'
+      : time < estimate.departureFrom ? 'In progress'
+      : time < estimate.departureTo ? 'Crowd leaving'
+      : 'Over';
+    return (
+      <section className="incident-result" aria-label="Simulated Red Sox game">
+        <h3>Red Sox vs. {game.opponent} · {phase}</h3>
+        <p>Fenway Park (simulated, sold out)</p>
+        <dl>
+          <dt>First pitch</dt><dd>{formatClock(game.firstPitch)}</dd>
+          <dt>Final out (about)</dt><dd>{formatClock(game.firstPitch + GAME_MINUTES * 60)}</dd>
+          {estimate && <><dt>Attendance</dt><dd>{estimate.attendees.toLocaleString()}</dd>
+          <dt>Fans walking on the map</dt><dd>{estimate.visitors.toLocaleString()} (plus {estimate.students.toLocaleString()} students)</dd>
+          <dt>Fans arrive from</dt><dd>{formatClock(estimate.arrivalFrom)}</dd></>}
+        </dl>
+        <div className="incident-actions">
+          <button type="button" onClick={() => onGame(null)}>End game</button>
+        </div>
+        <p className="model-note">Fans come from the T, the garages and rideshare drop-offs, as for a real game; any real game at Fenway that day is replaced.</p>
+      </section>
+    );
+  }
+  return (
+    <form aria-label="Simulated Red Sox game" onSubmit={(event) => { event.preventDefault(); onGame({ firstPitch, opponent }); }}>
+      <h3>Red Sox game</h3>
+      <label>Opponent
+        <select aria-label="Opponent" value={opponent} onChange={(event) => setOpponent(event.target.value)}>
+          {OPPONENTS.map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+      </label>
+      <label>First pitch
+        <select aria-label="First pitch" value={lead} onChange={(event) => setLead(Number(event.target.value))}>
+          {[15, 30, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>In {minutes} simulated minutes</option>)}
+        </select>
+      </label>
+      <p className="model-note">A sold-out game at Fenway Park with first pitch at {formatClock(firstPitch)}. Fans walk in from up to two hours before, fill the garages, and pour out around Kenmore after the final out.</p>
+      <button type="submit">Start Red Sox game</button>
+    </form>
+  );
+}
+
+export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate, siren = false, onSiren, responsePending, game = null, gameEstimate = null, onGame }: {
   locations: CampusLocation[];
   time: number;
   run: IncidentRun | null;
@@ -59,6 +116,9 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
   siren?: boolean;
   onSiren?: (on: boolean) => void;
   responsePending?: boolean;
+  game?: SimulatedGame | null;
+  gameEstimate?: VenueEventEstimate | null;
+  onGame?: (game: SimulatedGame | null) => void;
 }) {
   const [kind, setKind] = useState<IncidentKind>('fire-drill');
   const [locationId, setLocationId] = useState('');
@@ -219,6 +279,7 @@ export function IncidentPanel({ locations, time, run, onStart, onReset, onLocate
           <button type="submit" disabled={!target}>{kind === 'fire-alarm' ? 'Sound fire alarm' : `Start ${kind === 'building-closure' ? 'closure' : names[kind].toLowerCase()}`}</button>
         </form>
       )}
+      {onGame && <SimulatedGamePanel time={time} game={game} estimate={gameEstimate} onGame={onGame} />}
       <p className="model-note">Restrictions apply to visits to affected buildings. Through-traffic on saved paths may still cross the affected area. Disaster effects are illustrative; damage is stylized. Disaster casualties are uncalibrated scenario rules, and rescue and treatment are not simulated.</p>
       <details className="model-note">
         <summary>Model assumptions</summary>

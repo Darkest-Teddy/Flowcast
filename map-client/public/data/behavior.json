@@ -1237,9 +1237,9 @@
         {
           "target": "activity.river-lawn.probability",
           "op": "set",
-          "value": 0.06,
+          "value": 0.025,
           "tune": {
-            "min": 0.02,
+            "min": 0.01,
             "max": 0.25,
             "step": 0.02
           }
@@ -1257,7 +1257,7 @@
         {
           "target": "activity.river-loop.probability",
           "op": "set",
-          "value": 0.04,
+          "value": 0.02,
           "tune": {
             "min": 0.01,
             "max": 0.12,
@@ -1300,7 +1300,7 @@
     },
     {
       "id": "outdoor-weekend",
-      "label": "Weekends by the river",
+      "label": "Weekends off campus or indoors",
       "group": "calibration",
       "when": {
         "weekday": [
@@ -1312,27 +1312,37 @@
         {
           "target": "activity.river-lawn.probability",
           "op": "mul",
-          "value": 2
-        },
-        {
-          "target": "activity.river-lawn.minutes",
-          "op": "mul",
-          "value": 1.6
+          "value": 0.4
         },
         {
           "target": "activity.river-loop.probability",
           "op": "mul",
-          "value": 1.6
+          "value": 0.5
         },
         {
           "target": "activity.river-loop.at",
           "op": "set",
           "value": 9
+        },
+        {
+          "target": "activity.night-out.probability",
+          "op": "mul",
+          "value": 1.25
+        },
+        {
+          "target": "activity.day-outing.probability",
+          "op": "set",
+          "value": 0.35
+        },
+        {
+          "target": "activity.day-study.probability",
+          "op": "mul",
+          "value": 1.2
         }
       ],
       "provenance": {
         "kind": "assumption",
-        "note": "Weekends: late morning to sunset on the grass, longer stays, more runs."
+        "note": "Weekends: most free time is spent off campus (a Sunday daytime outing, more Saturday outings) or indoors (more weekend library time); few go and sit by the river."
       }
     },
     {
