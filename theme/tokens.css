@@ -85,6 +85,15 @@
   --crowd-busy-text: #b43c0a;
   --crowd-packed-text: #be123c;
 
+  /* Colour: chart series (categorical, in this fixed order; never cycled, at most four). Checked
+     with the dataviz palette validator for colour-blind separation on --color-surface in each
+     theme. Slots 3 and 4 are under 3:1 on light surfaces, so every chart that uses them also
+     has a legend, direct labels and a table view. Text never takes these colours. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+
   /* Colour: small identity swatches (club and user avatars) */
   --swatch-1: #0066cc;
   --swatch-2: #1d7a35;
@@ -207,6 +216,10 @@
     --crowd-moderate-text: #fde047;
     --crowd-busy-text: #fdba74;
     --crowd-packed-text: #fda4af;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
     --glass-fill: rgba(28, 28, 30, 0.72);
     --glass-fill-strong: rgba(28, 28, 30, 0.9);
     --glass-highlight: rgba(255, 255, 255, 0.14);
@@ -259,6 +272,10 @@
   --crowd-moderate-text: #fde047;
   --crowd-busy-text: #fdba74;
   --crowd-packed-text: #fda4af;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
   --glass-fill: rgba(28, 28, 30, 0.72);
   --glass-fill-strong: rgba(28, 28, 30, 0.9);
   --glass-highlight: rgba(255, 255, 255, 0.14);

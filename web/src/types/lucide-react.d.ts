@@ -26,11 +26,14 @@ declare module 'lucide-react' {
 
   export const ArrowLeft: LucideIcon;
   export const ArrowRight: LucideIcon;
+  export const ArrowUp: LucideIcon;
   export const BadgeCheck: LucideIcon;
   export const BookOpen: LucideIcon;
   export const CalendarDays: LucideIcon;
   export const CalendarRange: LucideIcon;
   export const CalendarSync: LucideIcon;
+  export const ChartLine: LucideIcon;
+  export const ChevronDown: LucideIcon;
   export const ChevronLeft: LucideIcon;
   export const ChevronRight: LucideIcon;
   export const CircleCheck: LucideIcon;
@@ -38,12 +41,14 @@ declare module 'lucide-react' {
   export const CircleX: LucideIcon;
   export const Database: LucideIcon;
   export const Download: LucideIcon;
+  export const Eraser: LucideIcon;
   export const ExternalLink: LucideIcon;
   export const Gauge: LucideIcon;
   export const Home: LucideIcon;
   export const LayoutGrid: LucideIcon;
   export const Map: LucideIcon;
   export const Menu: LucideIcon;
+  export const MessagesSquare: LucideIcon;
   export const Pause: LucideIcon;
   export const Play: LucideIcon;
   export const Radio: LucideIcon;
@@ -54,6 +59,8 @@ declare module 'lucide-react' {
   export const ShieldCheck: LucideIcon;
   export const SlidersHorizontal: LucideIcon;
   export const Sparkles: LucideIcon;
+  export const Square: LucideIcon;
+  export const Table2: LucideIcon;
   export const Ticket: LucideIcon;
   export const Upload: LucideIcon;
   export const UserRound: LucideIcon;

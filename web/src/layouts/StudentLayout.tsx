@@ -7,6 +7,7 @@ import {
   Home,
   LayoutGrid,
   Map,
+  MessagesSquare,
   Settings,
   Sparkles,
   ShieldCheck,
@@ -27,6 +28,7 @@ export function StudentLayout() {
   const { session, hasRole } = useSession();
 
   const home: NavItem = { to: '/', label: 'Home', icon: Home, end: true };
+  const ask: NavItem = { to: '/ask', label: 'Ask Flowcast', icon: MessagesSquare };
   const schedule: NavItem = { to: '/schedule', label: 'Schedule', icon: CalendarDays };
   const forecasts: NavItem = { to: '/forecasts', label: 'Forecasts', icon: Gauge };
   const events: NavItem = { to: '/events', label: 'Events', icon: Ticket };
@@ -51,7 +53,7 @@ export function StudentLayout() {
       }
     : null;
 
-  const sections: NavSection[] = [{ items: [home, schedule, forecasts, events, eventImpact, clubs] }, account];
+  const sections: NavSection[] = [{ items: [home, ask, schedule, forecasts, events, eventImpact, clubs] }, account];
   if (club) sections.push(club);
 
   // Phones: five tabs, and an Account tab whose menu holds the rest of the sidebar, plus the
@@ -69,7 +71,7 @@ export function StudentLayout() {
       ),
       sections: [
         account,
-        { label: 'More', items: [eventImpact, { to: '/welcome', label: 'Get started', icon: Sparkles }] },
+        { label: 'More', items: [ask, eventImpact, { to: '/welcome', label: 'Get started', icon: Sparkles }] },
         ...(club ? [club] : []),
         ...(hasRole('admin') ? [{ label: 'Admin', items: [{ to: '/admin', label: 'Admin area', icon: LayoutGrid }] }] : []),
       ],

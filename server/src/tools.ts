@@ -73,9 +73,11 @@ export interface ToolLog {
   map: MapEntry[];
   /** Each tool result as JSON, to check the answer's numbers against (never logged). */
   outputs: string[];
+  /** Each tool result with the tool that returned it, in call order (the chat builds visuals from these). */
+  results: { tool: string; value: object }[];
 }
 
-export const newToolLog = (): ToolLog => ({ calls: [], map: [], outputs: [] });
+export const newToolLog = (): ToolLog => ({ calls: [], map: [], outputs: [], results: [] });
 
 /** The map output of the last call that produced any; rows are empty unless that call was a ranking. */
 export function mapOutput(log: ToolLog): { show: MapShow | null; rows: AnswerRow[] } {
@@ -83,25 +85,25 @@ export function mapOutput(log: ToolLog): { show: MapShow | null; rows: AnswerRow
   return { show: last?.show ?? null, rows: last?.rows ?? [] };
 }
 
-const percent = (share: number | null) => (share === null ? null : Math.round(share * 100));
+export const percent = (share: number | null) => (share === null ? null : Math.round(share * 100));
 const MAX_ROWS = 10;
 const MAX_EVENTS = 10;
 
 /** "HH:MM" or "H:MM" (24-hour) to seconds since midnight; null for anything else. */
-function parseClock(value: string | null, fallback: number): number | null {
+export function parseClock(value: string | null, fallback: number): number | null {
   if (!value) return fallback;
   const m = value.match(/^(\d{1,2}):(\d{2})$/);
   if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
   return Number(m[1]) * 3600 + Number(m[2]) * 60;
 }
-const badTime = (value: string | null) => ({ error: `Time must be HH:MM in 24-hour form, got "${value}".` });
-const clockParam = (what: string) => z.string().regex(/^\d{1,2}:\d{2}$/).nullable().describe(what);
-const weekdayParam = z.number().int().min(0).max(6).nullable()
+export const badTime = (value: string | null) => ({ error: `Time must be HH:MM in 24-hour form, got "${value}".` });
+export const clockParam = (what: string) => z.string().regex(/^\d{1,2}:\d{2}$/).nullable().describe(what);
+export const weekdayParam = z.number().int().min(0).max(6).nullable()
   .describe('Day of the reference week, 0 = Monday … 6 = Sunday, or null for the day shown on the map.');
-const placeParam = z.string().max(80).describe('Place name, id or course code.');
+export const placeParam = z.string().max(80).describe('Place name, id or course code.');
 
 /** "10:00 PM", or "2:00 AM (next day)" for a closing time past midnight. */
-const clockPast = (sec: number) => (sec >= 86400 ? `${formatClock(sec - 86400)} (next day)` : formatClock(sec));
+export const clockPast = (sec: number) => (sec >= 86400 ? `${formatClock(sec - 86400)} (next day)` : formatClock(sec));
 
 /** Full course codes a code names when it names more than one ("BI 515": CAS BI 515, WED BI 515). */
 const ambiguity = (codes: string[]) => `"${codes.map((c) => c.split(' ').slice(1).join(' '))[0]}" names more than one course: ${codes.join(', ')}. Ask which one.`;
@@ -147,7 +149,7 @@ export function nextHoursChange(data: CampusData, locationId: string, weekday: n
   return next ? { time: formatClock(next[0]), to: 'open' } : null;
 }
 
-const dayDate = (ctx: AskContext, weekday: number) => ({ day: WEEKDAYS[weekday], date: ctx.data ? dateForWeekday(ctx.data, weekday) : null });
+export const dayDate = (ctx: AskContext, weekday: number) => ({ day: WEEKDAYS[weekday], date: ctx.data ? dateForWeekday(ctx.data, weekday) : null });
 
 export function createTools(ctx: ServerAskContext, log: ToolLog) {
   const byId = new Map(ctx.locations.map((l) => [l.id, l]));
@@ -155,6 +157,7 @@ export function createTools(ctx: ServerAskContext, log: ToolLog) {
   /** Records a result (and, for calls that change the map, its map output) and returns it. */
   const result = <T extends object>(value: T, map?: MapEntry): T => {
     log.outputs.push(JSON.stringify(value));
+    log.results.push({ tool: log.calls[log.calls.length - 1] ?? '', value });
     if (map && !('error' in value) && !('available' in value)) log.map.push(map);
     return value;
   };

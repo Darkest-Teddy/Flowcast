@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapIcon } from 'lucide-react';
+import { Map as MapIcon, MessagesSquare } from 'lucide-react';
 import type { AgentMessage } from '@map/askClient';
 import { appendExchange } from '@map/askConversation';
 import { api } from '../../data/api';
@@ -123,7 +123,14 @@ export function AskChat({ data, visible }: { data: CampusData; visible: boolean 
                   {turn.answer?.note && <p className={styles.note}>{turn.answer.note}</p>}
                   {turn.source && <p className={styles.note}>{turn.source}</p>}
                 </div>
-                {turn.mapLink && <Button variant="ghost" size="sm" href={turn.mapLink} icon={<MapIcon aria-hidden />}>Show on map</Button>}
+                <div className={styles.answerActions}>
+                  {turn.mapLink && <Button variant="ghost" size="sm" href={turn.mapLink} icon={<MapIcon aria-hidden />}>Show on map</Button>}
+                  {turn.answer && (
+                    <Button variant="ghost" size="sm" to={`/ask?q=${encodeURIComponent(turn.question)}`} icon={<MessagesSquare aria-hidden />}>
+                      Open in Ask Flowcast
+                    </Button>
+                  )}
+                </div>
               </div>
             </article>
           ))}

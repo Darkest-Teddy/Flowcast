@@ -8,6 +8,8 @@ import { ASK_MODEL, askAgent } from './agent';
 import { database } from './dashboard/db';
 import { createApp } from './app';
 import { loadCampusModel } from './campus';
+import { chatAgent } from './chat';
+import { datasetCatalog } from './directory';
 
 const key = process.env.OPENAI_KEY || process.env.OPENAI_API_KEY || '';
 if (key) setDefaultOpenAIKey(key);
@@ -16,11 +18,16 @@ const started = Date.now();
 const campus = loadCampusModel();
 console.log(`campus data loaded in ${Date.now() - started} ms (${campus.privateBundle ? 'private' : 'public'} bundle, ${campus.daysCached} days cached)`);
 
-const app = createApp({ dashboardPool: database(), campus, ask: (question, ctx, signal, history) => askAgent(question, ctx, signal, ASK_MODEL, history), keyConfigured: Boolean(key), model: ASK_MODEL });
+const catalog = datasetCatalog(campus);
+const app = createApp({
+  dashboardPool: database(), campus, keyConfigured: Boolean(key), model: ASK_MODEL,
+  ask: (question, ctx, signal, history) => askAgent(question, ctx, signal, ASK_MODEL, history),
+  chat: (input, ctx, signal) => chatAgent(input, ctx, catalog, signal),
+});
 const port = Number(process.env.PORT) || 8787;
 const host = process.env.HOST || '127.0.0.1';
 app.listen(port, host, () => {
-  console.log(`Flowcast server on http://${host}:${port} · model ${ASK_MODEL} · ${key ? 'OpenAI key set' : 'NO OpenAI key: /api/ask will return 503'}`);
+  console.log(`Flowcast server on http://${host}:${port} · model ${ASK_MODEL} · ${key ? 'OpenAI key set' : 'NO OpenAI key: /api/ask and /api/chat will return 503'}`);
   void prebuild();
 });
 

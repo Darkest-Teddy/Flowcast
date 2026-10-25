@@ -61,7 +61,11 @@
   font-size: var(--text-sm);
 }
 
-.answerFoot > a:only-child {
+.answerActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
   margin-left: auto;
 }
 
