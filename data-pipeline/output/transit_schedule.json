@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dataset": "transit_schedule",
-  "generatedAt": "2026-10-25T04:31:12.748784+00:00",
+  "generatedAt": "2026-10-25T12:40:00.027700+00:00",
   "timezone": "America/New_York",
   "status": "ok",
   "referenceWeekStart": "2026-10-26",
@@ -439701,7 +439701,7 @@
     {
       "url": "https://cdn.mbta.com/MBTA_GTFS.zip",
       "requestedUrl": "https://cdn.mbta.com/MBTA_GTFS.zip",
-      "retrievedAt": "2026-10-25T04:31:08.151046+00:00",
+      "retrievedAt": "2026-10-25T12:39:54.417682+00:00",
       "sha256": "97aecc9ed398054494a9fc193b931235be19d1af32eb0299abf0615fd3249637",
       "contentType": "application/zip",
       "rawPath": "data-pipeline/.cache/sources/3e729bcf6f763c38ea37ac1347b43fc72b92fc6eb55c5ee10e6695a4dfda483c.body",
