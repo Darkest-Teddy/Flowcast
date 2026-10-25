@@ -46,3 +46,6 @@ data-pipeline/output/campus-wide/*
 
 # Agent worktrees
 .claude/worktrees/
+
+# Local Supabase CLI connection cache
+supabase/.temp/

@@ -29,6 +29,20 @@ export async function migrate(pool: pg.Pool) {
         expires_at timestamptz NOT NULL DEFAULT now() + interval '30 days'
       );
     `);
+    await client.query(`
+      ALTER TABLE dashboard_snapshots ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE dashboard_current ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE dashboard_guests ENABLE ROW LEVEL SECURITY;
+      REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests FROM PUBLIC;
+      DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests FROM anon;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+          REVOKE ALL ON dashboard_snapshots, dashboard_current, dashboard_guests FROM authenticated;
+        END IF;
+      END $$;
+    `);
     await client.query('COMMIT');
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }

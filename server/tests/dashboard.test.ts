@@ -25,6 +25,9 @@ test('PostgreSQL import, sessions, persistence, isolation, validation, export, d
   const ids: string[] = [];
   try {
     await migrate(pool); await migrate(pool);
+    const access = await pool.query("SELECT relrowsecurity FROM pg_class WHERE oid IN ('dashboard_snapshots'::regclass, 'dashboard_current'::regclass, 'dashboard_guests'::regclass)");
+    assert.equal(access.rows.length, 3);
+    assert.ok(access.rows.every((row) => row.relrowsecurity));
     const first = await importSources(pool); assert.equal((await importSources(pool)).hash, first.hash);
     const rows = await pool.query('SELECT sources,payload FROM dashboard_snapshots WHERE hash=$1', [first.hash]);
     assert.equal(rows.rows.length, 1); assert.equal(rows.rows[0].sources.length, 3);

@@ -115,6 +115,13 @@ canonicalize the endpoint pair, and choose the shorter saved direction when both
 routes remain zero. Public forecasts reuse the dashboard's pure transformations, label model output,
 and evaluate published opening hours against the current Boston date, not the source reference week.
 
+### Supabase access
+
+The migration enables row-level security on all three dashboard tables and revokes access from
+`PUBLIC`, `anon`, and `authenticated` (when those roles exist). The browser uses the Flowcast API,
+not Supabase REST. Configure the backend with a private PostgreSQL connection whose role owns the
+tables or bypasses RLS; never expose that connection string to the browser.
+
 ### API contracts
 
 All routes are under `/api/dashboard` and return `Cache-Control: no-store`:
