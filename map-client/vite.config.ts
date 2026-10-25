@@ -5,7 +5,7 @@ import { buApiPlugin } from './server/buApi';
 
 /** Ask (server/): dashboard, Ask and chat paths (/api/chat also covers /api/chat/directory) go to the Ask server; /api/bu/* stays with buApiPlugin. */
 const apiTarget = process.env.FLOWCAST_API_URL || 'http://127.0.0.1:8787';
-const apiProxy = Object.fromEntries(['^/api/dashboard(?:/|[?]|$)', '^/api/ask(?:\\?|$)', '^/api/chat(?:/|[?]|$)', '^/api/health(?:\\?|$)'].map((path) => [path, { target: apiTarget, changeOrigin: false }]));
+const apiProxy = Object.fromEntries(['^/api/dashboard(?:/|[?]|$)', '^/api/ask(?:\\?|$)', '^/api/chat(?:/|[?]|$)', '^/api/voice(?:/|[?]|$)', '^/api/health(?:\\?|$)'].map((path) => [path, { target: apiTarget, changeOrigin: false }]));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'CATALOG_');

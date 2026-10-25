@@ -20,7 +20,7 @@ With the web app, run `npm --prefix server start` and `npm --prefix web run dev`
 
 ## Endpoints
 
-- `GET /api/health` → `{ ok, model, keyConfigured, privateBundle }`
+- `GET /api/health` → `{ ok, model, keyConfigured, privateBundle, voiceAvailable }`
 - `POST /api/ask` with `{ question (1–300 chars), weekday (0 = Monday … 6), time (seconds since midnight), campus ("charles-river" | "medical" | "fenway"), history? }`
   - 200 → `{ answer, model, show: { route, select, points } | null, rows: [{ id, name, percent, level, students, modeled, open, walkMinutes }], calls: [tool names] }`. `show` and `rows` come from the last tool call that changes the map.
   - 400 bad input · 429 rate limit (12/min per client, 600/hour overall) · 503 no key, or the day is still being simulated (`Retry-After`) · 504 model timeout (25 s) · 502 model error.
@@ -34,12 +34,72 @@ With the web app, run `npm --prefix server start` and `npm --prefix web run dev`
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `OPENAI_KEY` or `OPENAI_API_KEY` | none | OpenAI key. Without it `/api/ask` returns 503. Never logged. |
+| `OPENAI_KEY` or `OPENAI_API_KEY` | none | OpenAI key. Without it Ask, chat, and voice return 503. Never logged. |
+| `OPENAI_VOICE_MODEL` | `gpt-live-1` | GPT-Live voice model; the project key must have access. |
 | `FLOWCAST_ASK_MODEL` | `gpt-6-luna` | Model name. |
 | `FLOWCAST_ASK_PRIVATE_BUNDLE` | unset | `1` uses `data-pipeline/.cache/hackathon/campus-data.json` if it exists. |
 | `FLOWCAST_ASK_DAYS_CACHED` | `7` | Built days kept (1–7, LRU). |
 | `TRUST_PROXY_HOPS` | `0` | Proxies in front, for per-client rate limits. |
 | `HOST` / `PORT` | `127.0.0.1` / `8787` | Listen address. |
+
+## GPT-Live voice
+
+`POST /api/voice/session` accepts only `{ "sdp": "<WebRTC offer>" }` (nonblank, at most
+65,536 characters; the existing 128 KiB JSON body limit also applies). It returns HTTP 200
+with `{ "id": "<opaque session ID>", "sdp": "<WebRTC answer>" }` and `Cache-Control: no-store`.
+The server normalizes OpenAI's `session.id` and `transport.sdp` and does not return other upstream fields.
+Errors are sanitized JSON `{ error }`: 400 invalid input, 413 oversized body, 429 rate limit,
+503 missing key/voice handler, 504 initialization timeout (25 seconds), or 502 upstream failure.
+No upstream bodies, credentials, or SDP are logged. Client disconnects abort initialization.
+
+Use the existing `OPENAI_KEY` or `OPENAI_API_KEY` in `server/.env`; optionally set
+`OPENAI_VOICE_MODEL` (default `gpt-live-1`). Restart the server after changing configuration.
+`/api/health.voiceAvailable` reports configured key/handler availability, not a verified model entitlement.
+The adapter uses fetch with no automatic retries and posts to `https://api.openai.com/v1/live/sessions`:
+
+```json
+{
+  "session": {
+    "model": "gpt-live-1",
+    "instructions": "<short Flowcast campus voice and delegation instructions>",
+    "delegation": { "type": "client" },
+    "store": false
+  },
+  "transport": { "type": "webrtc", "sdp": "<offer>" }
+}
+```
+
+The browser owns microphone access, the peer connection, and delegation events. It sends delegated
+campus questions through `/api/ask` with the current map context and applies returned UI actions.
+The voice prompt delegates campus facts/data/routes, prohibits invented occupancy, labels crowd
+information as modeled rather than sensor data, and says no personal schedule is available.
+The session-creation endpoint does not receive a personal schedule or run backend tools itself.
+Start voice from Home, Ask Flowcast, or the map panel. The shared controls provide microphone
+mute, end-call, playback recovery and in-memory captions. Map lookups use its selected campus/day/time;
+dashboard lookups use the current Boston clock. Calls close after ten minutes or when leaving the page.
+This browser duration limit is a usability guard, not a server-enforced spending limit.
+The production host forwards `/api/voice/session` to the API service; frontend development proxies
+must also forward that path. Use HTTPS or localhost for browser microphone access.
+
+Voice deliberately has the same public, unauthenticated access policy as Ask. Session creation shares
+Ask/chat's per-address limit (12/minute, IPv6 grouped by /64) and global limit (600/hour), including its
+bounded client tracking and `TRUST_PROXY_HOPS` setting. These are per-process request limits, **not** a
+voice-duration or total-spend cap: media flows directly between the browser and OpenAI after startup.
+Multiple server instances each have their own counters. Configure project budgets/usage monitoring
+and deployment access controls appropriate for exposing a billable public endpoint; authentication
+has not been added here. A public key-configured deployment allows visitors to incur voice charges.
+
+GPT-Live bills voice duration, and delegated Ask model usage is billed separately. WebRTC creation
+bills 15 seconds at initialization, credited against duration once running; even abandoned starts can
+cost money. Avoid automatic session-creation retries. End sessions with `session.close`, wait for
+`session.closed` with a bounded cleanup timeout, and release microphone/peer resources. The HTTP
+initialization timeout does not end a successfully established voice session. `store: false` disables
+stored-session recording/forking; it is not a claim about every provider retention policy.
+
+References: [OpenAI WebRTC guide](https://developers.openai.com/api/docs/guides/voice-webrtc?api=live),
+[GPT-Live conversations](https://developers.openai.com/api/docs/guides/live-conversations), and
+[voice usage and cost](https://developers.openai.com/api/docs/guides/voice-latency-cost?api=live).
+Tests inject the voice handler or fetch transport and do not create paid sessions.
 
 ## Tools
 

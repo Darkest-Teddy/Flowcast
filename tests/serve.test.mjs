@@ -50,6 +50,55 @@ test('backend rejection status and response body are preserved', async (t) => {
   assert.deepEqual(await response.json(), { error: 'Origin rejected' });
 });
 
+test('voice session POST forwards body, query and headers and preserves backend responses', async (t) => {
+  const body = JSON.stringify({ sdp: 'voice session offer' });
+  const apiUrl = await listen(t, createServer(async (req, res) => {
+    let received = '';
+    for await (const chunk of req) received += chunk;
+    assert.equal(req.method, 'POST');
+    assert.equal(req.url, '/api/voice/session?mode=live');
+    assert.equal(req.headers.host, new URL(host).host);
+    assert.equal(req.headers.origin, host);
+    assert.equal(req.headers.authorization, 'Bearer test-access-token');
+    assert.equal(req.headers.cookie, 'session=abc');
+    assert.equal(req.headers['content-type'], 'application/json');
+    assert.equal(received, body);
+    const status = Number(req.headers['x-test-status']);
+    res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify(status === 200 ? { id: 'test-session', sdp: 'voice session answer' } : { error: 'Voice session rejected' }));
+  }));
+  const host = await fixture(t, { apiUrl });
+  for (const status of [200, 403, 502]) {
+    const response = await fetch(host + '/api/voice/session?mode=live', {
+      method: 'POST', body,
+      headers: { Origin: host, Authorization: 'Bearer test-access-token', Cookie: 'session=abc', 'Content-Type': 'application/json', 'X-Test-Status': String(status) },
+    });
+    assert.equal(response.status, status);
+    assert.equal(response.headers.get('content-type'), 'application/json');
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(await response.json(), status === 200 ? { id: 'test-session', sdp: 'voice session answer' } : { error: 'Voice session rejected' });
+  }
+});
+
+test('only the exact voice session POST route reaches the backend', async (t) => {
+  let requests = 0;
+  const apiUrl = await listen(t, createServer((_req, res) => {
+    requests++;
+    res.end();
+  }));
+  const host = await fixture(t, { apiUrl });
+  for (const [method, path] of [
+    ['GET', '/api/voice/session'], ['PUT', '/api/voice/session'],
+    ['POST', '/api/voice'], ['POST', '/api/voice/session/'],
+    ['POST', '/api/voice/session/extra'], ['POST', '/api/voice/sessions'],
+  ]) {
+    const response = await fetch(host + path, { method });
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: 'API route not found' });
+  }
+  assert.equal(requests, 0);
+});
+
 test('API failures are sanitized JSON and unknown routes never reach SPA', async (t) => {
   const stopped = createServer();
   await new Promise((resolve) => stopped.listen(0, '127.0.0.1', resolve));
@@ -57,9 +106,11 @@ test('API failures are sanitized JSON and unknown routes never reach SPA', async
   await new Promise((resolve) => stopped.close(resolve));
   for (const apiUrl of ['', unavailable, 'not a URL', 'http://user:secret@localhost']) {
     const host = await fixture(t, { apiUrl });
-    const response = await fetch(host + '/api/dashboard/session', { method: 'POST', body: '{}' });
-    assert.equal(response.status, 503);
-    assert.deepEqual(await response.json(), { error: 'API unavailable' });
+    for (const path of ['/api/dashboard/session', '/api/voice/session']) {
+      const response = await fetch(host + path, { method: 'POST', body: '{}' });
+      assert.equal(response.status, 503);
+      assert.deepEqual(await response.json(), { error: 'API unavailable' });
+    }
   }
   const host = await fixture(t);
   for (const path of ['/api', '/api/unknown', '/api/asking', '/api/dashboard-other', '/api/health/extra']) {
@@ -72,9 +123,11 @@ test('API failures are sanitized JSON and unknown routes never reach SPA', async
 test('upstream has an absolute deadline even while it is silent', async (t) => {
   const apiUrl = await listen(t, createServer(() => {}));
   const host = await fixture(t, { apiUrl, timeoutMs: 40 });
-  const response = await fetch(host + '/api/dashboard/session');
-  assert.equal(response.status, 503);
-  assert.deepEqual(await response.json(), { error: 'API unavailable' });
+  for (const path of ['/api/dashboard/session', '/api/voice/session']) {
+    const response = await fetch(host + path, { method: 'POST', body: '{}' });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: 'API unavailable' });
+  }
 });
 
 test('static map, dashboard fallback, missing assets and HEAD retain their behavior', async (t) => {

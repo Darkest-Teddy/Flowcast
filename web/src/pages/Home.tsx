@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { crowdFor } from '@theme/tokens';
+import { LiveVoice } from '@map/LiveVoice';
 import { useSession } from '../auth/session';
 import { api, locationName, useResource } from '../data/api';
 import { formatDayTime, formatPercent, formatTime, isToday } from '../lib/format';
@@ -72,6 +73,8 @@ export default function Home() {
         geo: geo.data ?? { positions: {}, walkMeters: {} },
         homeLocationId: session?.user.homeLocationId ?? null,
       }} />
+
+      <LiveVoice />
 
       {mode === 'search' && search && (
         <SearchResults query={search} onClear={() => setSearch(null)}

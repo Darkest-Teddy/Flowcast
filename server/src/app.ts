@@ -1,6 +1,7 @@
 // HTTP API for Ask. POST /api/ask runs one agent question against the simulation for the day and
 // time the map is showing. The OpenAI key stays here; browsers only talk to this endpoint.
 
+import { VoiceRequest, type Voice } from './voice';
 import { personalScheduleSchema } from './personalSchedule';
 import type { PersonalSchedule } from '../../map-client/src/personalSchedule';
 import type pg from 'pg';
@@ -50,6 +51,7 @@ export const ChatRequest = z.object({
 
 export interface AppOptions {
   dashboardPool?: pg.Pool;
+  voice?: Voice;
   campus: CampusModel;
   ask: (question: string, ctx: ServerAskContext, signal: AbortSignal, history?: AgentMessage[]) => Promise<AskResult>;
   /** One chat turn (chat.ts); without it /api/chat answers 503 and the directory says chat is unavailable. */
@@ -140,7 +142,26 @@ export function createApp(options: AppOptions) {
   const directory = () => (domains ??= options.directory?.() ?? buildDirectory(campus));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, model: options.model, keyConfigured: options.keyConfigured, privateBundle: campus.privateBundle });
+    res.json({ ok: true, model: options.model, keyConfigured: options.keyConfigured, privateBundle: campus.privateBundle, voiceAvailable: options.keyConfigured && Boolean(options.voice) });
+  });
+
+  app.post('/api/voice/session', async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const parsed = VoiceRequest.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Send { sdp: a nonempty SDP offer of at most 65536 characters }.' });
+      return;
+    }
+    const voice = options.voice;
+    if (!options.keyConfigured || !voice) {
+      res.status(503).json({ error: 'Voice is not configured on this server.' });
+      return;
+    }
+    if (!perClient(clientKey(req.ip)) || !overall('all')) {
+      res.status(429).json({ error: 'Too many requests. Try again later.' });
+      return;
+    }
+    await run(res, 'voice', (signal) => voice(parsed.data.sdp, signal));
   });
 
   app.post('/api/ask', async (req: Request, res: Response) => {
@@ -195,8 +216,8 @@ export function createApp(options: AppOptions) {
     };
   }
 
-  /** Runs the paid model call with the timeout and disconnect handling both endpoints share. */
-  async function run(res: Response, what: 'ask' | 'chat', answer: (signal: AbortSignal) => Promise<object>) {
+  /** Runs a paid upstream call with shared timeout and disconnect handling. */
+  async function run(res: Response, what: 'ask' | 'chat' | 'voice', answer: (signal: AbortSignal) => Promise<object>) {
     // The timeout covers only the paid model run; a client that leaves cancels it.
     const timeout = AbortSignal.timeout(options.timeoutMs ?? 25_000);
     const disconnect = new AbortController();
@@ -214,7 +235,7 @@ export function createApp(options: AppOptions) {
       }
       const timedOut = timeout.aborted;
       // Log the failure kind, not the question: questions can carry personal details.
-      console.error(`${what} failed: ${timedOut ? 'timeout' : error instanceof Error ? error.name : 'unknown'}`);
+      console.error(`${what} failed: ${timedOut ? 'timeout' : what === 'voice' ? 'upstream failure' : error instanceof Error ? error.name : 'unknown'}`);
       res.status(timedOut ? 504 : 502).json({ error: timedOut ? 'The answer took too long. Try again.' : 'Couldn’t get an answer right now.' });
     } finally {
       done?.();

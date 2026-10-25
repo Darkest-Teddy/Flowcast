@@ -83,6 +83,7 @@ import { fireResponseLayers } from './layers/fireResponse';
 import { AskPanel, type AskShow } from './AskPanel';
 import { askRouteLayers, type AskRoute } from './layers/askRoute';
 import { askMeetings, type AskContext } from './insights';
+import { LiveVoice } from './LiveVoice';
 import type { Stay, WalkRoute } from './sim/playback';
 import { fireLayers, fireTooltip, loadFireModels, nearestResponding, type FireModels } from './layers/fireTrucks';
 import { loadFireNetwork, planFireResponse, roadsNear, signalOracle, type FireNetwork } from './sim/fireResponse';
@@ -1431,6 +1432,13 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {askContext && <LiveVoice context={{ weekday, time: askContext.time,
+          campus: campus === 'fenway' || campus === 'medical' ? campus : 'charles-river' }}
+          onAnswer={(answer) => {
+            if (answer.show) showAsk({ ...answer.show,
+              select: askContext.locations.find(location => location.id === answer.show?.select) ?? null });
+          }} />}
 
         {hud && (
           <div className="tabs" role="tablist" aria-label="Panel" onKeyDown={onTabKey}>
