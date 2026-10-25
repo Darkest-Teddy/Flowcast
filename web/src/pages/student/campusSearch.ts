@@ -14,6 +14,7 @@ import type {
 import { formatDayTime, formatHour, formatMeters, formatPercent, formatTime } from '../../lib/format';
 import { interpret, type InsightData, type Walk } from '../../lib/insights';
 import type { AgentAnswer } from '@map/askClient';
+import type { TransitContext } from '../../lib/transitDeparture';
 
 export interface CampusData {
   locations: CampusLocation[];
@@ -24,6 +25,8 @@ export interface CampusData {
   places: PlaceForecast[];
   geo: CampusGeo;
   homeLocationId: string | null;
+  /** Published timetables for leave-by times by T or BU Shuttle; walking only without them. */
+  transit?: TransitContext;
 }
 
 export interface SearchResult {
@@ -161,14 +164,14 @@ export function answerQuestion(query: string, d: CampusData, now = new Date()): 
   const name = (id: string) => locationName(d.locations, id, false);
   const short = (id: string) => locationName(d.locations, id);
   if (/\bwhen (?:should|must|can|do) i (?:need to )?(?:leave|depart|head out)\b|\bam i late\b|\bcan i make it\b|\bleave.by time\b/i.test(query)) {
-    return departureAnswer(d.schedule, d.locations, d.geo, d.homeLocationId, now.getTime());
+    return departureAnswer(d.schedule, d.locations, d.geo, d.homeLocationId, now.getTime(), d.transit);
   }
   const insight = interpret(query, data, now);
 
   switch (insight.kind) {
     case 'nextClass':
     case 'noNextClass':
-      return departureAnswer(d.schedule, d.locations, d.geo, d.homeLocationId, now.getTime());
+      return departureAnswer(d.schedule, d.locations, d.geo, d.homeLocationId, now.getTime(), d.transit);
     case 'leastCrowded': {
       const { placeKind, at, ranked, from } = insight;
       const when = Math.abs(at.getTime() - now.getTime()) < 60_000 ? 'right now' : `at ${formatTime(at.toISOString())}`;

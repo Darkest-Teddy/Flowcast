@@ -20,6 +20,7 @@ import { AskChat } from './student/AskChat';
 import { SearchResults } from './student/SearchResults';
 import { bostonDay, bostonTime } from '../lib/departure';
 import { DepartureCard, useDepartureClock } from './student/DepartureCard';
+import { useCampusTransit } from '../lib/transitTimetables';
 import styles from './Home.module.css';
 
 export default function Home() {
@@ -29,6 +30,7 @@ export default function Home() {
   const places = useResource(api.getPlaceForecasts);
   const hourly = useResource(api.getHourlyForecasts);
   const geo = useResource(api.getCampusGeo);
+  const transit = useCampusTransit();
   const profile = useResource(api.getProfile);
   const events = useResource(api.getCampusEvents);
   const clubs = useResource(api.getClubs);
@@ -75,6 +77,7 @@ export default function Home() {
         hourly: hourly.data ?? [], places: places.data ?? [],
         geo: geo.data ?? { positions: {}, walkMeters: {} },
         homeLocationId: session?.user.homeLocationId ?? null,
+        transit: transit.context,
       }} />
 
       {mode === 'search' && search && (
