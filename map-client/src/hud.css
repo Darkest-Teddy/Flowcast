@@ -269,15 +269,112 @@
   font-weight: 600;
 }
 
-.hud-scrubber {
-  display: flex;
-  align-items: center;
-  width: 120px;
+/* Forward and fast-forward, beside play. */
+.hud-step {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--map-ink-secondary, #a1a1a6);
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
 }
 
-.hud-scrubber input[type='range'] {
+@media (hover: hover) {
+  .hud-step:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.12);
+    color: var(--color-ink, #f5f5f7);
+  }
+}
+
+.hud-step[aria-pressed='true'] {
+  background: rgb(255 255 255 / 0.16);
+  color: var(--color-ink, #f5f5f7);
+}
+
+.hud-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* The rate, shown only once time stops running at real speed. */
+.hud-rate {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-ink, #f5f5f7);
+}
+
+/* The drag bar, in the status group beside the clock it moves. */
+.hud-status .hud-scrubber {
+  display: flex;
+  align-items: center;
+  width: 150px;
+}
+
+.hud-status .hud-scrubber input[type='range'] {
   width: 100%;
   margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Building search
+ * ------------------------------------------------------------------------- */
+.hud-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 0 10px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.07);
+  color: var(--map-ink-secondary, #a1a1a6);
+}
+
+.hud-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: none;
+  color: var(--color-ink, #f5f5f7);
+  font: inherit;
+}
+
+.hud-search input:focus {
+  outline: none;
+}
+
+/* The browser's own clear affordance would sit beside ours. */
+.hud-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.hud-search button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.hud-search svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 /* ---------------------------------------------------------------------------
@@ -540,12 +637,14 @@
  */
 .app .perf {
   top: auto;
-  left: auto;
-  right: 12px;
-  bottom: 12px;
+  right: auto;
+  /* Above the time bar on the left. Bottom-right is the panel's corner, and the
+     two overlapped whenever a tab was open. */
+  left: 12px;
+  bottom: 64px;
   z-index: 4;
   min-width: 0;
-  max-width: 300px;
+  max-width: 280px;
   font-size: 11px;
   opacity: 0.85;
 }
@@ -554,9 +653,21 @@
   top: 64px;
 }
 
-/* Live means the map, uncovered. No panel, not even a collapsed stub. */
-.app[data-view='live'] .sheet,
-.app[data-view='live'] .sheet-dim {
+/* No tab open means the map, uncovered. No panel, not even a collapsed stub. */
+.app[data-view='none'] .sheet,
+.app[data-view='none'] .sheet-dim {
+  display: none;
+}
+
+/* Clear of the status group, which now carries the clock, the drag bar and the
+   weather across the top right. */
+.app .sheet {
+  top: 64px;
+}
+
+/* The sheet's own stats line duplicated what the panel already says and was the
+   only thing visible when it was collapsed. */
+.app .sheet .sheet-stats {
   display: none;
 }
 

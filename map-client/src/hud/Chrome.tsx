@@ -106,6 +106,23 @@ export const HudIcons = {
       <path d="M5 12h13M13 6.5 18.5 12 13 17.5" />
     </svg>
   ),
+  forward: () => (
+    <svg {...svg}>
+      <path d="M8 5.5v13L17 12z" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  fastForward: () => (
+    <svg {...svg}>
+      <path d="M4 5.5v13L12 12z" fill="currentColor" stroke="none" />
+      <path d="M12.5 5.5v13L20.5 12z" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  search: () => (
+    <svg {...svg}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4 4" />
+    </svg>
+  ),
   close: () => (
     <svg {...svg}>
       <path d="M6 6l12 12M18 6 6 18" />
@@ -177,7 +194,8 @@ export function HudTabs<T extends string>({
   onSelect,
 }: {
   tabs: HudTab<T>[];
-  active: T;
+  /** null when every panel is closed and the map is uncovered. */
+  active: T | null;
   onSelect: (id: T) => void;
 }) {
   return (
@@ -189,8 +207,9 @@ export function HudTabs<T extends string>({
           role="tab"
           id={`hud-tab-${t.id}`}
           aria-selected={active === t.id}
-          aria-controls={t.id === 'live' ? undefined : `hud-panel-${t.id}`}
-          tabIndex={active === t.id ? 0 : -1}
+          aria-controls={`hud-panel-${t.id}`}
+          // With nothing open, the first tab is the one Tab reaches.
+          tabIndex={active === t.id || (active === null && t === tabs[0]) ? 0 : -1}
           onClick={() => onSelect(t.id)}
         >
           {t.label}
@@ -203,13 +222,25 @@ export function HudTabs<T extends string>({
 /* ---------------------------------------------------------------------------
  * Top right: the clock and the weather.
  * ------------------------------------------------------------------------- */
-export function HudStatus({ time, live, children }: { time: string; live: boolean; children?: ReactNode }) {
+export function HudStatus({
+  time,
+  live,
+  scrubber,
+  children,
+}: {
+  time: string;
+  live: boolean;
+  /** The time drag bar. It belongs with the clock it moves, not across the screen. */
+  scrubber?: ReactNode;
+  children?: ReactNode;
+}) {
   return (
     <div className="hud-status">
       <output className="hud-clock" aria-live="off">
         {time}
       </output>
       {live && <span className="hud-live">Clock</span>}
+      {scrubber && <div className="hud-scrubber">{scrubber}</div>}
       {children}
     </div>
   );
@@ -222,6 +253,15 @@ export function HudStatus({ time, live, children }: { time: string; live: boolea
  * clock and five speeds; here the clock lives top right with the weather and this
  * keeps only what changes the simulation.
  * ------------------------------------------------------------------------- */
+/*
+ * Three buttons instead of a row of speed pills.
+ *
+ * The pills listed every speed the simulation can run at, which is a setting, not
+ * a control: picking between 1x, 30x, 120x and 600x is not something you do while
+ * watching. Play/pause is the control; forward steps up a speed and fast-forward
+ * jumps to the fastest. The rate itself is shown on fast-forward so it is never a
+ * mystery which one is running.
+ */
 export function HudTime({
   playing,
   onPlay,
@@ -230,7 +270,6 @@ export function HudTime({
   onSpeed,
   live,
   onLive,
-  scrubber,
 }: {
   playing: boolean;
   onPlay: () => void;
@@ -239,8 +278,12 @@ export function HudTime({
   onSpeed: (s: number) => void;
   live: boolean;
   onLive: () => void;
-  scrubber?: ReactNode;
 }) {
+  const at = speeds.indexOf(speed);
+  const fastest = speeds[speeds.length - 1];
+  const next = speeds[Math.min(at < 0 ? 1 : at + 1, speeds.length - 1)];
+  const atFastest = speed === fastest;
+
   return (
     <div className="hud-time" role="group" aria-label="Time">
       <button
@@ -253,25 +296,34 @@ export function HudTime({
         <HudIcons.play playing={playing} />
       </button>
 
-      <div className="hud-speeds" role="group" aria-label="Speed">
-        {speeds.map((s) => (
-          <button
-            key={s}
-            type="button"
-            aria-pressed={!live && speed === s}
-            onClick={() => onSpeed(s)}
-            title={`${s} times real time`}
-          >
-            {s}×
-          </button>
-        ))}
-      </div>
-
-      <button type="button" className="hud-live-toggle" aria-pressed={live} onClick={onLive} title="Follow Boston time and live transit">
-        {live ? 'Live · simulating' : 'Go live'}
+      <button
+        type="button"
+        className="hud-step"
+        onClick={() => onSpeed(next)}
+        disabled={atFastest}
+        aria-label={`Faster, ${next} times real time`}
+        title={`Faster · ${next}×`}
+      >
+        <HudIcons.forward />
       </button>
 
-      {scrubber && <div className="hud-scrubber">{scrubber}</div>}
+      <button
+        type="button"
+        className="hud-step"
+        onClick={() => onSpeed(fastest)}
+        aria-pressed={atFastest}
+        aria-label={`Fastest, ${fastest} times real time`}
+        title={`Fastest · ${fastest}×`}
+      >
+        <HudIcons.fastForward />
+      </button>
+
+      {/* The rate, only once it stops being real time. */}
+      {!live && speed > 1 && <span className="hud-rate">{speed}×</span>}
+
+      <button type="button" className="hud-live-toggle" aria-pressed={live} onClick={onLive} title="Follow Boston time and live transit">
+        {live ? 'Live' : 'Go live'}
+      </button>
     </div>
   );
 }

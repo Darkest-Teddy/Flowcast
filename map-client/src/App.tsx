@@ -152,31 +152,38 @@ const OCCUPANCY_REFRESH_MS = 500;
 const START_QUESTION = params.get('ask');
 
 /*
- * The top tabs: what you are reading, as opposed to what is drawn on the map.
- * Each one opens the panel of the same name; Live closes it and leaves the map
- * uncovered. The detailed panels below are reached from the sub-tabs inside
- * Analytics, and the layers themselves are toggled from the left rail.
+ * The top tabs. Each opens exactly one panel, and clicking the open one closes
+ * it, so no tab needs to mean "show me nothing" -- the map uncovered is simply
+ * the state with none of them selected.
+ *
+ *   Log        what has happened and what is happening now
+ *   Events     making and scheduling events
+ *   Analytics  the campus measured: search, rankings, data
+ *
+ * Weather is not here. It opens from the chip in the top-right status, next to
+ * the temperature it belongs to.
  */
-type View = 'live' | 'log' | 'events' | 'analytics';
+type View = 'log' | 'events' | 'analytics';
 
 const VIEW_TABS: { id: View; label: string }[] = [
-  { id: 'live', label: 'Live' },
   { id: 'log', label: 'Log' },
   { id: 'events', label: 'Events' },
   { id: 'analytics', label: 'Analytics' },
 ];
 
-/** The panel each view opens. */
-const VIEW_TAB: Record<Exclude<View, 'live'>, Tab> = {
-  log: 'incidents',
-  events: 'crowds',
-  analytics: 'data',
+const VIEW_TITLES: Record<View, string> = {
+  log: 'Log',
+  events: 'Events',
+  analytics: 'Analytics',
 };
 
-type Tab = 'ask' | 'crowds' | 'data' | 'transit' | 'traffic' | 'bikes' | 'weather' | 'incidents';
-const TAB_LABELS: Record<Tab, string> = {
-  ask: 'Ask', crowds: 'Crowds', data: 'Data', transit: 'Transit', traffic: 'Traffic', bikes: 'Bikes', weather: 'Weather', incidents: 'Incidents',
-};
+/*
+ * Kept as internal routing, not as a tab row any more. The map still sets it --
+ * clicking a traffic count opens the traffic reading, a stop opens transit -- and
+ * Analytics scrolls to whichever section that is. The user never picks from a
+ * list of eight.
+ */
+type Tab = 'crowds' | 'data' | 'transit' | 'traffic' | 'bikes' | 'weather' | 'incidents';
 /** Gap between the floating toolbar and what it sits on (the screen edge, or the phone sheet). */
 const TOOLBAR_GAP = 12;
 
@@ -256,8 +263,10 @@ export default function App() {
   // Never 'ask': that lives in the bar at the bottom of the screen, and a start
   // question is handed to it directly rather than by opening a panel.
   const [tab, setTab] = useState<Tab>('crowds');
-  // Which top tab is lit. Opens on the map itself, with nothing covering it.
-  const [view, setView] = useState<View>('live');
+  // Which top tab is lit, or null for the map with nothing over it.
+  const [view, setView] = useState<View | null>(null);
+  // Narrows the campus list. Empty shows the full ranking.
+  const [search, setSearch] = useState('');
   // The sheet: open on wide screens, a peek on phones (half height when ?ask= has an answer to show).
   const phone = usePhone();
   const phoneRef = useRef(phone);
@@ -1292,15 +1301,22 @@ export default function App() {
    * the sheet; Live closes it, so the map is never covered unless you asked for
    * something to read.
    */
+  /*
+   * What the campus list shows. Searching narrows to the three best matches,
+   * because a search is a question about one building and a long list is just
+   * the ranking again. With no search it is the ranking, top eight.
+   */
+  const shownBuildings = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return ranked.slice(0, 8);
+    return ranked.filter((o) => o.location.name.toLowerCase().includes(q)).slice(0, 3);
+  })();
+
+  /** Picking the open tab closes it, so the map uncovered needs no tab of its own. */
   const selectView = (next: View) => {
-    setView(next);
-    // 'peek' is the sheet's closed-looking state; 'full' shows the panel.
-    if (next === 'live') {
-      setDetent('peek');
-      return;
-    }
-    setTab(VIEW_TAB[next]);
-    setDetent('full');
+    const closing = view === next;
+    setView(closing ? null : next);
+    setDetent(closing ? 'peek' : 'full');
   };
 
   /* What the left rail shows: the layers drawn on the map, each a toggle. */
@@ -1322,19 +1338,6 @@ export default function App() {
    * bottom of the screen now, and listing it here as well would be the same
    * thing in two places.
    */
-  const tabs: Tab[] = ['crowds', 'data', 'transit', 'traffic', ...(bikes ? ['bikes' as const] : []), 'weather', 'incidents'];
-  const onTabKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    const at = tabs.indexOf(tab);
-    const next = e.key === 'ArrowRight' ? tabs[(at + 1) % tabs.length]
-      : e.key === 'ArrowLeft' ? tabs[(at - 1 + tabs.length) % tabs.length]
-      : e.key === 'Home' ? tabs[0]
-      : e.key === 'End' ? tabs[tabs.length - 1]
-      : null;
-    if (!next) return;
-    e.preventDefault();
-    setTab(next);
-    document.getElementById(`tab-${next}`)?.focus();
-  };
   // The map dims a little behind an open sheet (styles.css, .sheet-dim).
   const dim = detent === 'peek' ? 'off' : phone ? detent : 'open';
   const hiddenNote = (what: string, show: () => void) => (
@@ -1344,7 +1347,9 @@ export default function App() {
   );
 
   return (
-    <div className={clean ? 'app is-clean' : 'app'} data-view={view}>
+    // 'none' rather than omitting the attribute: a missing attribute cannot be
+    // selected on, and the closed state is the one that has to hide the sheet.
+    <div className={clean ? 'app is-clean' : 'app'} data-view={view ?? 'none'}>
       {clean && <div className="clean-hint" role="status">Press H to show the interface</div>}
       <div ref={containerRef} />
       {light === 'auto' && hud && (
@@ -1371,18 +1376,10 @@ export default function App() {
 
           <HudTabs tabs={VIEW_TABS} active={view} onSelect={selectView} />
 
-          <HudStatus time={formatClock(hud.time)} live={live}>
-            <span className="weather-chip-slot" ref={setWeatherChip} />
-          </HudStatus>
-
-          <HudTime
-            playing={playing}
-            onPlay={togglePlaying}
-            speed={speed}
-            speeds={SPEEDS}
-            onSpeed={changeSpeed}
+          {/* The drag bar sits with the clock it moves, not across the screen. */}
+          <HudStatus
+            time={formatClock(hud.time)}
             live={live}
-            onLive={goLive}
             scrubber={
               <input
                 type="range"
@@ -1396,6 +1393,18 @@ export default function App() {
                 aria-valuetext={formatClock(hud.time)}
               />
             }
+          >
+            <span className="weather-chip-slot" ref={setWeatherChip} />
+          </HudStatus>
+
+          <HudTime
+            playing={playing}
+            onPlay={togglePlaying}
+            speed={speed}
+            speeds={SPEEDS}
+            onSpeed={changeSpeed}
+            live={live}
+            onLive={goLive}
           />
 
           {askContext && (
@@ -1461,16 +1470,12 @@ export default function App() {
           )}
         </div>
 
-        {hud && (
-          <div className="tabs" role="tablist" aria-label="Panel" onKeyDown={onTabKey}>
-            {tabs.map((t) => (
-              <button key={t} role="tab" id={`tab-${t}`} aria-selected={tab === t} aria-controls={`panel-${t}`} tabIndex={tab === t ? 0 : -1} onClick={() => setTab(t)}>
-                {TAB_LABELS[t]}
-              </button>
-            ))}
-          </div>
-        )}
-        {hud && tab === 'incidents' && (
+        {/*
+          No sub-tab row. Each top tab owns one panel, so the only navigation is
+          the three tabs across the top; a second row of eight underneath them
+          was the thing this layout set out to remove.
+        */}
+        {hud && view === 'log' && (
           <IncidentPanel locations={ranked.map((entry) => entry.location)} time={hud.time} run={incidentRun}
             onStart={startIncident} onReset={resetIncident} onLocate={selectSource}
             siren={siren} onSiren={toggleSiren} responsePending={responsePending} />
@@ -1481,25 +1486,40 @@ export default function App() {
           keeping this section mounted and merely hidden: multi-turn chat has to
           keep its history when you look at something else.
         */}
-        {hud && tab === 'crowds' && (
-          <section id="panel-crowds" role="tabpanel" aria-labelledby="tab-crowds">
+        {/* Events: making and scheduling them, nothing else. */}
+        {hud && view === 'events' && sourceData && baseDayRef.current && (
+          <section id="hud-panel-events" role="tabpanel" aria-labelledby="hud-tab-events">
+            <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
+              onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
+              venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
+              time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
+          </section>
+        )}
+
+        {/* Analytics: the campus measured. Search first, because finding one
+            building is the common case; the full ranking is the fallback. */}
+        {hud && view === 'analytics' && (
+          <section id="hud-panel-analytics" role="tabpanel" aria-labelledby="hud-tab-analytics">
             {sourceData && <ConditionsPanel scenarios={scenarioFile?.scenarios ?? []} scenario={scenario} live={live} status={engineStatus} error={engineError}
               info={dayInfo} outdoors={hud.outdoors ?? null} comparison={comparison} onScenario={chooseScenario} onCompare={compareWithBaseline} />}
-            {sourceData && baseDayRef.current && (
-              <EventsPanel day={simDay} data={sourceData} locations={baseDayRef.current.locations} eventsOn={eventsOn}
-                onToggle={toggleEvents} onPickDate={pickEventDate} onShow={selectSource}
-                venueDay={eventDay} calendar={eventSourcesRef.current.calendar} popularity={eventSourcesRef.current.popularity}
-                time={hud.time} onShowVenue={(position) => basemapRef.current?.flyTo(position, 16.6)} onJump={jumpToVenueEvent} />
-            )}
 
-            <h2>Campus activity</h2>
-            {hud.public ? (
-              <p className="muted">
-                Students only. Streets: {hud.walking.toLocaleString()} students walking · {hud.public.toLocaleString()} public (non-students), from MBTA ridership and pedestrian counts.
-              </p>
-            ) : null}
+            <div className="hud-search">
+              <HudIcons.search />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                placeholder="Search buildings"
+                aria-label="Search buildings"
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} aria-label="Clear search">
+                  <HudIcons.close />
+                </button>
+              )}
+            </div>
             <ol className="rows">
-              {ranked.slice(0, 8).map((o) => {
+              {shownBuildings.map((o) => {
                 const display = activityDisplay({
                   count: o.count, capacity: o.location.capacity, share: o.share,
                   modeled: o.modeled ?? o.location.activityModeled,
@@ -1528,7 +1548,8 @@ export default function App() {
             </ol>
           </section>
         )}
-        {hud && tab === 'bikes' && (
+        {/* Sections of Analytics, not panels of their own. */}
+        {hud && view === 'analytics' && bikes && (
           <section id="panel-bikes" role="tabpanel" aria-labelledby="tab-bikes">
             {!bikes ? <p className="muted">Bluebikes data could not be loaded.</p> : (
               <>
@@ -1611,20 +1632,20 @@ export default function App() {
             )}
           </section>
         )}
-        {hud && tab === 'traffic' && (
+        {hud && view === 'analytics' && (
           <section id="panel-traffic" role="tabpanel" aria-labelledby="tab-traffic">
             {!showCounts && hiddenNote('Count sites are', toggleCounts)}
             <MobilityPanel data={mobilityData} view={mobilityView} mode={mobilityMode} weekday={weekday} selected={selectedMobility} onMode={changeMobilityMode} onSelect={selectMobility} error={mobilityError} />
           </section>
         )}
-        {hud && tab === 'data' && (
+        {hud && view === 'analytics' && (
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data">
             {baseDayRef.current && <p>{baseDayRef.current.populationSummary.total.toLocaleString()} students · {baseDayRef.current.populationSummary.reportingPeriod}. Students outside the study area remain off map.</p>}
             {publicCrowdRef.current && <p>Public (non-students): {publicCrowdRef.current.stats.walks.toLocaleString()} walks today on streets and at MBTA stops, filling the gap between the simulated students and observed MBTA ridership (Fall 2025) and pedestrian counts. They never enter university buildings and are not in any building count.</p>}
             {sourceData && baseDayRef.current ? <SourceDataPanel data={sourceData} locations={baseDayRef.current.locations} selectedBuilding={selected} campus={campus} weekday={weekday} time={hud.time} onSelect={selectSource} /> : <p>Campus data could not be loaded.</p>}
           </section>
         )}
-        {hud && tab === 'transit' && (
+        {hud && view === 'analytics' && (
           <section id="panel-transit" role="tabpanel" aria-labelledby="tab-transit">
             {!showTransit && hiddenNote('MBTA service is', toggleTransit)}
             {showParking && (parkingError
