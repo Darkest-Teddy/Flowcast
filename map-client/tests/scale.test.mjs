@@ -21,7 +21,23 @@ test('bundled population and weekly schedules conserve all people and physical t
   const mapped = new Set(base.locations.map(l => l.id));
   const gateways = new Set(Object.values(base.stopRoutes ?? {}).map(route => JSON.stringify(route.path[0])));
   const estimatedVisits = new Map();
-  let checkedTrips = 0;
+  let checkedTrips = 0, alternativeTrips = 0, directPairTrips = 0;
+  const speedOf = new Map();
+  const same = (a, b) => a[0] === b[0] && a[1] === b[1];
+  const alternatives = new Map();
+  /** Lengths of the ways a trip's path joins two saved walk routes at another place's entrance. */
+  const alternativeLengths = trip => {
+    if (alternatives.has(trip.path)) return alternatives.get(trip.path);
+    const lengths = [];
+    for (const via of base.locations.map(l => l.id)) {
+      const first = base.walkRoutes[`${trip.from}>${via}`], second = base.walkRoutes[`${via}>${trip.to}`];
+      if (!first || !second || first.path.length + second.path.length - 1 !== trip.path.length) continue;
+      if (first.path.every((point, i) => same(point, trip.path[i])) && second.path.every((point, i) => same(point, trip.path[first.path.length - 1 + i]))) {
+        lengths.push(first.cumulative.at(-1) + second.cumulative.at(-1));
+      }
+    }
+    alternatives.set(trip.path, lengths); return lengths;
+  };
   for (let weekday = 0; weekday < 7; weekday++) {
     const day = buildSourceDay(base, source, weekday);
     const playback = new Playback(day);
@@ -101,11 +117,19 @@ test('bundled population and weekly schedules conserve all people and physical t
       assert.ok(mapped.has(trip.to) || trip.to === 'off-campus');
       if (trip.from === 'off-campus') assert.ok(gateways.has(JSON.stringify(trip.path[0])));
       if (trip.to === 'off-campus') assert.ok(gateways.has(JSON.stringify(trip.path.at(-1))));
+      // Each trip at its own walker's speed, along the shortest saved route or a near-equal one
+      // joined at another place's entrance (at most 10% longer).
       const speed = agents.get(trip.agent).walkSpeed;
-      assert.equal(speed, 1.4);
+      assert.ok(speed >= 1.1 && speed <= 1.6, `${trip.agent} walks at a plausible speed`);
+      speedOf.set(trip.agent, speed);
       const route = base.walkRoutes[`${trip.from}>${trip.to}`];
       if (route) {
-        assert.ok(Math.abs((trip.timestamps.at(-1)-trip.timestamps[0])*speed-route.cumulative.at(-1)) < 1e-6);
+        const walked = (trip.timestamps.at(-1)-trip.timestamps[0])*speed;
+        const lengths = trip.path === route.path ? [route.cumulative.at(-1)] : alternativeLengths(trip);
+        assert.ok(lengths.some(metres => Math.abs(walked-metres) < 1e-6 && metres <= route.cumulative.at(-1) * 1.1 + 1e-6),
+          `${trip.from}>${trip.to} walks a saved route or a near-equal alternative at its walker's speed`);
+        if (trip.path !== route.path) alternativeTrips++;
+        directPairTrips++;
       }
       checkedTrips++;
     }
@@ -119,5 +143,11 @@ test('bundled population and weekly schedules conserve all people and physical t
     assert.ok(base.agents.some(agent => agent.home === location.id), `${location.id} has allocated residents`);
   }
   assert.ok(checkedTrips > 10000);
+  // Walking speeds vary person to person (population.ts walkSpeedFor), and foot traffic spreads over near-equal routes.
+  const speeds = [...speedOf.values()], mean = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+  assert.ok(mean > 1.33 && mean < 1.41, `mean walking speed ${mean}`);
+  assert.ok(new Set(speeds).size > 100 && Math.min(...speeds) < 1.25 && Math.max(...speeds) > 1.5);
+  const share = alternativeTrips / directPairTrips;
+  assert.ok(share > 0.1 && share < 0.6, `share of walks on a near-equal alternative route: ${share}`);
   console.log(`Verified ${checkedTrips} trips and 672 population snapshots across seven days`);
 });

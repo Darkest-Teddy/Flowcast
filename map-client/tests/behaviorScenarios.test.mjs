@@ -84,6 +84,21 @@ test('finals and a snow day change timelines through the calendar and the weathe
   assert.ok(finals.sourceAssignments.length < normal.sourceAssignments.length * 0.45, 'most class meetings give way to exams');
   const walkMinutes = (day) => day.trips.reduce((sum, trip) => sum + trip.timestamps.at(-1) - trip.timestamps[0], 0) / Math.max(1, day.trips.length);
   assert.ok(walkMinutes(snow) > walkMinutes(normal) * 1.05, 'walking is slower in snow');
+  // Each person walks at their own speed, which the day's agents carry (slower for everyone in snow).
+  const meanSpeed = (day) => day.agents.reduce((sum, agent) => sum + agent.walkSpeed, 0) / day.agents.length;
+  assert.ok(meanSpeed(normal) > 1.3 && meanSpeed(normal) < 1.4 && meanSpeed(snow) < meanSpeed(normal) * 0.9, `${meanSpeed(normal)} → ${meanSpeed(snow)} m/s`);
+  for (const day of [normal, snow]) {
+    const speeds = new Map(day.agents.map(agent => [agent.id, agent.walkSpeed]));
+    let checked = 0;
+    for (const trip of day.trips) {
+      const route = sample.base.walkRoutes[`${trip.from}>${trip.to}`];
+      if (!route || trip.path !== route.path) continue;
+      assert.ok(Math.abs((trip.timestamps.at(-1) - trip.timestamps[0]) * speeds.get(trip.agent) - route.cumulative.at(-1)) < 1e-6, `${trip.agent} at their own speed`);
+      checked++;
+    }
+    assert.ok(checked > 1000);
+    assert.ok(new Set(speeds.values()).size > day.agents.length / 2, 'speeds vary person to person');
+  }
   for (const location of sample.base.locations) assert.equal(normal.locations.find(row => row.id === location.id).capacity, location.capacity, 'capacities never change');
 });
 

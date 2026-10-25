@@ -29,6 +29,26 @@ function hash(key: string) {
   return (n >>> 0) / 4294967296;
 }
 
+/** Mean and person-to-person standard deviation of walking speed (m/s), and its bounds. */
+export const WALK_SPEED_MEAN = 1.37, WALK_SPEED_SD = 0.1, WALK_SPEED_RANGE: readonly [number, number] = [1.1, 1.6];
+/**
+ * A student's own comfortable walking speed, stable for the week (a hash of the id). Basis:
+ * comfortable gait speed of adults in their 20s is about 1.4 m/s (Bohannon 1997, Age and Ageing
+ * 26:15–19), and field counts of pedestrians on city sidewalks put the mean a little lower, about
+ * 1.3–1.4 m/s. The mean, the 0.1 m/s spread and the 1.1–1.6 m/s bounds are assumptions, not BU data.
+ */
+export function walkSpeedFor(id: string): number {
+  // Sum of four uniforms ≈ normal (mean 2, variance 1/3), from a mixed hash so nearby ids differ.
+  let sum = 0;
+  for (let k = 0; k < 4; k++) {
+    let n = Math.round(hash(`walk-speed:${k}:${id}`) * 4294967296);
+    n ^= n >>> 16; n = Math.imul(n, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); n ^= n >>> 16;
+    sum += (n >>> 0) / 4294967296;
+  }
+  const z = (sum - 2) * Math.sqrt(3);
+  return Math.round(Math.max(WALK_SPEED_RANGE[0], Math.min(WALK_SPEED_RANGE[1], WALK_SPEED_MEAN + WALK_SPEED_SD * z)) * 1000) / 1000;
+}
+
 export function campusOfferingWeights(base: DayData, source: CampusData): Record<string, { undergraduate: number; graduate: number }> {
   const locations = new Map(base.locations.map(location => [location.id, location]));
   const weights: Record<string, { undergraduate: number; graduate: number }> = {};
@@ -137,7 +157,7 @@ export function buildPopulation(base: DayData, source: CampusData, population: P
     const academicCampus = campusFor(id, cohort.level);
     agents.push({ id, home: 'off-campus', residency: 'commuter', studentLevel: cohort.level,
       attendance: cohort.attendance, campus: academicCampus, academicCampus, model: Math.floor(hash(`model:${id}`) * 12),
-      walkSpeed: 1.4 });
+      walkSpeed: walkSpeedFor(id) });
   }
   const residents = agents.filter((a) => a.studentLevel === 'undergraduate')
     .sort((a, b) => hash(`residence:${a.id}`) - hash(`residence:${b.id}`))
