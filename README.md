@@ -1,16 +1,24 @@
 <div align="center">
 
-# Flowcast
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.png">
+  <img src="docs/images/logo.png" alt="Flowcast" width="440">
+</picture>
 
 **See how crowded BU will be before you get there.**
 
 A live 3D model of Boston University where 36,977 simulated students follow the university's real published class schedules, so anyone can see which dining halls, libraries, gyms and buildings will be packed, hour by hour, and how campus events and emergencies change that.
 
-![Track: Civic Action](https://img.shields.io/badge/Hackachusetts-Civic%20Action-0066cc)
-![Built with Kiro](https://img.shields.io/badge/Built%20with-Kiro-7d3fb8)
-![Public data only](https://img.shields.io/badge/data-100%25%20public-1d7a35)
-![522 tests](https://img.shields.io/badge/tests-522%20passing-1d7a35)
-[![CI](https://github.com/Darkest-Teddy/Flowcast/actions/workflows/ci.yml/badge.svg)](https://github.com/Darkest-Teddy/Flowcast/actions/workflows/ci.yml)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![deck.gl](https://img.shields.io/badge/deck.gl-1C2C4C?logo=webgl&logoColor=white)
+![MapLibre](https://img.shields.io/badge/MapLibre-295DAA?logo=maplibre&logoColor=white)
+![Three.js](https://img.shields.io/badge/Three.js-000000?logo=threedotjs&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-5FA04E?logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?logo=express&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 
 ![Flowcast: the Charles River Campus at 12:20 PM, buildings glowing by how full they are](docs/images/map-hero.jpg)
 
