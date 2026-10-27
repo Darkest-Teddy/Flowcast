@@ -255,6 +255,6 @@ All public, with no login: the BU course catalog and classroom directory, BU Din
 
 ## Team
 
-A team of four, submitted to **Hackachusetts, Civic Action track**.
+A team of four, submitted to **Hackachusetts, Civic Action track** and **Boston University's DS + X Hackathon 2026.**
 
 The full project plan, including roles and design decisions, is in [`.plans/campus-digital-twin-spec.md`](.plans/campus-digital-twin-spec.md).
