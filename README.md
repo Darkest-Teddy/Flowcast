@@ -14,7 +14,7 @@ A live 3D model of Boston University where 36,977 simulated students follow the 
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
 ![deck.gl](https://img.shields.io/badge/deck.gl-1C2C4C?logo=webgl&logoColor=white)
-![MapLibre](https://img.shields.io/badge/MapLibre-295DAA?logo=maplibre&logoColor=white)
+![Mapbox](https://img.shields.io/badge/Mapbox-4264FB?logo=mapbox&logoColor=white)
 ![Three.js](https://img.shields.io/badge/Three.js-000000?logo=threedotjs&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-5FA04E?logo=nodedotjs&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-000000?logo=express&logoColor=white)
